@@ -304,9 +304,21 @@ resource "aws_apigatewayv2_route" "get_match" {
   target    = "integrations/${aws_apigatewayv2_integration.match_api.id}"
 }
 
+resource "aws_apigatewayv2_route" "get_match_details" {
+  api_id    = aws_apigatewayv2_api.http_api.id
+  route_key = "GET /match/{matchId}/details"
+  target    = "integrations/${aws_apigatewayv2_integration.match_api.id}"
+}
+
 resource "aws_apigatewayv2_route" "get_matches" {
   api_id    = aws_apigatewayv2_api.http_api.id
   route_key = "GET /matches"
+  target    = "integrations/${aws_apigatewayv2_integration.match_api.id}"
+}
+
+resource "aws_apigatewayv2_route" "post_innings" {
+  api_id    = aws_apigatewayv2_api.http_api.id
+  route_key = "POST /match/{matchId}/innings"
   target    = "integrations/${aws_apigatewayv2_integration.match_api.id}"
 }
 

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { TeamData } from '../types';
 
 interface MatchSetupProps {
-    onStartMatch: (teamA: TeamData, teamB: TeamData, overs: number, batFirstTeam: string) => void;
+    onStartMatch: (teamA: TeamData, teamB: TeamData, overs: number, batFirstTeam: string, matchId: string, inningId: string) => void;
 }
 
 const handleScroll = (textarea: HTMLTextAreaElement, lineNumbers: HTMLDivElement) => {
@@ -143,14 +143,19 @@ const MatchSetup: React.FC<MatchSetupProps> = ({ onStartMatch }) => {
                     teamA: teamA.name,
                     teamB: teamB.name,
                     totalOvers: overs,
-                    matchType: "T20"
+                    batFirstTeam: batFirstTeamName
                 })
             });
 
-            const { id: matchId } = await response.json();
-            console.log("Match Registered in Cloud ☁️:", matchId);
+            if (!response.ok) {
+                const errText = await response.text();
+                throw new Error(`Match provisioning failed: ${errText}`);
+            }
 
-            onStartMatch(teamA, teamB, overs, batFirstTeamName, matchId);
+            const { matchId, inningId } = await response.json();
+            console.log("Match Registered in Cloud ☁️:", matchId, "Inning:", inningId);
+
+            onStartMatch(teamA, teamB, overs, batFirstTeamName, matchId, inningId);
         } catch (err) {
             console.error("Match Initialization Failed:", err);
             alert("Cloud Connection Failed. Check your Aiven database status.");

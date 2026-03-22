@@ -12,8 +12,10 @@ CricScore provides a RESTful interface for scoring actions and a real-time WebSo
 | Endpoint | Method | Description |
 | :--- | :--- | :--- |
 | `/match` | `POST` | **Initialize Match**: Registers a new game in Aiven PostgreSQL. Returns a unique `matchId`. |
+| `/match/{id}/innings` | `POST` | **Create Second Innings**: Registers the second innings. Returns a unique `inningId`. |
 | `/matches` | `GET` | **Live Discovery Hub**: Returns all active matches from the database, ordered by creation time. |
-| `/match/{id}` | `GET` | **Match Details**: Retrieves full metadata for a specific match ID. |
+| `/match/{id}` | `GET` | **Match Header**: Retrieves metadata for a specific match ID. |
+| `/match/{id}/details` | `GET` | **Full Match Details**: Retrieves full scorecard details including all innings, players, bowlers, and ball events for a specific match ID. |
 - **Response**: Full match metadata from Aiven PostgreSQL.
 
 ### 3. **Update Score (The Engine)**

@@ -81,3 +81,4 @@ kafka_access_key  = "LS0tLS1CRUdJTiBQUk..."
 - **2026-03-22**: Completed Phase 3, 4, and 5 (Real-time Broadcast).
 - **2026-03-22**: **Phase 6 Complete**: Integrated Discovery Hub & Multi-Match Fan Dashboard. ✨
 - **2026-03-22**: Sub-second latency verified across Aiven Kafka + AWS WebSockets. 🚀
+- **2026-03-22**: **Live Update Patch**: Fixed match provisioning, data hydration, and dynamic route routing for Spectator/History Views. 🏏

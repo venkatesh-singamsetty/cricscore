@@ -34,8 +34,9 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ currentInnings, previousInnings
           </tr>
         </thead>
         <tbody className="space-y-2">
-          {order.map((id) => {
-            const player = players[id];
+          {(order || []).map((id) => {
+            const player = players?.[id];
+            if (!player) return null;
             if (player.ballsFaced === 0 && !player.isOut && id !== displayInnings?.strikerId && id !== displayInnings?.nonStrikerId) {
               return null;
             }
@@ -85,8 +86,9 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ currentInnings, previousInnings
           </tr>
         </thead>
         <tbody className="space-y-2">
-          {order.map((id) => {
-            const bowler = bowlers[id];
+          {(order || []).map((id) => {
+            const bowler = bowlers?.[id];
+            if (!bowler) return null;
             if (bowler.overs === 0 && bowler.balls === 0 && activeTab === 'previous') return null;
             if (bowler.overs === 0 && bowler.balls === 0 && id !== displayInnings?.currentBowlerId) return null;
 

@@ -9,7 +9,10 @@ This folder contains the core Node.js serverless functions that power the CricSc
 ### 1. **Match API (`match-api/`)**
 Handles RESTful initialization and lookup of matches within **Aiven PostgreSQL**.
 - `POST /match`
+- `POST /match/{matchId}/innings`
+- `GET /matches`
 - `GET /match/{matchId}`
+- `GET /match/{matchId}/details`
 
 ### 2. **Score Update Producer (`score-update/`)**
 The "Dual-Write" engine.

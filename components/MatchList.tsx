@@ -61,7 +61,7 @@ const MatchList: React.FC<MatchListProps> = ({ onSelectMatch }) => {
                 </div>
             ) : matches.length === 0 ? (
                 <div className="py-8 text-center border border-dashed border-white/5 rounded-2xl">
-                    <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest leading-relaxed"> No Live Matches Found.<br/>Be the first to start one!</span>
+                    <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest leading-relaxed"> No Records Found.<br/>Be the first to start a match!</span>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto pr-2 scrollbar-hide">

@@ -195,13 +195,10 @@ const MatchView: React.FC<MatchViewProps> = ({
 
     const postScoreUpdate = async (ball: BallEvent) => {
         try {
-            // Use dynamic matchId from props
-            const inningId = "1d76a74c-d5a6-4661-9cd9-c4d2a7930972"; 
-
             await fetch(`${API_URL}/update-score`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ matchId, inningId, ballData: ball })
+                body: JSON.stringify({ matchId, inningId: innings.id, ballData: ball })
             });
             console.log("Live Sync: Ball sent to Aiven Kafka 🏏📡");
         } catch (err) {
