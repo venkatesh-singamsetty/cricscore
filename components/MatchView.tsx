@@ -6,13 +6,21 @@ interface MatchViewProps {
     initialState: InningsState;
     previousInnings?: InningsState;
     totalOvers: number;
-    onInningsEnd: (inningsState: InningsState) => void;
+    matchId: string; // Dynamic ID
+    onInningsEnd: (innings: InningsState) => void;
     onResetMatch: () => void;
 }
 
 type ModalType = 'NONE' | 'WICKET_TYPE' | 'BATTER_SELECT' | 'BOWLER_SELECT' | 'FIELDER_SELECT' | 'EXTRA_RUNS' | 'RUN_OUT_MODAL';
 
-const MatchView: React.FC<MatchViewProps> = ({ initialState, previousInnings, totalOvers, onInningsEnd, onResetMatch }) => {
+const MatchView: React.FC<MatchViewProps> = ({
+    initialState,
+    previousInnings,
+    totalOvers,
+    matchId,
+    onInningsEnd,
+    onResetMatch
+}) => {
     // --- Live Persistence (Synchronous Hydration) ---
     const loadSavedLiveState = () => {
         const savedLive = localStorage.getItem('cric-scorer-live-innings');
@@ -183,8 +191,26 @@ const MatchView: React.FC<MatchViewProps> = ({ initialState, previousInnings, to
         }
     };
 
+    const API_URL = import.meta.env.VITE_API_URL || "https://mmiwp8rgrf.execute-api.us-east-1.amazonaws.com";
+
+    const postScoreUpdate = async (ball: BallEvent) => {
+        try {
+            // Use dynamic matchId from props
+            const inningId = "1d76a74c-d5a6-4661-9cd9-c4d2a7930972"; 
+
+            await fetch(`${API_URL}/update-score`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ matchId, inningId, ballData: ball })
+            });
+            console.log("Live Sync: Ball sent to Aiven Kafka 🏏📡");
+        } catch (err) {
+            console.error("Live Sync Failed:", err);
+        }
+    };
+
     const handleScore = async (runs: number, isWicket = false, wicketType = WicketType.NONE, fielderName?: string, outBatterId?: string) => {
-        if (isProcessing && !fielderName) return; // Allow if we are coming back from fielder select
+        if (isProcessing && !fielderName) return; 
 
         // Check if we need a fielder first
         if (isWicket && (wicketType === WicketType.CAUGHT || wicketType === WicketType.STUMPED || wicketType === WicketType.RUN_OUT) && !fielderName) {
@@ -324,8 +350,8 @@ const MatchView: React.FC<MatchViewProps> = ({ initialState, previousInnings, to
         }
 
         nextInnings.bowlers[bowler.id] = nextBowler;
-
         setInnings(nextInnings);
+        postScoreUpdate(newBallEvent); // 🏏 Real-time Broadcast to Aiven Kafka 
         setPendingExtra(ExtraType.NONE);
         setPendingWicketInfo(null);
 

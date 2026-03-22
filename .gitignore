@@ -20,6 +20,7 @@ dist-ssr/
 # ==============================================================================
 # Ignore local terraform state and binary files
 .terraform/
+.terraform.lock.hcl
 *.tfstate
 *.tfstate.*
 
@@ -27,9 +28,11 @@ dist-ssr/
 crash.log
 crash.*.log
 
-# Ignore variables file containing secrets (terraform.tfvars should usually be ignored if it contains real secrets)
-# terraform.tfvars
-# *.auto.tfvars
+# Ignore variables file containing secrets (terraform.tfvars MUST be ignored for security)
+terraform.tfvars
+*.auto.tfvars
+terraform/*.zip
+backend/**/node_modules/
 
 # Ignore terraform plan files
 *.tfplan

@@ -41,3 +41,47 @@ variable "backend_dynamodb_table" {
   type        = string
   description = "DynamoDB table for state locking"
 }
+
+variable "database_url" {
+  type        = string
+  description = "Aiven PostgreSQL Connection URI"
+  sensitive   = true
+}
+
+variable "kafka_bootstrap_servers" {
+  type        = string
+  description = "Aiven Kafka Bootstrap Servers (CSV)"
+}
+
+variable "kafka_username" {
+  type        = string
+  description = "Aiven Kafka SASL Username"
+  sensitive   = true
+}
+
+variable "kafka_password" {
+  type        = string
+  description = "Aiven Kafka SASL Password"
+  sensitive   = true
+}
+
+variable "kafka_ca_cert" {
+  type        = string
+  description = "Base64 encoded Aiven Kafka CA Certificate"
+  sensitive   = true
+  default     = ""
+}
+
+variable "kafka_access_cert" {
+  type        = string
+  description = "Base64 encoded Aiven Kafka Access Certificate"
+  sensitive   = true
+  default     = ""
+}
+
+variable "kafka_access_key" {
+  type        = string
+  description = "Base64 encoded Aiven Kafka Access Key"
+  sensitive   = true
+  default     = ""
+}
