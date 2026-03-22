@@ -1,7 +1,10 @@
 #!/bin/bash
 set -e
 
-# 1. Build the app
+# 1. Install Dependencies & Build the app
+echo "📦 Installing required dependencies..."
+npm install
+
 echo "🚀 Building the application..."
 npm run build
 

@@ -104,9 +104,9 @@ const MatchSetup: React.FC<MatchSetupProps> = ({ onStartMatch }) => {
     const [teamASquad, setTeamASquad] = useState(['DONNY', 'JIGAR', 'RAJU', 'SANDY', 'SHOBS', 'SHYAM', 'SUNIL', 'SURENDRA', 'VAMSI DESPLANES', 'VAMSI NAPERVILLE', 'VENKY'].join('\n'));
 
     const [teamBName, setTeamBName] = useState('HIT');
-    const [teamBSquad, setTeamBSquad] = useState('');
+    const [teamBSquad, setTeamBSquad] = useState(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'].join('\n'));
 
-    const [overs, setOvers] = useState(15);
+    const [overs, setOvers] = useState(1);
     const [batFirst, setBatFirst] = useState('Team A'); // 'Team A' or 'Team B'
 
     const textareaRefA = useRef<HTMLTextAreaElement>(null);

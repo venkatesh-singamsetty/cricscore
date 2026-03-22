@@ -187,12 +187,26 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ currentInnings, previousInnings
                     <span className="text-2xl font-black text-white italic uppercase tracking-tighter">{displayInnings.totalRuns} Runs</span>
                   </div>
                   <div className="space-y-2">
-                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Extras Breakdown</span>
-                    <div className="flex gap-4 text-[10px] font-black text-indigo-400 uppercase tracking-widest">
-                      <span className="bg-white/5 px-2 py-0.5 rounded">WIDE: {displayInnings.allBalls.filter(b => b.extraType === ExtraType.WIDE).length}</span>
-                      <span className="bg-white/5 px-2 py-0.5 rounded">NO BALL: {displayInnings.allBalls.filter(b => b.extraType === ExtraType.NO_BALL).length}</span>
-                      <span className="bg-white/5 px-2 py-0.5 rounded">BYE: {displayInnings.allBalls.filter(b => b.extraType === ExtraType.BYE).length}</span>
-                    </div>
+                    {(() => {
+                      let w = 0, nb = 0, b = 0, lb = 0;
+                      displayInnings.allBalls.forEach(ball => {
+                          if (ball.extraType === ExtraType.WIDE) w += (ball.extraRuns + ball.runs);
+                          if (ball.extraType === ExtraType.NO_BALL) nb += ball.extraRuns;
+                          if (ball.extraType === ExtraType.BYE) b += ball.runs;
+                          if (ball.extraType === ExtraType.LEG_BYE) lb += ball.runs;
+                      });
+                      return (
+                        <>
+                          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Extras Total: {w + nb + b + lb}</span>
+                          <div className="flex gap-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest">
+                            <span className="bg-white/5 px-2 py-0.5 rounded">W: {w}</span>
+                            <span className="bg-white/5 px-2 py-0.5 rounded">NB: {nb}</span>
+                            <span className="bg-white/5 px-2 py-0.5 rounded">B: {b}</span>
+                            <span className="bg-white/5 px-2 py-0.5 rounded">LB: {lb}</span>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
                 {activeTab === 'current' && (

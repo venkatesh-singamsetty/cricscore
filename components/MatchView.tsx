@@ -10,41 +10,42 @@ interface MatchViewProps {
     onResetMatch: () => void;
 }
 
-type ModalType = 'NONE' | 'WICKET_TYPE' | 'BATTER_SELECT' | 'BOWLER_SELECT' | 'FIELDER_SELECT' | 'EXTRA_RUNS';
+type ModalType = 'NONE' | 'WICKET_TYPE' | 'BATTER_SELECT' | 'BOWLER_SELECT' | 'FIELDER_SELECT' | 'EXTRA_RUNS' | 'RUN_OUT_MODAL';
 
 const MatchView: React.FC<MatchViewProps> = ({ initialState, previousInnings, totalOvers, onInningsEnd, onResetMatch }) => {
-    const [innings, setInnings] = useState<InningsState>(initialState);
-    const [history, setHistory] = useState<InningsState[]>([]);
-    const [lastCommentary, setLastCommentary] = useState<string>("Match started. Waiting for first ball.");
+    // --- Live Persistence (Synchronous Hydration) ---
+    const loadSavedLiveState = () => {
+        const savedLive = localStorage.getItem('cric-scorer-live-innings');
+        if (savedLive) {
+            try {
+                const data = JSON.parse(savedLive);
+                if (data.innings.inningNumber === initialState.inningNumber &&
+                    data.innings.battingTeamName === initialState.battingTeamName) {
+                    return data;
+                }
+            } catch (e) {
+                console.error("Failed to restore live innings", e);
+            }
+        }
+        return null;
+    };
+    const savedState = loadSavedLiveState();
+
+    const [innings, setInnings] = useState<InningsState>(savedState ? savedState.innings : initialState);
+    const [history, setHistory] = useState<InningsState[]>(savedState ? savedState.history || [] : []);
+    const [lastCommentary, setLastCommentary] = useState<string>(savedState ? savedState.lastCommentary || "" : (initialState.inningNumber === 2 ? "Second innings started!" : "Match started."));
     const [isProcessing, setIsProcessing] = useState(false);
     const [showScoreboard, setShowScoreboard] = useState(false);
 
     // Scoring State UI controls
     const [pendingExtra, setPendingExtra] = useState<ExtraType>(ExtraType.NONE);
     const [modalView, setModalView] = useState<ModalType>('NONE');
-    const [pendingWicketInfo, setPendingWicketInfo] = useState<{ runs: number, wicketType: WicketType } | null>(null);
+    const [pendingWicketInfo, setPendingWicketInfo] = useState<{ runs: number, wicketType: WicketType, outBatterId?: string } | null>(null);
+    const [runOutRuns, setRunOutRuns] = useState<number | null>(null);
 
     const commentaryEndRef = useRef<HTMLDivElement>(null);
 
-    // --- Live Persistence ---
-    useEffect(() => {
-        const savedLive = localStorage.getItem('cric-scorer-live-innings');
-        if (savedLive) {
-            try {
-                const data = JSON.parse(savedLive);
-                // Only restore if the innings numbers match
-                if (data.innings.inningNumber === initialState.inningNumber &&
-                    data.innings.battingTeamName === initialState.battingTeamName) {
-                    setInnings(data.innings);
-                    setHistory(data.history || []);
-                    setLastCommentary(data.lastCommentary || "");
-                }
-            } catch (e) {
-                console.error("Failed to restore live innings", e);
-            }
-        }
-    }, [initialState.inningNumber, initialState.battingTeamName]);
-
+    // Save live match state incrementally
     useEffect(() => {
         const liveState = {
             innings,
@@ -53,22 +54,6 @@ const MatchView: React.FC<MatchViewProps> = ({ initialState, previousInnings, to
         };
         localStorage.setItem('cric-scorer-live-innings', JSON.stringify(liveState));
     }, [innings, history, lastCommentary]);
-
-    useEffect(() => {
-        // Only reset if this is a genuinely NEW innings (not a refresh)
-        const savedLive = localStorage.getItem('cric-scorer-live-innings');
-        if (savedLive) {
-            const data = JSON.parse(savedLive);
-            if (data.innings.inningNumber === initialState.inningNumber &&
-                data.innings.battingTeamName === initialState.battingTeamName) {
-                return; // Don't reset if we have saved data for this innings
-            }
-        }
-
-        setInnings(initialState);
-        setHistory([]);
-        setLastCommentary(initialState.inningNumber === 2 ? "Second innings started!" : "Match started.");
-    }, [initialState]);
 
     useEffect(() => {
         commentaryEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -198,12 +183,12 @@ const MatchView: React.FC<MatchViewProps> = ({ initialState, previousInnings, to
         }
     };
 
-    const handleScore = async (runs: number, isWicket = false, wicketType = WicketType.NONE, fielderName?: string) => {
+    const handleScore = async (runs: number, isWicket = false, wicketType = WicketType.NONE, fielderName?: string, outBatterId?: string) => {
         if (isProcessing && !fielderName) return; // Allow if we are coming back from fielder select
 
         // Check if we need a fielder first
         if (isWicket && (wicketType === WicketType.CAUGHT || wicketType === WicketType.STUMPED || wicketType === WicketType.RUN_OUT) && !fielderName) {
-            setPendingWicketInfo({ runs, wicketType });
+            setPendingWicketInfo({ runs, wicketType, outBatterId });
             setModalView('FIELDER_SELECT');
             return;
         }
@@ -233,7 +218,7 @@ const MatchView: React.FC<MatchViewProps> = ({ initialState, previousInnings, to
             id: Date.now().toString(),
             bowlerName: bowler.name,
             batterName: striker.name,
-            runs: batterRuns,
+            runs: runs,
             isExtra: pendingExtra !== ExtraType.NONE,
             extraType: pendingExtra,
             extraRuns: (isWide || isNoBall) ? 1 : 0,
@@ -290,10 +275,19 @@ const MatchView: React.FC<MatchViewProps> = ({ initialState, previousInnings, to
             if (!isWide && !isNoBall && wicketType !== WicketType.RUN_OUT && wicketType !== WicketType.RETIRED_HURT && wicketType !== WicketType.RETIRED_OUT) {
                 nextBowler.wickets += 1;
             }
-            nextStriker.isOut = true;
-            nextStriker.wicketType = wicketType;
-            nextStriker.wicketBy = bowler.name;
-            nextStriker.fielderName = fielderName;
+            if (wicketType === WicketType.RUN_OUT && outBatterId === nextInnings.nonStrikerId) {
+                const nextNonStriker = { ...nextInnings.players[nextInnings.nonStrikerId] };
+                nextNonStriker.isOut = true;
+                nextNonStriker.wicketType = wicketType;
+                nextNonStriker.wicketBy = bowler.name;
+                nextNonStriker.fielderName = fielderName;
+                nextInnings.players[nextInnings.nonStrikerId] = nextNonStriker;
+            } else {
+                nextStriker.isOut = true;
+                nextStriker.wicketType = wicketType;
+                nextStriker.wicketBy = bowler.name;
+                nextStriker.fielderName = fielderName;
+            }
         }
 
         // Strike Rotation
@@ -371,9 +365,9 @@ const MatchView: React.FC<MatchViewProps> = ({ initialState, previousInnings, to
         setInnings(prev => {
             const updated = { ...prev };
 
-            if (updated.strikerId === "") {
+            if (updated.strikerId === "" || updated.players[updated.strikerId]?.isOut) {
                 updated.strikerId = newBatterId;
-            } else if (updated.nonStrikerId === "") {
+            } else if (updated.nonStrikerId === "" || updated.players[updated.nonStrikerId]?.isOut) {
                 updated.nonStrikerId = newBatterId;
             } else {
                 updated.strikerId = newBatterId;
@@ -409,7 +403,7 @@ const MatchView: React.FC<MatchViewProps> = ({ initialState, previousInnings, to
 
     const handleFielderSelected = (fielderName: string) => {
         if (pendingWicketInfo) {
-            handleScore(pendingWicketInfo.runs, true, pendingWicketInfo.wicketType, fielderName);
+            handleScore(pendingWicketInfo.runs, true, pendingWicketInfo.wicketType, fielderName, pendingWicketInfo.outBatterId);
         }
     };
 
@@ -465,7 +459,13 @@ const MatchView: React.FC<MatchViewProps> = ({ initialState, previousInnings, to
                     {[WicketType.BOWLED, WicketType.CAUGHT, WicketType.LBW, WicketType.RUN_OUT, WicketType.STUMPED].map((type) => (
                         <button
                             key={type}
-                            onClick={() => handleScore(0, true, type)}
+                            onClick={() => {
+                                if (type === WicketType.RUN_OUT) {
+                                    setModalView('RUN_OUT_MODAL');
+                                } else {
+                                    handleScore(0, true, type);
+                                }
+                            }}
                             className="py-5 px-4 bg-white/5 text-slate-200 border border-white/5 rounded-2xl font-black hover:bg-red-600 hover:text-white hover:border-red-400 transition-all active:scale-95 uppercase text-xs italic"
                         >
                             {type.replace('_', ' ')}
@@ -481,6 +481,77 @@ const MatchView: React.FC<MatchViewProps> = ({ initialState, previousInnings, to
             </div>
         </div>
     );
+
+    const RunOutModal = () => {
+        return (
+            <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[200] p-4 backdrop-blur-md animate-in fade-in duration-300">
+                <div className="bg-slate-900 border border-white/10 rounded-[2.5rem] p-6 w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-500 flex flex-col gap-4">
+                    <div className="flex items-center gap-3 border-b border-white/10 pb-4">
+                        <div className="w-1.5 h-6 bg-red-600 rounded-full"></div>
+                        <h3 className="text-lg font-black uppercase tracking-tighter italic text-white flex-1">Run Out Details</h3>
+                    </div>
+
+                    {runOutRuns === null ? (
+                        <div className="flex flex-col gap-3">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Runs Completed Before Run Out?</label>
+                            <div className="grid grid-cols-4 gap-2">
+                                {[0, 1, 2, 3].map(r => (
+                                    <button
+                                        key={r}
+                                        onClick={() => setRunOutRuns(r)}
+                                        className="py-4 rounded-xl font-black text-xl transition-all active:scale-95 shadow-lg border border-white/5 bg-slate-800 text-white hover:bg-slate-700 hover:border-white/20"
+                                    >
+                                        {r}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col gap-3">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Who was Run Out?</label>
+                            <div className="flex flex-col gap-2">
+                                <button
+                                    onClick={() => {
+                                        setRunOutRuns(null);
+                                        handleScore(runOutRuns, true, WicketType.RUN_OUT, undefined, innings.strikerId);
+                                    }}
+                                    className="py-4 px-4 bg-slate-800 text-slate-200 border border-white/5 rounded-2xl font-black hover:bg-red-600 hover:text-white transition-all active:scale-95 text-sm uppercase italic flex justify-between items-center"
+                                >
+                                    <span>{innings.players[innings.strikerId]?.name || 'Striker'}</span>
+                                    <span className="text-[9px] opacity-50 tracking-widest">STRIKER</span>
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setRunOutRuns(null);
+                                        handleScore(runOutRuns, true, WicketType.RUN_OUT, undefined, innings.nonStrikerId);
+                                    }}
+                                    className="py-4 px-4 bg-slate-800 text-slate-200 border border-white/5 rounded-2xl font-black hover:bg-red-600 hover:text-white transition-all active:scale-95 text-sm uppercase italic flex justify-between items-center"
+                                >
+                                    <span>{innings.players[innings.nonStrikerId]?.name || 'Non-Striker'}</span>
+                                    <span className="text-[9px] opacity-50 tracking-widest">NON-STRIKER</span>
+                                </button>
+                            </div>
+                            <button
+                                onClick={() => setRunOutRuns(null)}
+                                className="mt-2 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white transition-colors text-center"
+                            >
+                                ← Back
+                            </button>
+                        </div>
+                    )}
+                    <button
+                        onClick={() => {
+                            setModalView('NONE');
+                            setRunOutRuns(null);
+                        }}
+                        className="mt-2 py-3 px-4 bg-transparent text-slate-500 rounded-full font-black uppercase tracking-widest text-[9px] hover:bg-white/5 hover:text-white transition-all border border-transparent hover:border-white/10"
+                    >
+                        Abort Wicket
+                    </button>
+                </div>
+            </div>
+        );
+    };
 
     const BatterSelectModal = () => {
         const availableBatters = innings.battingOrder.filter(id => {
@@ -529,7 +600,7 @@ const MatchView: React.FC<MatchViewProps> = ({ initialState, previousInnings, to
                         >
                             + ADD NEW PLAYER TO SQUAD
                         </button>
-                        <button onClick={() => setModalView('NONE')} className="w-full py-2 text-slate-500 text-[9px] font-black uppercase tracking-widest hover:text-white transition-colors">Close View</button>
+                        {!(innings.strikerId === "" || innings.nonStrikerId === "" || innings.players[innings.strikerId]?.isOut || innings.players[innings.nonStrikerId]?.isOut) && <button onClick={() => setModalView('NONE')} className="w-full py-2 text-slate-500 text-[9px] font-black uppercase tracking-widest hover:text-white transition-colors">Close View</button>}
                     </div>
                 </div>
             </div>
@@ -590,7 +661,7 @@ const MatchView: React.FC<MatchViewProps> = ({ initialState, previousInnings, to
                     >
                         + ADD NEW BOWLER TO SQUAD
                     </button>
-                    <button onClick={() => setModalView('NONE')} className="w-full py-2 text-slate-500 text-[9px] font-black uppercase tracking-widest hover:text-white transition-colors">Close View</button>
+                    {!(innings.currentBowlerId === "" || (innings.balls === 0 && innings.allBalls.length > 0)) && <button onClick={() => setModalView('NONE')} className="w-full py-2 text-slate-500 text-[9px] font-black uppercase tracking-widest hover:text-white transition-colors">Close View</button>}
                 </div>
             </div>
         </div>
@@ -652,6 +723,7 @@ const MatchView: React.FC<MatchViewProps> = ({ initialState, previousInnings, to
             {innings.strikerId !== "" && innings.nonStrikerId !== "" && innings.currentBowlerId === "" && <BowlerSelectModal />}
 
             {modalView === 'WICKET_TYPE' && <WicketTypeModal />}
+            {modalView === 'RUN_OUT_MODAL' && <RunOutModal />}
             {modalView === 'BATTER_SELECT' && <BatterSelectModal />}
             {modalView === 'BOWLER_SELECT' && <BowlerSelectModal />}
             {modalView === 'FIELDER_SELECT' && <FielderSelectModal />}
@@ -768,7 +840,7 @@ const MatchView: React.FC<MatchViewProps> = ({ initialState, previousInnings, to
                                                     ball.isExtra ? 'bg-amber-500 text-amber-950 border-amber-300 shadow-amber-500/40' :
                                                         'bg-white text-slate-900 border-white shadow-white/10'
                                             }`}>
-                                            {ball.isWicket ? 'W' : (ball.isExtra ? (ball.runs > 0 ? `${ball.runs}${ball.extraType[0]}` : ball.extraType[0]) : ball.runs)}
+                                            {ball.isWicket ? (ball.runs > 0 ? `W+${ball.runs}` : 'W') : (ball.isExtra ? (ball.runs > 0 ? `${ball.runs}${ball.extraType[0]}` : ball.extraType[0]) : ball.runs)}
                                         </div>
                                         <span className="text-[8px] md:text-[9px] font-black text-slate-500 uppercase">{ball.isExtra ? ball.extraType.split('_')[0] : 'RUN'}</span>
                                     </div>
