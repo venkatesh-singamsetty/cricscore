@@ -1,0 +1,5 @@
+{
+  "name": "CricGenius Scorer",
+  "description": "A smart cricket scoring application with AI-powered commentary and real-time match statistics.",
+  "requestFramePermissions": []
+}
