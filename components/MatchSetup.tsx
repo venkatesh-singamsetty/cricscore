@@ -103,10 +103,10 @@ const MatchSetup: React.FC<MatchSetupProps> = ({ onStartMatch }) => {
     const [teamAName, setTeamAName] = useState('CHICAGO SPARTANS');
     const [teamASquad, setTeamASquad] = useState(['DONNY', 'JIGAR', 'RAJU', 'SANDY', 'SHOBS', 'SHYAM', 'SUNIL', 'SURENDRA', 'VAMSI DESPLANES', 'VAMSI NAPERVILLE', 'VENKY'].join('\n'));
 
-    const [teamBName, setTeamBName] = useState('HIT');
-    const [teamBSquad, setTeamBSquad] = useState(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'].join('\n'));
+    const [teamBName, setTeamBName] = useState('TEAM B')
+    const [teamBSquad, setTeamBSquad] = useState(['ABHISHEK', 'SANJU', 'ISHAN', 'SURYAKUMAR', 'TILAK', 'HARDIK', 'AXAR', 'SHIVAM', 'VARUN', 'ARSHDEEP', 'JASPRIT'].join('\n'));
 
-    const [overs, setOvers] = useState(1);
+    const [overs, setOvers] = useState(20);
     const [batFirst, setBatFirst] = useState('Team A'); // 'Team A' or 'Team B'
 
     const textareaRefA = useRef<HTMLTextAreaElement>(null);
@@ -114,17 +114,26 @@ const MatchSetup: React.FC<MatchSetupProps> = ({ onStartMatch }) => {
     const lineNumbersRefA = useRef<HTMLDivElement>(null);
     const lineNumbersRefB = useRef<HTMLDivElement>(null);
 
+    const parsedTeamA = teamASquad.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+    const parsedTeamB = teamBSquad.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+    const isValid = parsedTeamA.length >= 2 && parsedTeamB.length >= 2 && teamAName.trim() !== '' && teamBName.trim() !== '';
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
+        if (!isValid) {
+            alert("Both teams must have at least 2 players to start a match.");
+            return;
+        }
+
         const teamA: TeamData = {
             name: teamAName.trim(),
-            players: teamASquad.split('\n').map(s => s.trim()).filter(s => s.length > 0)
+            players: parsedTeamA
         };
 
         const teamB: TeamData = {
             name: teamBName.trim(),
-            players: teamBSquad.split('\n').map(s => s.trim()).filter(s => s.length > 0)
+            players: parsedTeamB
         };
 
         const batFirstTeamName = batFirst === 'Team A' ? teamA.name : teamB.name;
@@ -258,12 +267,16 @@ const MatchSetup: React.FC<MatchSetupProps> = ({ onStartMatch }) => {
                     {/* Launch Button - Must stay visible */}
                     <button
                         type="submit"
-                        className="group relative w-full h-16 bg-indigo-600 rounded-[1.5rem] overflow-hidden transition-all hover:scale-[1.002] active:scale-[0.98] shrink-0 shadow-2xl border-t border-white/20"
+                        disabled={!isValid}
+                        className={`group relative w-full h-16 rounded-[1.5rem] overflow-hidden transition-all shrink-0 shadow-2xl border-t border-white/20 ${isValid ? 'bg-indigo-600 hover:scale-[1.002] active:scale-[0.98]' : 'bg-slate-800 opacity-80 cursor-not-allowed'}`}
                     >
-                        <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 group-hover:opacity-90"></div>
-                        <div className="relative flex items-center justify-center gap-4">
-                            <span className="text-xl font-black text-white uppercase tracking-[0.4em] italic group-hover:tracking-[0.5em] transition-all">Start Fresh Match</span>
-                            <span className="text-2xl group-hover:translate-x-2 transition-transform">🏁</span>
+                        {isValid && <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 group-hover:opacity-90"></div>}
+                        <div className="relative flex flex-col items-center justify-center h-full">
+                            <div className="flex items-center gap-4">
+                                <span className={`text-xl font-black uppercase italic transition-all ${isValid ? 'text-white tracking-[0.4em] group-hover:tracking-[0.5em]' : 'text-slate-500 tracking-[0.2em]'}`}>Start Fresh Match</span>
+                                {isValid && <span className="text-2xl group-hover:translate-x-2 transition-transform">🏁</span>}
+                            </div>
+                            {!isValid && <span className="text-[10px] font-bold text-red-500 mt-1 uppercase tracking-widest">Requires min. 2 players per team</span>}
                         </div>
                     </button>
                 </form>

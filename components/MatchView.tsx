@@ -356,6 +356,7 @@ const MatchView: React.FC<MatchViewProps> = ({ initialState, previousInnings, to
         if (isMatchEnding) {
             // Delay slightly so users see the wicket/run
             setTimeout(() => onInningsEnd(nextInnings), 500);
+            return; // Lock the UI permanently until the parent unmounts this view
         }
 
         setIsProcessing(false);

@@ -209,14 +209,32 @@ const App: React.FC = () => {
             {/* Global "Start New Match" Bar */}
             {matchStatus !== MatchStatus.SETUP && (
                 <div className="bg-slate-950 px-3 py-2 flex justify-between items-center shrink-0 border-b border-white/10 z-50 shadow-md">
-                    <span className="text-[11px] uppercase font-black tracking-widest text-slate-400 italic">
-                        CricScore
-                    </span>
+                    <div className="flex items-center gap-4">
+                        <span className="text-[11px] uppercase font-black tracking-widest text-slate-400 italic hidden sm:block">
+                            CricScore
+                        </span>
+                        <div className="flex items-center gap-2 bg-slate-900 px-3 py-1 rounded-md border border-white/5">
+                            <label className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Match Overs:</label>
+                            <input
+                                type="number"
+                                min={1}
+                                max={99}
+                                className="bg-white/5 text-white font-black text-xs w-10 px-1 py-0.5 rounded outline-none text-center focus:ring-1 focus:ring-indigo-500"
+                                value={totalOvers}
+                                onChange={(e) => {
+                                    const val = parseInt(e.target.value);
+                                    if (!isNaN(val) && val > 0) {
+                                        setTotalOvers(val);
+                                    }
+                                }}
+                            />
+                        </div>
+                    </div>
                     <button
                         onClick={() => setShowResetConfirm(true)}
                         className="px-4 py-1.5 bg-red-900/30 border border-red-500/20 rounded font-black text-[10px] uppercase tracking-wider text-red-500 hover:text-white transition-all hover:bg-red-600 focus:outline-none"
                     >
-                        START NEW MATCH
+                        <span className="hidden sm:inline">START </span>NEW MATCH
                     </button>
                 </div>
             )}
