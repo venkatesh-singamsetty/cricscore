@@ -3,39 +3,27 @@ import { InningsState, MatchStatus, TeamData, Player, Bowler } from './types';
 import MatchSetup from './components/MatchSetup';
 import MatchView from './components/MatchView';
 
+const loadSavedState = () => {
+    const saved = localStorage.getItem('cric-scorer-match-state');
+    if (saved) {
+        try { return JSON.parse(saved); } catch { return null; }
+    }
+    return null;
+};
+
 const App: React.FC = () => {
-    const [matchStatus, setMatchStatus] = useState<MatchStatus>(MatchStatus.SETUP);
-    const [currentInnings, setCurrentInnings] = useState<InningsState | null>(null);
-    const [previousInnings, setPreviousInnings] = useState<InningsState | undefined>(undefined);
+    const savedState = loadSavedState();
+
+    const [matchStatus, setMatchStatus] = useState<MatchStatus>(savedState?.matchStatus ?? MatchStatus.SETUP);
+    const [currentInnings, setCurrentInnings] = useState<InningsState | null>(savedState?.currentInnings ?? null);
+    const [previousInnings, setPreviousInnings] = useState<InningsState | undefined>(savedState?.previousInnings ?? undefined);
 
     // Match Config
-    const [teamA, setTeamA] = useState<TeamData | null>(null);
-    const [teamB, setTeamB] = useState<TeamData | null>(null);
-    const [totalOvers, setTotalOvers] = useState(15);
+    const [teamA, setTeamA] = useState<TeamData | null>(savedState?.teamA ?? null);
+    const [teamB, setTeamB] = useState<TeamData | null>(savedState?.teamB ?? null);
+    const [totalOvers, setTotalOvers] = useState(savedState?.totalOvers ?? 15);
     const [emailTo, setEmailTo] = useState('venky.2k57@gmail.com');
     const [showResetConfirm, setShowResetConfirm] = useState(false);
-
-    // --- Persistence Logic ---
-    useEffect(() => {
-        const saved = localStorage.getItem('cric-scorer-match-state');
-        if (saved) {
-            try {
-                const data = JSON.parse(saved);
-                setMatchStatus(data.matchStatus);
-                setTeamA(data.teamA);
-                setTeamB(data.teamB);
-                setTotalOvers(data.totalOvers);
-                setPreviousInnings(data.previousInnings);
-
-                // If there's a live innings saved, MatchView will handle its own internal resume
-                if (data.currentInnings) {
-                    setCurrentInnings(data.currentInnings);
-                }
-            } catch (e) {
-                console.error("Failed to restore state", e);
-            }
-        }
-    }, []);
 
     useEffect(() => {
         const stateToSave = {

@@ -58,6 +58,19 @@ chmod +x scripts/setup.sh && ./scripts/setup.sh
 .\scripts\setup.ps1
 ```
 
+### 3. Local Development
+To run the application locally on your machine for development and testing:
+
+```bash
+# Install all required dependencies
+npm install
+
+# Start the Vite development server
+npm run dev
+```
+
+The app will be available locally at `http://localhost:5173`. Any changes to the codebase will hot-reload automatically.
+
 ---
 
 ## 🚀 Setup & Deployment
@@ -100,6 +113,14 @@ chmod +x deploy.sh
 3.  **Provisions** all AWS resources (S3, CloudFront, Route53).
 4.  **Syncs** your built files to the S3 bucket.
 5.  **Invalidates** the CloudFront cache to go live instantly.
+
+---
+
+## 🐛 Recent Bug Fixes & Core Improvements
+- **Run Out Scoring Resolution**: The app now intercepts Run Out dismissals to actively prompt the umpire for any runs successfully completed before the wicket. It seamlessly computes run allocation and strike rotation prior to assigning the wicket to the appropriately specified batter (Striker or Non-Striker).
+- **Accurate Extras Accounting**: Patched a mathematical bug where runs associated with boundary Wides or Byes were unintentionally zeroed out in the timeline (`W+2`, `4B`, etc. now display uniquely). The Scoreboard's "Extras Breakdown" has also been entirely overhauled to actively compute and display the complete run values for Wides, No-Balls, Byes, and Leg Byes rather than just tallying the deliveries.
+- **Synchronous State Hydration (Refresh Protection)**: Resolved a critical React 18 strict-mode race condition where refreshing the browser would occasionally overwrite an active match with a blank `initialState`. The `localStorage` persistence engine now extracts data synchronously on component initialization to guarantee zero data loss.
+- **Strict Modal Enforcement**: Closed loopholes in selection modals that previously allowed umpires to arbitrarily dismiss mandatory states (e.g. "Choose Next Bowler"), preventing illegal ball logging against inactive players.
 
 ---
 
