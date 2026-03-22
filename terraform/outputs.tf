@@ -12,3 +12,8 @@ output "cloudfront_distribution_id" {
   description = "The ID of the CloudFront distribution"
   value       = aws_cloudfront_distribution.s3_distribution.id
 }
+
+output "http_api_url" {
+  description = "The endpoint of the Match API Gateway"
+  value       = aws_apigatewayv2_api.http_api.api_endpoint
+}

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { InningsState, MatchStatus, TeamData, Player, Bowler } from './types';
 import MatchSetup from './components/MatchSetup';
 import MatchView from './components/MatchView';
+import LiveScoreboard from './components/LiveScoreboard'; // Added Phase 6
 
 const loadSavedState = () => {
     const saved = localStorage.getItem('cric-scorer-match-state');
@@ -14,6 +15,7 @@ const loadSavedState = () => {
 const App: React.FC = () => {
     const savedState = loadSavedState();
 
+    const [view, setView] = useState<'SCORER' | 'SPECTATOR'>('SCORER'); // Added
     const [matchStatus, setMatchStatus] = useState<MatchStatus>(savedState?.matchStatus ?? MatchStatus.SETUP);
     const [currentInnings, setCurrentInnings] = useState<InningsState | null>(savedState?.currentInnings ?? null);
     const [previousInnings, setPreviousInnings] = useState<InningsState | undefined>(savedState?.previousInnings ?? undefined);
@@ -22,12 +24,14 @@ const App: React.FC = () => {
     const [teamA, setTeamA] = useState<TeamData | null>(savedState?.teamA ?? null);
     const [teamB, setTeamB] = useState<TeamData | null>(savedState?.teamB ?? null);
     const [totalOvers, setTotalOvers] = useState(savedState?.totalOvers ?? 15);
+    const [matchId, setMatchId] = useState<string | null>(savedState?.matchId ?? null);
     const [emailTo, setEmailTo] = useState('venky.2k57@gmail.com');
     const [showResetConfirm, setShowResetConfirm] = useState(false);
 
     useEffect(() => {
         const stateToSave = {
             matchStatus,
+            matchId,
             teamA,
             teamB,
             totalOvers,
@@ -35,7 +39,7 @@ const App: React.FC = () => {
             currentInnings
         };
         localStorage.setItem('cric-scorer-match-state', JSON.stringify(stateToSave));
-    }, [matchStatus, teamA, teamB, totalOvers, previousInnings, currentInnings]);
+    }, [matchStatus, matchId, teamA, teamB, totalOvers, previousInnings, currentInnings]);
 
     // Helper to create an innings
     const createInnings = (
@@ -99,10 +103,11 @@ const App: React.FC = () => {
         };
     };
 
-    const startMatch = (tA: TeamData, tB: TeamData, overs: number, batFirstTeamName: string) => {
+    const startMatch = (tA: TeamData, tB: TeamData, overs: number, batFirstTeamName: string, id: string) => {
         setTeamA(tA);
         setTeamB(tB);
         setTotalOvers(overs);
+        setMatchId(id);
 
         const isTeamABatting = tA.name === batFirstTeamName;
         const battingTeam = isTeamABatting ? tA : tB;
@@ -210,31 +215,27 @@ const App: React.FC = () => {
             {matchStatus !== MatchStatus.SETUP && (
                 <div className="bg-slate-950 px-3 py-2 flex justify-between items-center shrink-0 border-b border-white/10 z-50 shadow-md">
                     <div className="flex items-center gap-4">
-                        <span className="text-[11px] uppercase font-black tracking-widest text-slate-400 italic hidden sm:block">
-                            CricScore
-                        </span>
-                        <div className="flex items-center gap-2 bg-slate-900 px-3 py-1 rounded-md border border-white/5">
-                            <label className="text-[9px] font-black uppercase text-slate-500 tracking-widest">Match Overs:</label>
-                            <input
-                                type="number"
-                                min={1}
-                                max={99}
-                                className="bg-white/5 text-white font-black text-xs w-10 px-1 py-0.5 rounded outline-none text-center focus:ring-1 focus:ring-indigo-500"
-                                value={totalOvers}
-                                onChange={(e) => {
-                                    const val = parseInt(e.target.value);
-                                    if (!isNaN(val) && val > 0) {
-                                        setTotalOvers(val);
-                                    }
-                                }}
-                            />
+                        <div className="flex bg-slate-900 p-1 rounded-xl border border-white/5">
+                            <button 
+                                onClick={() => setView('SCORER')}
+                                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${view === 'SCORER' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                            >
+                                Scorer
+                            </button>
+                            <button 
+                                onClick={() => setView('SPECTATOR')}
+                                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${view === 'SPECTATOR' ? 'bg-rose-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                            >
+                                Fans Live 📡
+                            </button>
                         </div>
                     </div>
+                    
                     <button
                         onClick={() => setShowResetConfirm(true)}
-                        className="px-4 py-1.5 bg-red-900/30 border border-red-500/20 rounded font-black text-[10px] uppercase tracking-wider text-red-500 hover:text-white transition-all hover:bg-red-600 focus:outline-none"
+                        className="px-4 py-1.5 bg-red-900/30 border border-red-500/20 rounded font-black text-[10px] uppercase tracking-wider text-red-500 hover:text-white transition-all hover:bg-red-600"
                     >
-                        <span className="hidden sm:inline">START </span>NEW MATCH
+                        RESET MATCH
                     </button>
                 </div>
             )}
@@ -280,13 +281,20 @@ const App: React.FC = () => {
                 )}
 
                 {matchStatus === MatchStatus.LIVE && currentInnings && (
-                    <MatchView
-                        initialState={currentInnings}
-                        previousInnings={previousInnings}
-                        totalOvers={totalOvers}
-                        onInningsEnd={handleInningsEnd}
-                        onResetMatch={() => setShowResetConfirm(true)}
-                    />
+                    view === 'SCORER' ? (
+                        <MatchView
+                            initialState={currentInnings}
+                            previousInnings={previousInnings}
+                            totalOvers={totalOvers}
+                            matchId={matchId!}
+                            onInningsEnd={handleInningsEnd}
+                            onResetMatch={() => setShowResetConfirm(true)}
+                        />
+                    ) : (
+                        <div className="h-full flex items-center justify-center bg-slate-950 p-4">
+                            <LiveScoreboard />
+                        </div>
+                    )
                 )}
 
                 {matchStatus === MatchStatus.INNINGS_BREAK && currentInnings && previousInnings && (

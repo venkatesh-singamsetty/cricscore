@@ -118,7 +118,10 @@ const MatchSetup: React.FC<MatchSetupProps> = ({ onStartMatch }) => {
     const parsedTeamB = teamBSquad.split('\n').map(s => s.trim()).filter(s => s.length > 0);
     const isValid = parsedTeamA.length >= 2 && parsedTeamB.length >= 2 && teamAName.trim() !== '' && teamBName.trim() !== '';
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const [isCreating, setIsCreating] = useState(false);
+    const API_URL = import.meta.env.VITE_API_URL || "https://mmiwp8rgrf.execute-api.us-east-1.amazonaws.com";
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         if (!isValid) {
@@ -126,18 +129,34 @@ const MatchSetup: React.FC<MatchSetupProps> = ({ onStartMatch }) => {
             return;
         }
 
-        const teamA: TeamData = {
-            name: teamAName.trim(),
-            players: parsedTeamA
-        };
+        setIsCreating(true);
+        try {
+            const teamA: TeamData = { name: teamAName.trim(), players: parsedTeamA };
+            const teamB: TeamData = { name: teamBName.trim(), players: parsedTeamB };
+            const batFirstTeamName = batFirst === 'Team A' ? teamA.name : teamB.name;
 
-        const teamB: TeamData = {
-            name: teamBName.trim(),
-            players: parsedTeamB
-        };
+            // 🏛️ Initialize Match in Aiven PostgreSQL
+            const response = await fetch(`${API_URL}/match`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    teamA: teamA.name,
+                    teamB: teamB.name,
+                    totalOvers: overs,
+                    matchType: "T20"
+                })
+            });
 
-        const batFirstTeamName = batFirst === 'Team A' ? teamA.name : teamB.name;
-        onStartMatch(teamA, teamB, overs, batFirstTeamName);
+            const { id: matchId } = await response.json();
+            console.log("Match Registered in Cloud ☁️:", matchId);
+
+            onStartMatch(teamA, teamB, overs, batFirstTeamName, matchId);
+        } catch (err) {
+            console.error("Match Initialization Failed:", err);
+            alert("Cloud Connection Failed. Check your Aiven database status.");
+        } finally {
+            setIsCreating(false);
+        }
     };
 
 
