@@ -64,6 +64,7 @@ export interface BallEvent {
 }
 
 export interface InningsState {
+  id: string; // Dynamic ID from Aiven
   inningNumber: 1 | 2;
   target?: number;
   battingTeamName: string;

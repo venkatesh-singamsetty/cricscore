@@ -15,7 +15,7 @@ const loadSavedState = () => {
 const App: React.FC = () => {
     const savedState = loadSavedState();
 
-    const [view, setView] = useState<'SCORER' | 'SPECTATOR'>('SCORER'); // Added
+    const [view, setView] = useState<'SCORER' | 'SPECTATOR' | 'HISTORY'>('SCORER'); // Added
     const [matchStatus, setMatchStatus] = useState<MatchStatus>(savedState?.matchStatus ?? MatchStatus.SETUP);
     const [currentInnings, setCurrentInnings] = useState<InningsState | null>(savedState?.currentInnings ?? null);
     const [previousInnings, setPreviousInnings] = useState<InningsState | undefined>(savedState?.previousInnings ?? undefined);
@@ -43,6 +43,7 @@ const App: React.FC = () => {
 
     // Helper to create an innings
     const createInnings = (
+        id: string,
         battingTeam: TeamData,
         bowlingTeam: TeamData,
         inningNumber: 1 | 2,
@@ -52,9 +53,9 @@ const App: React.FC = () => {
         const playersMap: Record<string, Player> = {};
         const battingOrder: string[] = [];
         battingTeam.players.forEach((name, idx) => {
-            const id = `bat_${battingTeam.name.replace(/\s/g, '')}_${idx}`;
-            playersMap[id] = {
-                id,
+            const playerId = `bat_${battingTeam.name.replace(/\s/g, '')}_${idx}`;
+            playersMap[playerId] = {
+                id: playerId,
                 name: name,
                 runs: 0,
                 ballsFaced: 0,
@@ -62,16 +63,16 @@ const App: React.FC = () => {
                 sixes: 0,
                 isOut: false
             };
-            battingOrder.push(id);
+            battingOrder.push(playerId);
         });
 
         // Initialize Bowlers (from Bowling Team Squad)
         const bowlersMap: Record<string, Bowler> = {};
         const bowlingOrder: string[] = [];
         bowlingTeam.players.forEach((name, idx) => {
-            const id = `bowl_${bowlingTeam.name.replace(/\s/g, '')}_${idx}`;
-            bowlersMap[id] = {
-                id,
+            const bowlerId = `bowl_${bowlingTeam.name.replace(/\s/g, '')}_${idx}`;
+            bowlersMap[bowlerId] = {
+                id: bowlerId,
                 name: name,
                 overs: 0,
                 balls: 0,
@@ -79,10 +80,11 @@ const App: React.FC = () => {
                 runsConceded: 0,
                 wickets: 0
             };
-            bowlingOrder.push(id);
+            bowlingOrder.push(bowlerId);
         });
 
         return {
+            id,
             inningNumber,
             target,
             battingTeamName: battingTeam.name,
@@ -103,23 +105,23 @@ const App: React.FC = () => {
         };
     };
 
-    const startMatch = (tA: TeamData, tB: TeamData, overs: number, batFirstTeamName: string, id: string) => {
+    const startMatch = (tA: TeamData, tB: TeamData, overs: number, batFirstTeamName: string, mId: string, iId: string) => {
         setTeamA(tA);
         setTeamB(tB);
         setTotalOvers(overs);
-        setMatchId(id);
+        setMatchId(mId);
 
         const isTeamABatting = tA.name === batFirstTeamName;
         const battingTeam = isTeamABatting ? tA : tB;
         const bowlingTeam = isTeamABatting ? tB : tA;
 
-        const innings1 = createInnings(battingTeam, bowlingTeam, 1);
+        const innings1 = createInnings(iId, battingTeam, bowlingTeam, 1);
         setCurrentInnings(innings1);
         setPreviousInnings(undefined);
         setMatchStatus(MatchStatus.LIVE);
     };
 
-    const handleInningsEnd = (completedInnings: InningsState) => {
+    const handleInningsEnd = async (completedInnings: InningsState) => {
         if (completedInnings.inningNumber === 1) {
             // Transition to 2nd Innings
             setPreviousInnings(completedInnings);
@@ -130,10 +132,28 @@ const App: React.FC = () => {
             const nextBowlingTeam = completedInnings.battingTeamName === teamA.name ? teamA : teamB;
 
             const target = completedInnings.totalRuns + 1;
-            const innings2 = createInnings(nextBattingTeam, nextBowlingTeam, 2, target);
 
-            setCurrentInnings(innings2);
-            setMatchStatus(MatchStatus.INNINGS_BREAK);
+            const API_URL = import.meta.env.VITE_API_URL || "https://mmiwp8rgrf.execute-api.us-east-1.amazonaws.com";
+            
+            try {
+                const response = await fetch(`${API_URL}/match/${matchId}/innings`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        matchId,
+                        inningNumber: 2,
+                        battingTeam: nextBattingTeam.name,
+                        bowlingTeam: nextBowlingTeam.name,
+                        target
+                    })
+                });
+                const { inningId: id2 } = await response.json();
+                const innings2 = createInnings(id2, nextBattingTeam, nextBowlingTeam, 2, target);
+                setCurrentInnings(innings2);
+                setMatchStatus(MatchStatus.INNINGS_BREAK);
+            } catch (err) {
+                console.error("Failed to create 2nd Innings:", err);
+            }
         } else {
             setCurrentInnings(completedInnings);
             setMatchStatus(MatchStatus.COMPLETED);
@@ -211,34 +231,40 @@ const App: React.FC = () => {
 
     return (
         <div className="h-[100dvh] bg-slate-50 font-sans text-slate-900 flex flex-col overflow-hidden relative">
-            {/* Global "Start New Match" Bar */}
-            {matchStatus !== MatchStatus.SETUP && (
-                <div className="bg-slate-950 px-3 py-2 flex justify-between items-center shrink-0 border-b border-white/10 z-50 shadow-md">
-                    <div className="flex items-center gap-4">
-                        <div className="flex bg-slate-900 p-1 rounded-xl border border-white/5">
-                            <button 
-                                onClick={() => setView('SCORER')}
-                                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${view === 'SCORER' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
-                            >
-                                Scorer
-                            </button>
-                            <button 
-                                onClick={() => setView('SPECTATOR')}
-                                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${view === 'SPECTATOR' ? 'bg-rose-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
-                            >
-                                Fans Live 📡
-                            </button>
-                        </div>
+            {/* Global Header Switcher */}
+            <div className="bg-slate-950 px-3 py-2 flex justify-between items-center shrink-0 border-b border-white/10 z-50 shadow-md">
+                <div className="flex items-center gap-4">
+                    <div className="flex bg-slate-900 p-1 rounded-xl border border-white/5">
+                        <button 
+                            onClick={() => setView('SCORER')}
+                            className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${view === 'SCORER' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                        >
+                            Scorer
+                        </button>
+                        <button 
+                            onClick={() => setView('SPECTATOR')}
+                            className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${view === 'SPECTATOR' ? 'bg-rose-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                        >
+                            Fans Live 📡
+                        </button>
+                        <button 
+                            onClick={() => setView('HISTORY')}
+                            className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${view === 'HISTORY' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                        >
+                            Old Matches 📚
+                        </button>
                     </div>
-                    
+                </div>
+                
+                {matchStatus !== MatchStatus.SETUP && (
                     <button
                         onClick={() => setShowResetConfirm(true)}
                         className="px-4 py-1.5 bg-red-900/30 border border-red-500/20 rounded font-black text-[10px] uppercase tracking-wider text-red-500 hover:text-white transition-all hover:bg-red-600"
                     >
                         RESET MATCH
                     </button>
-                </div>
-            )}
+                )}
+            </div>
 
             <div className="flex-1 overflow-hidden relative">
 
@@ -276,7 +302,21 @@ const App: React.FC = () => {
                     </div>
                 )}
 
-                {matchStatus === MatchStatus.SETUP && (
+                {view === 'HISTORY' && (
+                    <div className="h-full bg-slate-950 flex flex-col p-4 md:p-8 overflow-y-auto">
+                        <div className="max-w-4xl mx-auto w-full space-y-8 animate-in fade-in zoom-in-95 duration-500">
+                             <div className="text-center space-y-2">
+                                <h1 className="text-4xl font-black text-white uppercase tracking-tighter italic">Match <span className="text-emerald-500">History Hub</span></h1>
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em]">Official Database Records</p>
+                             </div>
+                             <div className="bg-slate-900/50 border border-white/5 p-6 rounded-[2rem] backdrop-blur-3xl shadow-2xl">
+                                <LiveScoreboard />
+                             </div>
+                        </div>
+                    </div>
+                )}
+
+                {matchStatus === MatchStatus.SETUP && view === 'SCORER' && (
                     <MatchSetup onStartMatch={startMatch} />
                 )}
 
