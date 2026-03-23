@@ -15,7 +15,8 @@ const loadSavedState = () => {
 const App: React.FC = () => {
     const savedState = loadSavedState();
 
-    const [view, setView] = useState<'SCORER' | 'SPECTATOR' | 'HISTORY'>('SCORER'); // Added
+    const [view, setView] = useState<'SCORER' | 'SPECTATOR'>('SCORER');
+    const [hubKey, setHubKey] = useState(0); // For forcing reset to list
     const [matchStatus, setMatchStatus] = useState<MatchStatus>(savedState?.matchStatus ?? MatchStatus.SETUP);
     const [currentInnings, setCurrentInnings] = useState<InningsState | null>(savedState?.currentInnings ?? null);
     const [previousInnings, setPreviousInnings] = useState<InningsState | undefined>(savedState?.previousInnings ?? undefined);
@@ -144,7 +145,9 @@ const App: React.FC = () => {
                         inningNumber: 2,
                         battingTeam: nextBattingTeam.name,
                         bowlingTeam: nextBowlingTeam.name,
-                        target
+                        target,
+                        battingSquad: nextBattingTeam.players,
+                        bowlingSquad: nextBowlingTeam.players
                     })
                 });
                 const { inningId: id2 } = await response.json();
@@ -167,6 +170,22 @@ const App: React.FC = () => {
         localStorage.removeItem('cric-scorer-match-state');
         localStorage.removeItem('cric-scorer-live-innings');
     }
+
+    const updateMatchOvers = async (newOvers: number) => {
+        if (!matchId) return;
+        setTotalOvers(newOvers);
+        const API_URL = import.meta.env.VITE_API_URL || "https://mmiwp8rgrf.execute-api.us-east-1.amazonaws.com";
+        try {
+             await fetch(`${API_URL}/match/${matchId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ totalOvers: newOvers })
+            });
+            console.log("Match Overs Updated 📡");
+        } catch (err) {
+            console.error("Failed to update match overs:", err);
+        }
+    };
 
     const getWinnerMessage = () => {
         if (!currentInnings || !previousInnings) return '';
@@ -239,19 +258,16 @@ const App: React.FC = () => {
                             onClick={() => setView('SCORER')}
                             className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${view === 'SCORER' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
                         >
-                            Scorer
+                            Scorer 🎮
                         </button>
                         <button 
-                            onClick={() => setView('SPECTATOR')}
-                            className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${view === 'SPECTATOR' ? 'bg-rose-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                            onClick={() => {
+                                if (view === 'SPECTATOR') setHubKey(k => k + 1);
+                                setView('SPECTATOR');
+                            }}
+                            className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${view === 'SPECTATOR' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
                         >
-                            Fans Live 📡
-                        </button>
-                        <button 
-                            onClick={() => setView('HISTORY')}
-                            className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${view === 'HISTORY' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
-                        >
-                            Old Matches 📚
+                            Match Hub 🌍
                         </button>
                     </div>
                 </div>
@@ -302,15 +318,15 @@ const App: React.FC = () => {
                     </div>
                 )}
 
-                {view === 'HISTORY' && (
+                {view === 'SPECTATOR' && (
                     <div className="h-full bg-slate-950 flex flex-col p-4 md:p-8 overflow-y-auto">
                         <div className="max-w-4xl mx-auto w-full space-y-8 animate-in fade-in zoom-in-95 duration-500">
                              <div className="text-center space-y-2">
-                                <h1 className="text-4xl font-black text-white uppercase tracking-tighter italic">Match <span className="text-emerald-500">History Hub</span></h1>
-                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em]">Official Database Records</p>
+                                <h1 className="text-4xl font-black text-white uppercase tracking-tighter italic">Match <span className="text-indigo-500">Hub Center</span></h1>
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em]">Live Feeds & Historical Records</p>
                              </div>
                              <div className="bg-slate-900/50 border border-white/5 p-6 rounded-[2rem] backdrop-blur-3xl shadow-2xl">
-                                <LiveScoreboard />
+                                <LiveScoreboard key={`hub-${hubKey}`} />
                              </div>
                         </div>
                     </div>
@@ -320,21 +336,16 @@ const App: React.FC = () => {
                     <MatchSetup onStartMatch={startMatch} />
                 )}
 
-                {matchStatus === MatchStatus.LIVE && currentInnings && (
-                    view === 'SCORER' ? (
-                        <MatchView
-                            initialState={currentInnings}
-                            previousInnings={previousInnings}
-                            totalOvers={totalOvers}
-                            matchId={matchId!}
-                            onInningsEnd={handleInningsEnd}
-                            onResetMatch={() => setShowResetConfirm(true)}
-                        />
-                    ) : (
-                        <div className="h-full flex items-center justify-center bg-slate-950 p-4">
-                            <LiveScoreboard />
-                        </div>
-                    )
+                {matchStatus === MatchStatus.LIVE && currentInnings && view === 'SCORER' && (
+                    <MatchView
+                        initialState={currentInnings}
+                        previousInnings={previousInnings}
+                        totalOvers={totalOvers}
+                        matchId={matchId!}
+                        onInningsEnd={handleInningsEnd}
+                        onResetMatch={() => setShowResetConfirm(true)}
+                        onUpdateOvers={updateMatchOvers}
+                    />
                 )}
 
                 {matchStatus === MatchStatus.INNINGS_BREAK && currentInnings && previousInnings && (

@@ -7,6 +7,7 @@ interface MatchMetadata {
     total_overs: number;
     status: string;
     created_at: string;
+    updated_at: string;
 }
 
 interface MatchListProps {
@@ -31,7 +32,9 @@ const MatchList: React.FC<MatchListProps> = ({ onSelectMatch }) => {
         try {
             const response = await fetch(`${API_URL}/matches`);
             const data = await response.json();
-            setMatches(data);
+            // Sort by latest first
+            const sorted = [...data].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+            setMatches(sorted);
         } catch (err) {
             console.error("Failed to fetch matches:", err);
         } finally {
@@ -46,7 +49,7 @@ const MatchList: React.FC<MatchListProps> = ({ onSelectMatch }) => {
     return (
         <div className="space-y-4">
             <div className="flex justify-between items-center px-1">
-                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Live Match Directory</h3>
+                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Global Match Directory</h3>
                 <button 
                     onClick={fetchMatches}
                     className="text-[9px] font-black uppercase tracking-widest text-indigo-400 hover:text-white transition-colors"
@@ -64,16 +67,20 @@ const MatchList: React.FC<MatchListProps> = ({ onSelectMatch }) => {
                     <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest leading-relaxed"> No Records Found.<br/>Be the first to start a match!</span>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto pr-2 scrollbar-hide">
-                    {matches.map((match) => (
+                <div className="grid grid-cols-1 gap-3 max-h-[500px] overflow-y-auto pr-2 scrollbar-hide">
+                    {matches.map((match) => {
+                        const isInactive = match.status === 'LIVE' && (Date.now() - new Date(match.updated_at).getTime()) > 3600000; // 1hr
+                        const isTrulyLive = match.status === 'LIVE' && !isInactive;
+
+                        return (
                         <button
                             key={match.id}
                             onClick={() => onSelectMatch(match.id)}
                             className="bg-white/5 border border-white/5 rounded-2xl p-4 text-left hover:bg-white/10 hover:border-indigo-500/30 transition-all group active:scale-[0.98]"
                         >
                             <div className="flex justify-between items-start mb-2">
-                                <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">
-                                    {getTimeAgo(match.created_at)} • LIVE
+                                <span className={`text-[9px] font-black uppercase tracking-widest ${isTrulyLive ? 'text-rose-500' : 'text-indigo-400'}`}>
+                                    {getTimeAgo(match.created_at)} • {isTrulyLive ? '🔴 LIVE NOW' : isInactive ? '⏳ STALLED' : 'COMPLETED'}
                                 </span>
                                 <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest tabular-nums">ID: {match.id.substring(0, 8)}</span>
                             </div>
@@ -89,13 +96,13 @@ const MatchList: React.FC<MatchListProps> = ({ onSelectMatch }) => {
                                 </div>
                                 <div className="text-right">
                                     <span className="text-[8px] font-black text-slate-600 block uppercase mb-1">Status</span>
-                                    <span className="text-[9px] font-black text-emerald-500 uppercase bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${isTrulyLive ? 'text-rose-500 bg-rose-500/10 border-rose-500/20' : 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20'}`}>
                                         {match.status}
                                     </span>
                                 </div>
                             </div>
                         </button>
-                    ))}
+                    )})}
                 </div>
             )}
         </div>

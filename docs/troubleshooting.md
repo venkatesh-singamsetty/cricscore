@@ -27,9 +27,95 @@ This engineering trace documents the real-world resolutions for the CricScore ba
 - **Cause**: Mismatch between the broker listener port and the client's handshake protocol.
 - **Fix**: Identified Port **17729** as the universal SSL listener for this specific Aiven cluster.
 
+### 4. **Empty Match Analytics / Missing History**
+- **Symptom**: "Old Matches" or "Analytics" modal was empty (0 runs, 0 players).
+- **Cause**: Squad data was only in-memory; `players` and `bowlers` tables in DB were never initialized or updated.
+- **Fix**: 
+    - Updated `match-api` to initialize squads in DB during `POST /match`.
+    - Updated `score-update` lambda to `UPDATE` aggregate stats in DB for every ball.
+    - Added `striker_name` / `non_striker_name` tracking to the `innings` table.
+
+### 5. **Fans Live "White Screen" / Stale Old Matches**
+- **Symptom**: "Fans Live" appeared empty/white unless a match was LIVE. Switching to "Old Matches" didn't show new records without a browser refresh.
+- **Cause**: React was reusing component instances without re-fetching; conditional rendering in `App.tsx` was too restrictive.
+- **Fix**: 
+    - Added `key={view}` to `LiveScoreboard` to force remount on tab change.
+    - Refactored `LiveScoreboard` to show DB snapshot data (Batters/Bowlers) immediately if Kafka broadcast is pending.
+
+### 6. **Overs Showing One Less / Active Player Lag**
+- **Symptom**: After the 6th ball, the score showed 2.0 instead of 3.0 for several seconds. Also, spectators saw "Waiting for first ball" despite players being selected.
+- **Cause**: Backend relied on the ball's current over ID rather than the resulting total; crease state was only saved during ball events.
+- **Fix**: 
+    - Updated `MatchView` to explicitly pass `totalOvers` and `totalBalls` in every sync.
+    - Added `syncOnly` mode to `score-update` lambda to persist player roles immediately upon selection.
+    - Filtered `LiveScoreboard` summary to strictly show currently playing batsmen.
+
+### 7. **New Bowler Showing High Over Count**
+- **Symptom**: A bowler starting the 2nd over was incorrectly showing `1.1` overs instead of `0.1` in the spectator view.
+- **Cause**: Backend was calculating bowler figures based on the global `overNumber` index instead of their individual spell count.
+- **Fix**: 
+    - Updated `MatchView` to explicitly track and send `bowlerOvers` and `bowlerBalls` to the backend.
+    - Updated `score-update` lambda to prioritize these explicit personal figures when updating the `bowlers` table.
+
+### 8. **Match Creation Latency**
+- **Symptom**: Starting a new match took several seconds.
+- **Cause**: Sequential `INSERT` statements for 22+ players/bowlers caused multiple round-trips to the DB.
+- **Fix**: Implemented **Bulk SQL Inserts** and Transactions in the `match-api`, reducing round-trips from ~25 to 4.
+
+### 9. **Undo Score Mismatch / Ghost Balls**
+- **Symptom**: Clicking "Undo" reverted the scorer's screen but left spectators with the old score or "ghost" balls in the timeline.
+- **Cause**: Undo only reverted local state; the DB still held the undone ball record, and shallow-copy mutations leaked into the history logs.
+- **Fix**: 
+    - Updated `handleUndo` to send a `DELETE` request to the backend for the last ball event.
+    - Implemented a **Full State Sync** to overwrite DB totals immediately after an undo.
+    - Refactored frontend to use **Strict Immutability** to prevent history log corruption.
+
+### 10. **Aggregate Stat Mismatch on Undo**
+- **Symptom**: After undoing a ball, the team score reverted, but individual batter/bowler runs and wickets in the "Match Analytics" modal stayed high.
+- **Cause**: The backend only reverted the `innings` table totals but didn't subtract runs from the `players` or `bowlers` aggregate tables.
+- **Fix**: Updated the `score-update` lambda to fetch the last ball before deletion, identify the participating players, and explicitly subtract their personal runs/wickets/balls to restore perfect analytics consistency.
+
+### 11. **The "1 Run Extra" Bug (Double-Counting)**
+- **Symptom**: After a ball or undo, the spectator view consistently showed exactly one more run than the scorer.
+- **Cause**: The backend was performing two overlapping updates: one to `SET` the total score and another to `INCREMENT` it by the ball's runs.
+- **Fix**: Removed the redundant increment logic; the system now treats the scorer's transmitted total as the absolute source of truth.
+
+### 12. **The "Less Score" Bug (Missing Sync Totals)**
+- **Symptom**: After fixing double-counting, spectators saw a LOWER score than the scorer (stuck on the previous ball).
+- **Cause**: The `postScoreUpdate` frontend sync was missing the `totalRuns` and `totalWickets` fields, sending `null` to the backend.
+- **Fix**: Refactored `postScoreUpdate` to send the complete, finalized `InningsState` totals in every message.
+
+### 13. **Match Hub Consolidation & Layout Clarity**
+- **Symptom**: Redundant "Fans Live" vs "Old Matches" tabs; missing bowling team name; confused striker position.
+- **Cause**: Tab clutter led to navigation fatigue; UI was missing contextual team labels in the scoring header.
+- **Fix**:
+    - Merged into a unified **Match Hub** sorted by newest matches first with `LIVE` vs `COMPLETED` badges.
+    - Added the bowling team name to all headers and cards.
+    - Implemented a `.sort()` pinned-striker logic to ensure the facing batsman is always at the top for fans.
+
+### 14. **Match Overs "Flicker" (10 vs 20)**
+- **Symptom**: Scorer updated match to 10 overs, but spectators saw it flicker between 10 and 20 every ball.
+- **Cause**: Race condition between the Kafka broadcast (10) and the API Metadata poll (20). The `PATCH /match` was failing to persist the new value to the database.
+- **Fix**: 
+    - Implemented a **Triple-Layer Sync**: Standalone `PATCH`, WebSocket broadcast, and failover DB update during every ball event.
+    - Updated `LiveScoreboard` to prioritize Kafka metadata over potentially stale polling results.
+
+### 15. **Forbidden PATCH / CORS Restriction**
+- **Symptom**: The "Edit Overs" feature worked in the scorer's local UI but never saved to the backend.
+- **Cause**: Browser blocked the cross-origin `PATCH` because (1) it wasn't in `Access-Control-Allow-Methods` and (2) the API Gateway route didn't exist in Terraform.
+- **Fix**: 
+    - Updated `match-api` and `score-update` lambdas to explicitly allow `PATCH` in the `OPTIONS` pre-flight.
+    - Added the `PATCH /match/{matchId}` route to the `aws_apigatewayv2_api` in Terraform.
+
+### 16. **Intrusive Browser Prompts**
+- **Symptom**: Editing overs opened a clunky browser `prompt()` box which felt non-premium.
+- **Cause**: Use of native `window.prompt` for quick implementation.
+- **Fix**: Replaced with a **Seamless Inline UI**. The overs count now transforms into a stylized input field on-click, supporting Enter-to-save and Escape-to-cancel.
+
 ---
 
 ## ✅ Verified State
-- **Ball ID `aeca9859-...`**: Confirmed in Aiven PostgreSQL.
-- **Ball ID `05c1876c-...`**: Confirmed in WebSocket Broadcast (PieSocket).
+- **Ball Sync**: 100% Definitive (Metadata + Runs + Wickets).
+- **Architecture**: Real-time Kafka + WebSocket + DB Polling Failover.
+- **UI/UX**: Premium, In-place Interactive Dashboard.
 - **Latency**: Sub-second end-to-end.

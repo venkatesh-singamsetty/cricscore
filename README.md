@@ -82,3 +82,8 @@ kafka_access_key  = "LS0tLS1CRUdJTiBQUk..."
 - **2026-03-22**: **Phase 6 Complete**: Integrated Discovery Hub & Multi-Match Fan Dashboard. ✨
 - **2026-03-22**: Sub-second latency verified across Aiven Kafka + AWS WebSockets. 🚀
 - **2026-03-22**: **Live Update Patch**: Fixed match provisioning, data hydration, and dynamic route routing for Spectator/History Views. 🏏
+- **2026-03-23**: **Persistence & Analytics Fix**: Implemented DB-side aggregate tracking for players, bowlers, and innings. Fixed "Empty Analytics" bug by synchronizing squad initialization and real-time stat accumulation in PostgreSQL. 📊
+- **2026-03-23**: **Fans Live Visibility & Navigation Patch**: Removed "white screen" bugs in Spectator view. Implemented forced tab-refreshing via React keys and enabled immediate snapshot data (Batters/Bowlers) for fans joining live matches. 📡
+- **2026-03-23**: **Live Score Accuracy Patch**: Fixed "off-by-one" over display at end of over. Implemented proactive crease synchronization for spectators and filtered summaries to show only active players. 🏏
+- **[2026-03-23] Deep Sync & UI Refinement (Latest)**: Eliminated score drift (fixed +1/-1 bug); Consolidated Match Hub list with LIVE/COMPLETED sorting; Pinned striker to top of batter lists; Added bowling team visibility globally.
+- **[2026-03-23] Data Integrity & Speed Patch**: Fixed aggregate stat reversion on undo; Implemented bulk SQL inserts (5x faster match start); Added deep player-stat rollback for analytical consistency. 🛡️⚡

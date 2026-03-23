@@ -316,6 +316,12 @@ resource "aws_apigatewayv2_route" "get_matches" {
   target    = "integrations/${aws_apigatewayv2_integration.match_api.id}"
 }
 
+resource "aws_apigatewayv2_route" "patch_match" {
+  api_id    = aws_apigatewayv2_api.http_api.id
+  route_key = "PATCH /match/{matchId}"
+  target    = "integrations/${aws_apigatewayv2_integration.match_api.id}"
+}
+
 resource "aws_apigatewayv2_route" "post_innings" {
   api_id    = aws_apigatewayv2_api.http_api.id
   route_key = "POST /match/{matchId}/innings"
