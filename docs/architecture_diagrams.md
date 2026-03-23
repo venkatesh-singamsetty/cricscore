@@ -1,6 +1,6 @@
 # CricScore End-to-End Architecture Diagrams
 
-Below are the detailed sequence flow diagrams illustrating the end-to-end processes for writing scores (Live Broadcast) and fetching historical match details.
+Below are the detailed sequence flow diagrams illustrating the end-to-end processes for writing scores (Live Broadcast), fetching historical match details, and managing match duration sync.
 
 ## 1. ⚡ Live Score Update (Dual-Write & Broadcast) Flow
 This architecture details the `POST /update-score` flow initiated when a Scorer records a run. It uses an asynchronous fast-path to overcome external Kafka connector delays, streaming updates to fans globally with sub-second latency.
@@ -19,12 +19,13 @@ sequenceDiagram
     participant APIGW_WS as WebSocket Gateway
     actor Spectator as Spectators (Tab 2)
 
-    Scorer->>APIGW_HTTP: POST /update-score (Runs, Wicket, etc)
+    Scorer->>APIGW_HTTP: POST /update-score (Runs, Wicket, Metadata)
     APIGW_HTTP->>Lambda_Score: Forward Request
     
     rect rgb(0, 0, 0, 0.1)
         Note right of Lambda_Score: Secure Dual-Write Engine
-        Lambda_Score->>Aiven_PG: INSERT INTO ball_events
+        Lambda_Score->>Aiven_PG: UPDATE innings & ball_events
+        Lambda_Score->>Aiven_PG: UPDATE matches (Metadata Failover Sync)
         Aiven_PG-->>Lambda_Score: Returns `ballId`
         Lambda_Score->>Aiven_Kafka: Publish Message to 'score-updates' (mTLS encrypt)
     end
@@ -70,7 +71,7 @@ sequenceDiagram
         Note right of Lambda_Match: Data Hydration
         
         Lambda_Match->>Aiven_PG: SELECT FROM matches WHERE id = matchId
-        Aiven_PG-->>Lambda_Match: Return Match Metadata (Status, Teams)
+        Aiven_PG-->>Lambda_Match: Return Match Metadata (Status, Teams, TotalOvers)
         
         Lambda_Match->>Aiven_PG: SELECT FROM innings WHERE match_id = matchId
         Aiven_PG-->>Lambda_Match: Return Array of Innings (Inns 1, Inns 2)
@@ -90,4 +91,35 @@ sequenceDiagram
     Lambda_Match->>Lambda_Match: Aggregate into JSON scorecard object
     Lambda_Match-->>APIGW_HTTP: HTTP 200 OK w/ CORS Headers
     APIGW_HTTP-->>Viewer: Client renders Full Scorecard & starts listening to WS
+```
+
+---
+
+## 3. ⚙️ Match Duration (Overs) Synchronization
+This architecture details the specific flow for real-time match length adjustments (e.g. reducing a 20-over game to 15 overs due to time constraints).
+
+```mermaid
+sequenceDiagram
+    autonumber
+    
+    actor Scorer as Scorer
+    participant APIGW_HTTP as HTTP API Gateway
+    participant Lambda_Match as Match API Lambda
+    participant Lambda_Score as Score Update Lambda
+    participant Aiven_PG as Aiven PostgreSQL
+    participant Spectator as Spectators (Live Hub)
+
+    Scorer->>Scorer: Click total overs (In-place edit)
+    Scorer->>APIGW_HTTP: PATCH /match/{matchId} { totalOvers: 15 }
+    APIGW_HTTP->>Lambda_Match: Handle PATCH metadata
+    Lambda_Match->>Aiven_PG: UPDATE matches SET total_overs = 15
+    Lambda_Match-->>Scorer: HTTP 200 OK (Persisted)
+
+    rect rgb(0, 0, 0, 0.1)
+        Note left of Scorer: On Next Ball or Manual Sync
+        Scorer->>APIGW_HTTP: POST /update-score { matchTotalOvers: 15 }
+        APIGW_HTTP->>Lambda_Score: Broadcast update
+        Lambda_Score->>Spectator: WebSocket(STATE_SYNC: totalOvers=15)
+        Note right of Spectator: UI updates instantly globally
+    end
 ```
