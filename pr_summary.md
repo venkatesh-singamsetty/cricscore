@@ -1,44 +1,31 @@
-# 🏏 PR Summary: Real-Time Match Engine & Multi-Match Dashboard (Phase 3-6)
+# 🚀 PR Summary: Match Duration Adjustment & Real-Time Sync
 
-This PR completes the integration of **Aiven Kafka & PostgreSQL** with **AWS Serverless** to provide a high-performance, real-time cricket scoring experience. It introduces a full-stack architecture for match setup, live ball-by-ball scoring, and a "Fan Dashboard" for real-time score tracking.
+This PR implements the requested "Match Overs Adjustment" functionality, providing scorers with a premium inline UI to manage match length on-the-fly, while ensuring 100% data consistency for spectators in the Match Hub.
 
-## 🚀 Key Features & Improvements
+## 🚦 Key Features & Enhancements
 
-### 1. **Full-Stack Match Lifecycle**
-- **Match Setup & Management**: New `MatchSetup` and `MatchList` components allow users to initialize new matches and view ongoing ones.
-- **Dynamic Scoring Engine**: Refactored `MatchView` to handle complex cricket logic (innings transitions, bowler changes, wicket types).
-- **Fan Dashboard**: Introduced `LiveScoreboard` for real-time, sub-second score updates via WebSockets.
+### 1. **Inline Match Duration Adjustment (Scorer View)**
+- **Feature**: Scorers can now click the total overs count (e.g., `15` in `2.1 / 15 OVS`) to instantly adjust the match duration.
+- **UI/UX**: Replaced clunky browser `prompt()` boxes with a **Seamless Inline Input Field**. Supports Enter-to-save, Escape-to-cancel, and auto-save on blur.
+- **Persistence**: Updates are saved immediately via a new API `PATCH` route.
 
-### 2. **Backend & Event-Driven Architecture**
-- **Event Streaming (Kafka)**: Integrated Aiven Kafka for high-throughput event streaming. Every ball event is produced to Kafka and consumed by a WebSocket broadcaster.
-- **Dual-Write Persistence**: ACID-compliant records are stored in **Aiven PostgreSQL** ([sql/schema.sql](file:///Users/venkat/workspace/gitRepos/cric-score/sql/schema.sql)) while simultaneously being streamed through Kafka.
-- **Serverless Lambdas**: Added multiple specialized AWS Lambda functions:
-    - `score-update`: Handles match logic and Kafka production.
-    - `kafka-consumer`: Consumes Kafka events for WebSocket broadcasting.
-    - `match-api`: Provides RESTful access to match metadata.
-    - `websocket-handler`: Manages client connections (`onconnect`, `ondisconnect`).
+### 2. **Real-Time Spectator Synchronization**
+- **Unified Display**: The Match Hub and Scorecard Analytics now display the `Overs / Total Overs` format for full context.
+- **Triple-Layer Sync Strategy**:
+    - **Kafka Broadcast**: The `matchTotalOvers` is now included in every live ball message.
+    - **Standalone PATCH**: Metadata updates are persisted to the database independently.
+    - **Metadata Failover**: The `score-update` lambda now re-synchronizes the match's `total_overs` during every ball event, preventing state flicker.
 
-### 3. **Infrastructure & Security (mTLS)**
-- **Secure Connectivity**: Implemented **Mutual TLS (mTLS)** for secure communication between AWS Lambdas and Aiven Kafka.
-- **Terraform Automation**: 
-    - Updated `main.tf` and `variables.tf` to support Aiven resource integration.
-    - Managed sensitive credentials (certs, keys, and DB URLs) via Base64 encoding in `terraform.tfvars`.
-- **Environment Parity**: Added `.env.example` for frontend configuration.
+### 3. **Infrastructure & Backend Hardening**
+- **Terraform Updates**: Added the `PATCH /match/{matchId}` route to the API Gateway.
+- **CORS Resolution**: Updated both `match-api` and `score-update` lambdas to officially support the `PATCH` method and handle pre-flight `OPTIONS` requests from browser-based clients.
+- **Metadata Resilience**: The live Hub now prioritizes real-time Kafka metadata over potentially stale database polling, providing sub-second UI updates.
 
-### 4. **Modernized Frontend State**
-- **View Transitions**: `App.tsx` now uses a clean state-based navigation system to toggle between "Discovery Hub", "Match Setup", and "Live Score" views.
-- **Vite/TypeScript Integration**: Updated `tsconfig.json` and `App.tsx` for better developer experience and type safety with Vite.
-
-## 🛠️ Technical Debt & Cleanup
-- **Deleted `features.md`**: Consolidated all documentation into the `docs/` folder and the main [README.md](file:///Users/venkat/workspace/gitRepos/cric-score/README.md).
-- **Enhanced `.gitignore`**: Now properly ignores build artifacts (`out/`), Terraform state, and environment files.
+## 🛠️ Technical Fixes Included
+- **CORS PATCH Fix**: Resolved browser-side blocking of metadata updates.
+- **Flicker Fix**: Eliminated the "10 vs 20 overs" state revert bug by reconciling Kafka vs DB polling.
+- **Live Score Restoration**: Re-included `runs` and `wickets` in the Kafka broadcast messages after a previous accidental omission.
 
 ---
-
-### 📊 Verification Status
-- [x] **mTLS Handshake**: Verified secure connection from Lambda to Aiven Kafka.
-- [x] **Sub-second Latency**: Confirmed real-time broadcast from Kafka → WebSocket → Frontend.
-- [x] **Schema Validation**: PostgreSQL schema successfully handles innings, players, bowlers, and ball events.
-
----
-*Generated by Antigravity*
+**Status**: 🚀 Ready for Deployment
+**Verification**: End-to-end sync confirmed from Scorer Dashboard to Live Match Hub.

@@ -20,7 +20,7 @@ const LiveScoreboard: React.FC = () => {
     const { lastMessage, isConnected } = useWebSocket(WS_URL);
     const [liveData, setLiveData] = useState<LiveBall | null>(null);
     const [matchDetails, setMatchDetails] = useState<{ innings: InningsState[] } | null>(null);
-    const [matchMeta, setMatchMeta] = useState<{ status: string; teamA: string; teamB: string } | null>(null);
+    const [matchMeta, setMatchMeta] = useState<{ status: string; teamA: string; teamB: string; totalOvers: number } | null>(null);
     const [loadingDetails, setLoadingDetails] = useState(false);
     const [showFullScorecard, setShowFullScorecard] = useState(false);
 
@@ -33,7 +33,8 @@ const LiveScoreboard: React.FC = () => {
             setMatchMeta({
                 status: data.match.status,
                 teamA: data.match.team_a_name,
-                teamB: data.match.team_b_name
+                teamB: data.match.team_b_name,
+                totalOvers: data.match.total_overs
             });
 
             // Map DB rows to InningsState
@@ -58,9 +59,9 @@ const LiveScoreboard: React.FC = () => {
                     overNumber: b.over_number,
                     ballNumber: b.ball_number
                 })),
-                strikerId: '',
-                nonStrikerId: '',
-                currentBowlerId: '',
+                strikerId: (inn.players || []).find((p: any) => p.name === inn.striker_name)?.id || '',
+                nonStrikerId: (inn.players || []).find((p: any) => p.name === inn.non_striker_name)?.id || '',
+                currentBowlerId: (inn.bowlers || []).find((b: any) => b.name === inn.current_bowler_name)?.id || '',
                 players: (inn.players || []).reduce((acc: any, p: any) => {
                     acc[p.id] = {
                         id: p.id,
@@ -102,12 +103,14 @@ const LiveScoreboard: React.FC = () => {
 
     useEffect(() => {
         // Only accept updates for the match we are following
-        if (lastMessage?.type === 'LIVE_SCORE_UPDATE') {
+        if (['LIVE_SCORE_UPDATE', 'STATE_SYNC'].includes(lastMessage?.type || '')) {
             const data = lastMessage.data;
-            console.log("📥 WS Message 'LIVE_SCORE_UPDATE' -> target:", targetMatchId, "incoming:", data.matchId, data);
+            console.log(`📥 WS Message ${lastMessage.type} -> target:`, targetMatchId, "incoming:", data.matchId, data);
             if (!targetMatchId || data.matchId === targetMatchId) {
-                console.log("✅ Match id matched! Setting liveData with runs:", data.runs);
                 setLiveData(data);
+                if (data.matchTotalOvers !== undefined) {
+                    setMatchMeta(prev => prev ? { ...prev, totalOvers: data.matchTotalOvers } : null);
+                }
                 if (targetMatchId) {
                     fetchMatchDetails(targetMatchId, true);
                 }
@@ -177,23 +180,27 @@ const LiveScoreboard: React.FC = () => {
                             currentInnings={matchDetails.innings[matchDetails.innings.length - 1]} 
                             previousInnings={matchDetails.innings.length > 1 ? matchDetails.innings[0] : undefined}
                             onClose={() => setShowFullScorecard(false)}
-                            onResetMatch={() => {}}
+                            isSpectator={true}
+                            totalOvers={matchMeta?.totalOvers}
                         />
                     )}
 
-                    {liveData && matchDetails ? (() => {
+                    {matchDetails && matchMeta?.status !== 'COMPLETED' ? (() => {
                         const currentInnings = matchDetails.innings[matchDetails.innings.length - 1];
                         
-                        // Find active batters (faced balls or is current batter)
-                        const activeBatters = Object.values(currentInnings.players).filter((p: any) => !p.isOut && (p.ballsFaced > 0 || p.name === liveData.batterName));
-                        let displayBatters = activeBatters;
-                        if (displayBatters.length === 0) {
-                            displayBatters = [{ name: liveData.batterName, runs: 0, ballsFaced: 0, fours: 0, sixes: 0, id: 'temp' } as any];
-                        }
+                        // Fallback strikers/bowlers from DB if no live Kafka update yet
+                        const displayStrikerName = liveData?.batterName || currentInnings.players[currentInnings.strikerId]?.name || 'Waiting...';
+                        const displayNonStrikerName = currentInnings.players[currentInnings.nonStrikerId]?.name || 'Waiting...';
+                        const displayBowlerName = liveData?.bowlerName || currentInnings.bowlers[currentInnings.currentBowlerId]?.name || 'Waiting...';
+
+                        // Find active batters (strictly current striker and non-striker)
+                        const activeBatters = Object.values(currentInnings.players)
+                            .filter((p: any) => (p.id === currentInnings.strikerId || p.id === currentInnings.nonStrikerId) && p.id !== "")
+                            .sort((a: any, b: any) => a.id === currentInnings.strikerId ? -1 : 1);
                         
                         // Find current bowler
-                        const currentBowler = Object.values(currentInnings.bowlers).find((b: any) => b.name === liveData.bowlerName) || {
-                            name: liveData.bowlerName, overs: 0, balls: 0, runsConceded: 0, wickets: 0, maidens: 0
+                        const currentBowler = currentInnings.bowlers[currentInnings.currentBowlerId] || {
+                            name: displayBowlerName, overs: 0, balls: 0, runsConceded: 0, wickets: 0, maidens: 0
                         } as any;
 
                         const totalOversDec = currentInnings.overs + (currentInnings.balls / 6);
@@ -205,9 +212,11 @@ const LiveScoreboard: React.FC = () => {
                                 <div className="bg-slate-800/80 p-5 rounded-3xl border border-white/5 flex justify-between items-center relative overflow-hidden shadow-xl">
                                      <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl -z-10"></div>
                                      <div className="flex flex-col">
-                                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
-                                             {currentInnings.battingTeamName}
-                                         </span>
+                                         <div className="flex items-center gap-2 mb-1">
+                                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{currentInnings.battingTeamName}</span>
+                                             <span className="text-[8px] text-slate-600 italic">vs</span>
+                                             <span className="text-[10px] font-black text-indigo-500/80 uppercase tracking-widest">{currentInnings.bowlingTeamName}</span>
+                                         </div>
                                          <div className="flex items-baseline gap-2">
                                              <span className="text-4xl font-black text-white tabular-nums tracking-tighter italic">
                                                  {currentInnings.totalRuns}<span className="text-slate-600 mx-1">/</span>{currentInnings.totalWickets}
@@ -218,8 +227,11 @@ const LiveScoreboard: React.FC = () => {
                                           <span className="px-2 py-0.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded text-[9px] font-black uppercase tracking-widest mb-2">
                                               CRR {crr}
                                           </span>
-                                          <span className="text-sm font-black text-slate-300">
-                                              {currentInnings.overs}.{currentInnings.balls} OVS
+                                          <span className="text-sm font-black text-slate-300 flex items-baseline gap-1">
+                                              <span>{currentInnings.overs}.{currentInnings.balls}</span>
+                                              <span className="text-[10px] text-slate-600">/</span>
+                                              <span>{matchMeta?.totalOvers}</span>
+                                              <span className="text-[9px] text-slate-600 tracking-tight ml-0.5">OVS</span>
                                           </span>
                                      </div>
                                 </div>
@@ -231,13 +243,15 @@ const LiveScoreboard: React.FC = () => {
                                         <span className="text-right w-10">R</span>
                                         <span className="text-right w-10 text-slate-600">B</span>
                                     </div>
-                                    {displayBatters.map((b: any) => (
-                                        <div key={b.id || b.name} className="grid grid-cols-[1fr_auto_auto] gap-4 items-center group">
-                                            <span className={`font-black uppercase text-sm italic truncate ${b.name === liveData.batterName ? 'text-white' : 'text-slate-300'}`}>
-                                                {b.name} {b.name === liveData.batterName && <span className="text-indigo-400 ml-1 opacity-80">*</span>}
+                                    {activeBatters.length === 0 ? (
+                                        <div className="text-[10px] font-black text-slate-600 uppercase text-center py-2">Waiting for first ball...</div>
+                                    ) : activeBatters.map((b: any) => (
+                                        <div key={b.id} className="grid grid-cols-[1fr_auto_auto] gap-4 items-center group">
+                                            <span className={`font-black uppercase text-sm italic truncate ${b.id === currentInnings.strikerId ? 'text-white' : 'text-slate-400'}`}>
+                                                {b.name} {b.id === currentInnings.strikerId && <span className="text-indigo-400 ml-1 opacity-80">*</span>}
                                             </span>
-                                            <span className={`font-black tabular-nums text-right w-10 ${b.name === liveData.batterName ? 'text-white' : 'text-slate-300'}`}>{b.runs}</span>
-                                            <span className={`font-black tabular-nums text-right w-10 text-xs ${b.name === liveData.batterName ? 'text-slate-400' : 'text-slate-500'}`}>{b.ballsFaced}</span>
+                                            <span className={`font-black tabular-nums text-right w-10 ${b.id === currentInnings.strikerId ? 'text-white' : 'text-slate-300'}`}>{b.runs}</span>
+                                            <span className={`font-black tabular-nums text-right w-10 text-xs ${b.id === currentInnings.strikerId ? 'text-slate-400' : 'text-slate-500'}`}>{b.ballsFaced}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -245,7 +259,10 @@ const LiveScoreboard: React.FC = () => {
                                 {/* Bowler */}
                                 <div className="bg-white/5 rounded-2xl border border-white/5 p-4 space-y-3">
                                     <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 text-[9px] font-black text-slate-500 uppercase tracking-widest pb-2 border-b border-white/5">
-                                        <span>Bowler</span>
+                                        <div className="flex flex-col">
+                                            <span className="text-[7px] text-indigo-400 mb-0.5 tracking-[0.2em]">{currentInnings.bowlingTeamName}</span>
+                                            <span>Bowler</span>
+                                        </div>
                                         <span className="text-right w-8">O</span>
                                         <span className="text-right w-8">R</span>
                                         <span className="text-right w-8 text-indigo-400">W</span>
@@ -260,10 +277,10 @@ const LiveScoreboard: React.FC = () => {
                                     </div>
                                     <div className="mt-3 pt-3 border-t border-white/5 text-center">
                                          <span className="px-2 py-0.5 bg-white/5 rounded text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-2 w-max mx-auto">
-                                            LAST BALL: {liveData.runs > 0 ? `${liveData.runs} RUNS` : 'DOT'}
+                                            LIVE COMMENTARY
                                         </span>
                                         <p className="text-slate-300 text-xs font-medium italic leading-relaxed">
-                                            "{liveData.commentary}"
+                                            {liveData ? `"${liveData.commentary}"` : "Waiting for the next ball..."}
                                         </p>
                                     </div>
                                 </div>

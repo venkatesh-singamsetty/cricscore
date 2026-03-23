@@ -5,10 +5,12 @@ interface ScoreboardProps {
   currentInnings: InningsState;
   previousInnings?: InningsState;
   onClose: () => void;
-  onResetMatch: () => void;
+  onResetMatch?: () => void;
+  isSpectator?: boolean;
+  totalOvers?: number;
 }
 
-const Scoreboard: React.FC<ScoreboardProps> = ({ currentInnings, previousInnings, onClose, onResetMatch }) => {
+const Scoreboard: React.FC<ScoreboardProps> = ({ currentInnings, previousInnings, onClose, onResetMatch, isSpectator = false, totalOvers }) => {
   const [activeTab, setActiveTab] = useState<'current' | 'previous'>(
     'current'
   );
@@ -48,7 +50,7 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ currentInnings, previousInnings
             return (
               <tr key={id} className={`group transition-all duration-300 ${highlight ? 'bg-indigo-600 shadow-lg shadow-indigo-600/20' : 'bg-white/5 hover:bg-white/10'}`}>
                 <td className={`px-4 py-3 first:rounded-l-xl font-black uppercase tracking-tight italic text-sm ${highlight ? 'text-white' : 'text-slate-200'}`}>
-                  {player.name} {highlight && '*'}
+                  {player.name} {isStriker && <span className="text-indigo-300 animate-pulse ml-1 text-base">🏏</span>}
                 </td>
                 <td className={`px-4 py-3 text-[10px] font-black uppercase tracking-tight ${highlight ? 'text-indigo-100' : 'text-slate-500'}`}>
                   {player.isOut ? (
@@ -56,7 +58,7 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ currentInnings, previousInnings
                       {player.wicketType?.toLowerCase().replace('_', ' ')} b {player.wicketBy}
                     </span>
                   ) : (
-                    <span className="text-green-500 opacity-90">not out</span>
+                    <span className="text-green-300 opacity-90">{highlight ? 'batting' : 'not out'}</span>
                   )}
                 </td>
                 <td className={`px-4 py-3 text-right font-black text-base tabular-nums ${highlight ? 'text-white' : 'text-slate-100'}`}>{player.runs}</td>
@@ -162,8 +164,15 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ currentInnings, previousInnings
                   <span className="text-4xl font-black text-white tabular-nums tracking-tighter italic">
                     {displayInnings.totalRuns}<span className="text-slate-700 mx-1">/</span>{displayInnings.totalWickets}
                   </span>
-                  <span className="ml-3 text-xs font-black text-slate-500 bg-white/5 px-2 py-1 rounded uppercase tracking-tighter tabular-nums">
-                    {displayInnings.overs}.{displayInnings.balls} OVS
+                  <span className="ml-3 text-xs font-black text-slate-500 bg-white/5 px-2 py-1 rounded uppercase tracking-tighter tabular-nums flex items-baseline gap-1">
+                    <span>{displayInnings.overs}.{displayInnings.balls}</span>
+                    {totalOvers && (
+                      <>
+                        <span className="text-[10px] opacity-40">/</span>
+                        <span>{totalOvers}</span>
+                      </>
+                    )}
+                    <span className="ml-0.5 text-[10px] opacity-50">OVS</span>
                   </span>
                 </div>
               </div>
@@ -173,9 +182,59 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ currentInnings, previousInnings
             {/* Bowling Section */}
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 mb-6">
-                <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400 italic">Bowling Strategy</span>
+                <div className="flex flex-col">
+                  <span className="text-[7px] text-slate-500 mb-0.5 tracking-[0.2em]">{displayInnings.bowlingTeamName}</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400 italic">Bowling Strategy</span>
+                </div>
               </div>
               <BowlingTable bowlers={displayInnings.bowlers} order={displayInnings.bowlingOrder} />
+            </div>
+
+            {/* Ball by Ball Timeline */}
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 mb-6">
+                <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400 italic">Innings Timeline (Ball by Ball)</span>
+              </div>
+              <div className="space-y-3">
+                {(() => {
+                  const overs: Record<number, any[]> = {};
+                  displayInnings.allBalls.forEach(ball => {
+                    if (!overs[ball.overNumber]) overs[ball.overNumber] = [];
+                    overs[ball.overNumber].push(ball);
+                  });
+
+                  return Object.entries(overs).sort(([a], [b]) => Number(b) - Number(a)).map(([overNum, balls]) => {
+                    const bowler = balls[0]?.bowlerName || '---';
+                    return (
+                      <div key={overNum} className="bg-white/5 border border-white/5 rounded-2xl p-4 hover:bg-white/10 transition-colors">
+                        <div className="flex justify-between items-center mb-3">
+                          <div className="flex items-center gap-2">
+                             <span className="text-xs font-black text-indigo-400 uppercase italic">Over {Number(overNum) + 1}</span>
+                             <span className="w-1 h-3 bg-slate-700 rounded-full"></span>
+                             <span className="text-[11px] font-bold text-slate-300 uppercase tracking-widest">{bowler}</span>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {balls.map((ball: any, idx: number) => {
+                            const isWicket = ball.isWicket;
+                            const isExtra = ball.isExtra;
+                            let label = ball.runs;
+                            if (ball.extraType === 'WIDE') label = `${ball.extraRuns + ball.runs}wd`;
+                            if (ball.extraType === 'NO_BALL') label = `${ball.extraRuns + ball.runs}nb`;
+                            if (isWicket) label = 'W';
+
+                            return (
+                              <div key={idx} className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black ${isWicket ? 'bg-red-600 text-white shadow-lg shadow-red-600/20' : isExtra ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/20' : 'bg-slate-800 text-slate-300'}`}>
+                                {label}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
             </div>
 
             {/* Extras & Reset Footer */}
@@ -211,7 +270,7 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ currentInnings, previousInnings
                     })()}
                   </div>
                 </div>
-                {activeTab === 'current' && (
+                {!isSpectator && onResetMatch && activeTab === 'current' && (
                   <div className="mt-8 pt-6 border-t border-white/10 flex flex-col items-center">
                     <button
                       onClick={() => {

@@ -33,3 +33,9 @@ CricScore is a highly-available, real-time cricket match scoring system with an 
 - **2026-03-22**: Completed Phase 2 (Persistence Layer).
 - **2026-03-22**: Completed Phase 3 (Event Producer - Kafka mTLS).
 - **2026-03-22**: Completed Phase 5 (Real-Time Broadcasting).
+- **2026-03-23**: **Robustness & Persistence Patch**: Finalized DB-side aggregate synchronization for a reliable historical match archive.
+- **2026-03-23**: **Fans Live UX Patch**: Consistently live scoreboard summaries and zero-refresh navigation between tabs.
+- **2026-03-23**: **Live Accuracy Patch**: Guaranteed over-end precision and real-time active player syncing.
+- **2026-03-23**: **Stat Engine Refinement**: Independent tracking for individual bowler figures vs. team score.
+- **[2026-03-23] Match Hub & Layout Polish**: Merged Live/History tabs into unified Hub; Fixed bowling team visibility; Pinned striker to top of cards.
+- **[2026-03-23] Core Stability Update**: Implemented Deep Aggregate Reversion (ARUP fix) for perfect undo-consistency in analytics.

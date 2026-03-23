@@ -143,7 +143,9 @@ const MatchSetup: React.FC<MatchSetupProps> = ({ onStartMatch }) => {
                     teamA: teamA.name,
                     teamB: teamB.name,
                     totalOvers: overs,
-                    batFirstTeam: batFirstTeamName
+                    batFirstTeam: batFirstTeamName,
+                    teamASquad: teamA.players,
+                    teamBSquad: teamB.players
                 })
             });
 

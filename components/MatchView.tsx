@@ -9,6 +9,7 @@ interface MatchViewProps {
     matchId: string; // Dynamic ID
     onInningsEnd: (innings: InningsState) => void;
     onResetMatch: () => void;
+    onUpdateOvers?: (overs: number) => void;
 }
 
 type ModalType = 'NONE' | 'WICKET_TYPE' | 'BATTER_SELECT' | 'BOWLER_SELECT' | 'FIELDER_SELECT' | 'EXTRA_RUNS' | 'RUN_OUT_MODAL';
@@ -19,8 +20,10 @@ const MatchView: React.FC<MatchViewProps> = ({
     totalOvers,
     matchId,
     onInningsEnd,
-    onResetMatch
+    onResetMatch,
+    onUpdateOvers
 }) => {
+    const [isEditingOvers, setIsEditingOvers] = useState(false);
     // --- Live Persistence (Synchronous Hydration) ---
     const loadSavedLiveState = () => {
         const savedLive = localStorage.getItem('cric-scorer-live-innings');
@@ -100,10 +103,38 @@ const MatchView: React.FC<MatchViewProps> = ({
         if (history.length === 0) return;
         const previousState = history[history.length - 1];
         setHistory(prev => prev.slice(0, -1));
+        setIsProcessing(false);
         setInnings(previousState);
         setModalView('NONE');
         setPendingExtra(ExtraType.NONE);
         setLastCommentary("Last action undone.");
+        
+        // Immediate sync after undo to revert spectator scores & delete last ball in DB
+        const s = previousState.players[previousState.strikerId]?.name || '';
+        const ns = previousState.players[previousState.nonStrikerId]?.name || '';
+        const b = previousState.bowlers[previousState.currentBowlerId]?.name || '';
+        const bOvers = previousState.bowlers[previousState.currentBowlerId]?.overs || 0;
+        const bBalls = previousState.bowlers[previousState.currentBowlerId]?.balls || 0;
+
+        fetch(`${API_URL}/update-score`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                matchId,
+                inningId: previousState.id,
+                strikerName: s,
+                nonStrikerName: ns,
+                bowlerName: b,
+                totalOvers: previousState.overs,
+                totalBalls: previousState.balls,
+                totalRuns: previousState.totalRuns,
+                totalWickets: previousState.totalWickets,
+                bowlerOvers: bOvers,
+                bowlerBalls: bBalls,
+                syncOnly: true,
+                undo: true // Tell backend to delete the most recent ball row
+            })
+        }).catch(err => console.error("Undo Sync Failed:", err));
     };
 
     const generateSimpleCommentary = (ball: BallEvent): string => {
@@ -192,13 +223,67 @@ const MatchView: React.FC<MatchViewProps> = ({
     };
 
     const API_URL = import.meta.env.VITE_API_URL || "https://mmiwp8rgrf.execute-api.us-east-1.amazonaws.com";
-
-    const postScoreUpdate = async (ball: BallEvent) => {
+    
+    const syncMatchState = async () => {
+        if (!innings.strikerId || !innings.nonStrikerId || !innings.currentBowlerId) return;
+        
         try {
+            const bOvers = innings.bowlers[innings.currentBowlerId]?.overs || 0;
+            const bBalls = innings.bowlers[innings.currentBowlerId]?.balls || 0;
+
             await fetch(`${API_URL}/update-score`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ matchId, inningId: innings.id, ballData: ball })
+                body: JSON.stringify({
+                    matchId,
+                    inningId: innings.id,
+                    strikerName: striker.name,
+                    nonStrikerName: nonStriker.name,
+                    bowlerName: bowler.name,
+                    currentOvers: innings.overs,
+                    currentBalls: innings.balls,
+                    matchTotalOvers: totalOvers,
+                    totalRuns: innings.totalRuns,
+                    totalWickets: innings.totalWickets,
+                    bowlerOvers: bOvers,
+                    bowlerBalls: bBalls,
+                    syncOnly: true
+                })
+            });
+            console.log("Crease State Synced 📡");
+        } catch (err) {
+            console.error("Crease Sync Failed:", err);
+        }
+    };
+
+    // Auto-sync crease when players or match duration change
+    useEffect(() => {
+        if (innings.strikerId && innings.nonStrikerId && innings.currentBowlerId) {
+            syncMatchState();
+        }
+    }, [innings.strikerId, innings.nonStrikerId, innings.currentBowlerId, totalOvers]);
+
+    const postScoreUpdate = async (ball: BallEvent, finalInnings: InningsState) => {
+        try {
+            const b = finalInnings.bowlers[finalInnings.currentBowlerId];
+            await fetch(`${API_URL}/update-score`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    matchId,
+                    inningId: finalInnings.id,
+                    ballData: ball,
+                    strikerName: finalInnings.players[finalInnings.strikerId]?.name || '',
+                    nonStrikerName: finalInnings.players[finalInnings.nonStrikerId]?.name || '',
+                    bowlerName: b?.name || '',
+                    currentOvers: finalInnings.overs,
+                    currentBalls: finalInnings.balls,
+                    matchTotalOvers: totalOvers,
+                    totalRuns: finalInnings.totalRuns,
+                    totalWickets: finalInnings.totalWickets,
+                    bowlerOvers: b?.overs || 0,
+                    bowlerBalls: b?.balls || 0
+                })
             });
             console.log("Live Sync: Ball sent to Aiven Kafka 🏏📡");
         } catch (err) {
@@ -323,39 +408,44 @@ const MatchView: React.FC<MatchViewProps> = ({
             [nextInnings.strikerId, nextInnings.nonStrikerId] = [nextInnings.nonStrikerId, nextInnings.strikerId];
         }
 
-        // Commit State Updates
-        nextInnings.players[striker.id] = nextStriker;
-        nextInnings.allBalls.push(newBallEvent);
-        nextInnings.currentOver.push(newBallEvent);
-        if (nextInnings.currentOver.length > 6) nextInnings.currentOver.shift();
+        // Commit State Updates - Deep Copy to avoid mutation leaks
+        const finalInnings: InningsState = {
+            ...nextInnings,
+            players: { ...nextInnings.players, [striker.id]: nextStriker },
+            bowlers: { ...nextInnings.bowlers, [bowler.id]: nextBowler },
+            allBalls: [...nextInnings.allBalls, newBallEvent],
+            currentOver: [...nextInnings.currentOver, newBallEvent]
+        };
 
-        // Maiden Over check - ignoring Wides, No Balls, Byes, and Leg-byes per request
+        if (finalInnings.currentOver.length > 6) {
+            finalInnings.currentOver = finalInnings.currentOver.slice(1);
+        }
+
+        // Maiden Over check
         if (overCompleted) {
             const currentOverNumber = newBallEvent.overNumber;
-            const overBalls = nextInnings.allBalls.filter(b => b.overNumber === currentOverNumber);
+            const overBalls = finalInnings.allBalls.filter(b => b.overNumber === currentOverNumber);
 
-            // A maiden is prevented only if there were runs off the bat
             const runsOffBatInOver = overBalls.reduce((sum, b) => {
-                const isExtra = b.extraType !== ExtraType.NONE;
-                if (isExtra) return sum;
+                if (b.extraType !== ExtraType.NONE) return sum;
                 return sum + b.runs;
             }, 0);
 
             if (runsOffBatInOver === 0) {
-                nextBowler.maidens += 1;
+                const updatedBowler = { ...finalInnings.bowlers[bowler.id], maidens: (finalInnings.bowlers[bowler.id].maidens || 0) + 1 };
+                finalInnings.bowlers[bowler.id] = updatedBowler;
             }
         }
-
-        nextInnings.bowlers[bowler.id] = nextBowler;
-        setInnings(nextInnings);
-        postScoreUpdate(newBallEvent); // 🏏 Real-time Broadcast to Aiven Kafka 
+    
+        setInnings(finalInnings);
+        postScoreUpdate(newBallEvent, finalInnings);
         setPendingExtra(ExtraType.NONE);
         setPendingWicketInfo(null);
 
         // Check Match/Innings End Conditions
-        const isAllOut = nextInnings.totalWickets >= 10;
-        const isOversDone = nextInnings.overs >= totalOvers;
-        const isTargetChased = nextInnings.target && nextInnings.totalRuns >= nextInnings.target;
+        const isAllOut = finalInnings.totalWickets >= 10;
+        const isOversDone = finalInnings.overs >= totalOvers;
+        const isTargetChased = finalInnings.target && finalInnings.totalRuns >= finalInnings.target;
         const isMatchEnding = isAllOut || isOversDone || isTargetChased;
 
         // Logic for next actions (Modals)
@@ -759,6 +849,7 @@ const MatchView: React.FC<MatchViewProps> = ({
                     previousInnings={previousInnings}
                     onClose={() => setShowScoreboard(false)}
                     onResetMatch={onResetMatch}
+                    totalOvers={totalOvers}
                 />
             )}
 
@@ -767,19 +858,55 @@ const MatchView: React.FC<MatchViewProps> = ({
                 <div className="max-w-4xl mx-auto px-4 py-2">
                     <div className="flex justify-between items-center gap-4">
                         <div className="flex-1 overflow-hidden">
-                            <div className="flex items-center gap-2 mb-0.5">
-                                <span className="bg-indigo-600 text-white text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-widest">{innings.inningNumber === 1 ? '1st' : '2nd'} INN</span>
-                                <span className="text-white text-[11px] font-black tracking-widest uppercase truncate cursor-pointer hover:text-blue-400 transition-colors" onClick={() => handleRenameTeam(true)}>
-                                    <span className="text-blue-400">{innings.battingTeamName}</span>
-                                </span>
+                            <div className="flex items-center gap-2 mb-0.5 overflow-hidden">
+                                <span className="bg-indigo-600 text-white text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-widest flex-shrink-0">{innings.inningNumber === 1 ? '1st' : '2nd'} INN</span>
+                                <div className="flex items-center gap-1.5 text-white text-[11px] font-black tracking-widest uppercase truncate">
+                                    <span className="text-blue-400 cursor-pointer hover:underline" onClick={() => handleRenameTeam(true)}>{innings.battingTeamName}</span>
+                                    <span className="text-slate-600 text-[8px] italic lowercase font-medium">vs</span>
+                                    <span className="text-indigo-400 cursor-pointer hover:underline" onClick={() => handleRenameTeam(false)}>{innings.bowlingTeamName}</span>
+                                </div>
                             </div>
                             <div className="flex items-baseline gap-2">
                                 <span className="text-3xl font-black tracking-tighter text-white tabular-nums">
                                     {innings.totalRuns}<span className="text-slate-500 mx-0.5 text-xl">/</span>{innings.totalWickets}
                                 </span>
-                                <span className="text-indigo-400 font-black text-sm leading-none tabular-nums">
-                                    {innings.overs}.{innings.balls} <span className="text-slate-600 text-[9px] tracking-tight">OVS</span>
-                                </span>
+                                <div className="flex items-center gap-1 text-indigo-400 font-black text-sm leading-none tabular-nums group/overs">
+                                    <span>{innings.overs}.{innings.balls}</span>
+                                    <span className="text-slate-600 text-[10px] mx-0.5">/</span>
+                                    {isEditingOvers ? (
+                                        <div className="flex items-center gap-1 animate-in zoom-in-75 duration-200">
+                                            <input
+                                                type="number"
+                                                autoFocus
+                                                defaultValue={totalOvers}
+                                                className="w-10 bg-indigo-600/30 border border-indigo-400/50 rounded text-center outline-none text-white text-xs py-0.5 font-black"
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        const val = parseInt((e.target as HTMLInputElement).value);
+                                                        if (!isNaN(val)) onUpdateOvers?.(val);
+                                                        setIsEditingOvers(false);
+                                                    }
+                                                    if (e.key === 'Escape') setIsEditingOvers(false);
+                                                }}
+                                                onBlur={(e) => {
+                                                    const val = parseInt(e.target.value);
+                                                    if (!isNaN(val)) onUpdateOvers?.(val);
+                                                    setIsEditingOvers(false);
+                                                }}
+                                            />
+                                            <span className="text-[10px] text-emerald-400" onClick={() => setIsEditingOvers(false)}>✅</span>
+                                        </div>
+                                    ) : (
+                                        <span 
+                                            className="cursor-pointer hover:text-indigo-300 transition-colors flex items-center gap-1"
+                                            onClick={() => setIsEditingOvers(true)}
+                                        >
+                                            <span>{totalOvers}</span>
+                                            <span className="text-[10px] opacity-0 group-hover/overs:opacity-100 ml-0.5">✏️</span>
+                                        </span>
+                                    )}
+                                    <span className="text-slate-600 text-[9px] tracking-tight ml-0.5">OVS</span>
+                                </div>
                             </div>
                         </div>
 
@@ -830,7 +957,13 @@ const MatchView: React.FC<MatchViewProps> = ({
                         <div className="space-y-1">
                             <div className="flex justify-between items-center p-2.5 md:p-3 rounded-xl bg-slate-800 border border-white/10 shadow-inner h-full">
                                 <div className="flex flex-col min-w-0">
-                                    <span className="text-[9px] font-black text-slate-500 uppercase leading-none mb-1">Bowler</span>
+                                    <div className="flex flex-col mb-1.5">
+                                        <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest leading-none mb-1 italic">{innings.bowlingTeamName}</span>
+                                        <div className="flex items-center gap-1">
+                                            <span className="w-1 h-3 bg-indigo-500 rounded-full"></span>
+                                            <span className="text-[9px] font-black text-slate-500 uppercase leading-none">Bowler</span>
+                                        </div>
+                                    </div>
                                     <span className="text-[11px] md:text-xs font-black text-indigo-300 uppercase truncate cursor-pointer hover:text-white transition-colors" onClick={() => handleRenameBowler(bowler.id)}>{bowler.name || '---'}</span>
                                 </div>
                                 <div className="text-right">
