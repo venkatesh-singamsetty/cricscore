@@ -254,7 +254,8 @@ resource "aws_lambda_function" "match_api" {
 
   environment {
     variables = {
-      DATABASE_URL = var.database_url
+      DATABASE_URL       = var.database_url
+      BROADCASTER_LAMBDA = aws_lambda_function.score_update.function_name
     }
   }
 

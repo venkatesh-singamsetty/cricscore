@@ -3,6 +3,9 @@ import { TeamData } from '../types';
 
 interface MatchSetupProps {
     onStartMatch: (teamA: TeamData, teamB: TeamData, overs: number, batFirstTeam: string, matchId: string, inningId: string) => void;
+    onResumeMatch: (matchId: string) => void;
+    hideResume?: boolean;
+    canDelete?: boolean;
 }
 
 const handleScroll = (textarea: HTMLTextAreaElement, lineNumbers: HTMLDivElement) => {
@@ -99,14 +102,13 @@ const SquadInput = ({
     );
 };
 
-const MatchSetup: React.FC<MatchSetupProps> = ({ onStartMatch }) => {
-    const [teamAName, setTeamAName] = useState('CHICAGO SPARTANS');
-    const [teamASquad, setTeamASquad] = useState(['DONNY', 'JIGAR', 'RAJU', 'SANDY', 'SHOBS', 'SHYAM', 'SUNIL', 'SURENDRA', 'VAMSI DESPLANES', 'VAMSI NAPERVILLE', 'VENKY'].join('\n'));
+const MatchSetup: React.FC<MatchSetupProps> = ({ onStartMatch, onResumeMatch, hideResume, canDelete = true }) => {
+    const [teamAName, setTeamAName] = useState('TEAM A');
+    const [teamBName, setTeamBName] = useState('TEAM B');
+    const [teamASquad, setTeamASquad] = useState('P1\nP2\nP3\nP4\nP5');
+    const [teamBSquad, setTeamBSquad] = useState('P6\nP7\nP8\nP9\nP10');
 
-    const [teamBName, setTeamBName] = useState('TEAM B')
-    const [teamBSquad, setTeamBSquad] = useState(['ABHISHEK', 'SANJU', 'ISHAN', 'SURYAKUMAR', 'TILAK', 'HARDIK', 'AXAR', 'SHIVAM', 'VARUN', 'ARSHDEEP', 'JASPRIT'].join('\n'));
-
-    const [overs, setOvers] = useState(20);
+    const [overs, setOvers] = useState(1);
     const [batFirst, setBatFirst] = useState('Team A'); // 'Team A' or 'Team B'
 
     const textareaRefA = useRef<HTMLTextAreaElement>(null);
@@ -166,6 +168,38 @@ const MatchSetup: React.FC<MatchSetupProps> = ({ onStartMatch }) => {
         }
     };
 
+    const [recentMatches, setRecentMatches] = useState<any[]>([]);
+    const [loadingRecent, setLoadingRecent] = useState(false);
+
+    const fetchRecentMatches = async () => {
+        setLoadingRecent(true);
+        try {
+            const response = await fetch(`${API_URL}/matches`);
+            const data = await response.json();
+            // FILTER: Scorer only sees the MOST RECENT LIVE match to resume
+            const resumeable = data
+                .filter((m: any) => m.status === 'LIVE')
+                .slice(0, 1); 
+            setRecentMatches(resumeable);
+        } catch (err) {
+            console.error("Failed to fetch recent matches:", err);
+        } finally {
+            setLoadingRecent(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchRecentMatches();
+    }, []);
+
+    const getTimeAgo = (dateStr: string) => {
+        const diff = Date.now() - new Date(dateStr).getTime();
+        const mins = Math.floor(diff / 60000);
+        if (mins < 1) return 'JUST NOW';
+        if (mins < 60) return `${mins}m ago`;
+        if (mins < 1440) return `${Math.floor(mins / 60)}h ago`;
+        return `${Math.floor(mins / 1440)}d ago`;
+    };
 
     return (
         <div className="h-full bg-slate-950 text-slate-100 overflow-hidden flex flex-col selection:bg-indigo-500/30">
@@ -178,6 +212,68 @@ const MatchSetup: React.FC<MatchSetupProps> = ({ onStartMatch }) => {
                 </div>
 
                 <form onSubmit={handleSubmit} className="flex-1 flex flex-col gap-3 min-h-0 overflow-hidden">
+                    {/* Resume Match Section */}
+                    {!hideResume && recentMatches.length > 0 && (
+                        <div className="bg-slate-900/40 border border-indigo-500/10 rounded-3xl p-4 shrink-0 overflow-hidden">
+                            <div className="flex justify-between items-center mb-3 px-1">
+                                <h3 className="text-[9px] font-black uppercase tracking-[0.3em] text-indigo-400/60">Resume Recent Match</h3>
+                                {loadingRecent && <span className="text-[8px] font-bold text-slate-500 animate-pulse uppercase">Refreshing...</span>}
+                            </div>
+                            <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
+                                {recentMatches.map(m => (
+                                    <button
+                                        key={m.id}
+                                        type="button"
+                                        onClick={() => onResumeMatch(m.id)}
+                                        className="shrink-0 bg-slate-950 border border-white/5 p-3 rounded-2xl hover:border-indigo-500/50 hover:bg-slate-900 transition-all text-left min-w-[160px] group"
+                                    >
+                                        <div className="flex justify-between items-center mb-1">
+                                            <span className="text-[8px] font-bold text-slate-500 uppercase">{getTimeAgo(m.created_at)}</span>
+                                            <span className={`w-1.5 h-1.5 rounded-full ${m.status === 'LIVE' ? 'bg-rose-500 animate-pulse' : 'bg-slate-600'}`}></span>
+                                        </div>
+                                        <div className="text-[11px] font-black text-white truncate italic uppercase group-hover:text-indigo-400 transition-colors">
+                                            {m.team_a_name} <span className="text-[8px] text-slate-600 not-italic mx-0.5">vs</span> {m.team_b_name}
+                                        </div>
+                                        <div className="flex justify-between items-center mt-2 group/meta">
+                                            <span className="text-[8px] font-black text-slate-600 uppercase tracking-tighter">ID: {m.id.substring(0,6)}</span>
+                                            <div className="flex items-center gap-2">
+                                                {canDelete && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={async (e) => {
+                                                            e.stopPropagation();
+                                                            if (confirm("🚨 DELETE MATCH?\nThis record will be permanently removed.")) {
+                                                                // Optimistic UI update
+                                                                const matchId = m.id;
+                                                                setRecentMatches(prev => prev.filter(item => item.id !== matchId));
+                                                                try {
+                                                                    const res = await fetch(`${API_URL}/match/${matchId}`, { method: 'DELETE' });
+                                                                    if (!res.ok) {
+                                                                        const errData = await res.json();
+                                                                        throw new Error(errData.error || "Server failed");
+                                                                    }
+                                                                    fetchRecentMatches();
+                                                                } catch (err: any) { 
+                                                                    alert(`Delete failed!\n${err.message}`); 
+                                                                    fetchRecentMatches(); 
+                                                                }
+                                                            }
+                                                        }}
+                                                        className="opacity-0 group-hover/meta:opacity-100 w-6 h-6 flex items-center justify-center bg-red-900/20 text-red-500 rounded-lg hover:bg-red-600 hover:text-white transition-all text-[10px]"
+                                                        title="Delete Match"
+                                                    >
+                                                        🗑️
+                                                    </button>
+                                                )}
+                                                <span className="text-[10px]">🎯</span>
+                                            </div>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Team Cards Grid - Flexible to fill space */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 flex-1 min-h-0">
                         {/* Team A Card */}

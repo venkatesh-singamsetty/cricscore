@@ -13,7 +13,12 @@ interface LiveBall {
     commentary: string;
 }
 
-const LiveScoreboard: React.FC = () => {
+interface LiveScoreboardProps {
+    isAdmin?: boolean;
+    onResumeMatch?: (matchId: string) => void;
+}
+
+const LiveScoreboard: React.FC<LiveScoreboardProps> = ({ isAdmin, onResumeMatch }) => {
     const WS_URL = import.meta.env.VITE_WS_URL || "wss://i4cnmjy0tg.execute-api.us-east-1.amazonaws.com/prod";
     const API_URL = import.meta.env.VITE_API_URL || "https://mmiwp8rgrf.execute-api.us-east-1.amazonaws.com";
     const [targetMatchId, setTargetMatchId] = useState<string>("");
@@ -23,6 +28,8 @@ const LiveScoreboard: React.FC = () => {
     const [matchMeta, setMatchMeta] = useState<{ status: string; teamA: string; teamB: string; totalOvers: number } | null>(null);
     const [loadingDetails, setLoadingDetails] = useState(false);
     const [showFullScorecard, setShowFullScorecard] = useState(false);
+    const [hubUpdateTrigger, setHubUpdateTrigger] = useState(0);
+    const [searchTerm, setSearchTerm] = useState("");
 
     const fetchMatchDetails = useCallback(async (matchId: string, isBackground = false) => {
         if (!isBackground) setLoadingDetails(true);
@@ -94,6 +101,11 @@ const LiveScoreboard: React.FC = () => {
             }));
 
             setMatchDetails({ innings: mappedInnings });
+            
+            // Auto-open scorecard for COMPLETED matches on first load
+            if (!isBackground && data.match.status === 'COMPLETED') {
+                setShowFullScorecard(true);
+            }
         } catch (err) {
             console.error("Failed to fetch match details:", err);
         } finally {
@@ -117,6 +129,8 @@ const LiveScoreboard: React.FC = () => {
             } else {
                 console.warn("❌ Match id mismatch. Ignoring.");
             }
+        } else if (lastMessage?.type === 'HUB_UPDATE') {
+            setHubUpdateTrigger(prev => prev + 1);
         }
     }, [lastMessage, targetMatchId, fetchMatchDetails]);
 
@@ -147,16 +161,29 @@ const LiveScoreboard: React.FC = () => {
                 <div className="relative group">
                     <input 
                         type="text"
-                        placeholder="FOLLOW MATCH ID..."
+                        placeholder={targetMatchId ? "FOLLOW MATCH ID..." : "SEARCH TEAM OR MATCH ID..."}
                         className="w-full bg-slate-800/50 border border-white/5 rounded-xl px-4 py-2.5 text-[10px] font-black text-indigo-400 placeholder:text-slate-600 outline-none focus:border-indigo-500/50 transition-all uppercase tracking-widest tabular-nums"
-                        value={targetMatchId}
-                        onChange={(e) => setTargetMatchId(e.target.value)}
+                        value={targetMatchId ? targetMatchId : searchTerm}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            if (targetMatchId) setTargetMatchId(val);
+                            else setSearchTerm(val);
+                        }}
                     />
                 </div>
             </div>
 
             {!targetMatchId ? (
-                <MatchList onSelectMatch={(id) => setTargetMatchId(id)} />
+                <MatchList 
+                    onSelectMatch={(id) => {
+                        setTargetMatchId(id);
+                        setSearchTerm(""); // Reset search on select
+                    }} 
+                    isAdmin={isAdmin}
+                    onResumeMatch={onResumeMatch}
+                    refreshTrigger={hubUpdateTrigger}
+                    searchTerm={searchTerm}
+                />
             ) : (
                 <div className="space-y-6">
                     <div className="flex justify-between items-center">
@@ -179,7 +206,12 @@ const LiveScoreboard: React.FC = () => {
                         <Scoreboard 
                             currentInnings={matchDetails.innings[matchDetails.innings.length - 1]} 
                             previousInnings={matchDetails.innings.length > 1 ? matchDetails.innings[0] : undefined}
-                            onClose={() => setShowFullScorecard(false)}
+                            onClose={() => {
+                                setShowFullScorecard(false);
+                                if (matchMeta?.status === 'COMPLETED') {
+                                    setTargetMatchId(""); // Return to Hub on completion
+                                }
+                            }}
                             isSpectator={true}
                             totalOvers={matchMeta?.totalOvers}
                         />
@@ -210,30 +242,43 @@ const LiveScoreboard: React.FC = () => {
                             <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-700">
                                 {/* Score header */}
                                 <div className="bg-slate-800/80 p-5 rounded-3xl border border-white/5 flex justify-between items-center relative overflow-hidden shadow-xl">
-                                     <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl -z-10"></div>
-                                     <div className="flex flex-col">
-                                         <div className="flex items-center gap-2 mb-1">
-                                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{currentInnings.battingTeamName}</span>
-                                             <span className="text-[8px] text-slate-600 italic">vs</span>
-                                             <span className="text-[10px] font-black text-indigo-500/80 uppercase tracking-widest">{currentInnings.bowlingTeamName}</span>
-                                         </div>
-                                         <div className="flex items-baseline gap-2">
-                                             <span className="text-4xl font-black text-white tabular-nums tracking-tighter italic">
-                                                 {currentInnings.totalRuns}<span className="text-slate-600 mx-1">/</span>{currentInnings.totalWickets}
-                                             </span>
-                                         </div>
-                                     </div>
-                                     <div className="text-right flex flex-col items-end">
-                                          <span className="px-2 py-0.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded text-[9px] font-black uppercase tracking-widest mb-2">
-                                              CRR {crr}
-                                          </span>
-                                          <span className="text-sm font-black text-slate-300 flex items-baseline gap-1">
-                                              <span>{currentInnings.overs}.{currentInnings.balls}</span>
-                                              <span className="text-[10px] text-slate-600">/</span>
-                                              <span>{matchMeta?.totalOvers}</span>
-                                              <span className="text-[9px] text-slate-600 tracking-tight ml-0.5">OVS</span>
-                                          </span>
-                                     </div>
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl -z-10"></div>
+                                    <div className="flex flex-col flex-1">
+                                        <div className="flex items-center gap-2 mb-1.5">
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{currentInnings.battingTeamName}</span>
+                                            <span className="text-[8px] text-slate-600 italic">vs</span>
+                                            <span className="text-[10px] font-black text-indigo-500/80 uppercase tracking-widest">{currentInnings.bowlingTeamName}</span>
+                                        </div>
+                                        
+                                        <div className="flex flex-col gap-1">
+                                            {/* Previous Innings Summary (Tight) */}
+                                            {matchDetails.innings.length > 1 && (
+                                                <div className="flex items-center gap-2 mb-1 opacity-60">
+                                                    <span className="text-[8px] font-black bg-slate-700 px-1.5 py-0.5 rounded uppercase tracking-tighter">INN 1</span>
+                                                    <span className="text-xs font-bold text-slate-300">
+                                                        {matchDetails.innings[0].battingTeamName}: {matchDetails.innings[0].totalRuns}/{matchDetails.innings[0].totalWickets}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            
+                                            <div className="flex items-baseline gap-2">
+                                                <span className="text-4xl font-black text-white tabular-nums tracking-tighter italic">
+                                                    {currentInnings.totalRuns}<span className="text-slate-600 mx-1">/</span>{currentInnings.totalWickets}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="text-right flex flex-col items-end">
+                                        <span className={`px-2 py-0.5 border rounded text-[9px] font-black uppercase tracking-widest mb-2 ${matchMeta.status === 'LIVE' || matchMeta.status === 'INNINGS_BREAK' ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400' : 'bg-slate-700 border-white/10 text-slate-400'}`}>
+                                            {matchMeta.status === 'LIVE' ? `CRR ${crr}` : matchMeta.status}
+                                        </span>
+                                        <span className="text-sm font-black text-slate-300 flex items-baseline gap-1">
+                                            <span>{currentInnings.overs}.{currentInnings.balls}</span>
+                                            <span className="text-[10px] text-slate-600">/</span>
+                                            <span>{matchMeta?.totalOvers}</span>
+                                            <span className="text-[9px] text-slate-600 tracking-tight ml-0.5">OVS</span>
+                                        </span>
+                                    </div>
                                 </div>
 
                                 {/* Batsmen */}
@@ -293,7 +338,7 @@ const LiveScoreboard: React.FC = () => {
                                 </button>
                             </div>
                         );
-                    })() : liveData ? (
+                    })() : (liveData && matchMeta?.status !== 'COMPLETED') ? (
                         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
                              <div className="flex justify-between items-end">
                                 <div className="flex flex-col">
@@ -331,23 +376,60 @@ const LiveScoreboard: React.FC = () => {
                         <div className="py-12 text-center animate-pulse">
                             <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest leading-relaxed italic">Restoring secure records...</span>
                         </div>
-                    ) : matchDetails ? (
-                        <div className="space-y-6 text-center">
-                            <div className="bg-white/5 border border-white/5 rounded-3xl p-8 transform transition-transform">
-                                <p className="text-xs font-black text-slate-500 uppercase tracking-[0.3em] mb-4">Final Match Status</p>
-                                <h3 className="text-2xl font-black text-white uppercase italic tracking-tighter mb-4">
-                                    {matchMeta?.teamA} vs {matchMeta?.teamB}
-                                </h3>
-                                <button
+                    ) : matchDetails ? (() => {
+                        const i1 = matchDetails.innings[0];
+                        const i2 = matchDetails.innings[1];
+                        const result = i2 ? (() => {
+                            if (i2.totalRuns > i1.totalRuns) return `${i2.battingTeamName} WON BY ${10 - i2.totalWickets} WICKETS`;
+                            if (i1.totalRuns > i2.totalRuns) return `${i1.battingTeamName} WON BY ${i1.totalRuns - i2.totalRuns} RUNS`;
+                            return "MATCH TIED";
+                        })() : "MATCH COMPLETED";
+
+                        return (
+                            <div className="space-y-6 text-center animate-in zoom-in-95 duration-1000">
+                                <div 
                                     onClick={() => setShowFullScorecard(true)}
-                                    className="px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl shadow-indigo-600/20"
+                                    className="bg-indigo-600/20 border-2 border-indigo-500/30 rounded-[2.5rem] p-10 relative overflow-hidden shadow-2xl shadow-indigo-600/20 cursor-pointer hover:scale-[1.01] transition-transform active:scale-[0.99] group"
                                 >
-                                    OPEN FULL SCORECARD 📋
-                                </button>
+                                    <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/20 blur-[100px] animate-pulse"></div>
+                                    <div className="absolute bottom-0 left-0 w-48 h-48 bg-rose-500/10 blur-[100px] animate-pulse delay-700"></div>
+                                    
+                                    <div className="relative z-10">
+                                        <div className="flex justify-center gap-4 mb-6 opacity-30">
+                                            <span className="text-4xl">🏆</span><span className="text-4xl">🏏</span><span className="text-4xl">🏆</span>
+                                        </div>
+                                        
+                                        <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.4em] mb-4">🏆 Final Match Result 🏆</p>
+                                        
+                                        <h3 className="text-3xl font-black text-white uppercase italic tracking-tighter mb-8 drop-shadow-2xl">
+                                            {result}
+                                        </h3>
+
+                                        <div className="flex flex-col gap-2 mb-8">
+                                            <div className="flex justify-between items-center text-xs font-black uppercase tracking-widest text-slate-500 border-b border-white/5 pb-2">
+                                                <span>{i1.battingTeamName}</span>
+                                                <span className="text-white">{i1.totalRuns}/{i1.totalWickets}</span>
+                                            </div>
+                                            {i2 && (
+                                                <div className="flex justify-between items-center text-xs font-black uppercase tracking-widest text-slate-500 border-b border-white/5 pb-2">
+                                                    <span>{i2.battingTeamName}</span>
+                                                    <span className="text-white">{i2.totalRuns}/{i2.totalWickets}</span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setShowFullScorecard(true); }}
+                                            className="w-full py-5 bg-indigo-600 group-hover:bg-indigo-500 text-white rounded-3xl font-black text-sm uppercase tracking-widest transition-all shadow-xl shadow-indigo-600/40 hover:scale-[1.02] active:scale-95"
+                                        >
+                                            OPEN FULL SCORECARD 📋
+                                        </button>
+                                    </div>
+                                </div>
+                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic leading-relaxed opacity-50">This match is safely archived in the cloud.</p>
                             </div>
-                            <p className="text-[9px] font-black text-slate-700 uppercase tracking-widest italic leading-relaxed">Waiting for Live Kafka Broadcast...<br/>(If Match is Live)</p>
-                        </div>
-                    ) : (
+                        );
+                    })() : (
                          <div className="py-12 text-center">
                             <p className="text-slate-500 font-black uppercase tracking-widest text-[10px] italic">Waiting for Kafka update...</p>
                         </div>

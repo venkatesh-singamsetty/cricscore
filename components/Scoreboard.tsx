@@ -122,7 +122,7 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ currentInnings, previousInnings
           <div className="flex items-center gap-3">
             <div className="w-2 h-8 bg-indigo-600 rounded-full"></div>
             <h2 className="text-2xl font-black uppercase tracking-tighter italic text-white flex items-center gap-2">
-              Match <span className="text-indigo-500">Analytics</span>
+              Match <span className="text-indigo-500">Scorecard</span>
             </h2>
           </div>
           <button
@@ -150,6 +150,36 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ currentInnings, previousInnings
             {currentInnings.battingTeamName} (Inns {currentInnings.inningNumber})
           </button>
         </div>
+
+        {/* Result Highlight */}
+        {previousInnings && (() => {
+          const result = (() => {
+            const i1 = previousInnings;
+            const i2 = currentInnings;
+            if (i2.totalRuns > i1.totalRuns) {
+              return { text: `${i2.battingTeamName} WON BY ${10 - i2.totalWickets} WICKETS`, team: i2.battingTeamName };
+            } else if (i1.totalRuns > i2.totalRuns && (i2.overs >= (totalOvers || 0) || i2.totalWickets >= 10)) {
+              return { text: `${i1.battingTeamName} WON BY ${i1.totalRuns - i2.totalRuns} RUNS`, team: i1.battingTeamName };
+            } else if (i1.totalRuns === i2.totalRuns && (i2.overs >= (totalOvers || 0) || i2.totalWickets >= 10)) {
+              return { text: "MATCH TIED", team: "TIED" };
+            }
+            return null;
+          })();
+
+          if (!result) return null;
+
+          return (
+            <div className="bg-indigo-600 py-8 text-center overflow-hidden relative shadow-2xl">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer"></div>
+              <div className="relative z-10 flex flex-col items-center justify-center px-4">
+                <span className="text-[10px] font-black text-indigo-100 uppercase tracking-[0.4em] opacity-80 mb-2 leading-none">🏆 MATCH RESULT</span>
+                <span className="text-xl md:text-2xl font-black text-white uppercase tracking-tighter italic drop-shadow-lg leading-tight">
+                  {result.text}
+                </span>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Content */}
         {displayInnings ? (

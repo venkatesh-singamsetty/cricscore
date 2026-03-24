@@ -85,5 +85,29 @@ kafka_access_key  = "LS0tLS1CRUdJTiBQUk..."
 - **2026-03-23**: **Persistence & Analytics Fix**: Implemented DB-side aggregate tracking for players, bowlers, and innings. Fixed "Empty Analytics" bug by synchronizing squad initialization and real-time stat accumulation in PostgreSQL. 📊
 - **2026-03-23**: **Fans Live Visibility & Navigation Patch**: Removed "white screen" bugs in Spectator view. Implemented forced tab-refreshing via React keys and enabled immediate snapshot data (Batters/Bowlers) for fans joining live matches. 📡
 - **2026-03-23**: **Live Score Accuracy Patch**: Fixed "off-by-one" over display at end of over. Implemented proactive crease synchronization for spectators and filtered summaries to show only active players. 🏏
-- **[2026-03-23] Deep Sync & UI Refinement (Latest)**: Eliminated score drift (fixed +1/-1 bug); Consolidated Match Hub list with LIVE/COMPLETED sorting; Pinned striker to top of batter lists; Added bowling team visibility globally.
-- **[2026-03-23] Data Integrity & Speed Patch**: Fixed aggregate stat reversion on undo; Implemented bulk SQL inserts (5x faster match start); Added deep player-stat rollback for analytical consistency. 🛡️⚡
+- **[2026-03-24] Resilience & Premium Reporting Engine (Latest)**: 
+    - **Role-Based Access Control (RBAC)**: Implemented 3-tab UI (**VIEWER**, **SCORER**, **ADMIN**). 🛡️
+        - **VIEWER**: Pure spectator experience (Read-only).
+        - **SCORER**: Streamlined "one-match" flow with automatic resume of current match and no deletion rights.
+        - **ADMIN**: Full control (Manual Resume, Single Delete, and Global DB Purge).
+    - **[2026-03-24] UX & Spectator Experience Finalization (Latest)**: 
+        - **Celebratory UI**: Overhauled the match conclusion experience with a premium, high-impact "Match Over" banner featuring shimmering gradients, trophies, and final result summary. 🏆
+        - **Unified Hub Search**: Transformed the "Follow Match ID" field into a powerful **Search & Filter** engine. Spectators can now find matches by **Team Name** or ID instantly. 🔍
+        - **Intelligent Navigation**: 
+            - **Auto-Open Scorecard**: Selecting a finished match from the Hub now immediately launches the full Scorecard modal, bypassing intermediate views.
+            - **Auto-Return**: Closing a historical scorecard now automatically takes the viewer back to the Match Hub list, streamlining review workflows. 🔄
+        - **Real-Time Hub Updates**: Implemented a cross-session broadcast system (`HUB_UPDATE`). Match Hub lists now update automatically across all devices when a new game is started or an old one is deleted, with no manual refresh required. 📡
+        - **Email Throttling**: Integrated `localStorage` state-based persistence to prevent duplicate scorecard emails on page reloads after match conclusion. ✉️
+        - **Infrastructure Upgrades**: Configured cross-Lambda invocation permissions for synchronous WebSocket-to-HTTP signaling. 🔗
+    - **High-Reliability Email Reporting (SES)**: 
+        - Automated scorecard delivery on match completion (+ manual resend option for Admins). 🚀
+        - **Enterprise DNS**: Verified domain identity (`venkateshsingamsetty.site`) with DKIM/SPF records for high deliverability.
+    - **Database Governance**: 
+        - Full `ON DELETE CASCADE` implementation for clean record purging.
+        - **Global Purge**: Admin button to wipe all matches/innings/balls to clear storage. 🗑️
+    - **Deep State Persistence**: 
+        - Tabs & live scoring state survive browser refreshes and mobile closure.
+        - Synchronized ball-by-ball updates from MatchView to App root for multi-tab resilience. 🛡️
+    - **Match Lifecycle**: 
+        - **STALED Label**: Live matches >24h old are flagged but remain resumable for completion.
+        - **COMPLETED**: Historical records are locked from further editing/resuming.

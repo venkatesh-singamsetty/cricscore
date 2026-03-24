@@ -26,21 +26,6 @@ variable "project_name" {
   default     = "cricscore"
 }
 
-variable "backend_bucket" {
-  type        = string
-  description = "S3 bucket for terraform state"
-}
-
-variable "backend_key" {
-  type        = string
-  description = "Key for terraform state file"
-  default     = "cricscore/terraform.tfstate"
-}
-
-variable "backend_dynamodb_table" {
-  type        = string
-  description = "DynamoDB table for state locking"
-}
 
 variable "database_url" {
   type        = string
