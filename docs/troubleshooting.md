@@ -125,7 +125,7 @@ This engineering trace documents the real-world resolutions for the CricScore ba
     3. SES Gmail "spoofing" filters blocked unverified senders.
 - **Fix**: 
     - Provisioned missing routes via AWS CLI and updated Lambda IAM role permissions.
-    - **Enterprise Fix**: Verified the `venkateshsingamsetty.site` domain and configured **3 DKIM CNAME records** and an **SPF TXT record** in Route53.
+    - **Enterprise Fix**: Verified the `cricscore.venkateshsingamsetty.site` domain and configured **3 DKIM CNAME records** and an **SPF TXT record** in Route53.
     - Switched source to `noreply@venkateshsingamsetty.site`.
 
 ### 19. **Scorer Data Loss (Mobile / Tab Switching)**
@@ -141,6 +141,14 @@ This engineering trace documents the real-world resolutions for the CricScore ba
 - **Fix**: 
     - Verified `ON DELETE CASCADE` across all match-related tables in PostgreSQL.
     - Implemented `DELETE /matches` (Purge) on the backend using `TRUNCATE ... CASCADE` for a clean slate.
+
+### 21. **SES Gmail Phishing Rejection (DMARC)**
+- **Symptom**: Lambda logs show `SES Send Success` with a `MessageId`, but the email never arrives in the Inbox or Spam.
+- **Cause**: Using a `@gmail.com` address as the `SES_SOURCE` while sending through AWS servers fails Gmail's DMARC policy. Gmail detects that AWS is not an authorized sender for the `gmail.com` domain and silently drops the message.
+- **Fix**: 
+    - Verify your custom domain (e.g., `venkateshsingamsetty.site`) in the SES Console.
+    - Set `ses_source_email` in `terraform.tfvars` to an address on that domain (e.g., `noreply@venkateshsingamsetty.site`).
+    - This ensures emails carry valid DKIM/SPF signatures for your domain, allowing them to pass Google's security checks.
 
 ---
 

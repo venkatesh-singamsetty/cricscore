@@ -58,6 +58,12 @@ cd terraform && terraform init && cd ..
 
 ---
 
+### 4. AWS SES Preparation (Scorecard Emails)
+CricScore uses **AWS Simple Email Service (SES)** to deliver match reports. Because SES operates in **Sandbox Mode** by default, you MUST:
+- **Verify your Domain:** Add your domain (e.g., `example.com`) to SES and configure the DKIM records in Route 53.
+- **Verify Recipient:** If you are in sandbox, only verified email addresses can receive reports.
+- **Set Source:** Update `ses_source_email` in `terraform.tfvars` with a verified identity (e.g., `noreply@example.com`).
+
 ### 5. Final Frontend Sync (Post-Apply)
 After your very first run, you will have received API Gateway URLs from the Terraform output. Update your root **`.env`** and run the script one final time to sync the configured frontend to S3:
    ```env
@@ -71,4 +77,4 @@ After your very first run, you will have received API Gateway URLs from the Terr
 ---
 
 ### ✅ Success!
-Your version of CricScore is now live! Visit your domain and start tracking matches in real-time.
+Your version of CricScore is now live! Visit your subdomain and start tracking matches in real-time.

@@ -15,7 +15,7 @@ const loadSavedState = () => {
 const App: React.FC = () => {
     const savedState = loadSavedState();
 
-    const [view, setView] = useState<'VIEWER' | 'SCORER' | 'ADMIN'>(savedState?.view ?? 'VIEWER');
+    const [view, setView] = useState<'VIEWER' | 'SCORER' | 'ADMIN'>(savedState?.view ?? 'SCORER');
     const [hubKey, setHubKey] = useState(0); // For forcing reset to list
     const [matchStatus, setMatchStatus] = useState<MatchStatus>(savedState?.matchStatus ?? MatchStatus.SETUP);
     const [currentInnings, setCurrentInnings] = useState<InningsState | null>(savedState?.currentInnings ?? null);
@@ -26,7 +26,7 @@ const App: React.FC = () => {
     const [teamB, setTeamB] = useState<TeamData | null>(savedState?.teamB ?? null);
     const [totalOvers, setTotalOvers] = useState(savedState?.totalOvers ?? 15);
     const [matchId, setMatchId] = useState<string | null>(savedState?.matchId ?? null);
-    const [emailTo, setEmailTo] = useState('@gmail.com');
+    const [emailTo, setEmailTo] = useState('venky.2k57@gmail.com');
     const [showResetConfirm, setShowResetConfirm] = useState(false);
     const [targetMatchId, setTargetMatchId] = useState<string | null>(null);
     const [hasSentAutoEmail, setHasSentAutoEmail] = useState<boolean>(savedState?.hasSentAutoEmail ?? false);
@@ -135,11 +135,12 @@ const App: React.FC = () => {
         };
     };
 
-    const startMatch = (tA: TeamData, tB: TeamData, overs: number, batFirstTeamName: string, mId: string, iId: string) => {
+    const startMatch = (tA: TeamData, tB: TeamData, overs: number, batFirstTeamName: string, mId: string, iId: string, email: string) => {
         setTeamA(tA);
         setTeamB(tB);
         setTotalOvers(overs);
         setMatchId(mId);
+        setEmailTo(email);
 
         const isTeamABatting = tA.name === batFirstTeamName;
         const battingTeam = isTeamABatting ? tA : tB;
@@ -426,7 +427,7 @@ const App: React.FC = () => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    emailTo: silent ? 'your-email@example.com' : emailTo,
+                    emailTo,
                     origin: window.location.origin
                 })
             });
@@ -562,6 +563,7 @@ const App: React.FC = () => {
                     <MatchSetup 
                         onStartMatch={startMatch} 
                         onResumeMatch={resumeMatch} 
+                        initialEmail={emailTo}
                         hideResume={true}
                         canDelete={false}
                     />
