@@ -26,6 +26,10 @@ variable "project_name" {
   default     = "cricscore"
 }
 
+variable "ses_source_email" {
+  type        = string
+  description = "The email address to use as the SES source for sending emails."
+}
 
 variable "database_url" {
   type        = string

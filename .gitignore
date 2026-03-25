@@ -51,10 +51,9 @@ pnpm-debug.log*
 # Environment & Secrets
 # ==============================================================================
 # Certificates and Keys
+certs/
 *.pem
 *.key
-backend/**/*.pem
-backend/**/*.key
 
 # ==============================================================================
 # IDEs & Text Editors

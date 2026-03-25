@@ -49,3 +49,4 @@ CricScore is a highly-available, real-time cricket match scoring system with an 
 - **[2026-03-23] Core Stability Update**: Implemented Deep Aggregate Reversion (ARUP fix) for perfect undo-consistency in analytics.
 - **2026-03-24**: **Resilience & Premium Reporting Milestone**: Overhauled UI with celebratory banners, implemented RBAC (Viewer/Scorer/Admin), and integrated AWS SES for automated scorecard delivery. 🏏
 - **2026-03-25**: **🚀 v1.2.0 PRODUCTION RELEASE**: Finalized production convergence from `develop` to `main`, mapping `venkateshsingamsetty.site` as the primary project domain. 🎯
+- **2026-03-25**: **Security & Secrets Hardening**: Consolidated Aiven Kafka mTLS certificates into a root `certs/` vault; Updated infra to auto-inject from central store. 🛡️

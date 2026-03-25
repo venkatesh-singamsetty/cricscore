@@ -8,7 +8,12 @@ npm install
 echo "🚀 Building the application..."
 npm run build
 
-# 2. Go into terraform dir
+# 2. Inject certificates from central vault into Lambda directories
+echo "🔐 Injecting secure certificates from vault..."
+cp certs/*.pem backend/lambdas/score-update/
+cp certs/*.pem backend/lambdas/kafka-consumer/
+
+# 3. Go into terraform dir
 cd terraform
 
 # 3. Initialize & Apply infrastructure

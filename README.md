@@ -22,10 +22,9 @@ This project was built to solve the "Live Score Lag" problem using **100% Open S
 
 ---
 
-## ⚡ Quick Start (Production)
-- **Live Site**: [https://venkateshsingamsetty.site](https://venkateshsingamsetty.site)
-- **HTTP API**: `https://mmiwp8rgrf.execute-api.us-east-1.amazonaws.com`
-- **WebSocket**: `wss://i4cnmjy0tg.execute-api.us-east-1.amazonaws.com/prod`
+## ⚡ Getting Started
+- **Live Production:** [venkateshsingamsetty.site](https://venkateshsingamsetty.site)
+- **Deployment Guide:** **🚀 [How to Clone and Deploy Your Own Instance](./docs/cloning_guide.md)**
 
 ---
 
@@ -37,6 +36,7 @@ Detailed engineering docs can be found in the **[`docs/`](./docs)** folder:
 - **[API Guide](./docs/api.md)**: REST & WebSocket contract specifications.
 - **[Full Project Log](./docs/changelog.md)**: Complete project history and v1.2.0 release notes.
 - **[Infrastructure Stack](./docs/infrastructure.md)**: Aiven & AWS service configurations.
+- **[Cloning Guide](./docs/cloning_guide.md)**: How to deploy your own instance.
 - **[Cost & Performance](./docs/cost_management.md)**: Free-tier monitoring and optimization strategy.
 
 ---
@@ -77,45 +77,8 @@ graph TD
 
 ---
 
-## 🚀 Cloning & Custom Deployment
-
-To run CricScore under your own **Aiven** and **AWS** accounts, you must update the following four areas:
-
-### 1. **Infrastructure Variables (`terraform.tfvars`)**
-Navigate to `terraform/` and create a `terraform.tfvars` file. This is where the backend connects to your data services:
-```hcl
-# Aiven PostgreSQL URL
-database_url            = "postgres://avns_admin:..."
-
-# Aiven Kafka Connectivity (mTLS)
-kafka_bootstrap_servers = ["p-1.aivencloud.com:17729"]
-
-# Base64-Encoded mTLS Certs (openssl base64 -A -in cert.pem)
-kafka_ca_cert           = "..."
-kafka_access_cert       = "..."
-kafka_access_key        = "..."
-```
-
-### 2. **Frontend Endpoints (`.env`)**
-After running `terraform apply`, you will receive several outputs. Use these to update your project's root `.env` file:
-```env
-# AWS API Gateway URLs (From Terraform Outputs)
-VITE_API_URL=https://<your-api-id>.execute-api.us-east-1.amazonaws.com
-VITE_WS_URL=wss://<your-api-id>.execute-api.us-east-1.amazonaws.com/prod
-```
-
-### 3. **Email Identity (AWS SES)**
-If you wish to use the **Premium Reporting Engine**, you must:
-1. Verify your domain in the **AWS SES Console**.
-2. Update the `Source` parameter in `backend/lambdas/match-api/index.js` to your verified email address.
-3. Ensure your domain's DKIM and SPF records are configured in your DNS provider (e.g., Route53).
-
-### 4. **One-Command Deployment (`deploy.sh`)**
-Ensure your **AWS CLI** is configured (`aws configure`). Then run:
-```bash
-# Build and sync to S3 + CloudFront invalidation
-./deploy.sh
-```
+## 🚀 Contribution & Development
+CricScore welcomes community contributions. Please refer to the **[Cloning Guide](./docs/cloning_guide.md)** to set up your development environment.
 
 ---
 

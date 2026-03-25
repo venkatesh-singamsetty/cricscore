@@ -356,7 +356,7 @@ exports.handler = async (event) => {
                     Body: { Html: { Charset: "UTF-8", Data: htmlBody } },
                     Subject: { Charset: "UTF-8", Data: `🏏 FINAL SCORECARD: ${matchRecord.team_a_name} vs ${matchRecord.team_b_name}` }
                 },
-                Source: "noreply@venkateshsingamsetty.site" // Verified domain sender
+                Source: process.env.SES_SOURCE || "noreply@example.com"
             };
 
             await ses.send(new SendEmailCommand(params));
