@@ -20,7 +20,7 @@ This document provides a breakdown of the estimated operational costs for the Cr
 
 ### 4. **Delivery: CloudFront & Route 53**
 *   **CloudFront**: First 1TB of data transfer out is **FREE**. Effectively $0 for this app's payload.
-*   **Route 53**: Hosting a custom domain (e.g., `venkateshsingamsetty.site`) incurs a fixed cost of **$0.50 per month** per hosted zone + domain registration fees.
+*   **Route 53**: Hosting a custom domain (e.g., `cricscore.venkateshsingamsetty.site`) incurs a fixed cost of **$0.50 per month** per hosted zone + domain registration fees.
 
 ### 5. **Reporting: AWS SES (Email)**
 *   **Cost**: First 62,000 emails per month are **FREE** when sent from AWS Lambda. 

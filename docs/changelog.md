@@ -6,7 +6,7 @@ This document tracks the complete evolutionary history of the CricScore platform
 
 ## ⚡ Current Status: [2026-03-25] v1.2.0 PRODUCTION RELEASE
 - Finalized production convergence from `develop` to `main`.
-- Site is globally live at **[https://venkateshsingamsetty.site](https://venkateshsingamsetty.site)**.
+- Site is globally live at **[https://cricscore.venkateshsingamsetty.site](https://cricscore.venkateshsingamsetty.site)**.
 - Full resilience & premium reporting engine integration.
 
 ---
@@ -41,7 +41,7 @@ This document tracks the complete evolutionary history of the CricScore platform
         - **Infrastructure Upgrades**: Configured cross-Lambda invocation permissions for synchronous WebSocket-to-HTTP signaling. 🔗
     - **High-Reliability Email Reporting (SES)**: 
         - Automated scorecard delivery on match completion (+ manual resend option for Admins). 🚀
-        - **Enterprise DNS**: Verified domain identity (`venkateshsingamsetty.site`) with DKIM/SPF records for high deliverability.
+        - **Enterprise DNS**: Verified domain identity (`cricscore.venkateshsingamsetty.site`) with DKIM/SPF records for high deliverability.
     - **Database Governance**: 
         - Full `ON DELETE CASCADE` implementation for clean record purging.
         - **Global Purge**: Admin button to wipe all matches/innings/balls to clear storage. 🗑️

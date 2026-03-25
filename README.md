@@ -23,7 +23,7 @@ This project was built to solve the "Live Score Lag" problem using **100% Open S
 ---
 
 ## ⚡ Getting Started
-- **Live Production:** [venkateshsingamsetty.site](https://venkateshsingamsetty.site)
+- **Live Production:** [**cricscore.venkateshsingamsetty.site**](https://cricscore.venkateshsingamsetty.site)
 - **Deployment Guide:** **🚀 [How to Clone and Deploy Your Own Instance](./docs/cloning_guide.md)**
 
 ---
@@ -42,11 +42,11 @@ Detailed engineering docs can be found in the **[`docs/`](./docs)** folder:
 ---
 
 ## 🌐 Web Traffic & Infrastructure Journey
-This diagram illustrates the request flow from the moment a user hits **https://venkateshsingamsetty.site** until the **CricScore** application is running in their browser.
+This diagram illustrates the request flow from the moment a user hits **https://cricscore.venkateshsingamsetty.site** until the **CricScore** application is running in their browser.
 
 ```mermaid
 graph TD
-    User((User Browser)) -->|1. Hit venkateshsingamsetty.site| R53[Route 53 DNS]
+    User((User Browser)) -->|1. Hit cricscore.venkateshsingamsetty.site| R53[Route 53 DNS]
     R53 -->|2. Resolve Alias| CF[CloudFront CDN]
     CF -->|3. Fetch Assets| S3[S3 Static Website Bucket]
     

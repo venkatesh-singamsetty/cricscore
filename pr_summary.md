@@ -1,32 +1,32 @@
-# 🚀 PR Summary: CricScore v1.2.0 Production Readiness & Security Vault
+# 🚀 PR Summary: CricScore v1.2.1 - Email Deliverability & UX Polish
 
-This PR finalizes the **CricScore** platform for production deployment, implementing a highly secure, portable, and feature-complete version of the real-time cricket match engine. It marks the convergence of the `develop` branch into a competition-ready state.
+This update finalizes the **CricScore** production experience by resolving the "missing email" issue and optimizing the workflow for match administrators. It represents the final hardened state of the v1.2 release series.
 
-## 🚦 Key Features & Enhancements
+## 🚦 Key Improvements & Fixes
 
-### 1. **Premium 3-Tab UI (Role-Based Access Control)**
-- **Viewer Hub:** Real-time discovery of live matches and historical scorecard analysis.
-- **Scorer Dashboard:** Detailed ball-by-ball entry with undo consistency and deep state recovery (Refresh-proof).
-- **Admin Tools:** Global "Database Purge" for match governance and environment maintenance.
+### 1. **📧 Critical Email Deliverability (SES + DMARC)**
+- **Domain-Verified Sending:** Switched the SES source address to `noreply@venkateshsingamsetty.site`. This ensures that match reports pass SPF/DKIM/DMARC checks for your custom domain, preventing Gmail from silently dropping them as phishing attempts.
+- **Automated Recipient Fix:** Corrected a logic error in the "silent-send" trigger where a placeholder email was being used instead of the specified user address.
+- **Forensic Tracking:** Added verbose logging of the AWS SES `MessageId` to the `match-api` for verifiable proof of delivery in the cloud logs.
 
-### 2. **Security & Infrastructure Vault**
-- **Aiven Kafka mTLS:** Implemented full Mutual TLS security for event streaming, using a new centralized **`certs/` vault**.
-- **Root Domain Migration:** Successfully migrated the entire production stack from the `cricscore` subdomain to the primary root: **`venkateshsingamsetty.site`**.
-- **Automated Deployments (`deploy.sh`):** A new root script that handles frontend builds, certificate injection, Terraform provisioning, and S3/CloudFront synchronization.
+### 2. **🎯 Scorer-First Workflow Optimization**
+- **Default Landing:** Set the default application view to `SCORER`. This allows tournament managers to immediately access match configurations upon loading the site.
+- **Unified Setup Integration:** Integrated the "Email Report To" configuration directly into the **Match Setup** screen, ensuring the reporting target is verified *before* the first ball is bowled.
 
-### 3. **High-Fidelity Automated Reporting (AWS SES)**
-- **Direct-to-Inland Discovery:** Automated HTML scorecard emails delivered on match completion to a specified address.
-- **Corporate Transparency:** Full technical diagrams and Aiven Journey narratives integrated for the competition entry.
+### 3. **📚 Comprehensive Technical Documentation**
+- **DMARC Troubleshooting:** Added a guide in `troubleshooting.md` explaining how to resolve Gmail delivery failures for new instances in SES Sandbox Mode.
+- **Setup Readiness:** Added clear AWS SES verification requirements to the `cloning_guide.md` for seamless forking.
+- **Status Alignment:** Updated the project Roadmap and Architecture diagrams to reflect the finalized production subdomain and enterprise-grade reporting engine.
 
-### 4. **Portability & Developer Experience**
-- **Cloning Guide:** A comprehensive `docs/cloning_guide.md` providing a 5-step walkthrough for any developer to fork and run CricScore in minutes.
-- **Decoupled Config:** All sensitive details are now managed via `terraform.tfvars`, root `.env`, and the `certs/` folder—keeping the source code 100% clean and generic.
-
-## 🛠️ Technical Fixes & Governance
-- **State Lock Resolution:** Force-unlocked the Terraform state and stabilized the DynamoDB backend.
-- **Secrets Audit:** Purged sensitive certificates and personal emails from Git history and replaced them with environment variables.
-- **Optimized Bundle:** Implemented `source_dir` ZIP bundling in Terraform with build-time certificate injection to bypass the 5KB AWS environment variable limit.
+## 🛠️ Modified Files
+- **`App.tsx`**: Default view logic, Email state management, and silent-send fix.
+- **`components/MatchSetup.tsx`**: New email configuration field for scorers.
+- **`backend/lambdas/match-api/index.js`**: SES MessageId tracking and error handling.
+- **`terraform/terraform.tfvars`**: Updated verified production email source.
+- **`docs/cloning_guide.md`**: Added SES verification steps.
+- **`docs/troubleshooting.md`**: Added DMARC/Sandbox deliverability documentation.
+- **`docs/roadmap.md`**: Updated v1.2.1 changelog.
 
 ---
-**Status:** 🚀 **PRODUCTION READY** (v1.2.0)
-**Verification:** Sub-second Kafka latency confirmed; SSL/mTLS verified; Root domain live at [https://venkateshsingamsetty.site](https://venkateshsingamsetty.site).
+**Status:** 🚀 **PRODUCTION STABLE** (v1.2.1)
+**Verification URL:** [https://cricscore.venkateshsingamsetty.site](https://cricscore.venkateshsingamsetty.site)

@@ -359,11 +359,12 @@ exports.handler = async (event) => {
                 Source: process.env.SES_SOURCE || "noreply@example.com"
             };
 
-            await ses.send(new SendEmailCommand(params));
+            const sesRes = await ses.send(new SendEmailCommand(params));
+            console.log("✅ SES Send Success:", sesRes.MessageId);
 
             return {
                 statusCode: 200,
-                body: JSON.stringify({ message: "Fancy email sent successfully" }),
+                body: JSON.stringify({ message: "Fancy email sent successfully", messageId: sesRes.MessageId }),
                 headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
             };
         }
