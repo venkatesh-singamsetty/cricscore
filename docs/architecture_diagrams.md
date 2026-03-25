@@ -2,7 +2,7 @@
 
 Below are the detailed sequence flow diagrams illustrating the end-to-end technical processes for live scoring, data hydration, and automated reporting.
 
-For a high-level overview of the web traffic journey, see the [main README](../README.md#🌐-web-traffic--infrastructure-journey-venkateshsingamsetty.site).
+For a high-level overview of the web traffic journey, see the [main README](../README.md#🌐-web-traffic--infrastructure-journey).
 
 ---
 

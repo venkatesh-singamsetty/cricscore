@@ -15,7 +15,22 @@ const loadSavedState = () => {
 const App: React.FC = () => {
     const savedState = loadSavedState();
 
-    const [view, setView] = useState<'VIEWER' | 'SCORER' | 'ADMIN'>(savedState?.view ?? 'SCORER');
+    const [isAuthorized, setIsAuthorized] = useState<Record<'SCORER' | 'ADMIN', boolean>>(() => {
+        // Fast restore from session storage
+        return {
+            SCORER: sessionStorage.getItem('auth_scorer') === 'true',
+            ADMIN: sessionStorage.getItem('auth_admin') === 'true'
+        }
+    });
+
+    const [authModal, setAuthModal] = useState<{ isOpen: boolean; targetView: 'SCORER' | 'ADMIN' | null }>({ isOpen: false, targetView: null });
+
+    const [view, setView] = useState<'VIEWER' | 'SCORER' | 'ADMIN'>(() => {
+        const savedView = savedState?.view;
+        if (savedView === 'ADMIN' && sessionStorage.getItem('auth_admin') !== 'true') return 'VIEWER';
+        if (savedView === 'SCORER' && sessionStorage.getItem('auth_scorer') !== 'true') return 'VIEWER';
+        return savedView || 'VIEWER';
+    });
     const [hubKey, setHubKey] = useState(0); // For forcing reset to list
     const [matchStatus, setMatchStatus] = useState<MatchStatus>(savedState?.matchStatus ?? MatchStatus.SETUP);
     const [currentInnings, setCurrentInnings] = useState<InningsState | null>(savedState?.currentInnings ?? null);
@@ -357,6 +372,47 @@ const App: React.FC = () => {
         localStorage.removeItem('cric-scorer-live-innings');
     }
 
+    const handleViewClick = (target: 'VIEWER' | 'SCORER' | 'ADMIN') => {
+        if (target === 'VIEWER') {
+            setView('VIEWER');
+            setHubKey(k => k + 1);
+            return;
+        }
+
+        // Check if already authorized for this session
+        if (isAuthorized[target]) {
+            setView(target);
+            if (target === 'ADMIN') setHubKey(k => k + 1);
+            return;
+        }
+
+        // Open Auth Modal
+        setAuthModal({ isOpen: true, targetView: target });
+    };
+
+    const verifyPIN = (pin: string) => {
+        const ADMIN_PIN = import.meta.env.VITE_ADMIN_PIN || "0000";
+        const SCORER_PIN = import.meta.env.VITE_SCORER_PIN || "1111";
+        
+        const target = authModal.targetView;
+        if (!target) return;
+
+        const correctPIN = target === 'ADMIN' ? ADMIN_PIN : SCORER_PIN;
+
+        if (pin === correctPIN) {
+            setIsAuthorized(prev => {
+                const updated = { ...prev, [target]: true };
+                sessionStorage.setItem(`auth_${target.toLowerCase()}`, 'true');
+                return updated;
+            });
+            setView(target);
+            if (target === 'ADMIN') setHubKey(k => k + 1);
+            setAuthModal({ isOpen: false, targetView: null });
+        } else {
+            alert("❌ INCORRECT PIN. ACCESS DENIED.");
+        }
+    };
+
     const updateMatchOvers = async (newOvers: number) => {
         if (!matchId) return;
         setTotalOvers(newOvers);
@@ -466,19 +522,19 @@ const App: React.FC = () => {
                 <div className="flex items-center gap-4">
                     <div className="flex bg-slate-900 p-1 rounded-xl border border-white/5">
                         <button 
-                            onClick={() => { setView('VIEWER'); setHubKey(k => k + 1); }}
+                            onClick={() => handleViewClick('VIEWER')}
                             className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${view === 'VIEWER' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
                         >
                             Viewer 🌍
                         </button>
                         <button 
-                            onClick={() => setView('SCORER')}
+                            onClick={() => handleViewClick('SCORER')}
                             className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${view === 'SCORER' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
                         >
                             Scorer 🎮
                         </button>
                         <button 
-                            onClick={() => { setView('ADMIN'); setHubKey(k => k + 1); }}
+                            onClick={() => handleViewClick('ADMIN')}
                             className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${view === 'ADMIN' ? 'bg-rose-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
                         >
                             Admin ⚡
@@ -497,6 +553,52 @@ const App: React.FC = () => {
             </div>
 
             <div className="flex-1 overflow-hidden relative">
+
+                {/* PIN Authentication Modal */}
+                {authModal.isOpen && (
+                    <div className="fixed inset-0 bg-slate-950/90 flex items-center justify-center z-[300] p-4 backdrop-blur-md">
+                        <div className="bg-slate-900 border border-white/5 rounded-[2.5rem] w-full max-w-sm shadow-2xl overflow-hidden p-8 text-center animate-in zoom-in-95 duration-200">
+                             <div className={`w-16 h-16 ${authModal.targetView === 'ADMIN' ? 'bg-rose-500/10 text-rose-500' : 'bg-indigo-500/10 text-indigo-500'} rounded-full flex items-center justify-center mx-auto mb-6 border border-white/5`}>
+                                <span className="text-2xl">{authModal.targetView === 'ADMIN' ? '⚡' : '🎮'}</span>
+                            </div>
+                            <h3 className="text-xl font-black uppercase tracking-widest text-white mb-2 italic">
+                                {authModal.targetView} ACCESS
+                            </h3>
+                            <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mb-8">
+                                Restricted Cloud Management
+                            </p>
+                            
+                            <div className="space-y-4">
+                                <input 
+                                    autoFocus
+                                    type="password"
+                                    placeholder="ENTER PIN..."
+                                    className="w-full bg-slate-800 border border-white/5 rounded-2xl py-4 px-6 text-center text-2xl font-black tracking-[0.5em] text-white outline-none focus:border-indigo-500 transition-all placeholder:text-[10px] placeholder:tracking-widest placeholder:text-slate-700"
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') verifyPIN((e.target as HTMLInputElement).value);
+                                    }}
+                                />
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                        onClick={() => setAuthModal({ isOpen: false, targetView: null })}
+                                        className="py-4 bg-slate-800 rounded-xl font-black text-[10px] uppercase tracking-widest text-slate-400 hover:text-white transition-all border border-white/5"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            const input = document.querySelector('input[type="password"]') as HTMLInputElement;
+                                            verifyPIN(input.value);
+                                        }}
+                                        className={`py-4 rounded-xl font-black text-[10px] uppercase tracking-widest text-white transition-all shadow-lg ${authModal.targetView === 'ADMIN' ? 'bg-rose-600 hover:bg-rose-500 shadow-rose-600/20' : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/20'}`}
+                                    >
+                                        VERIFY 📡
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Custom Reset Confirmation Modal */}
                 {showResetConfirm && (

@@ -28,16 +28,30 @@ This project was built to solve the "Live Score Lag" problem using **100% Open S
 
 ---
 
+## 🛡️ Secure Scoring & Administration
+To protect match integrity, CricScore uses a **PIN-based Authorization Layer**:
+
+- **Viewer 🌍**: Default mode for all users (No PIN required).
+- **Scorer 🎮**: Restricted to match officials. Requires the **Scorer PIN** to record balls or start matches.
+- **Admin ⚡**: Restricted to the owner. Requires the **Admin PIN** for deleting records or purging the DB.
+
+Authorization is session-persistent and configured via `.env` variables (`VITE_SCORER_PIN`, `VITE_ADMIN_PIN`).
+
+---
+
 ## 🏗️ Technical Portal
 Detailed engineering docs can be found in the **[`docs/`](./docs)** folder:
 
-- **[Architectural Flows](./docs/architecture_diagrams.md)**: Mermaid diagrams for score updates, emails, and data hydration.
-- **[System Overview](./docs/architecture.md)**: High-level Event-Driven Architecture (EDA) & Component breakdown.
+- **[Aiven Journey](./docs/aiven_journey.md)**: Our story #AivenFreeTier. ✨
+- **[Infrastructure Stack](./docs/infrastructure.md)**: Managed Aiven & AWS configuration guide.
+- **[Architectural Flows](./docs/architecture_diagrams.md)**: Mermaid diagrams for score updates & real-time sync.
+- **[System Overview](./docs/architecture.md)**: High-level Event-Driven Architecture (EDA).
+- **[Cost & Performance](./docs/cost_management.md)**: Aiven & AWS Free-tier monitoring strategy.
+- **[Full Project Log](./docs/changelog.md)**: Development timeline and v1.2.0 release notes.
 - **[API Guide](./docs/api.md)**: REST & WebSocket contract specifications.
-- **[Full Project Log](./docs/changelog.md)**: Complete project history and v1.2.0 release notes.
-- **[Infrastructure Stack](./docs/infrastructure.md)**: Aiven & AWS service configurations.
 - **[Cloning Guide](./docs/cloning_guide.md)**: How to deploy your own instance.
-- **[Cost & Performance](./docs/cost_management.md)**: Free-tier monitoring and optimization strategy.
+- **[Product Roadmap](./docs/roadmap.md)**: Future features (Phase 8 & 9).
+- **[Troubleshooting](./docs/troubleshooting.md)**: Common setup fixes and identity verification help.
 
 ---
 
