@@ -4,10 +4,10 @@ This document tracks the complete evolutionary history of the CricScore platform
 
 ---
 
-## ⚡ Current Status: [2026-03-25] v1.2.0 PRODUCTION RELEASE
-- Finalized production convergence from `develop` to `main`.
+## ⚡ Current Status: [2026-03-25] v1.3.0 PRODUCTION RELEASE
+- Finalized production convergence for Role-Based Access Control (RBAC).
 - Site is globally live at **[https://cricscore.venkateshsingamsetty.site](https://cricscore.venkateshsingamsetty.site)**.
-- Full resilience & premium reporting engine integration.
+- Secure PIN-based authorization system now active.
 
 ---
 

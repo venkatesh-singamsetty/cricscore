@@ -47,7 +47,7 @@ Detailed engineering docs can be found in the **[`docs/`](./docs)** folder:
 - **[Architectural Flows](./docs/architecture_diagrams.md)**: Mermaid diagrams for score updates & real-time sync.
 - **[System Overview](./docs/architecture.md)**: High-level Event-Driven Architecture (EDA).
 - **[Cost & Performance](./docs/cost_management.md)**: Aiven & AWS Free-tier monitoring strategy.
-- **[Full Project Log](./docs/changelog.md)**: Development timeline and v1.2.0 release notes.
+- **[Full Project Log](./docs/changelog.md)**: Development timeline and v1.3.0 release notes.
 - **[API Guide](./docs/api.md)**: REST & WebSocket contract specifications.
 - **[Cloning Guide](./docs/cloning_guide.md)**: How to deploy your own instance.
 - **[Product Roadmap](./docs/roadmap.md)**: Future features (Phase 8 & 9).

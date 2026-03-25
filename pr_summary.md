@@ -1,32 +1,25 @@
-# 🚀 PR Summary: CricScore v1.2.1 - Email Deliverability & UX Polish
+# 🚀 CricScore v1.3.0 - Security & Aiven-Focus Release
 
-This update finalizes the **CricScore** production experience by resolving the "missing email" issue and optimizing the workflow for match administrators. It represents the final hardened state of the v1.2 release series.
+This release introduces critical **Role-Based Access Control (RBAC)** features to protect match data integrity and overhauls the project documentation to highlight the **Aiven Free Tier** integration.
 
-## 🚦 Key Improvements & Fixes
+## 🛡️ Key Changes
+### 1. PIN-Based Authorization Engine
+- **Restricted Views**: Added an authorization layer to the **Scorer 🎮** and **Admin ⚡** tabs.
+- **Session Persistence**: Implemented `sessionStorage` tracking to keep officials authenticated without repeated prompts during a single browser session.
+- **Auto-Protection**: If a session expires or is unauthorized, users are automatically redirected to the read-only **Viewer 🌍** mode.
+- **Configurable PINs**: Securely managed via `.env` variables (`VITE_SCORER_PIN`, `VITE_ADMIN_PIN`).
 
-### 1. **📧 Critical Email Deliverability (SES + DMARC)**
-- **Domain-Verified Sending:** Switched the SES source address to `noreply@venkateshsingamsetty.site`. This ensures that match reports pass SPF/DKIM/DMARC checks for your custom domain, preventing Gmail from silently dropping them as phishing attempts.
-- **Automated Recipient Fix:** Corrected a logic error in the "silent-send" trigger where a placeholder email was being used instead of the specified user address.
-- **Forensic Tracking:** Added verbose logging of the AWS SES `MessageId` to the `match-api` for verifiable proof of delivery in the cloud logs.
+### 🔧 Infrastructure & Reliability
+- **Terraform Resilience**: Fixed a Route53 DNS conflict by enabling `allow_overwrite` on the subdomain alias record, ensuring seamless zero-downtime updates.
+- **Domain Alignment**: Standardized all internal and external links to use the official production subdomain: `cricscore.venkateshsingamsetty.site`.
 
-### 2. **🎯 Scorer-First Workflow Optimization**
-- **Default Landing:** Set the default application view to `SCORER`. This allows tournament managers to immediately access match configurations upon loading the site.
-- **Unified Setup Integration:** Integrated the "Email Report To" configuration directly into the **Match Setup** screen, ensuring the reporting target is verified *before* the first ball is bowled.
+### 📚 Documentation (Aiven Prioritization)
+- **Top-Tier Aiven Focus**: Restructured `README.md` and the Technical Portal to prioritize the **Aiven Journey** and **Infrastructure Stack**.
+- **Security Guide**: Added a dedicated section to `README.md` explaining the new authorization model for both fans and match officials.
+- **Link Fixes**: Repaired deep-linking between Mermaid sequence diagrams and the main infrastructure journey documentation.
 
-### 3. **📚 Comprehensive Technical Documentation**
-- **DMARC Troubleshooting:** Added a guide in `troubleshooting.md` explaining how to resolve Gmail delivery failures for new instances in SES Sandbox Mode.
-- **Setup Readiness:** Added clear AWS SES verification requirements to the `cloning_guide.md` for seamless forking.
-- **Status Alignment:** Updated the project Roadmap and Architecture diagrams to reflect the finalized production subdomain and enterprise-grade reporting engine.
-
-## 🛠️ Modified Files
-- **`App.tsx`**: Default view logic, Email state management, and silent-send fix.
-- **`components/MatchSetup.tsx`**: New email configuration field for scorers.
-- **`backend/lambdas/match-api/index.js`**: SES MessageId tracking and error handling.
-- **`terraform/terraform.tfvars`**: Updated verified production email source.
-- **`docs/cloning_guide.md`**: Added SES verification steps.
-- **`docs/troubleshooting.md`**: Added DMARC/Sandbox deliverability documentation.
-- **`docs/roadmap.md`**: Updated v1.2.1 changelog.
-
----
-**Status:** 🚀 **PRODUCTION STABLE** (v1.2.1)
-**Verification URL:** [https://cricscore.venkateshsingamsetty.site](https://cricscore.venkateshsingamsetty.site)
+## 📦 Technical Breakdown
+- **App.tsx**: Integrated `AuthModal` and session-based validation logic.
+- **terraform/main.tf**: Added Route53 overwrite permissions.
+- **.env**: Exposed customizable PIN configuration.
+- **docs/**: Multiple markdown corrections for subdomain consistency.
