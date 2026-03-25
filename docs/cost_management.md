@@ -6,7 +6,7 @@ This document provides a breakdown of the estimated operational costs for the Cr
 
 ### 1. **Compute: AWS Lambda**
 *   **Cost**: First 1 Million requests per month are **FREE**.
-*   **Usage**: Each ball scored triggers ~1-2 lambda executions. For a typical match (20 overs = 120 balls), that's ~250 requests. 
+*   **Memory Optimization**: We upgraded the `score-updates` lambda to **256MB RAM**. While this technically costs 2x more per millisecond than the 128MB tier, the increased CPU power handles the **mTLS (Kafka) and SSL (Postgres) handshakes** significantly faster, reducing total billable duration and preventing timeouts.
 *   **Est. Max Load**: You can host ~4,000 matches per month for $0 compute cost.
 
 ### 2. **Real-time: WebSocket API Gateway**
@@ -18,9 +18,13 @@ This document provides a breakdown of the estimated operational costs for the Cr
 *   **S3**: First 5GB is **FREE**. (The React app is ~5MB).
 *   **DynamoDB**: 25GB of storage is **FREE**. (Connection tracking is negligible).
 
-### 4. **Delivery: CloudFront**
-*   **Cost**: First 1TB of data transfer out is **FREE**.
-*   **Usage**: Unless you are serving millions of images (unlikely), this is effectively $0.
+### 4. **Delivery: CloudFront & Route 53**
+*   **CloudFront**: First 1TB of data transfer out is **FREE**. Effectively $0 for this app's payload.
+*   **Route 53**: Hosting a custom domain (e.g., `venkateshsingamsetty.site`) incurs a fixed cost of **$0.50 per month** per hosted zone + domain registration fees.
+
+### 5. **Reporting: AWS SES (Email)**
+*   **Cost**: First 62,000 emails per month are **FREE** when sent from AWS Lambda. 
+*   **Usage**: Each match conclusion triggers 1 auto-email to fans/admins. Even with extreme usage (1,000 matches), this remains well within the $0 cost tier.
 
 ---
 
@@ -45,7 +49,9 @@ This document provides a breakdown of the estimated operational costs for the Cr
     *   Configure CloudWatch logs for 7-day retention to avoid storage creep.
 3.  **Kafka Compaction**:
     *   Ensure the `score-updates` topic has a retention policy (e.g., 24 hours), as we persist permanent ball data in PostgreSQL anyway.
+4.  **Database Purge (Admin Control)**:
+    *   Use the **Global Purge** feature in the `Admin Hub` to periodically clear historical test data, ensuring you stay within the 5GB Aiven PostgreSQL storage limit.
 
 ## ⚖️ Total Monthly Estimated Cost
-*   **Development / Small Tournaments**: **$0.00** (Strictly within Free Tiers).
-*   **Large-scale Public Launch**: **$5.00 - $15.00** (Primarily for a non-free Kafka/DB instance if needed).
+*   **Development / Small Tournaments**: **$0.50** (Primarily the Route 53 Hosted Zone cost, as everything else fits into Free Tiers).
+*   **Large-scale Public Launch**: **$10.00 - $25.00** (If upgrading to non-free Aiven Kafka/DB or if domain registration fees are included).

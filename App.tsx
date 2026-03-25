@@ -163,7 +163,7 @@ const App: React.FC = () => {
 
             const target = completedInnings.totalRuns + 1;
 
-            const API_URL = import.meta.env.VITE_API_URL || "https://mmiwp8rgrf.execute-api.us-east-1.amazonaws.com";
+            const API_URL = import.meta.env.VITE_API_URL || "";
             
             try {
                 const response = await fetch(`${API_URL}/match/${matchId}/innings`, {
@@ -192,7 +192,7 @@ const App: React.FC = () => {
 
             // Sync final match status to DB
             if (matchId) {
-                const API_URL = import.meta.env.VITE_API_URL || "https://mmiwp8rgrf.execute-api.us-east-1.amazonaws.com";
+                const API_URL = import.meta.env.VITE_API_URL || "";
                 try {
                     await fetch(`${API_URL}/match/${matchId}`, {
                         method: "PATCH",
@@ -208,7 +208,7 @@ const App: React.FC = () => {
     };
 
     const resumeMatch = async (mId: string) => {
-        const API_URL = import.meta.env.VITE_API_URL || "https://mmiwp8rgrf.execute-api.us-east-1.amazonaws.com";
+        const API_URL = import.meta.env.VITE_API_URL || "";
         try {
             console.log("Resuming Match...", mId);
             const response = await fetch(`${API_URL}/match/${mId}/details`);
@@ -359,7 +359,7 @@ const App: React.FC = () => {
     const updateMatchOvers = async (newOvers: number) => {
         if (!matchId) return;
         setTotalOvers(newOvers);
-        const API_URL = import.meta.env.VITE_API_URL || "https://mmiwp8rgrf.execute-api.us-east-1.amazonaws.com";
+        const API_URL = import.meta.env.VITE_API_URL || "";
         try {
              await fetch(`${API_URL}/match/${matchId}`, {
                 method: "PATCH",
@@ -419,14 +419,14 @@ const App: React.FC = () => {
         if (!currentInnings || !matchId) return;
 
         setSendingEmail(true);
-        const API_URL = import.meta.env.VITE_API_URL || "https://mmiwp8rgrf.execute-api.us-east-1.amazonaws.com";
+        const API_URL = import.meta.env.VITE_API_URL || "";
         
         try {
             const response = await fetch(`${API_URL}/match/${matchId}/email`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    emailTo: silent ? 'venky.2k57@gmail.com' : emailTo,
+                    emailTo: silent ? 'your-email@example.com' : emailTo,
                     origin: window.location.origin
                 })
             });

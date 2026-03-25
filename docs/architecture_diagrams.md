@@ -1,6 +1,10 @@
-# CricScore End-to-End Architecture Diagrams
+# 🏗️ CricScore Detailed Sequence Flows
 
-Below are the detailed sequence flow diagrams illustrating the end-to-end processes for writing scores (Live Broadcast), fetching historical match details, and managing match duration sync.
+Below are the detailed sequence flow diagrams illustrating the end-to-end technical processes for live scoring, data hydration, and automated reporting.
+
+For a high-level overview of the web traffic journey, see the [main README](../README.md#🌐-web-traffic--infrastructure-journey-venkateshsingamsetty.site).
+
+---
 
 ## 1. ⚡ Live Score Update (Dual-Write & Broadcast) Flow
 This architecture details the `POST /update-score` flow initiated when a Scorer records a run. It uses an asynchronous fast-path to overcome external Kafka connector delays, streaming updates to fans globally with sub-second latency.
@@ -122,4 +126,46 @@ sequenceDiagram
         Lambda_Score->>Spectator: WebSocket(STATE_SYNC: totalOvers=15)
         Note right of Spectator: UI updates instantly globally
     end
+```
+
+---
+
+## 4. 🏁 Match Conclusion & Email Reporting (SES)
+This architecture details the automated reporting flow triggered when a match concludes. It highlights the integration with **AWS Simple Email Service (SES)** to deliver high-fidelity HTML scorecards from **noreply@venkateshsingamsetty.site**.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    
+    actor Admin as Admin / Scorer
+    participant APIGW as HTTP API Gateway
+    participant Lambda as Match API Lambda
+    participant Aiven_PG as Aiven PostgreSQL
+    participant SES as AWS SES (Verified Domain)
+    participant DNS as Route53 (venkateshsingamsetty.site)
+    actor Recipient as Fan Email
+
+    Admin->>Admin: Click "End Match" / "Email Scorecard"
+    Admin->>APIGW: POST /match/{matchId}/email { emailTo: "fan@example.com" }
+    APIGW->>Lambda: Trigger Reporting Engine
+    
+    rect rgb(0, 0, 0, 0.1)
+        Note right of Lambda: Data Aggregation
+        Lambda->>Aiven_PG: SELECT matches, innings, players, bowlers
+        Aiven_PG-->>Lambda: Return Complete Results
+        Lambda->>Lambda: Generate Responsive HTML Template
+    end
+    
+    Lambda->>SES: SendEmailCommand(htmlBody, source: "noreply@venkateshsingamsetty.site")
+    
+    rect rgb(29, 78, 216, 0.2)
+        Note right of SES: Identity Verification
+        SES->>DNS: Verify DKIM/SPF Records
+        DNS-->>SES: Logic Confirmed
+    end
+    
+    SES->>Recipient: Deliver 🏏 FINAL SCORECARD (High Deliverability)
+    SES-->>Lambda: MessageId
+    Lambda-->>APIGW: HTTP 200 OK
+    APIGW-->>Admin: UI: "Fancy email sent successfully"
 ```

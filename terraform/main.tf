@@ -510,8 +510,11 @@ resource "aws_lambda_function" "kafka_consumer" {
 
   environment {
     variables = {
-      TABLE_NAME    = aws_dynamodb_table.connections.name
-      WEBSOCKET_URL = "${aws_apigatewayv2_api.websocket_api.api_endpoint}/prod"
+      TABLE_NAME         = aws_dynamodb_table.connections.name
+      WEBSOCKET_URL      = "${aws_apigatewayv2_api.websocket_api.api_endpoint}/prod"
+      KAFKA_BROKERS      = var.kafka_bootstrap_servers
+      KAFKA_USERNAME     = var.kafka_username
+      KAFKA_PASSWORD     = var.kafka_password
     }
   }
 }

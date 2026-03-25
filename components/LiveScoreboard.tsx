@@ -19,8 +19,8 @@ interface LiveScoreboardProps {
 }
 
 const LiveScoreboard: React.FC<LiveScoreboardProps> = ({ isAdmin, onResumeMatch }) => {
-    const WS_URL = import.meta.env.VITE_WS_URL || "wss://i4cnmjy0tg.execute-api.us-east-1.amazonaws.com/prod";
-    const API_URL = import.meta.env.VITE_API_URL || "https://mmiwp8rgrf.execute-api.us-east-1.amazonaws.com";
+    const WS_URL = import.meta.env.VITE_WS_URL || "";
+    const API_URL = import.meta.env.VITE_API_URL || "";
     const [targetMatchId, setTargetMatchId] = useState<string>("");
     const { lastMessage, isConnected } = useWebSocket(WS_URL);
     const [liveData, setLiveData] = useState<LiveBall | null>(null);
