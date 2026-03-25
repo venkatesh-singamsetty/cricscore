@@ -36,4 +36,4 @@ The true technical execution lies in our **Dual-Write Engine**:
 ## 🏁 Conclusion
 Aiven didn't just provide "databases-as-a-service"; it provided the **infrastructure foundation** that allowed us to move from a concept to a live product in just three days. 
 
-CricScore is now live at [venkateshsingamsetty.site](https://cricscore.venkateshsingamsetty.site) — powered by **Aiven Free Tier**.
+CricScore is now live at [cricscore.venkateshsingamsetty.site](https://cricscore.venkateshsingamsetty.site) — powered by **Aiven Free Tier**.

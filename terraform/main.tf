@@ -136,9 +136,10 @@ resource "aws_cloudfront_distribution" "s3_distribution" {
 
 # --- 4a. Route53 Alias Record for the Subdomain ---
 resource "aws_route53_record" "www" {
-  zone_id = data.aws_route53_zone.selected.zone_id
-  name    = var.subdomain_prefix
-  type    = "A"
+  allow_overwrite = true
+  zone_id         = data.aws_route53_zone.selected.zone_id
+  name            = var.subdomain_prefix
+  type            = "A"
 
   alias {
     name                   = aws_cloudfront_distribution.s3_distribution.domain_name
