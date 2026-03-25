@@ -254,7 +254,9 @@ resource "aws_lambda_function" "match_api" {
 
   environment {
     variables = {
-      DATABASE_URL = var.database_url
+      DATABASE_URL       = var.database_url
+      SES_SOURCE         = var.ses_source_email
+      BROADCASTER_LAMBDA = aws_lambda_function.score_update.function_name
     }
   }
 
@@ -495,7 +497,7 @@ resource "aws_apigatewayv2_stage" "websocket_stage" {
 # --- Kafka Consumer Lambda ---
 data "archive_file" "kafka_consumer_zip" {
   type        = "zip"
-  source_file = "${path.module}/../backend/lambdas/kafka-consumer/index.js"
+  source_dir  = "${path.module}/../backend/lambdas/kafka-consumer"
   output_path = "${path.module}/kafka_consumer.zip"
 }
 
@@ -509,8 +511,11 @@ resource "aws_lambda_function" "kafka_consumer" {
 
   environment {
     variables = {
-      TABLE_NAME    = aws_dynamodb_table.connections.name
-      WEBSOCKET_URL = "${aws_apigatewayv2_api.websocket_api.api_endpoint}/prod"
+      TABLE_NAME         = aws_dynamodb_table.connections.name
+      WEBSOCKET_URL      = "${aws_apigatewayv2_api.websocket_api.api_endpoint}/prod"
+      KAFKA_BROKERS      = var.kafka_bootstrap_servers
+      KAFKA_USERNAME     = var.kafka_username
+      KAFKA_PASSWORD     = var.kafka_password
     }
   }
 }

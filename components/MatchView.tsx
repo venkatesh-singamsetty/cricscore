@@ -10,6 +10,7 @@ interface MatchViewProps {
     onInningsEnd: (innings: InningsState) => void;
     onResetMatch: () => void;
     onUpdateOvers?: (overs: number) => void;
+    onStateChange?: (state: InningsState) => void;
 }
 
 type ModalType = 'NONE' | 'WICKET_TYPE' | 'BATTER_SELECT' | 'BOWLER_SELECT' | 'FIELDER_SELECT' | 'EXTRA_RUNS' | 'RUN_OUT_MODAL';
@@ -21,7 +22,8 @@ const MatchView: React.FC<MatchViewProps> = ({
     matchId,
     onInningsEnd,
     onResetMatch,
-    onUpdateOvers
+    onUpdateOvers,
+    onStateChange
 }) => {
     const [isEditingOvers, setIsEditingOvers] = useState(false);
     // --- Live Persistence (Synchronous Hydration) ---
@@ -64,6 +66,7 @@ const MatchView: React.FC<MatchViewProps> = ({
             lastCommentary
         };
         localStorage.setItem('cric-scorer-live-innings', JSON.stringify(liveState));
+        if (onStateChange) onStateChange(innings);
     }, [innings, history, lastCommentary]);
 
     useEffect(() => {
@@ -608,8 +611,8 @@ const MatchView: React.FC<MatchViewProps> = ({
                     {runOutRuns === null ? (
                         <div className="flex flex-col gap-3">
                             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Runs Completed Before Run Out?</label>
-                            <div className="grid grid-cols-4 gap-2">
-                                {[0, 1, 2, 3].map(r => (
+                            <div className="grid grid-cols-3 gap-2">
+                                {[0, 1, 2, 3, 4, 5].map(r => (
                                     <button
                                         key={r}
                                         onClick={() => setRunOutRuns(r)}
@@ -1064,7 +1067,7 @@ const MatchView: React.FC<MatchViewProps> = ({
                                         onClick={() => {
                                             const next = isActive ? ExtraType.NONE : type as ExtraType;
                                             setPendingExtra(next);
-                                            if (next === ExtraType.WIDE || next === ExtraType.NO_BALL) {
+                                            if (next !== ExtraType.NONE) {
                                                 setModalView('EXTRA_RUNS');
                                             }
                                         }}

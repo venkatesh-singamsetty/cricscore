@@ -50,12 +50,10 @@ pnpm-debug.log*
 # ==============================================================================
 # Environment & Secrets
 # ==============================================================================
-# Local environment files (database URLs, API keys, etc)
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# Certificates and Keys
+certs/
+*.pem
+*.key
 
 # ==============================================================================
 # IDEs & Text Editors

@@ -34,6 +34,7 @@ CricScore is a cross-cloud application leveraging **Aiven Lifecycle Management**
 - **API Gateway (HTTP)**: High-performance endpoint for Scorer input.
 - **API Gateway (WebSocket)**: Persistent bi-directional tunnel for Real-time apps.
 - **CloudFront**: Edge delivery for the frontend assets (S3 Static Website).
+- **AWS SES (SES)**: Automated "Fancy" HTML email engine for post-match reports. (Requires verified email identity).
 
 ---
 

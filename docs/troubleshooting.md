@@ -112,10 +112,40 @@ This engineering trace documents the real-world resolutions for the CricScore ba
 - **Cause**: Use of native `window.prompt` for quick implementation.
 - **Fix**: Replaced with a **Seamless Inline UI**. The overs count now transforms into a stylized input field on-click, supporting Enter-to-save and Escape-to-cancel.
 
+### 17. **`Runtime.ImportModuleError` / Missing `pg`**
+- **Symptom**: "Cloud Connection Failed" alert in the UI; Lambda logs showed `Error: Cannot find module 'pg'`.
+- **Cause**: Updating the Lambda code via `zip` only included the `index.js` file, missing the `node_modules` directory required for database connectivity.
+- **Fix**: Updated deployment process to use `zip -r` to recursively include the `node_modules` folder in the deployment package.
+
+### 18. **SES `MessageRejected` & Missing API Routes**
+- **Symptom**: "Fancy" reports were not being received; "DELETE FAILED! Failed to fetch" alerts in the Admin Hub.
+- **Cause**: 
+    1. The `match-api` IAM role lacked `ses:SendEmail` permission.
+    2. API Gateway was missing routes for `DELETE /match/{matchId}` and `POST /match/{matchId}/email`.
+    3. SES Gmail "spoofing" filters blocked unverified senders.
+- **Fix**: 
+    - Provisioned missing routes via AWS CLI and updated Lambda IAM role permissions.
+    - **Enterprise Fix**: Verified the `venkateshsingamsetty.site` domain and configured **3 DKIM CNAME records** and an **SPF TXT record** in Route53.
+    - Switched source to `noreply@venkateshsingamsetty.site`.
+
+### 19. **Scorer Data Loss (Mobile / Tab Switching)**
+- **Symptom**: Scorers lost their pending batter/bowler sync if they switched tabs or refreshed the mobile browser.
+- **Cause**: Match state was local to the component; `localStorage` didn't restore the active tab view.
+- **Fix**: 
+    - Implemented a ball-by-ball `onStateChange` sync from `MatchView` to the app root.
+    - Persisted the active `view` ID in `localStorage` to return users directly to the scoring screen after a refresh.
+
+### 20. **Cascading Delete & DB Purge**
+- **Symptom**: Deleting a match left "ghost" records in the innings/players tables; no way to bulk-clear old tests.
+- **Cause**: Lack of foreign key constraints on some tables and no admin-level `TRUNCATE` endpoint.
+- **Fix**: 
+    - Verified `ON DELETE CASCADE` across all match-related tables in PostgreSQL.
+    - Implemented `DELETE /matches` (Purge) on the backend using `TRUNCATE ... CASCADE` for a clean slate.
+
 ---
 
-## ✅ Verified State
-- **Ball Sync**: 100% Definitive (Metadata + Runs + Wickets).
-- **Architecture**: Real-time Kafka + WebSocket + DB Polling Failover.
-- **UI/UX**: Premium, In-place Interactive Dashboard.
-- **Latency**: Sub-second end-to-end.
+## ✅ Verified State (2026-03-24 - Resilience Milestone)
+- **RBAC**: 3-Tab secure UI (Viewer/Scorer/Admin) fully operational.
+- **Email Reporting**: Enterprise-grade delivery with DKIM/SPF from your verified domain.
+- **Persistence**: 100% session recovery for scorers (Tab-switch & Refresh proof).
+- **Match Lifecycle**: New **STALED** badge (>24h) for unfinished games with Resume support.

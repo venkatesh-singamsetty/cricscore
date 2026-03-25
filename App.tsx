@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { InningsState, MatchStatus, TeamData, Player, Bowler } from './types';
+import { InningsState, MatchStatus, TeamData, Player, Bowler, BallEvent } from './types';
 import MatchSetup from './components/MatchSetup';
 import MatchView from './components/MatchView';
 import LiveScoreboard from './components/LiveScoreboard'; // Added Phase 6
@@ -15,7 +15,7 @@ const loadSavedState = () => {
 const App: React.FC = () => {
     const savedState = loadSavedState();
 
-    const [view, setView] = useState<'SCORER' | 'SPECTATOR'>('SCORER');
+    const [view, setView] = useState<'VIEWER' | 'SCORER' | 'ADMIN'>(savedState?.view ?? 'VIEWER');
     const [hubKey, setHubKey] = useState(0); // For forcing reset to list
     const [matchStatus, setMatchStatus] = useState<MatchStatus>(savedState?.matchStatus ?? MatchStatus.SETUP);
     const [currentInnings, setCurrentInnings] = useState<InningsState | null>(savedState?.currentInnings ?? null);
@@ -26,8 +26,35 @@ const App: React.FC = () => {
     const [teamB, setTeamB] = useState<TeamData | null>(savedState?.teamB ?? null);
     const [totalOvers, setTotalOvers] = useState(savedState?.totalOvers ?? 15);
     const [matchId, setMatchId] = useState<string | null>(savedState?.matchId ?? null);
-    const [emailTo, setEmailTo] = useState('venky.2k57@gmail.com');
+    const [emailTo, setEmailTo] = useState('@gmail.com');
     const [showResetConfirm, setShowResetConfirm] = useState(false);
+    const [targetMatchId, setTargetMatchId] = useState<string | null>(null);
+    const [hasSentAutoEmail, setHasSentAutoEmail] = useState<boolean>(savedState?.hasSentAutoEmail ?? false);
+
+    useEffect(() => {
+        // Handle direct links to matches via URL ?matchId=xxx
+        const params = new URLSearchParams(window.location.search);
+        const mId = params.get('matchId');
+        if (mId && mId !== targetMatchId) {
+            setTargetMatchId(mId);
+        }
+    }, []);
+
+    useEffect(() => {
+        // Reset state when following a new match
+        if (targetMatchId && targetMatchId !== matchId) {
+            // Clear current match state to load the new one
+            setMatchStatus(MatchStatus.SETUP);
+            setCurrentInnings(null);
+            setPreviousInnings(undefined);
+            setTeamA(null);
+            setTeamB(null);
+            setTotalOvers(15);
+            setMatchId(null);
+            setView('VIEWER'); // Automatically switch to viewer view
+            resumeMatch(targetMatchId); // Attempt to load the match
+        }
+    }, [targetMatchId]);
 
     useEffect(() => {
         const stateToSave = {
@@ -37,10 +64,12 @@ const App: React.FC = () => {
             teamB,
             totalOvers,
             previousInnings,
-            currentInnings
+            currentInnings,
+            view, // Persist the tab view
+            hasSentAutoEmail
         };
         localStorage.setItem('cric-scorer-match-state', JSON.stringify(stateToSave));
-    }, [matchStatus, matchId, teamA, teamB, totalOvers, previousInnings, currentInnings]);
+    }, [matchStatus, matchId, teamA, teamB, totalOvers, previousInnings, currentInnings, view, hasSentAutoEmail]);
 
     // Helper to create an innings
     const createInnings = (
@@ -134,7 +163,7 @@ const App: React.FC = () => {
 
             const target = completedInnings.totalRuns + 1;
 
-            const API_URL = import.meta.env.VITE_API_URL || "https://mmiwp8rgrf.execute-api.us-east-1.amazonaws.com";
+            const API_URL = import.meta.env.VITE_API_URL || "";
             
             try {
                 const response = await fetch(`${API_URL}/match/${matchId}/innings`, {
@@ -160,6 +189,162 @@ const App: React.FC = () => {
         } else {
             setCurrentInnings(completedInnings);
             setMatchStatus(MatchStatus.COMPLETED);
+
+            // Sync final match status to DB
+            if (matchId) {
+                const API_URL = import.meta.env.VITE_API_URL || "";
+                try {
+                    await fetch(`${API_URL}/match/${matchId}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ status: MatchStatus.COMPLETED })
+                    });
+                    console.log("Match Status Updated to COMPLETED ✅");
+                } catch (err) {
+                    console.error("Failed to update match status:", err);
+                }
+            }
+        }
+    };
+
+    const resumeMatch = async (mId: string) => {
+        const API_URL = import.meta.env.VITE_API_URL || "";
+        try {
+            console.log("Resuming Match...", mId);
+            const response = await fetch(`${API_URL}/match/${mId}/details`);
+            const data = await response.json();
+
+            const { match, innings } = data;
+            if (!match) return;
+
+            // 1. Reconstruct Teams
+            // Note: Since Squads aren't strictly stored as a separate list of names in the 'matches' table,
+            // we'll infer them from the innings player/bowler records.
+            const tA: TeamData = { name: match.team_a_name, players: [] };
+            const tB: TeamData = { name: match.team_b_name, players: [] };
+
+            // Find squads from first innings
+            if (innings.length > 0) {
+                const firstInn = innings[0];
+                const isTeamABattingFirst = firstInn.batting_team_name === tA.name;
+                
+                const battingSquad = firstInn.players.map((p: any) => p.name);
+                const bowlingSquad = firstInn.bowlers.map((b: any) => b.name);
+
+                if (isTeamABattingFirst) {
+                    tA.players = battingSquad;
+                    tB.players = bowlingSquad;
+                } else {
+                    tB.players = battingSquad;
+                    tA.players = bowlingSquad;
+                }
+            }
+
+            setTeamA(tA);
+            setTeamB(tB);
+            setTotalOvers(match.total_overs);
+            setMatchId(mId);
+
+            // 2. Reconstruct Innings State
+            const mapInnings = (inn: any): InningsState => {
+                const playersMap: Record<string, Player> = {};
+                const battingOrder: string[] = [];
+                inn.players.forEach((p: any) => {
+                    playersMap[p.id] = {
+                        id: p.id,
+                        name: p.name,
+                        runs: p.runs,
+                        ballsFaced: p.balls_faced,
+                        fours: p.fours,
+                        sixes: p.sixes,
+                        isOut: p.is_out,
+                        wicketBy: p.wicket_by,
+                        wicketType: p.wicket_type as any,
+                        fielderName: p.fielder_name
+                    };
+                    battingOrder.push(p.id);
+                });
+
+                const bowlersMap: Record<string, Bowler> = {};
+                const bowlingOrder: string[] = [];
+                inn.bowlers.forEach((b: any) => {
+                    bowlersMap[b.id] = {
+                        id: b.id,
+                        name: b.name,
+                        overs: b.overs_completed,
+                        balls: b.balls,
+                        maidens: b.maidens,
+                        runsConceded: b.runs_conceded,
+                        wickets: b.wickets
+                    };
+                    bowlingOrder.push(b.id);
+                });
+
+                // Mapping Ball Events
+                const allMappedBalls: BallEvent[] = (inn.allBalls || []).map((alt: any) => ({
+                    id: alt.id,
+                    overNumber: alt.over_number,
+                    ballNumber: alt.ball_number,
+                    bowlerName: alt.bowler_name,
+                    batterName: alt.batter_name,
+                    runs: alt.runs,
+                    isExtra: alt.is_extra,
+                    extraType: alt.extra_type as any,
+                    extraRuns: alt.extra_runs,
+                    isWicket: alt.is_wicket,
+                    wicketType: alt.wicket_type as any,
+                    fielderName: alt.fielder_name,
+                    commentary: alt.commentary
+                }));
+
+                const currentOver = allMappedBalls.filter(b => b.overNumber === inn.overs);
+
+                return {
+                    id: inn.id,
+                    inningNumber: inn.inning_number,
+                    target: inn.target,
+                    battingTeamName: inn.batting_team_name,
+                    bowlingTeamName: inn.bowling_team_name,
+                    totalRuns: inn.total_runs,
+                    totalWickets: inn.total_wickets,
+                    overs: inn.overs,
+                    balls: inn.balls,
+                    currentOver,
+                    allBalls: allMappedBalls,
+                    strikerId: inn.striker_name ? (inn.players.find((p: any) => p.name === inn.striker_name)?.id || '') : '',
+                    nonStrikerId: inn.non_striker_name ? (inn.players.find((p: any) => p.name === inn.non_striker_name)?.id || '') : '',
+                    currentBowlerId: inn.current_bowler_name ? (inn.bowlers.find((b: any) => b.name === inn.current_bowler_name)?.id || '') : '',
+                    players: playersMap,
+                    bowlers: bowlersMap,
+                    battingOrder,
+                    bowlingOrder
+                };
+            };
+
+            if (innings.length === 1) {
+                setCurrentInnings(mapInnings(innings[0]));
+                setPreviousInnings(undefined);
+                setMatchStatus(MatchStatus.LIVE);
+            } else if (innings.length === 2) {
+                setPreviousInnings(mapInnings(innings[0]));
+                const inn2 = mapInnings(innings[1]);
+                setCurrentInnings(inn2);
+                
+                // If it's already COMPLETED in DB, stay there. 
+                // Otherwise if 2nd inn started but match isn't completed, mark as LIVE.
+                if (match.status === 'COMPLETED') {
+                    setMatchStatus(MatchStatus.COMPLETED);
+                } else if (inn2.totalRuns === 0 && inn2.overs === 0 && inn2.balls === 0) {
+                     setMatchStatus(MatchStatus.INNINGS_BREAK);
+                } else {
+                    setMatchStatus(MatchStatus.LIVE);
+                }
+            }
+
+            console.log("Match Resumed ✅");
+        } catch (err) {
+            console.error("Failed to resume match:", err);
+            alert("Resuming match failed. Please try again.");
         }
     };
 
@@ -174,7 +359,7 @@ const App: React.FC = () => {
     const updateMatchOvers = async (newOvers: number) => {
         if (!matchId) return;
         setTotalOvers(newOvers);
-        const API_URL = import.meta.env.VITE_API_URL || "https://mmiwp8rgrf.execute-api.us-east-1.amazonaws.com";
+        const API_URL = import.meta.env.VITE_API_URL || "";
         try {
              await fetch(`${API_URL}/match/${matchId}`, {
                 method: "PATCH",
@@ -192,61 +377,86 @@ const App: React.FC = () => {
 
         const target = currentInnings.target || 0;
         if (currentInnings.totalRuns >= target) {
-            return `${currentInnings.battingTeamName} won by ${10 - currentInnings.totalWickets} wickets`;
+            return `${currentInnings.battingTeamName} WON BY ${10 - currentInnings.totalWickets} WICKETS`;
         } else {
             const runDiff = (target - 1) - currentInnings.totalRuns;
-            if (runDiff === 0) return "Match Tied!";
-            return `${currentInnings.bowlingTeamName} won by ${runDiff} runs`;
+            if (runDiff === 0) return "MATCH TIED!";
+            return `${currentInnings.bowlingTeamName} WON BY ${runDiff} RUNS`;
         }
     };
 
     const generateScorecardText = (innings: InningsState) => {
-        let text = `${innings.battingTeamName} - ${innings.totalRuns}/${innings.totalWickets} in ${innings.overs}.${innings.balls} Overs\n`;
-        text += `\n🏏 BATTING\n`;
-        text += `--------------------------------------------------\n`;
+        const header = `┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n┃ ${innings.battingTeamName.padEnd(30)} ${innings.totalRuns.toString().padStart(3)}/${innings.totalWickets} ┃\n┃ ${(`${innings.overs}.${innings.balls} Overs`).padEnd(30)}        ┃\n┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫`;
+        
+        let batting = `\n┃ 🏏 BATTING                                          ┃\n`;
         innings.battingOrder.forEach(id => {
             const p = innings.players[id];
-            if (p.ballsFaced > 0 || p.isOut) {
-                let status = 'not out';
-                if (p.isOut) {
-                    status = `b ${p.wicketBy} ${p.fielderName ? `c ${p.fielderName}` : ''}`;
-                }
-                text += `${p.name.padEnd(15)} | ${p.runs} (${p.ballsFaced}) | 4s: ${p.fours} | 6s: ${p.sixes} | ${status}\n`;
+            if (p.ballsFaced > 0 || p.isOut || p.id === innings.strikerId || p.id === innings.nonStrikerId) {
+                const score = `${p.runs}(${p.ballsFaced})`.padEnd(10);
+                const boundary = `${p.fours}x4 ${p.sixes}x6`.padEnd(10);
+                const line = `┃ ${p.name.padEnd(15)} | ${score} | ${boundary} ┃`;
+                batting += line + `\n`;
             }
         });
-        text += `--------------------------------------------------\n`;
-        text += `\n🥎 BOWLING\n`;
-        text += `--------------------------------------------------\n`;
+
+        let bowling = `┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫\n┃ 🥎 BOWLING                                          ┃\n`;
         innings.bowlingOrder.forEach(id => {
             const b = innings.bowlers[id];
             if (b.overs > 0 || b.balls > 0) {
-                text += `${b.name.padEnd(15)} | ${b.overs}.${b.balls} O | ${b.maidens} M | ${b.runsConceded} R | ${b.wickets} W\n`;
+                const stats = `${b.overs}.${b.balls}ov ${b.runsConceded}r ${b.wickets}w`.padEnd(25);
+                const line = `┃ ${b.name.padEnd(15)} | ${stats}  ┃`;
+                bowling += line + `\n`;
             }
         });
-        text += `--------------------------------------------------\n`;
-        return text;
+
+        const footer = `┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛`;
+        return header + batting + bowling + footer;
     };
 
-    const handleSendEmail = () => {
-        if (!currentInnings || !previousInnings) return;
+    const [sendingEmail, setSendingEmail] = useState(false);
 
-        const subject = encodeURIComponent(`CRICSCORE_RESULT: ${previousInnings.battingTeamName} vs ${currentInnings.battingTeamName}`);
+    const handleSendEmail = async (silent = false) => {
+        if (!currentInnings || !matchId) return;
 
-        let bodyContext = `🏆 MATCH RESULT 🏆\n${getWinnerMessage()}\n\n`;
-        bodyContext += `==================================================\n`;
-        bodyContext += `▶ INNINGS 1: ${previousInnings.battingTeamName}\n`;
-        bodyContext += `==================================================\n`;
-        bodyContext += generateScorecardText(previousInnings) + `\n\n`;
-        bodyContext += `==================================================\n`;
-        bodyContext += `▶ INNINGS 2: ${currentInnings.battingTeamName}\n`;
-        bodyContext += `==================================================\n`;
-        bodyContext += generateScorecardText(currentInnings) + `\n\n`;
-        bodyContext += `--- Generated securely via CricScore ---`;
+        setSendingEmail(true);
+        const API_URL = import.meta.env.VITE_API_URL || "";
+        
+        try {
+            const response = await fetch(`${API_URL}/match/${matchId}/email`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    emailTo: silent ? 'your-email@example.com' : emailTo,
+                    origin: window.location.origin
+                })
+            });
 
-        const body = encodeURIComponent(bodyContext);
-
-        window.location.href = `mailto:${emailTo}?subject=${subject}&body=${body}`;
+            if (!response.ok) throw new Error();
+            if (!silent) alert("✨ FANCY REPORT SENT!\nCheck your inbox for the official scorecard.");
+            else console.log("Automatic scorecard email sent! 🚀");
+        } catch (err) {
+            console.error("Email API failed:", err);
+            // Fallback to mailto if API fails (e.g. SES not verified)
+            if (!silent) {
+                const subject = encodeURIComponent(`🏆 FINAL RESULT: ${previousInnings.battingTeamName} vs ${currentInnings.battingTeamName}`);
+                const body = encodeURIComponent(`🏆 VIEW FANCY SCORECARD:\n${window.location.origin}?matchId=${matchId}\n\n(Cloud email service requires manual verification. Please forward this link!)`);
+                window.location.href = `mailto:${emailTo}?subject=${subject}&body=${body}`;
+            }
+        } finally {
+            setSendingEmail(false);
+        }
     };
+
+    // Auto-trigger email on match completion
+    useEffect(() => {
+        if (matchStatus === MatchStatus.COMPLETED && !hasSentAutoEmail) {
+            setHasSentAutoEmail(true);
+            handleSendEmail(true); // Silent send
+        }
+        if (matchStatus === MatchStatus.SETUP) {
+            setHasSentAutoEmail(false); // Reset for next match
+        }
+    }, [matchStatus, matchId, hasSentAutoEmail]);
 
     return (
         <div className="h-[100dvh] bg-slate-50 font-sans text-slate-900 flex flex-col overflow-hidden relative">
@@ -255,24 +465,27 @@ const App: React.FC = () => {
                 <div className="flex items-center gap-4">
                     <div className="flex bg-slate-900 p-1 rounded-xl border border-white/5">
                         <button 
+                            onClick={() => { setView('VIEWER'); setHubKey(k => k + 1); }}
+                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${view === 'VIEWER' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                        >
+                            Viewer 🌍
+                        </button>
+                        <button 
                             onClick={() => setView('SCORER')}
-                            className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${view === 'SCORER' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${view === 'SCORER' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
                         >
                             Scorer 🎮
                         </button>
                         <button 
-                            onClick={() => {
-                                if (view === 'SPECTATOR') setHubKey(k => k + 1);
-                                setView('SPECTATOR');
-                            }}
-                            className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${view === 'SPECTATOR' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                            onClick={() => { setView('ADMIN'); setHubKey(k => k + 1); }}
+                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${view === 'ADMIN' ? 'bg-rose-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
                         >
-                            Match Hub 🌍
+                            Admin ⚡
                         </button>
                     </div>
                 </div>
                 
-                {matchStatus !== MatchStatus.SETUP && (
+                {matchStatus !== MatchStatus.SETUP && view !== 'VIEWER' && (
                     <button
                         onClick={() => setShowResetConfirm(true)}
                         className="px-4 py-1.5 bg-red-900/30 border border-red-500/20 rounded font-black text-[10px] uppercase tracking-wider text-red-500 hover:text-white transition-all hover:bg-red-600"
@@ -318,22 +531,40 @@ const App: React.FC = () => {
                     </div>
                 )}
 
-                {view === 'SPECTATOR' && (
+                {(view === 'VIEWER' || view === 'ADMIN') && (
                     <div className="h-full bg-slate-950 flex flex-col p-4 md:p-8 overflow-y-auto">
                         <div className="max-w-4xl mx-auto w-full space-y-8 animate-in fade-in zoom-in-95 duration-500">
                              <div className="text-center space-y-2">
-                                <h1 className="text-4xl font-black text-white uppercase tracking-tighter italic">Match <span className="text-indigo-500">Hub Center</span></h1>
-                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em]">Live Feeds & Historical Records</p>
+                                <h1 className="text-4xl font-black text-white uppercase tracking-tighter italic">
+                                    Match <span className={view === 'ADMIN' ? 'text-rose-500' : 'text-indigo-500'}>
+                                        {view === 'ADMIN' ? 'Control Center' : 'Hub Center'}
+                                    </span>
+                                </h1>
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em]">
+                                    {view === 'ADMIN' ? 'Cloud Management & Database Pruning' : 'Live Feeds & Historical Records'}
+                                </p>
                              </div>
                              <div className="bg-slate-900/50 border border-white/5 p-6 rounded-[2rem] backdrop-blur-3xl shadow-2xl">
-                                <LiveScoreboard key={`hub-${hubKey}`} />
+                                <LiveScoreboard 
+                                    key={`hub-${hubKey}`} 
+                                    isAdmin={view === 'ADMIN'}
+                                    onResumeMatch={view !== 'VIEWER' ? (id) => {
+                                        resumeMatch(id);
+                                        setView('SCORER');
+                                    } : undefined}
+                                />
                              </div>
                         </div>
                     </div>
                 )}
 
                 {matchStatus === MatchStatus.SETUP && view === 'SCORER' && (
-                    <MatchSetup onStartMatch={startMatch} />
+                    <MatchSetup 
+                        onStartMatch={startMatch} 
+                        onResumeMatch={resumeMatch} 
+                        hideResume={true}
+                        canDelete={false}
+                    />
                 )}
 
                 {matchStatus === MatchStatus.LIVE && currentInnings && view === 'SCORER' && (
@@ -345,6 +576,7 @@ const App: React.FC = () => {
                         onInningsEnd={handleInningsEnd}
                         onResetMatch={() => setShowResetConfirm(true)}
                         onUpdateOvers={updateMatchOvers}
+                        onStateChange={(state) => setCurrentInnings(state)} // Sync ball-by-ball
                     />
                 )}
 
@@ -425,7 +657,7 @@ const App: React.FC = () => {
 
                                     <div className="mt-12 w-full space-y-4">
                                         <div className="flex flex-col items-start gap-1">
-                                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-4">Target Email for Result</label>
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 pl-4">Target Email for Result</label>
                                             <input
                                                 type="email"
                                                 value={emailTo}
@@ -437,16 +669,16 @@ const App: React.FC = () => {
                                         <div className="flex flex-col md:flex-row gap-4 w-full">
                                             <button
                                                 onClick={handleSendEmail}
-                                                className="flex-1 h-20 bg-blue-600 text-white rounded-[1.5rem] font-black text-xl uppercase tracking-widest italic hover:bg-blue-500 active:scale-[0.98] transition-all shadow-xl shadow-blue-600/20 flex items-center justify-center gap-3"
+                                                disabled={sendingEmail}
+                                                className="flex-1 h-20 bg-blue-600 text-white rounded-[1.5rem] font-black text-xl uppercase tracking-widest italic hover:bg-blue-500 active:scale-[0.98] transition-all shadow-xl shadow-blue-600/20 flex items-center justify-center gap-3 disabled:opacity-50"
                                             >
-                                                EMAIL RESULT 📨
+                                                {sendingEmail ? '🚀 SENDING...' : 'EMAIL RESULT 📨'}
                                             </button>
                                             <button
                                                 onClick={() => setShowResetConfirm(true)}
                                                 className="flex-1 h-20 bg-white text-slate-900 rounded-[1.5rem] font-black text-xl uppercase tracking-widest italic hover:bg-slate-100 active:scale-[0.98] transition-all shadow-2xl flex items-center justify-center gap-3"
                                             >
-                                                START NEW FIXTURE
-                                                <span className="text-2xl">⚡</span>
+                                                {view === 'SCORER' ? 'START FRESH MATCH 🏏' : 'RESET HUB 🔄'}
                                             </button>
                                         </div>
                                     </div>

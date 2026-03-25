@@ -26,20 +26,9 @@ variable "project_name" {
   default     = "cricscore"
 }
 
-variable "backend_bucket" {
+variable "ses_source_email" {
   type        = string
-  description = "S3 bucket for terraform state"
-}
-
-variable "backend_key" {
-  type        = string
-  description = "Key for terraform state file"
-  default     = "cricscore/terraform.tfstate"
-}
-
-variable "backend_dynamodb_table" {
-  type        = string
-  description = "DynamoDB table for state locking"
+  description = "The email address to use as the SES source for sending emails."
 }
 
 variable "database_url" {
