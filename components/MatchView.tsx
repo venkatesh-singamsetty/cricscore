@@ -9,6 +9,7 @@ interface MatchViewProps {
     matchId: string; // Dynamic ID
     onInningsEnd: (innings: InningsState) => void;
     onResetMatch: () => void;
+    onForceReset?: () => void;
     onUpdateOvers?: (overs: number) => void;
     onStateChange?: (state: InningsState) => void;
 }
@@ -22,18 +23,22 @@ const MatchView: React.FC<MatchViewProps> = ({
     matchId,
     onInningsEnd,
     onResetMatch,
+    onForceReset,
     onUpdateOvers,
     onStateChange
 }) => {
     const [isEditingOvers, setIsEditingOvers] = useState(false);
-    // --- Live Persistence (Synchronous Hydration) ---
+    // --- Live Persistence (Synchronous Hydration - Match Specific) ---
+    const getLiveKey = () => `cric-live-match-${matchId}`;
+
     const loadSavedLiveState = () => {
-        const savedLive = localStorage.getItem('cric-scorer-live-innings');
+        const savedLive = localStorage.getItem(getLiveKey());
         if (savedLive) {
             try {
                 const data = JSON.parse(savedLive);
-                if (data.innings.inningNumber === initialState.inningNumber &&
-                    data.innings.battingTeamName === initialState.battingTeamName) {
+                // 🛑 STRICT CHECK: Only restore if match ID stays the same
+                if (data.matchId === matchId && 
+                    data.innings.inningNumber === initialState.inningNumber) {
                     return data;
                 }
             } catch (e) {
@@ -58,16 +63,17 @@ const MatchView: React.FC<MatchViewProps> = ({
 
     const commentaryEndRef = useRef<HTMLDivElement>(null);
 
-    // Save live match state incrementally
+    // Save live match state incrementally (Unique per match)
     useEffect(() => {
         const liveState = {
+            matchId,
             innings,
             history,
             lastCommentary
         };
-        localStorage.setItem('cric-scorer-live-innings', JSON.stringify(liveState));
+        localStorage.setItem(getLiveKey(), JSON.stringify(liveState));
         if (onStateChange) onStateChange(innings);
-    }, [innings, history, lastCommentary]);
+    }, [innings, history, lastCommentary, matchId]);
 
     useEffect(() => {
         commentaryEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -234,7 +240,7 @@ const MatchView: React.FC<MatchViewProps> = ({
             const bOvers = innings.bowlers[innings.currentBowlerId]?.overs || 0;
             const bBalls = innings.bowlers[innings.currentBowlerId]?.balls || 0;
 
-            await fetch(`${API_URL}/update-score`, {
+            const response = await fetch(`${API_URL}/update-score`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -253,6 +259,14 @@ const MatchView: React.FC<MatchViewProps> = ({
                     syncOnly: true
                 })
             });
+
+            if (response.status === 404) {
+                alert("🚨 MATCH NOT FOUND!\nIt may have been deleted by an Administrator. Scoreboard will be reset.");
+                if (onForceReset) onForceReset();
+                else onResetMatch();
+                return;
+            }
+
             console.log("Crease State Synced 📡");
         } catch (err) {
             console.error("Crease Sync Failed:", err);
@@ -269,7 +283,7 @@ const MatchView: React.FC<MatchViewProps> = ({
     const postScoreUpdate = async (ball: BallEvent, finalInnings: InningsState) => {
         try {
             const b = finalInnings.bowlers[finalInnings.currentBowlerId];
-            await fetch(`${API_URL}/update-score`, {
+            const response = await fetch(`${API_URL}/update-score`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -288,6 +302,14 @@ const MatchView: React.FC<MatchViewProps> = ({
                     bowlerBalls: b?.balls || 0
                 })
             });
+
+            if (response.status === 404) {
+                alert("🚨 ACTION FAILED: MATCH DELETED!\nThis match is no longer in the system.");
+                if (onForceReset) onForceReset();
+                else onResetMatch();
+                return;
+            }
+
             console.log("Live Sync: Ball sent to Aiven Kafka 🏏📡");
         } catch (err) {
             console.error("Live Sync Failed:", err);

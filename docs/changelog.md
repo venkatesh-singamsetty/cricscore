@@ -4,14 +4,19 @@ This document tracks the complete evolutionary history of the CricScore platform
 
 ---
 
-## ⚡ Current Status: [2026-03-25] v1.3.0 PRODUCTION RELEASE
-- Finalized production convergence for Role-Based Access Control (RBAC).
+## ⚡ Current Status: [2026-03-26] v1.3.0 PRODUCTION RELEASE
+- **Enterprise Multi-Tenant Isolation**: Implemented per-scorer match persistence and isolated live-caching.
+- **Resilient Resumption**: Every scorer can now safely logout and resume their specific in-progress matches.
+- **Cloud-Level Consistency**: Real-time 404 detection for deleted matches to synchronize Scorer views with Admin deletions.
+- **Unified Logout landing**: All authorized roles (Admin/Scorer) now land on the public Viewer view on sign-out.
 - Site is globally live at **[https://cricscore.venkateshsingamsetty.site](https://cricscore.venkateshsingamsetty.site)**.
-- Secure PIN-based authorization system now active.
+- Full project convergence for multi-user device sharing.
 
 ---
 
 ## 📜 Full History
+
+- **2026-03-25**: **v1.2.0 PRODUCTION RELEASE**: Finalized production convergence from `develop` to `main`. Full resilience & premium reporting engine integration.
 
 - **2026-03-22**: Initial competition project kickoff.
 - **2026-03-22**: **Phase 2 Complete**: Aiven PostgreSQL persistence layer fully operational.
