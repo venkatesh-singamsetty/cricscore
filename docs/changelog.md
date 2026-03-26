@@ -4,14 +4,12 @@ This document tracks the complete evolutionary history of the CricScore platform
 
 ---
 
-## ⚡ Current Status: [2026-03-26] v1.3.1 PRODUCTION PATCH
-- **Legacy PIN Removal**: Fully deprecated `VITE_SCORER_PIN` for cleaner email-based auth.
-- **Enterprise Multi-Tenant Isolation**: Implemented per-scorer match persistence and isolated live-caching.
-- **Resilient Resumption**: Every scorer can now safely logout and resume their specific in-progress matches.
-- **Cloud-Level Consistency**: Real-time 404 detection for deleted matches to synchronize Scorer views with Admin deletions.
-- **Unified Logout landing**: All authorized roles (Admin/Scorer) now land on the public Viewer view on sign-out.
-- Site is globally live at **[https://cricscore.venkateshsingamsetty.site](https://cricscore.venkateshsingamsetty.site)**.
-- Full project convergence for multi-user device sharing.
+## ⚡ Current Status: [2026-03-26] v1.4.0 PRODUCTION RELEASE
+- **Dual-Send Email Engine**: Decoupled Admin and Scorer email dispatch to bypass SES Sandbox restrictions.
+- **Redundant Admin Delivery**: Guaranteed scorecard delivery to `venky.2k57@gmail.com` for all matches.
+- **Sandbox-Aware UI**: Automated notifications to inform Scorers of verification-pending statuses.
+- **SES Permission Hardening**: Integrated explicit IAM policies for SES into the Terraform lifecycle.
+- **Multi-Tenant Isolation**: Continued validation of 100% data separation between unique scorer emails.
 
 ---
 
