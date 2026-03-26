@@ -185,3 +185,8 @@ This engineering trace documents the real-world resolutions for the CricScore ba
 - **Match-Specific Cache**: No data leakage between concurrent or historical sessions.
 - **Auto-Sync Security**: Real-time cleanup for deleted cloud records.
 - **State Integrity**: URL sanitation prevents stale state injections.
+
+### 25. **Admin not receiving scorecards (SES Sandbox)**
+- **Symptom**: Reports work for some users but not others, or Admin copy is missing.
+- **Diagnostic**: Lambda logs show `MessageRejected: Email address is not verified` from SES.
+- **Fix (v1.4.0)**: Switched to a **Dual-Send Architecture**. The system now handles the Admin report as a separate, isolated send that succeeds even if the primary recipient (Scorer) is unverified.

@@ -60,6 +60,33 @@ When a score is updated, all connected clients receive the following event:
 
 ---
 
+---
+
+## 🛠️ Post-Match Actions
+
+### POST `/match/:matchId/email`
+Triggers scorecard report delivery via AWS SES.
+
+**Request Body:**
+```json
+{
+  "emailTo": "official@example.com",
+  "origin": "https://cricscore.venkateshsingamsetty.site"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "message": "Email dispatch completed",
+  "adminSent": true,
+  "scorerSent": false
+}
+```
+*Note: `scorerSent` may be false if the AWS account is in SES Sandbox mode and the scorer's address is not verified.*
+
+---
+
 ## 🛠️ Testing Tools
 - **WebSocket Tester**: [PieSocket Client Tool](https://piehost.com/websocket-tester)
 - **HTTP Client**: Use `curl`, `Postman`, or the Scorer UI (Phase 6).

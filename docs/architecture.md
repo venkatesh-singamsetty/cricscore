@@ -77,3 +77,11 @@ To support multiple scorers on shared devices (tablets/laptops), CricScore v1.3.
 - **Mutual TLS (mTLS)**: Used for all traffic between AWS Lambda and Aiven Kafka.
 - **SSL Enforcement**: Required for all Aiven PostgreSQL sessions.
 - **IAM Policies**: Least-privilege roles for all compute units.
+
+---
+
+## 🚀 Email Dispatch System (v1.4.0)
+The system uses a **Dual-Send Decoupled Architecture** to ensure reliable match reporting even in AWS SES Sandbox environments:
+- **Admin Report**: Sent directly to 'venky.2k57@gmail.com' (Primary recipient).
+- **Scorer Report**: Sent to the email provided by the match official at login.
+- **Decoupling**: Both sends are wrapped in independent try/catch blocks, ensuring an unverified Scorer address (Sandbox restriction) does not block the official Admin scorecard delivery.
