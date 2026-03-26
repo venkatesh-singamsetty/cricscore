@@ -206,23 +206,25 @@ exports.handler = async (event) => {
 
             // A. (REDUNDANT team total UPDATE REMOVED - already handled at top of handler)
 
-            // B. Update Batter Stats
+            // B. Update Batter Stats (Prioritize Absolute Snapshot for Scorer Sync)
+            const { runs: absStrikerRuns, ballsFaced: absStrikerBalls, fours: absStrikerFours, sixes: absStrikerSixes } = JSON.parse(event.body);
+
             await client.query(
                 `UPDATE players SET 
-                    runs = runs + $1, 
-                    balls_faced = balls_faced + $2,
-                    fours = fours + $3,
-                    sixes = sixes + $4,
-                    is_out = $5,
-                    wicket_by = $6,
-                    wicket_type = $7,
-                    fielder_name = $8
-                 WHERE inning_id = $9 AND name = $10`,
+                    runs = COALESCE($1, runs + $2), 
+                    balls_faced = COALESCE($3, balls_faced + $4),
+                    fours = COALESCE($5, fours + $6),
+                    sixes = COALESCE($7, sixes + $8),
+                    is_out = $9,
+                    wicket_by = $10,
+                    wicket_type = $11,
+                    fielder_name = $12
+                 WHERE inning_id = $13 AND name = $14`,
                 [
-                    batterRunsToAdd,
-                    isValidBall ? 1 : 0,
-                    ballData.runs === 4 ? 1 : 0,
-                    ballData.runs === 6 ? 1 : 0,
+                    absStrikerRuns, batterRunsToAdd,
+                    absStrikerBalls, isValidBall ? 1 : 0,
+                    absStrikerFours, ballData.runs === 4 ? 1 : 0,
+                    absStrikerSixes, ballData.runs === 6 ? 1 : 0,
                     isWicket && ballData.wicketType !== 'RETIRED_HURT',
                     isWicket ? ballData.bowlerName : null,
                     isWicket ? ballData.wicketType : null,
@@ -232,20 +234,21 @@ exports.handler = async (event) => {
                 ]
             );
 
-            // C. Update Bowler Stats
+            // C. Update Bowler Stats (Prioritize Absolute Snapshot for Scorer Sync)
+            const { bowlerRuns: absBowlerRuns, bowlerWickets: absBowlerWickets } = JSON.parse(event.body);
             const nextBowlerOvers = (explicitBowlerOvers !== undefined) ? explicitBowlerOvers : Math.floor((ballData.overNumber * 6 + ballData.ballNumber) / 6);
             const nextBowlerBalls = (explicitBowlerBalls !== undefined) ? explicitBowlerBalls : ballData.ballNumber % 6;
 
             await client.query(
                 `UPDATE bowlers SET 
-                    runs_conceded = runs_conceded + $1, 
-                    wickets = wickets + $2,
-                    overs_completed = $3,
-                    balls = $4
-                 WHERE inning_id = $5 AND name = $6`,
+                    runs_conceded = COALESCE($1, runs_conceded + $2), 
+                    wickets = COALESCE($3, wickets + $4),
+                    overs_completed = $5,
+                    balls = $6
+                 WHERE inning_id = $7 AND name = $8`,
                 [
-                    bowlerRunsToAdd,
-                    (isWicket && !['RUN_OUT', 'RETIRED_HURT', 'RETIRED_OUT'].includes(ballData.wicketType)) ? 1 : 0,
+                    absBowlerRuns, bowlerRunsToAdd,
+                    absBowlerWickets, (isWicket && !['RUN_OUT', 'RETIRED_HURT', 'RETIRED_OUT'].includes(ballData.wicketType)) ? 1 : 0,
                     nextBowlerOvers,
                     nextBowlerBalls,
                     inningId,

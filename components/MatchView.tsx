@@ -299,7 +299,14 @@ const MatchView: React.FC<MatchViewProps> = ({
                     totalRuns: finalInnings.totalRuns,
                     totalWickets: finalInnings.totalWickets,
                     bowlerOvers: b?.overs || 0,
-                    bowlerBalls: b?.balls || 0
+                    bowlerBalls: b?.balls || 0,
+                    // Absolute stats snapshots to correct any database drift
+                    runs: finalInnings.players[ball.batterName] ? finalInnings.players[ball.batterName].runs : (Object.values(finalInnings.players).find(p => p.name === ball.batterName)?.runs || 0),
+                    ballsFaced: finalInnings.players[ball.batterName] ? finalInnings.players[ball.batterName].ballsFaced : (Object.values(finalInnings.players).find(p => p.name === ball.batterName)?.ballsFaced || 0),
+                    fours: finalInnings.players[ball.batterName] ? finalInnings.players[ball.batterName].fours : (Object.values(finalInnings.players).find(p => p.name === ball.batterName)?.fours || 0),
+                    sixes: finalInnings.players[ball.batterName] ? finalInnings.players[ball.batterName].sixes : (Object.values(finalInnings.players).find(p => p.name === ball.batterName)?.sixes || 0),
+                    bowlerRuns: b?.runsConceded || 0,
+                    bowlerWickets: b?.wickets || 0
                 })
             });
 
