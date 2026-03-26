@@ -313,27 +313,33 @@ exports.handler = async (event) => {
                     <a href="${origin}?matchId=${matchId}" style="display: inline-block; padding: 12px 24px; background: #4f46e5; color: white; text-decoration: none; border-radius: 10px; font-weight: bold; margin-top: 10px;">VIEW INTERACTIVE SCORECARD ⚡</a>
                 </div>`;
 
-            for (const inn of innArr) {
-                let players = inn.players || [];
-                let bowlers = inn.bowlers || [];
+                for (const inn of innArr) {
+                    const battingTeam = inn.batting_team_name || inn.battingTeamName || 'Unknown Team';
+                    const runs = inn.total_runs !== undefined ? inn.total_runs : (inn.totalRuns || 0);
+                    const wickets = inn.total_wickets !== undefined ? inn.total_wickets : (inn.totalWickets || 0);
+                    const ov = inn.overs !== undefined ? inn.overs : 0;
+                    const balls = inn.balls !== undefined ? inn.balls : 0;
 
-                if (!inn.players || !inn.bowlers) {
-                    const pR = await client.query('SELECT * FROM players WHERE inning_id = $1 ORDER BY runs DESC', [inn.id]);
-                    const bR = await client.query('SELECT * FROM bowlers WHERE inning_id = $1 ORDER BY wickets DESC', [inn.id]);
-                    players = pR.rows;
-                    bowlers = bR.rows;
-                } else {
-                    // Normalize if passed as record from frontend
-                    if (!Array.isArray(players)) players = Object.values(players);
-                    if (!Array.isArray(bowlers)) bowlers = Object.values(bowlers);
-                    
-                    players.sort((a, b) => (b.runs || 0) - (a.runs || 0));
-                    bowlers.sort((a, b) => (b.wickets || 0) - (a.wickets || 0));
-                }
+                    let players = inn.players || [];
+                    let bowlers = inn.bowlers || [];
 
-                htmlBody += `
-                <div style="margin-top: 40px;">
-                    <h3 style="background: #334155; padding: 10px 20px; border-radius: 8px; color: #e2e8f0; margin-bottom: 10px;">🏏 ${inn.batting_team_name} - ${inn.total_runs}/${inn.total_wickets} (${inn.overs}.${inn.balls})</h3>
+                    if (!inn.players || !inn.bowlers) {
+                        const pR = await client.query('SELECT * FROM players WHERE inning_id = $1 ORDER BY runs DESC', [inn.id]);
+                        const bR = await client.query('SELECT * FROM bowlers WHERE inning_id = $1 ORDER BY wickets DESC', [inn.id]);
+                        players = pR.rows;
+                        bowlers = bR.rows;
+                    } else {
+                        // Normalize if passed as record from frontend
+                        if (!Array.isArray(players)) players = Object.values(players);
+                        if (!Array.isArray(bowlers)) bowlers = Object.values(bowlers);
+                        
+                        players.sort((a, b) => (b.runs || 0) - (a.runs || 0));
+                        bowlers.sort((a, b) => (b.wickets || (b.runsConceded ? 0 : -1)) - (a.wickets || (a.runsConceded ? 0 : -1))); // Wait! wickets might be same. Let's stick to wickets.
+                    }
+
+                    htmlBody += `
+                    <div style="margin-top: 40px;">
+                        <h3 style="background: #334155; padding: 10px 20px; border-radius: 8px; color: #e2e8f0; margin-bottom: 10px;">🏏 ${battingTeam} - ${runs}/${wickets} (${ov}.${balls})</h3>
                     <table style="width: 100%; border-collapse: collapse; text-align: left; background: rgba(255,255,255,0.02); border-radius: 10px; overflow: hidden;">
                         <thead>
                             <tr style="background: rgba(255,255,255,0.05); color: #94a3b8; font-size: 12px; text-transform: uppercase;">
