@@ -1,6 +1,6 @@
-# 🚀 PR Summary: CricScore v1.3.0 - Enterprise Multi-Tenant Isolation
+# 🚀 PR Summary: CricScore v1.3.1 - Isolation Multi-Tenant Final
 
-This update transforms **CricScore** into a production-grade multi-user platform. It addresses the critical "state contamination" issue where different scorers sharing the same device could accidentally overwrite each other's match data. v1.3.0 introduces a robust, email-scoped persistence architecture and real-time cloud-sync verification.
+This update transforms **CricScore** into a production-grade multi-user platform. It addresses the critical "state contamination" issue where different scorers sharing the same device could accidentally overwrite each other's match data. v1.3.1 introduces a robust, email-scoped persistence architecture and real-time cloud-sync verification.
 
 ## 🚦 Key Improvements & Fixes
 
