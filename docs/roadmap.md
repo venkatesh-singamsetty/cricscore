@@ -25,7 +25,7 @@ CricScore is a highly-available, real-time cricket match scoring system with an 
 
 ### Phase 7: Resilience & Premium Reporting Engine
 - [x] **Role-Based Access Control (RBAC)**: Implemented 3-tab UI (**VIEWER**, **SCORER**, **ADMIN**). 🛡️
-- [x] **High-Reliability Email Reporting (SES)**: Automated scorecard delivery on match completion. 🚀
+- [x] **Email-Based Scorer Identity**: Replaced legacy PINs with isolated email-based auth for multi-user device sharing.
 - [x] **Real-Time Hub Updates**: Cross-session broadcast for automatic Hub synchronization. 📡
 - [x] **Enterprise DNS**: Verified domain identity (`cricscore.venkateshsingamsetty.site`) with DKIM/SPF.
 - [x] **Deep State Persistence**: 100% session recovery for scorers (Refresh/Close proof). 🛡️
