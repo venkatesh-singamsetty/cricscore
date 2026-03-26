@@ -34,6 +34,7 @@ CricScore provides a RESTful interface for scoring actions and a real-time WebSo
     }
     ```
 - **Response**: `{"success": true, "ballId": "ball_uuid"}`
+- **Error Handling (v1.3.0)**: Returns `404 Not Found` if the `matchId` has been deleted by an Administrator. The Scorer UI performs a **Force Reset** upon detection.
 
 ---
 

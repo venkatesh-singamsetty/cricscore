@@ -69,6 +69,8 @@ After your very first run, you will have received API Gateway URLs from the Terr
    ```env
    VITE_API_URL=https://<id>.execute-api.us-east-1.amazonaws.com
    VITE_WS_URL=wss://<id>.execute-api.us-east-1.amazonaws.com/prod
+   VITE_SCORER_PIN=1234
+   VITE_ADMIN_PIN=5678
    ```
    ```bash
    ./deploy.sh
