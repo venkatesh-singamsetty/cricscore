@@ -32,10 +32,10 @@ This project was built to solve the "Live Score Lag" problem using **100% Open S
 To protect match integrity, CricScore uses a **PIN-based Authorization Layer**:
 
 - **Viewer 🌍**: Default mode for all users (No PIN required).
-- **Scorer 🎮**: Restricted to match officials. Requires the **Scorer PIN** and a valid email to start/start matches. Includes **Enterprise Multi-Tenant Isolation** to securely persist and resume matches per user.
+- **Scorer 🎮**: Restricted to match officials. Requires a valid email to start/resume matches. Includes **Enterprise Multi-Tenant Isolation** to securely persist and resume matches per user.
 - **Admin ⚡**: Restricted to the owner. Requires the **Admin PIN** for deleting records, resending email reports, or purging the DB.
 
-Authorization is session-persistent and configured via `.env` variables (`VITE_SCORER_PIN`, `VITE_ADMIN_PIN`). **v1.3.0** introduces **Cloud-Sync Verification**, which automatically resets a Scorer's view if an Administrator deletes their active match from the database.
+Authorization is session-persistent and configured via `.env` variables (`VITE_ADMIN_PIN`). **v1.3.0** introduces **Cloud-Sync Verification**, which automatically resets a Scorer's view if an Administrator deletes their active match from the database.
 
 ---
 
