@@ -4,7 +4,8 @@ This document tracks the complete evolutionary history of the CricScore platform
 
 ---
 
-## ⚡ Current Status: [2026-03-26] v1.3.0 PRODUCTION RELEASE
+## ⚡ Current Status: [2026-03-26] v1.3.1 PRODUCTION PATCH
+- **Legacy PIN Removal**: Fully deprecated `VITE_SCORER_PIN` for cleaner email-based auth.
 - **Enterprise Multi-Tenant Isolation**: Implemented per-scorer match persistence and isolated live-caching.
 - **Resilient Resumption**: Every scorer can now safely logout and resume their specific in-progress matches.
 - **Cloud-Level Consistency**: Real-time 404 detection for deleted matches to synchronize Scorer views with Admin deletions.
