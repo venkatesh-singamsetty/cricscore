@@ -68,7 +68,6 @@ const App: React.FC = () => {
     // Helper to load match state based on email
     const applyLoadedState = (saved: any) => {
         if (!saved) {
-            // FULL RESET for new users
             setMatchStatus(MatchStatus.SETUP);
             setMatchId(null);
             setTeamA(null);
@@ -79,6 +78,18 @@ const App: React.FC = () => {
             setHasSentAutoEmail(false);
             return;
         }
+
+        // ⏱️ TTL Logic: If match is COMPLETED and older than 5 minutes, RESET.
+        if (saved.matchStatus === MatchStatus.COMPLETED && saved.completedAt) {
+            const ageMinutes = (Date.now() - saved.completedAt) / 60000;
+            if (ageMinutes > 5) {
+                console.log("🕒 Match completion TTL expired (5m). Discarding old state.");
+                localStorage.removeItem(getMatchStateKey(emailTo));
+                applyLoadedState(null);
+                return;
+            }
+        }
+
         setMatchStatus(saved.matchStatus ?? MatchStatus.SETUP);
         setMatchId(saved.matchId ?? null);
         setTeamA(saved.teamA ?? null);
@@ -158,12 +169,25 @@ const App: React.FC = () => {
                 totalOvers,
                 previousInnings,
                 currentInnings,
-                hasSentAutoEmail
+                hasSentAutoEmail,
+                completedAt: (matchStatus === MatchStatus.COMPLETED) ? (Date.now()) : null
             };
             localStorage.setItem(getMatchStateKey(emailTo), JSON.stringify(stateToSave));
             sessionStorage.setItem('last_view', view);
         }
     }, [matchStatus, matchId, teamA, teamB, totalOvers, previousInnings, currentInnings, view, hasSentAutoEmail, emailTo, isAuthorized.SCORER]);
+
+    // 🕒 Auto-Cleanup Timer: If user stays on Completed screen for 5 mins, reset to setup
+    useEffect(() => {
+        if (matchStatus === MatchStatus.COMPLETED && view === 'SCORER') {
+            const timer = setTimeout(() => {
+                console.log("🕒 Foreground TTL expired. Resetting to Setup.");
+                localStorage.removeItem(getMatchStateKey(emailTo));
+                applyLoadedState(null);
+            }, 5 * 60 * 1000); // 5 Minutes
+            return () => clearTimeout(timer);
+        }
+    }, [matchStatus, view]);
 
     // Helper to create an innings
     const createInnings = (
@@ -638,12 +662,20 @@ const App: React.FC = () => {
         const API_URL = import.meta.env.VITE_API_URL || "";
         
         try {
+            const reportState = {
+                innings: [
+                    ...(previousInnings ? [previousInnings] : []),
+                    currentInnings
+                ]
+            };
+
             const response = await fetch(`${API_URL}/match/${matchId}/email`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     emailTo,
-                    origin: window.location.origin
+                    origin: window.location.origin,
+                    reportState
                 })
             });
 

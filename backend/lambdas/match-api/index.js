@@ -254,16 +254,34 @@ exports.handler = async (event) => {
             }
         }
 
-        // POST /match/{matchId}/email (Send Fancy HTML Email)
-        if (httpMethod === 'POST' && pathParameters && pathParameters.matchId && path.includes('/email')) {
-            const matchId = pathParameters.matchId;
-            const { emailTo, origin } = JSON.parse(body);
+            // POST /match/{matchId}/email (Send Fancy HTML Email)
+            if (httpMethod === 'POST' && pathParameters && pathParameters.matchId && path.includes('/email')) {
+                const matchId = pathParameters.matchId;
+                const { emailTo, origin, reportState } = JSON.parse(body);
 
-            // Get match details (same logic as /details)
-            const matchRes = await client.query('SELECT * FROM matches WHERE id = $1', [matchId]);
-            const inningsRes = await client.query('SELECT * FROM innings WHERE match_id = $1 ORDER BY inning_number', [matchId]);
-            const matchRecord = matchRes.rows[0];
-            const innArr = inningsRes.rows;
+                // Get match details (same logic as /details)
+                const matchRes = await client.query('SELECT * FROM matches WHERE id = $1', [matchId]);
+                const matchRecord = matchRes.rows[0];
+
+                let inningsToReport = [];
+
+                if (reportState && reportState.innings) {
+                    console.log("📡 Using Frontend-provided state for accurate report dispatch.");
+                    inningsToReport = reportState.innings;
+                } else {
+                    const inningsRes = await client.query('SELECT * FROM innings WHERE match_id = $1 ORDER BY inning_number', [matchId]);
+                    for (const inn of inningsRes.rows) {
+                        const pRes = await client.query('SELECT * FROM players WHERE inning_id = $1 ORDER BY runs DESC', [inn.id]);
+                        const bRes = await client.query('SELECT * FROM bowlers WHERE inning_id = $1 ORDER BY wickets DESC', [inn.id]);
+                        inningsToReport.push({
+                            ...inn,
+                            players: pRes.rows,
+                            bowlers: bRes.rows
+                        });
+                    }
+                }
+
+                const innArr = inningsToReport;
 
             let resultText = "MATCH IN PROGRESS";
             if (matchRecord.status === 'COMPLETED') {
@@ -295,9 +313,23 @@ exports.handler = async (event) => {
                     <a href="${origin}?matchId=${matchId}" style="display: inline-block; padding: 12px 24px; background: #4f46e5; color: white; text-decoration: none; border-radius: 10px; font-weight: bold; margin-top: 10px;">VIEW INTERACTIVE SCORECARD ⚡</a>
                 </div>`;
 
-            for (const inn of inningsRes.rows) {
-                const playersRes = await client.query('SELECT * FROM players WHERE inning_id = $1 ORDER BY runs DESC', [inn.id]);
-                const bowlersRes = await client.query('SELECT * FROM bowlers WHERE inning_id = $1 ORDER BY wickets DESC', [inn.id]);
+            for (const inn of innArr) {
+                let players = inn.players || [];
+                let bowlers = inn.bowlers || [];
+
+                if (!inn.players || !inn.bowlers) {
+                    const pR = await client.query('SELECT * FROM players WHERE inning_id = $1 ORDER BY runs DESC', [inn.id]);
+                    const bR = await client.query('SELECT * FROM bowlers WHERE inning_id = $1 ORDER BY wickets DESC', [inn.id]);
+                    players = pR.rows;
+                    bowlers = bR.rows;
+                } else {
+                    // Normalize if passed as record from frontend
+                    if (!Array.isArray(players)) players = Object.values(players);
+                    if (!Array.isArray(bowlers)) bowlers = Object.values(bowlers);
+                    
+                    players.sort((a, b) => (b.runs || 0) - (a.runs || 0));
+                    bowlers.sort((a, b) => (b.wickets || 0) - (a.wickets || 0));
+                }
 
                 htmlBody += `
                 <div style="margin-top: 40px;">
@@ -310,13 +342,17 @@ exports.handler = async (event) => {
                         </thead>
                         <tbody>`;
                 
-                playersRes.rows.filter(p => p.balls_faced > 0 || p.is_out).forEach(p => {
+                players.filter(p => (p.balls_faced || p.ballsFaced) > 0 || p.is_out).forEach(p => {
+                    const r = p.runs || 0;
+                    const b = p.balls_faced || p.ballsFaced || 0;
+                    const f = p.fours || 0;
+                    const s = p.sixes || 0;
                     htmlBody += `
                             <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
                                 <td style="padding: 12px; font-weight: bold;">${p.name} ${p.is_out ? '' : '*'}</td>
-                                <td style="padding: 12px;">${p.runs}</td>
-                                <td style="padding: 12px; color: #64748b;">${p.balls_faced}</td>
-                                <td style="padding: 12px; color: #64748b;">${p.fours}/${p.sixes}</td>
+                                <td style="padding: 12px;">${r}</td>
+                                <td style="padding: 12px; color: #64748b;">${b}</td>
+                                <td style="padding: 12px; color: #64748b;">${f}/${s}</td>
                             </tr>`;
                 });
 
@@ -333,13 +369,16 @@ exports.handler = async (event) => {
                         </thead>
                         <tbody>`;
 
-                bowlersRes.rows.filter(b => b.overs_completed > 0 || b.balls > 0).forEach(b => {
+                bowlers.filter(b => (b.overs_completed || b.overs) > 0 || (b.balls || 0) > 0).forEach(b => {
+                    const ov = b.overs_completed || b.overs || 0;
+                    const balls = b.balls || 0;
+                    const runs = b.runs_conceded || b.runsConceded || 0;
                     htmlBody += `
                             <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
                                 <td style="padding: 12px; font-weight: bold;">${b.name}</td>
-                                <td style="padding: 12px;">${b.overs_completed}.${b.balls}</td>
+                                <td style="padding: 12px;">${ov}.${balls}</td>
                                 <td style="padding: 12px; color: #64748b;">${b.maidens || 0}</td>
-                                <td style="padding: 12px;">${b.runs_conceded}</td>
+                                <td style="padding: 12px;">${runs}</td>
                                 <td style="padding: 12px; color: #fb7185; font-weight: 800;">${b.wickets}</td>
                             </tr>`;
                 });
