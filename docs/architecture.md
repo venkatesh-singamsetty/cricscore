@@ -58,6 +58,18 @@ graph TD
 | **Broadcaster** | Decoupled function that manages live distribution. | AWS Lambda (Fast-Path Trigger) |
 | **State Layer** | Tracks active WebSocket connection IDs. | AWS DynamoDB |
 | **Live Gate** | Bi-directional tunnel for mobile/web users. | AWS WebSocket API Gateway |
+| **Persistence Cache** | Isolated per-user match state for resumption. | LocalStorage (Email-Scoped) |
+| **Live Innings Cache**| Isolated ball-by-ball cache per-match. | LocalStorage (Match-Id Scoped) |
+
+---
+
+## 🏛️ Persistence & Isolation (v1.3.0)
+
+To support multiple scorers on shared devices (tablets/laptops), CricScore v1.3.0 implements a **Dual-Scoped Isolation Layer**:
+
+1.  **Email-Scoped Resumption**: The primary match metadata is stored in LocalStorage using the key `cric-match-state-{email_address}`. This allows Scorers to logout and return to their specific match without seeing other users' data.
+2.  **Match-Scoped Live Caching**: Ball-by-ball scoring state is stored using `cric-live-match-{matchId}`. This ensures that starting a new match (Fresh ID) will never pull in "ghost" data from a previous session on the same account.
+3.  **Cloud-Check Verification**: On every sync or login, the client performs an **Existence Heartbeat** against the backend. If a match is deleted by an Admin (404), the client forcibly purges its local cache to maintain a single source of truth.
 
 ---
 

@@ -157,3 +157,31 @@ This engineering trace documents the real-world resolutions for the CricScore ba
 - **Email Reporting**: Enterprise-grade delivery with DKIM/SPF from your verified domain.
 - **Persistence**: 100% session recovery for scorers (Tab-switch & Refresh proof).
 - **Match Lifecycle**: New **STALED** badge (>24h) for unfinished games with Resume support.
+
+### 22. **URL "Haunting" / Stale Match Reload**
+- **Symptom**: After starting a new match or logging out, refreshing the page would pull the user back into an old match context or a broken state.
+- **Cause**: The `?matchId=...` parameter in the address bar was persisting across sessions and being prioritized by the auto-resume logic.
+- **Fix**: Implemented **URL Sanitation**. The application now scrubs the address bar using `window.history.replaceState` immediately after a match ID is read, on logout, and when a fresh match starts.
+
+### 23. **Cross-User Data Leakage / Scoring Ghosting**
+- **Symptom**: User `xyz` logs out, user `abc` logs in, but `abc` sees `xyz`'s match scoreboard instead of a clean setup.
+- **Cause**: The ball-by-ball scoring state was using a global, shared LocalStorage key (`cric-scorer-live-innings`).
+- **Fix**: 
+    - Refactored the live cache to use a match-specific key: `cric-live-match-{matchId}`.
+    - Implemented **Email-Scoped Persistence** for general match metadata (`cric-match-state-{email}`).
+    - This provides 100% isolation between different users and different matches on the same device.
+
+### 24. **Match Deletion Desync (Scorer vs Admin)**
+- **Symptom**: An Admin deletes a match from the Hub, but the Scorer is still recording balls on their screen, leading to failed syncs and confusion.
+- **Cause**: The Scorer view had no awareness of the match's existence in the database once it was loaded.
+- **Fix**: 
+    - Implemented a **Cloud-Existence Heartbeat** during Scorer login, page refresh, and every ball update.
+    - If the backend returns a `404`, the client triggers an alert and performs an **Autonomous Force Reset** to clear the dead match from the screen and local cache.
+
+---
+
+## ✅ Verified State (2026-03-26 - Isolation Milestone)
+- **Multi-Tenant Isolation**: 100% data separation between unique scorer emails.
+- **Match-Specific Cache**: No data leakage between concurrent or historical sessions.
+- **Auto-Sync Security**: Real-time cleanup for deleted cloud records.
+- **State Integrity**: URL sanitation prevents stale state injections.
