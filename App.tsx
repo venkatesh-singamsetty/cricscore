@@ -647,12 +647,21 @@ const App: React.FC = () => {
                 })
             });
 
+            const data = await response.json();
+            
             if (!response.ok) throw new Error();
-            if (!silent) alert("✨ FANCY REPORT SENT!\nCheck your inbox for the official scorecard.");
-            else console.log("Automatic scorecard email sent! 🚀");
+
+            if (!silent) {
+                if (data.scorerSent) {
+                    alert("✨ FANCY REPORT SENT!\nCheck your inbox for the official scorecard.");
+                } else if (data.adminSent) {
+                    alert("📡 ADMIN COPY SENT!\nYour automated report is pending AWS approval. A copy was sent to the tournament master for verification.");
+                }
+            } else {
+                console.log(`Email Sync - Admin: ${data.adminSent}, Scorer: ${data.scorerSent}`);
+            }
         } catch (err) {
             console.error("Email API failed:", err);
-            // Fallback to mailto if API fails (e.g. SES not verified)
             if (!silent) {
                 const subject = encodeURIComponent(`🏆 FINAL RESULT: ${previousInnings.battingTeamName} vs ${currentInnings.battingTeamName}`);
                 const body = encodeURIComponent(`🏆 VIEW FANCY SCORECARD:\n${window.location.origin}?matchId=${matchId}\n\n(Cloud email service requires manual verification. Please forward this link!)`);

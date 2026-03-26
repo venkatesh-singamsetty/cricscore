@@ -350,24 +350,52 @@ exports.handler = async (event) => {
             htmlBody += `<p style="text-align: center; color: #475569; font-size: 12px; margin-top: 40px;">Generated securely via CricScore on AWS</p></div>`;
 
             const ses = new SESClient({ region: 'us-east-1' });
-            const params = {
-                Destination: { 
-                    ToAddresses: [emailTo],
-                    BccAddresses: process.env.SES_SOURCE ? [process.env.SES_SOURCE] : []
-                },
-                Message: {
-                    Body: { Html: { Charset: "UTF-8", Data: htmlBody } },
-                    Subject: { Charset: "UTF-8", Data: `🏏 FINAL SCORECARD: ${matchRecord.team_a_name} vs ${matchRecord.team_b_name}` }
-                },
-                Source: process.env.SES_SOURCE || "noreply@example.com"
-            };
+            let adminEmailSent = false;
+            let scorerEmailSent = false;
 
-            const sesRes = await ses.send(new SendEmailCommand(params));
-            console.log("✅ SES Send Success:", sesRes.MessageId);
+            // --- 1. SEND TO ADMIN (High Priority, likely verified) ---
+            if (process.env.ADMIN_REPORT_EMAIL) {
+                try {
+                    await ses.send(new SendEmailCommand({
+                        Destination: { ToAddresses: [process.env.ADMIN_REPORT_EMAIL] },
+                        Message: {
+                            Body: { Html: { Charset: "UTF-8", Data: htmlBody } },
+                            Subject: { Charset: "UTF-8", Data: `🏏 ADMIN REPORT: ${matchRecord.team_a_name} vs ${matchRecord.team_b_name}` }
+                        },
+                        Source: process.env.SES_SOURCE || "noreply@venkateshsingamsetty.site"
+                    }));
+                    console.log("✅ Admin Email Sent Successfully 📡");
+                    adminEmailSent = true;
+                } catch (err) {
+                    console.error("❌ Admin Email Failed (Verification issue?):", err.message);
+                }
+            }
+
+            // --- 2. SEND TO SCORER (Might fail if not verified in Sandbox) ---
+            if (emailTo && emailTo !== process.env.ADMIN_REPORT_EMAIL) {
+                try {
+                    await ses.send(new SendEmailCommand({
+                        Destination: { ToAddresses: [emailTo] },
+                        Message: {
+                            Body: { Html: { Charset: "UTF-8", Data: htmlBody } },
+                            Subject: { Charset: "UTF-8", Data: `🏏 FINAL SCORECARD: ${matchRecord.team_a_name} vs ${matchRecord.team_b_name}` }
+                        },
+                        Source: process.env.SES_SOURCE || "noreply@venkateshsingamsetty.site"
+                    }));
+                    console.log("✅ Scorer Email Sent Successfully ⚽");
+                    scorerEmailSent = true;
+                } catch (err) {
+                    console.warn("⚠️ Scorer Email Rejected (Likely Sandbox mode):", err.message);
+                }
+            }
 
             return {
                 statusCode: 200,
-                body: JSON.stringify({ message: "Fancy email sent successfully", messageId: sesRes.MessageId }),
+                body: JSON.stringify({ 
+                    message: "Email dispatch completed", 
+                    adminSent: adminEmailSent,
+                    scorerSent: scorerEmailSent 
+                }),
                 headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
             };
         }

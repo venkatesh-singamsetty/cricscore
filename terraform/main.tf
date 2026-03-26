@@ -236,6 +236,28 @@ resource "aws_iam_role_policy_attachment" "lambda_dynamo_attach" {
   policy_arn = aws_iam_policy.lambda_dynamo.arn
 }
 
+# Add policy for SES access
+resource "aws_iam_policy" "lambda_ses" {
+  name        = "${var.project_name}-lambda-ses"
+  description = "Allows Lambda to send emails via SES"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action   = ["ses:SendEmail", "ses:SendRawEmail"]
+        Effect   = "Allow"
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_ses_attach" {
+  role       = aws_iam_role.lambda_role.name
+  policy_arn = aws_iam_policy.lambda_ses.arn
+}
+
 # --- 8. Match API Lambda Function ---
 
 # Archive for deployment
@@ -257,6 +279,7 @@ resource "aws_lambda_function" "match_api" {
     variables = {
       DATABASE_URL       = var.database_url
       SES_SOURCE         = var.ses_source_email
+      ADMIN_REPORT_EMAIL = var.admin_email
       BROADCASTER_LAMBDA = aws_lambda_function.score_update.function_name
     }
   }

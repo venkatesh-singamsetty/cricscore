@@ -74,3 +74,9 @@ variable "kafka_access_key" {
   sensitive   = true
   default     = ""
 }
+
+variable "admin_email" {
+  type        = string
+  description = "The admin email address to receive BCC match reports."
+  default     = "venky.2k57@gmail.com"
+}
