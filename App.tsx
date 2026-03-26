@@ -4,47 +4,118 @@ import MatchSetup from './components/MatchSetup';
 import MatchView from './components/MatchView';
 import LiveScoreboard from './components/LiveScoreboard'; // Added Phase 6
 
-const loadSavedState = () => {
-    const saved = localStorage.getItem('cric-scorer-match-state');
-    if (saved) {
-        try { return JSON.parse(saved); } catch { return null; }
-    }
-    return null;
-};
+// Key helper for saving match state by email
+const getMatchStateKey = (email: string) => `cric-match-state-${email.toLowerCase().trim()}`;
 
 const App: React.FC = () => {
-    const savedState = loadSavedState();
 
-    const [isAuthorized, setIsAuthorized] = useState<Record<'SCORER' | 'ADMIN', boolean>>(() => {
-        // Fast restore from session storage
-        return {
-            SCORER: sessionStorage.getItem('auth_scorer') === 'true',
-            ADMIN: sessionStorage.getItem('auth_admin') === 'true'
-        }
-    });
+    const [isAuthorized, setIsAuthorized] = useState<Record<'SCORER' | 'ADMIN', boolean>>(() => ({
+        SCORER: sessionStorage.getItem('auth_scorer') === 'true',
+        ADMIN: sessionStorage.getItem('auth_admin') === 'true'
+    }));
 
     const [authModal, setAuthModal] = useState<{ isOpen: boolean; targetView: 'SCORER' | 'ADMIN' | null }>({ isOpen: false, targetView: null });
 
+    const [emailTo, setEmailTo] = useState(sessionStorage.getItem('scorer_email') || '@gmail.com');
+    const emailInputRef = React.useRef<HTMLInputElement>(null);
+    const endEmailInputRef = React.useRef<HTMLInputElement>(null);
+    const isRestoringRef = React.useRef(false);
+
+    // Auto-position cursor before @gmail.com when modal opens
+
+    // Auto-position cursor before @gmail.com when modal opens
+    useEffect(() => {
+        if (authModal.isOpen && authModal.targetView === 'SCORER' && emailInputRef.current) {
+            const input = emailInputRef.current;
+            // Native focus might put cursor at end, we force it to 0
+            setTimeout(() => {
+                input.focus();
+                input.setSelectionRange(0, 0);
+            }, 100);
+        }
+    }, [authModal.isOpen, authModal.targetView]);
+
     const [view, setView] = useState<'VIEWER' | 'SCORER' | 'ADMIN'>(() => {
-        const savedView = savedState?.view;
+        const savedView = sessionStorage.getItem('last_view') as any;
         if (savedView === 'ADMIN' && sessionStorage.getItem('auth_admin') !== 'true') return 'VIEWER';
         if (savedView === 'SCORER' && sessionStorage.getItem('auth_scorer') !== 'true') return 'VIEWER';
         return savedView || 'VIEWER';
     });
+
+    // Security: Auto-open modal if unauthorized on a restricted view
+    useEffect(() => {
+        if (view === 'SCORER' && !isAuthorized.SCORER) {
+            setAuthModal({ isOpen: true, targetView: 'SCORER' });
+        }
+        if (view === 'ADMIN' && !isAuthorized.ADMIN) {
+            setAuthModal({ isOpen: true, targetView: 'ADMIN' });
+        }
+    }, [view, isAuthorized]);
     const [hubKey, setHubKey] = useState(0); // For forcing reset to list
-    const [matchStatus, setMatchStatus] = useState<MatchStatus>(savedState?.matchStatus ?? MatchStatus.SETUP);
-    const [currentInnings, setCurrentInnings] = useState<InningsState | null>(savedState?.currentInnings ?? null);
-    const [previousInnings, setPreviousInnings] = useState<InningsState | undefined>(savedState?.previousInnings ?? undefined);
+    const [matchStatus, setMatchStatus] = useState<MatchStatus>(MatchStatus.SETUP);
+    const [currentInnings, setCurrentInnings] = useState<InningsState | null>(null);
+    const [previousInnings, setPreviousInnings] = useState<InningsState | undefined>(undefined);
 
     // Match Config
-    const [teamA, setTeamA] = useState<TeamData | null>(savedState?.teamA ?? null);
-    const [teamB, setTeamB] = useState<TeamData | null>(savedState?.teamB ?? null);
-    const [totalOvers, setTotalOvers] = useState(savedState?.totalOvers ?? 15);
-    const [matchId, setMatchId] = useState<string | null>(savedState?.matchId ?? null);
-    const [emailTo, setEmailTo] = useState('venky.2k57@gmail.com');
+    const [teamA, setTeamA] = useState<TeamData | null>(null);
+    const [teamB, setTeamB] = useState<TeamData | null>(null);
+    const [totalOvers, setTotalOvers] = useState(15);
+    const [matchId, setMatchId] = useState<string | null>(null);
     const [showResetConfirm, setShowResetConfirm] = useState(false);
     const [targetMatchId, setTargetMatchId] = useState<string | null>(null);
-    const [hasSentAutoEmail, setHasSentAutoEmail] = useState<boolean>(savedState?.hasSentAutoEmail ?? false);
+    const [hasSentAutoEmail, setHasSentAutoEmail] = useState<boolean>(false);
+
+    // Helper to load match state based on email
+    const applyLoadedState = (saved: any) => {
+        if (!saved) {
+            // FULL RESET for new users
+            setMatchStatus(MatchStatus.SETUP);
+            setMatchId(null);
+            setTeamA(null);
+            setTeamB(null);
+            setTotalOvers(15);
+            setPreviousInnings(undefined);
+            setCurrentInnings(null);
+            setHasSentAutoEmail(false);
+            return;
+        }
+        setMatchStatus(saved.matchStatus ?? MatchStatus.SETUP);
+        setMatchId(saved.matchId ?? null);
+        setTeamA(saved.teamA ?? null);
+        setTeamB(saved.teamB ?? null);
+        setTotalOvers(saved.totalOvers ?? 15);
+        setPreviousInnings(saved.previousInnings ?? undefined);
+        setCurrentInnings(saved.currentInnings ?? null);
+        setHasSentAutoEmail(saved.hasSentAutoEmail ?? false);
+    };
+
+    // Restore on mount for Scorer if already authorized (session refresh)
+    useEffect(() => {
+        const init = async () => {
+            if (isAuthorized.SCORER) {
+                const savedRaw = localStorage.getItem(getMatchStateKey(emailTo));
+                if (savedRaw) {
+                    try { 
+                        const saved = JSON.parse(savedRaw);
+                        applyLoadedState(saved); 
+
+                        // 🔍 Double Check in Cloud: Did Admin delete this match?
+                        if (saved.matchId) {
+                            const API_URL = import.meta.env.VITE_API_URL || "";
+                            const res = await fetch(`${API_URL}/match/${saved.matchId}/details`);
+                            if (res.status === 404) {
+                                console.warn("Match not found in Cloud! 🗑️ It may have been deleted by an Admin.");
+                                // Force Wipe Stale Local Data
+                                localStorage.removeItem(getMatchStateKey(emailTo));
+                                applyLoadedState(null);
+                            }
+                        }
+                    } catch (e) { console.error("Restore failed:", e); }
+                }
+            }
+        };
+        init();
+    }, []);
 
     useEffect(() => {
         // Handle direct links to matches via URL ?matchId=xxx
@@ -52,6 +123,8 @@ const App: React.FC = () => {
         const mId = params.get('matchId');
         if (mId && mId !== targetMatchId) {
             setTargetMatchId(mId);
+            // CLEAN UP URL immediately so it doesn't haunt the session
+            window.history.replaceState({}, '', window.location.pathname);
         }
     }, []);
 
@@ -68,23 +141,29 @@ const App: React.FC = () => {
             setMatchId(null);
             setView('VIEWER'); // Automatically switch to viewer view
             resumeMatch(targetMatchId); // Attempt to load the match
+            
+            // CLEAR the target so it doesn't re-trigger
+            setTargetMatchId(null);
         }
     }, [targetMatchId]);
 
     useEffect(() => {
-        const stateToSave = {
-            matchStatus,
-            matchId,
-            teamA,
-            teamB,
-            totalOvers,
-            previousInnings,
-            currentInnings,
-            view, // Persist the tab view
-            hasSentAutoEmail
-        };
-        localStorage.setItem('cric-scorer-match-state', JSON.stringify(stateToSave));
-    }, [matchStatus, matchId, teamA, teamB, totalOvers, previousInnings, currentInnings, view, hasSentAutoEmail]);
+        // Only save persistence if we are in Scorer view and NOT in the middle of a reset/restore
+        if (isAuthorized.SCORER && emailTo && view === 'SCORER' && !isRestoringRef.current) {
+            const stateToSave = {
+                matchStatus,
+                matchId,
+                teamA,
+                teamB,
+                totalOvers,
+                previousInnings,
+                currentInnings,
+                hasSentAutoEmail
+            };
+            localStorage.setItem(getMatchStateKey(emailTo), JSON.stringify(stateToSave));
+            sessionStorage.setItem('last_view', view);
+        }
+    }, [matchStatus, matchId, teamA, teamB, totalOvers, previousInnings, currentInnings, view, hasSentAutoEmail, emailTo, isAuthorized.SCORER]);
 
     // Helper to create an innings
     const createInnings = (
@@ -165,6 +244,7 @@ const App: React.FC = () => {
         setCurrentInnings(innings1);
         setPreviousInnings(undefined);
         setMatchStatus(MatchStatus.LIVE);
+        window.history.replaceState({}, '', window.location.pathname);
     };
 
     const handleInningsEnd = async (completedInnings: InningsState) => {
@@ -368,9 +448,18 @@ const App: React.FC = () => {
         setMatchStatus(MatchStatus.SETUP);
         setCurrentInnings(null);
         setPreviousInnings(undefined);
-        localStorage.removeItem('cric-scorer-match-state');
-        localStorage.removeItem('cric-scorer-live-innings');
-    }
+        setTeamA(null);
+        setTeamB(null);
+        setMatchId(null);
+        setHasSentAutoEmail(false);
+        setHubKey(k => k + 1);
+        window.history.replaceState({}, '', window.location.pathname);
+    };
+
+    const forceResetMatch = () => {
+        resetMatch();
+        setAuthModal({ isOpen: false, targetView: null });
+    };
 
     const handleViewClick = (target: 'VIEWER' | 'SCORER' | 'ADMIN') => {
         if (target === 'VIEWER') {
@@ -390,27 +479,97 @@ const App: React.FC = () => {
         setAuthModal({ isOpen: true, targetView: target });
     };
 
-    const verifyPIN = (pin: string) => {
-        const ADMIN_PIN = import.meta.env.VITE_ADMIN_PIN || "0000";
-        const SCORER_PIN = import.meta.env.VITE_SCORER_PIN || "1111";
-        
+    const handleAuthSubmit = (value: string) => {
         const target = authModal.targetView;
         if (!target) return;
 
-        const correctPIN = target === 'ADMIN' ? ADMIN_PIN : SCORER_PIN;
+        if (target === 'SCORER') {
+            // Validate Email
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (emailRegex.test(value)) {
+                // 1. SIGNAL restoration phase (prevents persistence Effect from firing on STALE data)
+                isRestoringRef.current = true;
+                
+                // 2. IMMEDIATELY reset workspace to prevent cross-contamination
+                applyLoadedState(null);
 
-        if (pin === correctPIN) {
-            setIsAuthorized(prev => {
-                const updated = { ...prev, [target]: true };
-                sessionStorage.setItem(`auth_${target.toLowerCase()}`, 'true');
-                return updated;
-            });
-            setView(target);
-            if (target === 'ADMIN') setHubKey(k => k + 1);
-            setAuthModal({ isOpen: false, targetView: null });
+                // 3. Set basic auth context
+                setEmailTo(value);
+                setIsAuthorized(prev => ({ ...prev, SCORER: true }));
+                sessionStorage.setItem('auth_scorer', 'true');
+                sessionStorage.setItem('scorer_email', value); 
+                
+                // 4. Try to restore THIS specific user's match
+                const savedRaw = localStorage.getItem(getMatchStateKey(value));
+                if (savedRaw) {
+                    try { 
+                        const saved = JSON.parse(savedRaw);
+                        applyLoadedState(saved); 
+                        
+                        // 🔍 Cloud Sync: Wipe local if deleted by Admin
+                        if (saved.matchId) {
+                            const API_URL = import.meta.env.VITE_API_URL || "";
+                            fetch(`${API_URL}/match/${saved.matchId}/details`).then(res => {
+                                if (res.status === 404) {
+                                    console.warn("RESTORED MATCH WAS DELETED BY ADMIN.");
+                                    localStorage.removeItem(getMatchStateKey(value));
+                                    applyLoadedState(null);
+                                }
+                            });
+                        }
+                    } catch (e) {}
+                }
+
+                // 5. Switch view and end restoration phase
+                setView('SCORER');
+                setAuthModal({ isOpen: false, targetView: null });
+                
+                // Allow Effect to save again on next change
+                setTimeout(() => { isRestoringRef.current = false; }, 100);
+            } else {
+                alert("❌ PLEASE ENTER A VALID EMAIL TO CONTINUE.");
+            }
         } else {
-            alert("❌ INCORRECT PIN. ACCESS DENIED.");
+            // ADMIN PIN logic
+            const ADMIN_PIN = import.meta.env.VITE_ADMIN_PIN || "2403";
+            if (value === ADMIN_PIN) {
+                setIsAuthorized(prev => ({ ...prev, ADMIN: true }));
+                sessionStorage.setItem('auth_admin', 'true');
+                setView('ADMIN');
+                setHubKey(k => k + 1);
+                setAuthModal({ isOpen: false, targetView: null });
+            } else {
+                alert("❌ INCORRECT PIN. ACCESS DENIED.");
+            }
         }
+    };
+
+    const handleLogout = () => {
+        // Clear Auth tokens
+        setIsAuthorized({ SCORER: false, ADMIN: false });
+        sessionStorage.removeItem('auth_scorer');
+        sessionStorage.removeItem('auth_admin');
+        sessionStorage.removeItem('scorer_email');
+        sessionStorage.removeItem('last_view');
+        
+        // 🛑 DO NOT WIPE the user's saved match state here anymore!
+        // We want them to be able to resume when they log back in.
+        // We only clear the shared, legacy key.
+        localStorage.removeItem('cric-scorer-live-innings');
+
+        // Clear in-memory workspace for the next user on this device
+        setMatchStatus(MatchStatus.SETUP);
+        setCurrentInnings(null);
+        setPreviousInnings(undefined);
+        setTeamA(null);
+        setTeamB(null);
+        setMatchId(null);
+        setHasSentAutoEmail(false);
+        setEmailTo('@gmail.com');
+        
+        // Landing page: Always VIEWER on logout
+        window.history.replaceState({}, '', window.location.pathname);
+        setView('VIEWER');
     };
 
     const updateMatchOvers = async (newOvers: number) => {
@@ -540,6 +699,15 @@ const App: React.FC = () => {
                             Admin ⚡
                         </button>
                     </div>
+
+                    {(isAuthorized.SCORER || isAuthorized.ADMIN) && (
+                        <button 
+                            onClick={handleLogout}
+                            className="px-3 py-1.5 bg-slate-800/50 border border-white/5 rounded-lg text-slate-400 hover:text-rose-500 text-[9px] font-black uppercase tracking-widest transition-all hover:bg-rose-500/10 active:scale-95"
+                        >
+                            Sign Out 🚪
+                        </button>
+                    )}
                 </div>
                 
                 {matchStatus !== MatchStatus.SETUP && view !== 'VIEWER' && (
@@ -562,20 +730,34 @@ const App: React.FC = () => {
                                 <span className="text-2xl">{authModal.targetView === 'ADMIN' ? '⚡' : '🎮'}</span>
                             </div>
                             <h3 className="text-xl font-black uppercase tracking-widest text-white mb-2 italic">
-                                {authModal.targetView} ACCESS
+                                {authModal.targetView === 'SCORER' ? 'IDENTITY VERIFICATION' : 'ADMIN ACCESS'}
                             </h3>
-                            <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mb-8">
-                                Restricted Cloud Management
+                            <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mb-4">
+                                {authModal.targetView === 'SCORER' ? 'Set Target Email for Match Reports' : 'Restricted Cloud Management'}
                             </p>
+                            
+                            {authModal.targetView === 'SCORER' && (
+                                <p className="text-slate-400 text-[9px] font-medium leading-relaxed mb-8 px-4">
+                                    Please enter your email to start scoring. You and the site owner will receive a copy of the official match report upon conclusion.
+                                </p>
+                            )}
                             
                             <div className="space-y-4">
                                 <input 
-                                    autoFocus
-                                    type="password"
-                                    placeholder="ENTER PIN..."
-                                    className="w-full bg-slate-800 border border-white/5 rounded-2xl py-4 px-6 text-center text-2xl font-black tracking-[0.5em] text-white outline-none focus:border-indigo-500 transition-all placeholder:text-[10px] placeholder:tracking-widest placeholder:text-slate-700"
+                                    ref={emailInputRef}
+                                    type={authModal.targetView === 'SCORER' ? 'text' : 'password'}
+                                    value={authModal.targetView === 'SCORER' ? emailTo : undefined}
+                                    onChange={(e) => authModal.targetView === 'SCORER' && setEmailTo(e.target.value)}
+                                    placeholder={authModal.targetView === 'SCORER' ? 'EMAIL ADDRESS...' : 'ENTER PIN...'}
+                                    className={`w-full bg-slate-800 border border-white/5 rounded-2xl py-4 px-6 text-center font-black text-white outline-none focus:border-indigo-500 transition-all placeholder:text-[10px] placeholder:tracking-widest placeholder:text-slate-700 ${authModal.targetView === 'SCORER' ? 'text-lg' : 'text-2xl tracking-[0.5em]'}`}
+                                    onFocus={(e) => {
+                                        if (authModal.targetView === 'SCORER' && e.target.value === '@gmail.com') {
+                                            const el = e.target;
+                                            setTimeout(() => el.setSelectionRange(0, 0), 10);
+                                        }
+                                    }}
                                     onKeyDown={(e) => {
-                                        if (e.key === 'Enter') verifyPIN((e.target as HTMLInputElement).value);
+                                        if (e.key === 'Enter') handleAuthSubmit((e.target as HTMLInputElement).value);
                                     }}
                                 />
                                 <div className="grid grid-cols-2 gap-3">
@@ -587,12 +769,12 @@ const App: React.FC = () => {
                                     </button>
                                     <button
                                         onClick={() => {
-                                            const input = document.querySelector('input[type="password"]') as HTMLInputElement;
-                                            verifyPIN(input.value);
+                                            const input = document.querySelector('input') as HTMLInputElement;
+                                            handleAuthSubmit(input.value);
                                         }}
                                         className={`py-4 rounded-xl font-black text-[10px] uppercase tracking-widest text-white transition-all shadow-lg ${authModal.targetView === 'ADMIN' ? 'bg-rose-600 hover:bg-rose-500 shadow-rose-600/20' : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/20'}`}
                                     >
-                                        VERIFY 📡
+                                        {authModal.targetView === 'SCORER' ? 'CONTINUE 🎯' : 'VERIFY 📡'}
                                     </button>
                                 </div>
                             </div>
@@ -661,7 +843,7 @@ const App: React.FC = () => {
                     </div>
                 )}
 
-                {matchStatus === MatchStatus.SETUP && view === 'SCORER' && (
+                {matchStatus === MatchStatus.SETUP && view === 'SCORER' && isAuthorized.SCORER && (
                     <MatchSetup 
                         onStartMatch={startMatch} 
                         onResumeMatch={resumeMatch} 
@@ -671,7 +853,7 @@ const App: React.FC = () => {
                     />
                 )}
 
-                {matchStatus === MatchStatus.LIVE && currentInnings && view === 'SCORER' && (
+                {matchStatus === MatchStatus.LIVE && currentInnings && view === 'SCORER' && isAuthorized.SCORER && (
                     <MatchView
                         initialState={currentInnings}
                         previousInnings={previousInnings}
@@ -679,6 +861,7 @@ const App: React.FC = () => {
                         matchId={matchId!}
                         onInningsEnd={handleInningsEnd}
                         onResetMatch={() => setShowResetConfirm(true)}
+                        onForceReset={forceResetMatch}
                         onUpdateOvers={updateMatchOvers}
                         onStateChange={(state) => setCurrentInnings(state)} // Sync ball-by-ball
                     />
@@ -763,11 +946,18 @@ const App: React.FC = () => {
                                         <div className="flex flex-col items-start gap-1">
                                             <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 pl-4">Target Email for Result</label>
                                             <input
+                                                ref={endEmailInputRef}
                                                 type="email"
                                                 value={emailTo}
                                                 onChange={(e) => setEmailTo(e.target.value)}
                                                 className="w-full bg-slate-800/50 border border-white/10 rounded-full py-4 px-6 text-white font-bold outline-none focus:border-indigo-500 transition-colors"
                                                 placeholder="Enter email address"
+                                                onFocus={(e) => {
+                                                    if (e.target.value === '@gmail.com') {
+                                                        const el = e.target;
+                                                        setTimeout(() => el.setSelectionRange(0, 0), 0);
+                                                    }
+                                                }}
                                             />
                                         </div>
                                         <div className="flex flex-col md:flex-row gap-4 w-full">

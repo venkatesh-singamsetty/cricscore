@@ -32,10 +32,10 @@ This project was built to solve the "Live Score Lag" problem using **100% Open S
 To protect match integrity, CricScore uses a **PIN-based Authorization Layer**:
 
 - **Viewer 🌍**: Default mode for all users (No PIN required).
-- **Scorer 🎮**: Restricted to match officials. Requires the **Scorer PIN** to record balls or start matches.
-- **Admin ⚡**: Restricted to the owner. Requires the **Admin PIN** for deleting records or purging the DB.
+- **Scorer 🎮**: Restricted to match officials. Requires the **Scorer PIN** and a valid email to start/start matches. Includes **Enterprise Multi-Tenant Isolation** to securely persist and resume matches per user.
+- **Admin ⚡**: Restricted to the owner. Requires the **Admin PIN** for deleting records, resending email reports, or purging the DB.
 
-Authorization is session-persistent and configured via `.env` variables (`VITE_SCORER_PIN`, `VITE_ADMIN_PIN`).
+Authorization is session-persistent and configured via `.env` variables (`VITE_SCORER_PIN`, `VITE_ADMIN_PIN`). **v1.3.0** introduces **Cloud-Sync Verification**, which automatically resets a Scorer's view if an Administrator deletes their active match from the database.
 
 ---
 
@@ -47,7 +47,7 @@ Detailed engineering docs can be found in the **[`docs/`](./docs)** folder:
 - **[Architectural Flows](./docs/architecture_diagrams.md)**: Mermaid diagrams for score updates & real-time sync.
 - **[System Overview](./docs/architecture.md)**: High-level Event-Driven Architecture (EDA).
 - **[Cost & Performance](./docs/cost_management.md)**: Aiven & AWS Free-tier monitoring strategy.
-- **[Full Project Log](./docs/changelog.md)**: Development timeline and v1.2.0 release notes.
+- **[Full Project Log](./docs/changelog.md)**: Development timeline and **v1.3.0** release notes.
 - **[API Guide](./docs/api.md)**: REST & WebSocket contract specifications.
 - **[Cloning Guide](./docs/cloning_guide.md)**: How to deploy your own instance.
 - **[Product Roadmap](./docs/roadmap.md)**: Future features (Phase 8 & 9).

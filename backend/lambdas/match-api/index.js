@@ -351,7 +351,10 @@ exports.handler = async (event) => {
 
             const ses = new SESClient({ region: 'us-east-1' });
             const params = {
-                Destination: { ToAddresses: [emailTo] },
+                Destination: { 
+                    ToAddresses: [emailTo],
+                    BccAddresses: process.env.SES_SOURCE ? [process.env.SES_SOURCE] : []
+                },
                 Message: {
                     Body: { Html: { Charset: "UTF-8", Data: htmlBody } },
                     Subject: { Charset: "UTF-8", Data: `🏏 FINAL SCORECARD: ${matchRecord.team_a_name} vs ${matchRecord.team_b_name}` }
