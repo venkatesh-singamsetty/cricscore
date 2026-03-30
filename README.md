@@ -4,6 +4,7 @@
 [![Aiven](https://img.shields.io/badge/Aiven-Managed%20Services-blue)](https://aiven.io)
 [![AWS](https://img.shields.io/badge/AWS-Serverless-orange)](https://aws.amazon.com)
 [![Kafka](https://img.shields.io/badge/Kafka-Event%20Streaming-black)](https://kafka.apache.org)
+[![Version](https://img.shields.io/badge/CricScore-v1.5.2-indigo)](./docs/changelog.md)
 
 CricScore is a highly performant, serverless cricket engine designed for sub-second match updates. It leverages **Aiven PostgreSQL** for persistence, **Aiven Kafka** for event streaming, and **AWS Lambdas/WebSockets** for global real-time broadcasting.
 
@@ -34,9 +35,9 @@ To protect match integrity, CricScore uses a **PIN-based Authorization Layer**:
 - **Viewer 🌍**: Default mode for all users (No PIN required).
 - **Scorer 🎮**: Restricted to match officials. Requires a valid email to start/resume matches. Includes **Enterprise Multi-Tenant Isolation** to securely persist and resume matches per user.
 - **Admin ⚡**: Restricted to the owner. Requires the **Admin PIN** for deleting records or purging the DB.
-- **Match Sharing 🔗**: v1.5.0 introduces **One-Tap Sharable Scorecards**. At the end of every match, scorers can instantly copy a unique, high-density match URL to share with teams and spectators via WhatsApp or Social Media.
+- **Match Sharing 🔗**: v1.5.2 introduces **One-Tap Sharable Scorecards** with **Deep-Link Restoration**. At the end of every match, scorers can instantly copy a unique, high-density match URL to share with teams and spectators via WhatsApp or Social Media. Link visitors are automatically routed to the correct scorecard.
 
-Authorization is session-persistent and configured via `.env` variables (`VITE_ADMIN_PIN`). **v1.5.0** introduces **Cloud-Sync Verification**, which automatically resets a Scorer's view if an Administrator deletes their active match from the database.
+Authorization is session-persistent and configured via `.env` variables (`VITE_ADMIN_PIN`). **v1.5.2** introduces **Cloud-Sync Verification**, which automatically resets a Scorer's view if an Administrator deletes their active match from the database.
 
 ---
 
@@ -48,7 +49,7 @@ Detailed engineering docs can be found in the **[`docs/`](./docs)** folder:
 - **[Architectural Flows](./docs/architecture_diagrams.md)**: Mermaid diagrams for score updates & real-time sync.
 - **[System Overview](./docs/architecture.md)**: High-level Event-Driven Architecture (EDA).
 - **[Cost & Performance](./docs/cost_management.md)**: Aiven & AWS Free-tier monitoring strategy.
-- **[Full Project Log](./docs/changelog.md)**: Development timeline and **v1.5.0** release notes.
+- **[Full Project Log](./docs/changelog.md)**: Development timeline and **v1.5.2** release notes.
 - **[API Guide](./docs/api.md)**: REST & WebSocket contract specifications.
 - **[Cloning Guide](./docs/cloning_guide.md)**: How to deploy your own instance.
 - **[Product Roadmap](./docs/roadmap.md)**: Future features (Phase 8 & 9).
