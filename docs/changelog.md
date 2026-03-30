@@ -4,16 +4,20 @@ This document tracks the complete evolutionary history of the CricScore platform
 
 ---
 
-## ⚡ Current Status: [2026-03-26] v1.4.0 PRODUCTION RELEASE
-- **Dual-Send Email Engine**: Decoupled Admin and Scorer email dispatch to bypass SES Sandbox restrictions.
-- **Redundant Admin Delivery**: Guaranteed scorecard delivery to `venky.2k57@gmail.com` for all matches.
-- **Sandbox-Aware UI**: Automated notifications to inform Scorers of verification-pending statuses.
-- **SES Permission Hardening**: Integrated explicit IAM policies for SES into the Terraform lifecycle.
-- **Multi-Tenant Isolation**: Continued validation of 100% data separation between unique scorer emails.
+## ⚡ Current Status: [2026-03-30] v1.5.2 DEEP-LINK RESTORATION & SHARING FINALIZATION
+- **Deep-Link Restoration**: Visitors hitting sharable links (`?matchId=xxx`) are now instantly routed to the specific match scoreboard.
+- **Hub-Bypass Protocol**: Synchronized the parent `App.tsx` and child `LiveScoreboard.tsx` via `initialMatchId` prop injection.
+- **Security Hardening**: Remediated High-Severity vulnerabilities (ReDoS/Method Injection) in the `picomatch` dependency.
+- **UI Finalization**: Surgically removed all redundant "Target Email" inputs from the Match Completion summary.
+- **Autonomous Fetching**: Empowered the Viewer Hub to automatically load match details based on URL parameters.
 
 ---
 
 ## 📜 Full History
+
+- **2026-03-30**: **v1.5.0 STRATEGIC PIVOT: VIRAL SHARING**: Transitioned from non-functional email reports to an **Instant Sharable Match Link** system. Integrated "SHARE SCORECARD 🔗" button with haptic "COPIED! ✅" feedback.
+
+- **2026-03-26**: **v1.4.0 PRODUCTION RELEASE**: Decoupled Admin and Scorer email dispatch to bypass SES Sandbox restrictions. Guaranteed scorecard delivery to `venky.2k57@gmail.com`. Implemented Sandbox-Aware UI to inform Scorers of verification-pending statuses.
 
 - **2026-03-25**: **v1.2.0 PRODUCTION RELEASE**: Finalized production convergence from `develop` to `main`. Full resilience & premium reporting engine integration.
 

@@ -52,6 +52,7 @@ const App: React.FC = () => {
         }
     }, [view, isAuthorized]);
     const [hubKey, setHubKey] = useState(0); // For forcing reset to list
+    const [urlMatchId, setUrlMatchId] = useState<string | null>(null);
     const [matchStatus, setMatchStatus] = useState<MatchStatus>(MatchStatus.SETUP);
     const [currentInnings, setCurrentInnings] = useState<InningsState | null>(null);
     const [previousInnings, setPreviousInnings] = useState<InningsState | undefined>(undefined);
@@ -62,7 +63,6 @@ const App: React.FC = () => {
     const [totalOvers, setTotalOvers] = useState(15);
     const [matchId, setMatchId] = useState<string | null>(null);
     const [showResetConfirm, setShowResetConfirm] = useState(false);
-    const [targetMatchId, setTargetMatchId] = useState<string | null>(null);
     const [hasSentAutoEmail, setHasSentAutoEmail] = useState<boolean>(false);
 
     // Helper to load match state based on email
@@ -132,31 +132,21 @@ const App: React.FC = () => {
         // Handle direct links to matches via URL ?matchId=xxx
         const params = new URLSearchParams(window.location.search);
         const mId = params.get('matchId');
-        if (mId && mId !== targetMatchId) {
-            setTargetMatchId(mId);
+        if (mId) {
+            console.log("🔗 Deep Link Captured:", mId);
+            setUrlMatchId(mId);
+            
+            if (isAuthorized.SCORER) {
+                // Scorers can also jump to a match directly
+                resumeMatch(mId);
+            }
+            
             // CLEAN UP URL immediately so it doesn't haunt the session
             window.history.replaceState({}, '', window.location.pathname);
         }
-    }, []);
+    }, [isAuthorized.SCORER]);
 
-    useEffect(() => {
-        // Reset state when following a new match
-        if (targetMatchId && targetMatchId !== matchId) {
-            // Clear current match state to load the new one
-            setMatchStatus(MatchStatus.SETUP);
-            setCurrentInnings(null);
-            setPreviousInnings(undefined);
-            setTeamA(null);
-            setTeamB(null);
-            setTotalOvers(15);
-            setMatchId(null);
-            setView('VIEWER'); // Automatically switch to viewer view
-            resumeMatch(targetMatchId); // Attempt to load the match
-            
-            // CLEAR the target so it doesn't re-trigger
-            setTargetMatchId(null);
-        }
-    }, [targetMatchId]);
+    // Handle view persistence or role-based logic updates here if needed
 
     useEffect(() => {
         // Only save persistence if we are in Scorer view and NOT in the middle of a reset/restore
@@ -654,6 +644,15 @@ const App: React.FC = () => {
     };
 
     const [sendingEmail, setSendingEmail] = useState(false);
+    const [copyFeedback, setCopyFeedback] = useState(false);
+
+    const copyMatchLink = () => {
+        if (!matchId) return;
+        const shareUrl = `${window.location.origin}?matchId=${matchId}`;
+        navigator.clipboard.writeText(shareUrl);
+        setCopyFeedback(true);
+        setTimeout(() => setCopyFeedback(false), 2000);
+    };
 
     const handleSendEmail = async (silent = false) => {
         if (!currentInnings || !matchId) return;
@@ -774,12 +773,12 @@ const App: React.FC = () => {
                                 {authModal.targetView === 'SCORER' ? 'IDENTITY VERIFICATION' : 'ADMIN ACCESS'}
                             </h3>
                             <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mb-4">
-                                {authModal.targetView === 'SCORER' ? 'Set Target Email for Match Reports' : 'Restricted Cloud Management'}
+                                {authModal.targetView === 'SCORER' ? 'Identity Synchronization' : 'Restricted Cloud Management'}
                             </p>
                             
                             {authModal.targetView === 'SCORER' && (
                                 <p className="text-slate-400 text-[9px] font-medium leading-relaxed mb-8 px-4">
-                                    Please enter your email to start scoring. You and the site owner will receive a copy of the official match report upon conclusion.
+                                    Please enter your email to synchronize your scoring session and enable match tracking.
                                 </p>
                             )}
                             
@@ -874,6 +873,7 @@ const App: React.FC = () => {
                                 <LiveScoreboard 
                                     key={`hub-${hubKey}`} 
                                     isAdmin={view === 'ADMIN'}
+                                    initialMatchId={urlMatchId || undefined}
                                     onResumeMatch={view !== 'VIEWER' ? (id) => {
                                         resumeMatch(id);
                                         setView('SCORER');
@@ -984,30 +984,12 @@ const App: React.FC = () => {
                                     </div>
 
                                     <div className="mt-12 w-full space-y-4">
-                                        <div className="flex flex-col items-start gap-1">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 pl-4">Target Email for Result</label>
-                                            <input
-                                                ref={endEmailInputRef}
-                                                type="email"
-                                                value={emailTo}
-                                                onChange={(e) => setEmailTo(e.target.value)}
-                                                className="w-full bg-slate-800/50 border border-white/10 rounded-full py-4 px-6 text-white font-bold outline-none focus:border-indigo-500 transition-colors"
-                                                placeholder="Enter email address"
-                                                onFocus={(e) => {
-                                                    if (e.target.value === '@gmail.com') {
-                                                        const el = e.target;
-                                                        setTimeout(() => el.setSelectionRange(0, 0), 0);
-                                                    }
-                                                }}
-                                            />
-                                        </div>
                                         <div className="flex flex-col md:flex-row gap-4 w-full">
                                             <button
-                                                onClick={handleSendEmail}
-                                                disabled={sendingEmail}
-                                                className="flex-1 h-20 bg-blue-600 text-white rounded-[1.5rem] font-black text-xl uppercase tracking-widest italic hover:bg-blue-500 active:scale-[0.98] transition-all shadow-xl shadow-blue-600/20 flex items-center justify-center gap-3 disabled:opacity-50"
+                                                onClick={copyMatchLink}
+                                                className={`flex-1 h-20 rounded-[1.5rem] font-black text-xl uppercase tracking-widest italic transition-all shadow-xl flex items-center justify-center gap-3 ${copyFeedback ? 'bg-emerald-600 text-white shadow-emerald-600/20' : 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-indigo-600/20 active:scale-[0.98]'}`}
                                             >
-                                                {sendingEmail ? '🚀 SENDING...' : 'EMAIL RESULT 📨'}
+                                                {copyFeedback ? 'LINK COPIED! ✅' : 'SHARE SCORECARD 🔗'}
                                             </button>
                                             <button
                                                 onClick={() => setShowResetConfirm(true)}

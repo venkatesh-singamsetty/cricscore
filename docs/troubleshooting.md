@@ -186,7 +186,18 @@ This engineering trace documents the real-world resolutions for the CricScore ba
 - **Auto-Sync Security**: Real-time cleanup for deleted cloud records.
 - **State Integrity**: URL sanitation prevents stale state injections.
 
-### 25. **Admin not receiving scorecards (SES Sandbox)**
-- **Symptom**: Reports work for some users but not others, or Admin copy is missing.
-- **Diagnostic**: Lambda logs show `MessageRejected: Email address is not verified` from SES.
-- **Fix (v1.4.0)**: Switched to a **Dual-Send Architecture**. The system now handles the Admin report as a separate, isolated send that succeeds even if the primary recipient (Scorer) is unverified.
+### 26. **SES Sandbox Friction / Email Delivery Rejection**
+- **Symptom**: User-facing email reports were consistently rejected by AWS SES unless both sender and recipient were manually verified. AWS rejected the limit increase request (Sandbox Exit).
+- **Cause**: SES Sandbox environments strictly enforce dual-verification for every message, making it impossible to send scorecards to arbitrary user emails in a consumer-facing app.
+- **Fix (v1.5.2)**: **Option B Pivot**—Replaced the non-functional "Email Report" system with an **Instant Sharable Match Link** (Match ID based). 
+    - Replaced the Gmail input with an "Identity Synchronization" field solely for session persistence.
+    - Integrated a "SHARE SCORECARD 🔗" button in the Match Completion UI.
+    - Redirected SES solely for **Admin-Backend Logging**, where the recipient is already verified.
+    - Resulted in **Zero-Friction Sharing** and viral match-day growth potential.
+
+---
+
+## ✅ Verified State (2026-03-30 - Sharing Milestone)
+- **v1.5.2**: Instant Match Sharing links live.
+- **SES Bypass**: Friction-free user experience without AWS verification requirements.
+- **Identity Sync**: Scoped session persistence verified across SCORER and ADMIN views.

@@ -16,9 +16,10 @@ interface LiveBall {
 interface LiveScoreboardProps {
     isAdmin?: boolean;
     onResumeMatch?: (matchId: string) => void;
+    initialMatchId?: string;
 }
 
-const LiveScoreboard: React.FC<LiveScoreboardProps> = ({ isAdmin, onResumeMatch }) => {
+const LiveScoreboard: React.FC<LiveScoreboardProps> = ({ isAdmin, onResumeMatch, initialMatchId }) => {
     const WS_URL = import.meta.env.VITE_WS_URL || "";
     const API_URL = import.meta.env.VITE_API_URL || "";
     const [targetMatchId, setTargetMatchId] = useState<string>("");
@@ -112,6 +113,12 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({ isAdmin, onResumeMatch 
             if (!isBackground) setLoadingDetails(false);
         }
     }, [API_URL]);
+
+    useEffect(() => {
+        if (initialMatchId && initialMatchId !== targetMatchId) {
+            setTargetMatchId(initialMatchId);
+        }
+    }, [initialMatchId]);
 
     useEffect(() => {
         // Only accept updates for the match we are following

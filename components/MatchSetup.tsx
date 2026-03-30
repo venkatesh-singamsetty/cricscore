@@ -108,7 +108,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({ onStartMatch, onResumeMatch, hi
     const [teamBName, setTeamBName] = useState('TEAM B');
     const [teamASquad, setTeamASquad] = useState('P1\nP2\nP3\nP4\nP5');
     const [teamBSquad, setTeamBSquad] = useState('P6\nP7\nP8\nP9\nP10');
-    const [email, setEmail] = useState(initialEmail);
+
 
     const [overs, setOvers] = useState(1);
     const [batFirst, setBatFirst] = useState('Team A'); // 'Team A' or 'Team B'
@@ -161,7 +161,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({ onStartMatch, onResumeMatch, hi
             const { matchId, inningId } = await response.json();
             console.log("Match Registered in Cloud ☁️:", matchId, "Inning:", inningId);
 
-            onStartMatch(teamA, teamB, overs, batFirstTeamName, matchId, inningId, email);
+            onStartMatch(teamA, teamB, overs, batFirstTeamName, matchId, inningId, initialEmail);
         } catch (err) {
             console.error("Match Initialization Failed:", err);
             alert("Cloud Connection Failed. Check your Aiven database status.");
@@ -386,17 +386,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({ onStartMatch, onResumeMatch, hi
                                 </div>
                             </div>
 
-                            <div className="space-y-1.5 flex-1">
-                                <label className="text-[8px] font-black uppercase tracking-[0.3em] text-slate-500 block">Email Report To</label>
-                                <input
-                                    type="email"
-                                    required
-                                    className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-2 text-[10px] font-black text-indigo-400 focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:opacity-20 shadow-inner"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="your-email@example.com"
-                                />
-                            </div>
+
                         </div>
                     </div>
 
