@@ -130,42 +130,40 @@ sequenceDiagram
 
 ---
 
-## 4. 🏁 Match Conclusion & Email Reporting (SES)
-This architecture details the automated reporting flow triggered when a match concludes. It highlights the integration with **AWS Simple Email Service (SES)** to deliver high-fidelity HTML scorecards from **noreply@venkateshsingamsetty.site**.
+## 4. 🏁 Viral Sharing & Deep-Link Restoration (v1.5.2)
+This architecture details the zero-friction sharing flow. It replaces legacy email-verification hurdles with a viral, Match-ID based deep-linking system powered by **Aiven PostgreSQL** for instant spectator onboarding.
 
 ```mermaid
 sequenceDiagram
     autonumber
     
-    actor Admin as Admin / Scorer
+    actor Scorer as Official Scorer
+    participant App as React Application (Hub)
     participant APIGW as HTTP API Gateway
-    participant Lambda as Match API Lambda
     participant Aiven_PG as Aiven PostgreSQL
-    participant SES as AWS SES (Verified Domain)
-    participant DNS as Route53 (venkateshsingamsetty.site)
-    actor Recipient as Fan Email
+    actor Spectator as Spectator / Fan
+    participant Lambda as Match API Lambda
 
-    Admin->>Admin: Click "End Match" / "Email Scorecard"
-    Admin->>APIGW: POST /match/{matchId}/email { emailTo: "fan@example.com" }
-    APIGW->>Lambda: Trigger Reporting Engine
+    Note over Scorer, App: Match Concluded (v1.5.2)
+    Scorer->>App: Click "SHARE SCORECARD 🔗"
+    App->>App: navigator.clipboard.write(?matchId=xxx)
+    App-->>Scorer: UI: "LINK COPIED! ✅"
+
+    Note over Spectator, App: Fan hits Sharable Link
+    Spectator->>App: Visit cricscore.site/?matchId=xxx
     
     rect rgb(0, 0, 0, 0.1)
-        Note right of Lambda: Data Aggregation
-        Lambda->>Aiven_PG: SELECT matches, innings, players, bowlers
-        Aiven_PG-->>Lambda: Return Complete Results
-        Lambda->>Lambda: Generate Responsive HTML Template
+        Note right of App: Deep-Link Restoration
+        App->>App: useEffect: Read matchId from URL
+        App->>App: setView('VIEWER') & setTargetMatchId(sid)
     end
     
-    Lambda->>SES: SendEmailCommand(htmlBody, source: "noreply@venkateshsingamsetty.site")
+    App->>APIGW: GET /match/{matchId}/details
+    APIGW->>Lambda: Trigger Hydration
+    Lambda->>Aiven_PG: fetch complete scorecard
+    Aiven_PG-->>Lambda: returns v1.5.2 state
+    Lambda-->>App: returns InningsState & Teams
     
-    rect rgb(29, 78, 216, 0.2)
-        Note right of SES: Identity Verification
-        SES->>DNS: Verify DKIM/SPF Records
-        DNS-->>SES: Logic Confirmed
-    end
-    
-    SES->>Recipient: Deliver 🏏 FINAL SCORECARD (High Deliverability)
-    SES-->>Lambda: MessageId
-    Lambda-->>APIGW: HTTP 200 OK
-    APIGW-->>Admin: UI: "Fancy email sent successfully"
+    App-->>Spectator: UI: Instant Scorecard Recovery
 ```
+

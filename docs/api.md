@@ -62,31 +62,42 @@ When a score is updated, all connected clients receive the following event:
 
 ---
 
-## 🛠️ Post-Match Actions
+## 🌐 Match Sharing & Deep-Linking (v1.5.2)
+
+CricScore utilizes a **Deep-Link Restoration Protocol** to enable viral match-day growth. The primary gateway for spectator onboarding is the **Match Details API**.
+
+### GET `/match/{id}/details`
+**Endpoint**: `/match/{matchId}/details`  
+**Method**: `GET`  
+**Primary Usage**: The foundational bridge for **Sharable Links** (`?matchId=xxx`).
+
+- **Description**: Reconstructs the entire match state from Aiven PostgreSQL.
+- **Data Payload**: Returns a unified JSON object containing:
+    - **Match Metadata**: Status, Team Names, Total Overs.
+    - **Innings Objects**: Unified ball-by-ball history, player stats, and bowler metrics.
+- **Viewer Flow**: When a fan hits a sharable link, the UI detects the `matchId`, triggers this GET request, and hydrates the **Live Scoreboard** instantly.
+
+---
+
+## 🛠️ Internal Administrative Actions
 
 ### POST `/match/:matchId/email`
-Triggers scorecard report delivery via AWS SES.
+**Restricted Usage**: Administrative Backend Logging.
+
+- **Purpose**: Generates a high-fidelity HTML record and persists it to a verified administrator endpoint via AWS SES.
+- **Sandbox Compliance**: This endpoint is decoupled from the spectator flow, ensuring that SES Sandbox verification restrictions do not impact the viral sharing of match links.
 
 **Request Body:**
 ```json
 {
   "emailTo": "official@example.com",
-  "origin": "https://cricscore.venkateshsingamsetty.site"
+  "origin": "https://cricscore.site"
 }
 ```
-
-**Response (200 OK):**
-```json
-{
-  "message": "Email dispatch completed",
-  "adminSent": true,
-  "scorerSent": false
-}
-```
-*Note: `scorerSent` may be false if the AWS account is in SES Sandbox mode and the scorer's address is not verified.*
 
 ---
 
 ## 🛠️ Testing Tools
 - **WebSocket Tester**: [PieSocket Client Tool](https://piehost.com/websocket-tester)
 - **HTTP Client**: Use `curl`, `Postman`, or the Scorer UI (Phase 6).
+
