@@ -1,4 +1,4 @@
-# 🏏 CricScore: The Aiven Free Tier Journey (#AivenFreeTier)
+# 🏏 CricScore: Technical Architecture & Development Journey
 
 ## 🏛️ The Problem: The "Live Score Lag"
 Cricket is a game of moments. A ball delivery lasts seconds, but fans often experience 10-30 second delays between the field and their screens. Most real-time scoring platforms are either (a) expensive enterprise solutions or (b) poorly synchronized simple databases.
@@ -8,7 +8,7 @@ Our goal was to build a **Professional-Grade Scoring Engine** that:
 2. Achieves **sub-second latency** globally.
 3. Ensures **data integrity** for historical analytics.
 
-## 🏆 Why We Chose Aiven?
+## 🏛️ Infrastructure Strategy: Why Aiven?
 Modern serverless architecture needs more than just a place to store data; it needs a way to **stream events**. Aiven provided the two critical missing pieces for our stack:
 
 ### 1. **Aiven for Apache Kafka: The High-Throughput Heart**
@@ -34,6 +34,6 @@ The true technical execution lies in our **Dual-Write Engine**:
 - **Synchronizing State:** We implemented a custom **"Undo" engine** that synchronizes deletions across both Postgres and Kafka streams to ensure spectators never see "ghost" balls.
 
 ## 🏁 Conclusion
-Aiven didn't just provide "databases-as-a-service"; it provided the **infrastructure foundation** that allowed us to move from a concept to a live product in just three days. 
+Aiven provided the robust **infrastructure foundation** that allowed us to move from a concept to a live product in just three days. 
 
-CricScore is now live at [cricscore.venkateshsingamsetty.site](https://cricscore.venkateshsingamsetty.site) — powered by **Aiven Free Tier**.
+CricScore is now live at [cricscore.venkateshsingamsetty.site](https://cricscore.venkateshsingamsetty.site) — powered by **Aiven Managed Infrastructure**.
