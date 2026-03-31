@@ -6,18 +6,20 @@
 [![Kafka](https://img.shields.io/badge/Kafka-Event%20Streaming-black)](https://kafka.apache.org)
 [![Version](https://img.shields.io/badge/CricScore-v1.5.2-indigo)](./docs/changelog.md)
 
-CricScore is a highly performant, serverless cricket engine designed for sub-second match updates. It leverages **Aiven PostgreSQL** for persistence, **Aiven Kafka** for event streaming, and **AWS Lambdas/WebSockets** for global real-time broadcasting.
+CricScore is a highly performant, serverless cricket engine designed for sub-second match updates. It leverages a hybrid-cloud event-driven stack for global real-time broadcasting.
 
-🚀 **Live Production:** [**https://cricscore.venkateshsingamsetty.site**](https://cricscore.venkateshsingamsetty.site)
+🚀 **Live Production:** **https://cricscore.venkateshsingamsetty.site**
 
 ---
 
-## ⚡ Getting Started
-- **Local Developer Preview**: Run the frontend locally (Requires **Node.js 18.x+**).
-    - **Step 1:** `npm install`
-    - **Step 2:** `cp .env.example .env`
-    - **Step 3:** `npm run dev`
-- **Full Deployment Guide:** **🚀 [How to Clone and Deploy Your Own Infrastructure](./docs/deployment.md)**
+## 🗄️ Aiven Managed Services: Event Streaming & Persistence
+CricScore utilizes the **Aiven Lifecycle Management** platform to provide professional-grade, high-availability data integrity:
+
+- **Aiven for PostgreSQL**: The **System of Record** for all historical match data, innings, and ball-by-ball archives.
+- **Aiven for Apache Kafka**: The **Real-Time Backbone** providing sub-second propagation of match events to the global fan hub.
+- **Mutual TLS (mTLS)**: Hardened, certificate-based encryption for all Kafka traffic using serverless certificate injection.
+
+📖 **[Detailed Aiven Service Breakdown & Setup](./docs/aiven.md)**
 
 ---
 
@@ -44,7 +46,7 @@ graph TD
         APIGW_REST --> Lambda_API[Match API Lambda]
         APIGW_WS --> Lambda_WS[Broadcaster Lambda]
         
-        Lambda_API --> PG[(Aiven PostgreSQL)]
+        Lambda_API --> PG[(PostgreSQL Persistence)]
         Lambda_WS -->|7. Find Fans| DDB[(DynamoDB Registry)]
         Lambda_API -.->|8. Admin Log| SES[AWS SES]
     end
@@ -55,37 +57,33 @@ graph TD
 
 ---
 
-## 🏗️ Technical Architecture & Managed Stack
-CricScore implements a high-performance **Event-Driven Architecture (EDA)** using 100% serverless and managed services:
-
-- **Dual-Write Integrity:** Aiven PostgreSQL for persistence + Aiven Kafka for sub-second spectator updates.
-- **mTLS Security:** Encrypted mTLS authentication for all Kafka traffic using serverless certificate injection.
-- **Zero-Latency Broadcast:** Sub-100ms global delivery via Aiven Kafka and AWS WebSocket Gateway.
-
-📖 **[Detailed Architecture & Sequence Flows](./docs/architecture.md)**
+## ⚡ Getting Started
+- **Local Developer Preview**: Run the frontend locally (Requires **Node.js 18.x+**).
+    - **Step 1:** `npm install`
+    - **Step 2:** `cp .env.example .env`
+    - **Step 3:** `npm run dev`
+- **Full Deployment Guide:** **🚀 [How to Clone and Deploy Your Own Infrastructure](./docs/deployment.md)**
 
 ---
 
-## 🛡️ Secure Scoring & Administration
-- **Viewer 🌍**: Public discovery and scoring hub (No PIN required).
-- **Scorer 🎮**: Enterprise Multi-Tenant isolation (Email-restricted persistence).
-- **Admin ⚡**: Global database governance and record purging (Admin PIN required).
-- **v1.5.2 Sharing 🔗**: One-tap sharable match links with **Deep-Link Restoration**.
-
-Authorization is persistent and configured via `.env` (`VITE_ADMIN_PIN`).
+## 👥 Platform Access Roles
+- **Viewer 🌍**: Single-click access to global match discovery and real-time spectator hub (Public/No Auth).
+- **Scorer 🎮**: Secure multi-tenant isolation for official ball-by-ball match scoring (Secure/Email Auth).
+- **Admin ⚡**: Enterprise-grade persistence governance and match record purging (Protected/Admin PIN).
 
 ---
 
-## 🏗️ Technical Portal
-Detailed engineering docs can be found in the **[`docs/`](./docs)** folder:
+## 🏗️ System Architecture & Technical Portal
+CricScore implements a high-performance **Event-Driven Architecture (EDA)** using 100% serverless and managed services.
 
+### 📖 Technical Guides & Documentation
 - **[Full Deployment & Infrastructure](./docs/deployment.md)**: Local preview, bootstrap foundations, and AWS/Aiven Setup.
+- **[Aiven Managed Services](./docs/aiven.md)**: PostgreSQL & Kafka mTLS configuration.
 - **[Detailed Architecture](./docs/architecture.md)**: System design, sequence flows, and EDA logic.
 - **[API Guide](./docs/api.md)**: REST & WebSocket contract specifications.
 - **[Cost & Performance](./docs/cost_management.md)**: Aiven & AWS Free-tier monitoring strategy.
-- **[Technical Journey](./docs/technical_journey.md)**: Engineering retrospective and service selection.
-- **[Full Project Log](./docs/changelog.md)**: Development timeline and **v1.5.2** release notes.
-- **[Troubleshooting](./docs/troubleshooting.md)**: Common setup fixes and identity verification help.
+- **[Full Project Log](./docs/changelog.md)**: Release records and development timeline.
+- **[Troubleshooting](./docs/troubleshooting.md)**: Setup fixes and identity verification help.
 
 ---
 © 2026 CricScore Engine. Designed for the Serverless Generation.

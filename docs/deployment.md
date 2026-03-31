@@ -77,16 +77,40 @@ resource "aws_route53_zone" "primary" {
 4.  **Capture Metadata**: 
     -   **Postgres**: Copy the **Service URI** (e.g., `postgres://avnadmin...`).
     -   **Kafka**: Copy the **Bootstrap Servers** (`host:port`), **Username**, and **Password**.
-5.  **Inject into Local**: Update **[`terraform/terraform.tfvars`](../terraform/terraform.tfvars)** with these 4 variables.
+5.  **Inject into Local**: Update **`terraform/terraform.tfvars`** with these 4 variables.
 
-### 2. Configure Security Vault (`certs/`)
-Download `ca.pem`, `cert.pem`, and `key.pem` from the Aiven Kafka service console and place them in a root `/certs` folder at the project base.
+🔍 **Technical Logic**: See **[`docs/aiven.md`](./aiven.md)** for deep details on Kafka mTLS security and PostgreSQL persistence.
 
-### 3. Synchronize Bootstrap Metadata
+### 2. Security Vault (`certs/`)
+CricScore uses mTLS for Kafka security. Download `ca.pem`, `cert.pem`, and `key.pem` from the Aiven Kafka service console.
+- **Location**: Place these in a root `/certs/` folder.
+- **⚠️ SECURITY**: Never commit this folder to GitHub. It is excluded by `.gitignore`.
+
+### 3. Infrastructure Variables (`terraform.tfvars`)
+Create a file at `terraform/terraform.tfvars` with the following keys. 
+- **⚠️ SECURITY**: This file contains secrets. **DO NOT commit it to version control.**
+
+```hcl
+# Aiven PostgreSQL
+database_url = "postgres://avnadmin:...@host:port/defaultdb?sslmode=require"
+
+# Aiven Kafka
+kafka_bootstrap_servers = "host...aivencloud.com:17729"
+kafka_username          = "avnadmin"
+kafka_password          = "your-password"
+
+# AWS Domain & SES
+zone_domain      = "yourdomain.com"
+domain_name      = "cricscore.yourdomain.com"
+ses_source_email = "noreply@yourdomain.com"
+```
+
+### 4. Synchronize Bootstrap Metadata
 Follow this character-perfect handshake to activate the remote backend:
 1.  **Capture Metadata**: Note your **S3 Bucket Name**, **DynamoDB Lock Table**, and **Route 53 Zone ID**.
-2.  **Update Backend**: Insert your bucket and table IDs into **[`terraform/providers.tf`](../terraform/providers.tf)**.
-3.  **Update Variables**: Insert your domain details into **[`terraform/terraform.tfvars`](../terraform/terraform.tfvars)**.
+2.  **Update Backend**: Insert your bucket and table IDs into **`terraform/providers.tf`**.
+    -   *Note: Terraform **requires** these to be hard-coded strings (no variables) because the backend initializes before variables are loaded.*
+3.  **Update Variables**: Insert your domain and Aiven details into your newly created **`terraform/terraform.tfvars`**.
 4.  **Initialize**: Run `terraform init` in the main `/terraform` directory to migrate state to S3.
 
 ### 4. The First-Time Discovery Cycle (Mandatory)
