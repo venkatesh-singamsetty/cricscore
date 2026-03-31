@@ -8,7 +8,7 @@
 
 CricScore is a highly performant, serverless cricket engine designed for sub-second match updates. It leverages **Aiven PostgreSQL** for persistence, **Aiven Kafka** for event streaming, and **AWS Lambdas/WebSockets** for global real-time broadcasting.
 
-🚀 **Live Production:** [**cricscore.site**](https://cricscore.venkateshsingamsetty.site)
+🚀 **Live Production:** [**https://cricscore.venkateshsingamsetty.site**](https://cricscore.venkateshsingamsetty.site)
 
 ---
 
@@ -79,8 +79,7 @@ Authorization is persistent and configured via `.env` (`VITE_ADMIN_PIN`).
 ## 🏗️ Technical Portal
 Detailed engineering docs can be found in the **[`docs/`](./docs)** folder:
 
-- **[Deployment Manual](./docs/deployment.md)**: Setup, infrastructure variables, and cloud-sync guide.
-- **[Bootstrap Infrastructure](./docs/bootstrap_infra.md)**: Long-lived assets (State, Locking, DNS).
+- **[Full Deployment & Infrastructure](./docs/deployment.md)**: Local preview, bootstrap foundations, and AWS/Aiven Setup.
 - **[Detailed Architecture](./docs/architecture.md)**: System design, sequence flows, and EDA logic.
 - **[API Guide](./docs/api.md)**: REST & WebSocket contract specifications.
 - **[Cost & Performance](./docs/cost_management.md)**: Aiven & AWS Free-tier monitoring strategy.
