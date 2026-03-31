@@ -84,10 +84,14 @@ Follow this character-perfect handshake to activate the remote backend:
 3.  **Update Variables**: Insert your domain details into **[`terraform/terraform.tfvars`](../terraform/terraform.tfvars)**.
 4.  **Initialize**: Run `terraform init` in the main `/terraform` directory to migrate state to S3.
 
-### 4. Deploy Infrastructure (via `./deploy.sh`)
-```bash
-# Execute the master deployment script
-./deploy.sh
-```
+### 4. The First-Time Discovery Cycle (Mandatory)
+Because the frontend requires the **API Gateway Endpoints** to be built into its bundle, follow this one-time handshake:
+
+1.  **Generate Endpoints**: Run `cd terraform && terraform apply -auto-approve` to provision the AWS stack and generate the first set of outputs.
+2.  **Synchronize `.env`**: Note the `api_url` and `websocket_url` from the Terraform output. Inject these into your root **`.env`** file as `VITE_API_URL` and `VITE_WS_URL`.
+3.  **Final Launch**: Execute the master deployment script from the root to build the frontend with the correct endpoints and flush the CloudFront cache:
+    ```bash
+    ./deploy.sh
+    ```
 
 © 2026 CricScore Documentation. 🏎️🏁🚀
