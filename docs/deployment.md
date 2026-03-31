@@ -70,12 +70,17 @@ resource "aws_route53_zone" "primary" {
 
 ## 🌩️ Phase 2: Full-Stack Cloud Production
 
-### 1. Provision Managed Aiven Services
-1. **Aiven PostgreSQL**: Master system of record (Set SSL Mode to `require`).
-2. **Aiven Kafka**: Event streaming backbone (Enable **mTLS** in console).
+### 1. Aiven Provisioning Checklist (Signup & Capture)
+1.  **Signup:** Create an account at [**console.aiven.io**](https://console.aiven.io/).
+2.  **Create PG:** Provision **Aiven for PostgreSQL** (Free Tier). Set **SSL Mode** to `require`.
+3.  **Create Kafka:** Provision **Aiven for Apache Kafka**. Enable **mTLS** in the console.
+4.  **Capture Metadata**: 
+    -   **Postgres**: Copy the **Service URI** (e.g., `postgres://avnadmin...`).
+    -   **Kafka**: Copy the **Bootstrap Servers** (`host:port`), **Username**, and **Password**.
+5.  **Inject into Local**: Update **[`terraform/terraform.tfvars`](../terraform/terraform.tfvars)** with these 4 variables.
 
 ### 2. Configure Security Vault (`certs/`)
-Download `ca.pem`, `cert.pem`, and `key.pem` from Aiven Kafka and place them in a root `/certs` folder at the project base.
+Download `ca.pem`, `cert.pem`, and `key.pem` from the Aiven Kafka service console and place them in a root `/certs` folder at the project base.
 
 ### 3. Synchronize Bootstrap Metadata
 Follow this character-perfect handshake to activate the remote backend:
