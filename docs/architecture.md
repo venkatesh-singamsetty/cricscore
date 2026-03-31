@@ -2,40 +2,6 @@
 
 CricScore is built on a high-concurrency, **Event-Driven Architecture (EDA)** where every ball event is a persistent record in **Aiven PostgreSQL** and a real-time broadcast via **Aiven Kafka**.
 
----
-## 🔄 System Overview & Infrastructure Journey (v2.0)
-```mermaid
-graph TD
-    User((User)) -->|1. Path| CF[CloudFront]
-    CF -->S3[S3 Website]
-    
-    subgraph UI_Layer [CricScore Client]
-        React[React / Vite App]
-    end
-    
-    React -->|2. REST| APIGW_REST[API Gateway]
-    React -->|3. Real-time| APIGW_WS[API Gateway - WS]
-    
-    subgraph Cloud_Orchestration [AWS Fan-Out]
-        APIGW_REST --> Producer[Producer Lambda]
-        Producer --> SNS{AWS SNS Topic}
-        
-        SNS -->|4. Fast Broadast| Broadcaster[Broadcaster Lambda]
-        Broadcaster <-->|Manage Connections| DDB[(AWS DynamoDB)]
-        
-        SNS -->|5. Reliability Buffer| SQS[[AWS SQS Queue]]
-        SQS -->|6. Storage| Consumer[Storage Lambda]
-    end
-    
-    subgraph Managed_Data [Aiven Data Hub]
-        Consumer --> PG[(Aiven PostgreSQL)]
-        Consumer --> Kafka((Aiven Kafka mTLS))
-    end
-    
-    Kafka --> Broadcaster
-    Broadcaster --> APIGW_WS
-```
-
 ## 🔄 Detailed Sequence Flows (v2.0.0 Fan-Out)
 
 ### 1. 📊 Fetch Match Details (Deep-Link Hydration)
@@ -44,7 +10,7 @@ sequenceDiagram
     autonumber
     actor Viewer as Fan / Spectator
     participant App as React App
-    participant Lambda as Match API Lambda
+    participant Lambda as match-api Lambda
     participant Aiven_PG as Aiven PostgreSQL
 
     Viewer->>App: Visit Link (?matchId=xxx)
@@ -62,15 +28,15 @@ sequenceDiagram
 sequenceDiagram
     autonumber
     actor Scorer as Scorer
-    participant Producer as Match API Gateway
+    participant Producer as score-upd Lambda
     participant SNS as AWS SNS (Event Hub)
-    participant Broadcaster as Broadcaster Lambda
+    participant Broadcaster as broadcaster-hub Lambda
     participant DDB as DynamoDB (Connections)
     participant APIGW_WS as API Gateway (WebSockets)
     actor Viewer as Fan / Spectator
     
     participant SQS as AWS SQS (Storage Buffer)
-    participant Consumer as Storage Worker (Lambda)
+    participant Consumer as storage-worker (Lambda)
     participant Aiven_Hub as Aiven PostgreSQL & Kafka
 
     Scorer->>Producer: POST /update-score
@@ -79,18 +45,18 @@ sequenceDiagram
     
     rect rgb(0, 0, 0, 0.1)
         Note right of SNS: Phase 1: Zero-Latency Spectator Sync
-        SNS-)Broadcaster: Fast-Path Push
-        Broadcaster->>DDB: Fetch Active Spectator IDs
+        SNS-)Broadcaster: SNS Invoke (Fast-Path)
+        Broadcaster->>DDB: Scan Connection Registry
         DDB-->>Broadcaster: Return Connection[]
-        Broadcaster->>APIGW_WS: POST to Active Connections
-        APIGW_WS-->>Viewer: Live Score Payload
+        Broadcaster->>APIGW_WS: POST @connections (Fan-Out)
+        APIGW_WS-->>Viewer: Live UI State Update
     end
     
-    rect rgb(0, 100, 0, 0.1)
+    rect rgb(100, 100, 100, 0.1)
         Note right of SNS: Phase 2: Reliable Data Persistence
-        SNS->>SQS: Reliable Enqueue
-        SQS-)Consumer: Batch Event Pull
-        Consumer->>Aiven_Hub: ACID Commit (PG) & SSL Stream (Kafka)
+        SNS->>SQS: Buffer Event
+        SQS-)Consumer: Pull/Trigger Batch
+        Consumer->>Aiven_Hub: Pg SQL Save & Kafka mTLS Stream
     end
 ```
 
@@ -113,15 +79,19 @@ CricScore implements a high-performance **Event-Driven Architecture (EDA)** usin
 
 ### **1. Official Scorer (The Implementation)**
 *   **Match Registry**: Games are anchored to a unique, non-sequentially generated UUID provided by the **Aiven PostgreSQL** registry during initialization.
+*   **score_update Lambda**: Acts as the scoring producer. Validates incoming ball-by-ball payloads and publishes them to the AWS SNS event hub for downstream fan-out.
 *   **State Persistence**: ACID-compliant transactions ensure that innings, scores, and historical ball records are atomically committed.
-*   **Administrative Archival**: AWS SES is integrated to provide official match-day record logging, delivering board-verified score summaries to the administrator for historical auditing.
 
 ### **2. Managed Fan Hub (The Discovery Engine)**
-*   **Discovery Gateway**: Fan clients browse active games via a real-time match hub fetching from the Aiven repository.
-*   **WebSocket Hub**: Sub-second socket propagation via **AWS WebSocket Gateway** with the connection registry managed in **DynamoDB**.
-*   **Deep-Link System**: Zero-friction URL-restoration logic for immediate spectator bypass-routing (v1.5.2).
+*   **match_api Lambda**: The entry point for fans. Handles match discovery hub fetching and initial deep-link hydration to retrieve match state from Aiven PostgreSQL.
+*   **broadcaster_hub Lambda**: The heart of the v2.0.0 fast-path. It consumes SNS events and performs a massive parallel push to all active spectator WebSocket tunnels by querying the DynamoDB Registry.
+*   **WebSocket Lifecycle (onConnect/onDisconnect)**: These Lambdas manage the "who is watching now" registry in DynamoDB, ensuring zero-latency fan-out targeting.
+*   **Deep-Link System**: Zero-friction URL-restoration logic for immediate spectator bypass-routing.
 
-### 3. **Security Strategy**
+### **3. Reliability & Persistence (The Storage Buffer)**
+*   **storage_worker Lambda**: Subscribed to the AWS SQS queue. It processes match events in reliable batches, ensuring that even during high-traffic bursts, database commits to Aiven PostgreSQL and event-streaming to Aiven Kafka remain consistent and ordered.
+
+### **4. Security Strategy**
 - **Administrative Sovereignty**: Operations impacting global match state (e.g., `DELETE /match/{id}`) are restricted via a **State-Sync PIN** (`VITE_ADMIN_PIN`), ensuring only authorized board-governance actors can purge records.
 - **Mutual TLS (mTLS)**: Hardened, certificate-based connections for all Kafka event traffic.
 - **SSL Enforcement**: Mandatory for all Aiven PostgreSQL persistence sessions.

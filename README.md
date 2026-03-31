@@ -4,7 +4,7 @@
 [![Aiven](https://img.shields.io/badge/Aiven-Managed%20Services-blue)](https://aiven.io)
 [![AWS](https://img.shields.io/badge/AWS-Serverless-orange)](https://aws.amazon.com)
 [![Event-Driven](https://img.shields.io/badge/SNS%2FSQS-Fan--Out-black)](https://aws.amazon.com/sns/)
-[![Version](https://img.shields.io/badge/CricScore-v2.0-indigo)](./docs/changelog.md)
+[![Version](https://img.shields.io/badge/CricScore-v2.0.0-indigo)](./docs/changelog.md)
 
 CricScore is a highly performant, serverless cricket engine designed for sub-100ms match updates. It leverages a decoupled, hybrid-cloud event-driven stack (AWS SNS/SQS + Aiven Kafka) for global real-time broadcasting.
 
@@ -12,10 +12,61 @@ CricScore is a highly performant, serverless cricket engine designed for sub-100
 
 ---
 
+## 🔄 System Architecture (v2.0.0 Fan-Out)
+```mermaid
+graph TD
+    %% Global CDN Layer
+    subgraph CDN [Global Delivery]
+        CF[AWS CloudFront] --> S3[AWS S3: React App]
+    end
+
+    %% Cloud Logic
+    subgraph AWS [AWS Serverless Stack]
+        REST_GET[API Gateway: GET] --> match_api[match-api Lambda]
+        
+        REST_POST[API Gateway: POST] --> score_update[score-upd Lambda]
+        score_update --> SNS{AWS SNS Topic}
+
+        %% Consumer logic
+        SNS -->|Reliability| SQS[[AWS SQS Queue]]
+        SQS --> storage_worker[storage-worker Lambda]
+        
+        SNS -->|Fast-Path| broadcaster_hub[broadcaster-hub Lambda]
+        
+        %% WebSocket Gateway Hub
+        WS_GW[API Gateway: WebSockets] -->|1. Trigger| onConnect[onconnect Lambda]
+        WS_GW -->|1. Trigger| onDisconnect[ondisconnect Lambda]
+        
+        onConnect -->|2. Register| DDB[(DynamoDB Registry)]
+        onDisconnect -->|2. Prune| DDB
+        
+        broadcaster_hub -->|3. Data Push| WS_GW
+        WS_GW -->|4. Stream| Fan
+    end
+
+    %% Data Hub vertically stacked for clear routing
+    subgraph Aiven [Aiven Managed Data Hub]
+        PG[(Aiven PostgreSQL)]
+        Kafka((Aiven Kafka mTLS))
+    end
+
+    %% Explicit data routing
+    match_api -->|Initial Setup| PG
+    storage_worker -->|ACID Commit| PG
+    storage_worker -->|Kafka Stream| Kafka
+
+    %% User Interaction Labels
+    Fan((Fan)) -.->|Request| REST_GET
+    Fan -.->|Handshake| WS_GW
+    Scorer((Scorer)) -.->|Post| REST_POST
+```
+
+---
+
 ## 🗄️ Aiven Managed Services & AWS Fan-Out
 CricScore utilizes the **Aiven Lifecycle Management** platform combined with **AWS SNS/SQS** to provide professional-grade, high-availability data integrity:
 
-- **AWS SNS & SQS (v2.0)**: The **Fast-Path Event Hub** and **Reliability Buffer** fan-out pattern ensures sub-100ms ultra-low-latency UI broadcasts while synchronously protecting Aiven from traffic spikes.
+- **AWS SNS & SQS (v2.0.0)**: The **Fast-Path Event Hub** and **Reliability Buffer** fan-out pattern ensures sub-100ms ultra-low-latency UI broadcasts while synchronously protecting Aiven from traffic spikes.
 - **AWS DynamoDB**: The **Connection Registry** tracking all active spectator WebSocket tunnels in real-time.
 - **Aiven for PostgreSQL**: The **System of Record** for all historical match data, innings, and ball-by-ball archives.
 - **Aiven for Apache Kafka**: The **Enterprise Event Bus** providing persistent, replayable data streams for sub-second global propagation.
