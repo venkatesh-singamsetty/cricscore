@@ -2,11 +2,20 @@
 set -e
 
 # 1. Install Dependencies & Build the app
-echo "📦 Installing required dependencies..."
+echo "📦 Installing required frontend dependencies..."
 npm install
+
+echo "📦 Installing required Lambda dependencies..."
+for dir in backend/lambdas/*/; do
+  if [ -f "$dir/package.json" ]; then
+    echo "Hydrating $dir..."
+    (cd "$dir" && npm install --production)
+  fi
+done
 
 echo "🚀 Building the application..."
 npm run build
+
 
 # 2. Inject certificates from central vault into Lambda directories
 echo "🔐 Injecting secure certificates from vault..."
