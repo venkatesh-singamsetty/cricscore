@@ -112,10 +112,10 @@ This engineering trace documents the real-world resolutions for the CricScore ba
 - **Cause**: Use of native `window.prompt` for quick implementation.
 - **Fix**: Replaced with a **Seamless Inline UI**. The overs count now transforms into a stylized input field on-click, supporting Enter-to-save and Escape-to-cancel.
 
-### 17. **`Runtime.ImportModuleError` / Missing `pg`**
-- **Symptom**: "Cloud Connection Failed" alert in the UI; Lambda logs showed `Error: Cannot find module 'pg'`.
-- **Cause**: Updating the Lambda code via `zip` only included the `index.js` file, missing the `node_modules` directory required for database connectivity.
-- **Fix**: Updated deployment process to use `zip -r` to recursively include the `node_modules` folder in the deployment package.
+### 17. **`Runtime.ImportModuleError` / Missing `kafkajs` & `pg`**
+- **Symptom**: "Cloud Connection Failed" alert in the UI; Lambda logs showed `Error: Cannot find module 'pg'` or `kafkajs`.
+- **Cause**: Updating the Lambda code via Terraform `zip` lacked the `node_modules` directory required for database and messaging connectivity.
+- **Fix**: Added dynamic traversal to `deploy.sh`. The pipeline now automatically runs `npm install --production` inside every Lambda directory prior to packaging the root modules.
 
 ### 18. **SES `MessageRejected` & Missing API Routes**
 - **Symptom**: "Fancy" reports were not being received; "DELETE FAILED! Failed to fetch" alerts in the Admin Hub.
@@ -201,3 +201,13 @@ This engineering trace documents the real-world resolutions for the CricScore ba
 - **v1.5.2**: Instant Match Sharing links live.
 - **SES Bypass**: Friction-free user experience without AWS verification requirements.
 - **Identity Sync**: Scoped session persistence verified across SCORER and ADMIN views.
+
+### 27. **Aiven DB `SELF_SIGNED_CERT_IN_CHAIN` (Phase 7)**
+- **Symptom**: SQS Queue messages were stuck `NotVisible`; Worker triggered `SELF_SIGNED_CERT_IN_CHAIN` on Aiven PG connection.
+- **Cause**: Node v18's strict native TLS validation rejects Aiven's intermediate self-signed certificates, ignoring generic driver `rejectUnauthorized: false` flags.
+- **Fix**: Injected `process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'` at the extreme top of the `storage-worker` bootloader sequence.
+
+### 28. **Rapid-Fire Score Date Loss / Desync (Phase 7)**
+- **Symptom**: Scorer taps "1" six times rapidly; the UI says `6/0` locally, but spectators only see `3/0`. DB aggregated only 3 balls.
+- **Cause**: React `useState` closures were capturing identical asynchronous network payloads before the UI had a chance to render the new incremented value.
+- **Fix**: Replaced pure `useState` components with an instantaneous, synchronous `useRef` lock (`isProcessingRef.current = true`). Forced `await postScoreUpdate` to physically stall overlapping asynchronous fetch executions until AWS responds.

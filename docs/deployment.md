@@ -5,7 +5,7 @@ This guide covers the 3-phase journey from **Local Development** to **Profession
 ---
 
 ## 🏗️ Phase 0: Local Lifecycle Preview
-Test the **v1.5.2** frontend engine locally against the production cloud backend.
+Test the **v2.0 Fan-Out** frontend engine locally against the production cloud backend.
 
 ### **Prerequisites**
 - **Node.js**: Version **18.x or higher**.
@@ -81,9 +81,10 @@ resource "aws_route53_zone" "primary" {
 
 🔍 **Technical Logic**: See **[`docs/aiven.md`](./aiven.md)** for deep details on Kafka mTLS security and PostgreSQL persistence.
 
-### 2. Security Vault (`certs/`)
+### 2. Security Vault (`certs/`) & Automated Pipeline
 CricScore uses mTLS for Kafka security. Download `ca.pem`, `cert.pem`, and `key.pem` from the Aiven Kafka service console.
 - **Location**: Place these in a root `/certs/` folder.
+- **Automated Hydration**: The `./deploy.sh` script automatically traverses all lambda directories, executes `npm install --production`, and securely injects certificates prior to Terraform bundling, preventing `Runtime.ImportModuleError`.
 - **⚠️ SECURITY**: Never commit this folder to GitHub. It is excluded by `.gitignore`.
 
 ### 3. Infrastructure Variables (`terraform.tfvars`)

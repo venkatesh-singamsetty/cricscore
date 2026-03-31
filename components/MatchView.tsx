@@ -53,6 +53,7 @@ const MatchView: React.FC<MatchViewProps> = ({
     const [history, setHistory] = useState<InningsState[]>(savedState ? savedState.history || [] : []);
     const [lastCommentary, setLastCommentary] = useState<string>(savedState ? savedState.lastCommentary || "" : (initialState.inningNumber === 2 ? "Second innings started!" : "Match started."));
     const [isProcessing, setIsProcessing] = useState(false);
+    const isProcessingRef = useRef(false);
     const [showScoreboard, setShowScoreboard] = useState(false);
 
     // Scoring State UI controls
@@ -324,7 +325,7 @@ const MatchView: React.FC<MatchViewProps> = ({
     };
 
     const handleScore = async (runs: number, isWicket = false, wicketType = WicketType.NONE, fielderName?: string, outBatterId?: string) => {
-        if (isProcessing && !fielderName) return; 
+        if ((isProcessing || isProcessingRef.current) && !fielderName) return; 
 
         // Check if we need a fielder first
         if (isWicket && (wicketType === WicketType.CAUGHT || wicketType === WicketType.STUMPED || wicketType === WicketType.RUN_OUT) && !fielderName) {
@@ -333,6 +334,7 @@ const MatchView: React.FC<MatchViewProps> = ({
             return;
         }
 
+        isProcessingRef.current = true;
         setIsProcessing(true);
         saveToHistory();
 
@@ -470,7 +472,7 @@ const MatchView: React.FC<MatchViewProps> = ({
         }
     
         setInnings(finalInnings);
-        postScoreUpdate(newBallEvent, finalInnings);
+        await postScoreUpdate(newBallEvent, finalInnings);
         setPendingExtra(ExtraType.NONE);
         setPendingWicketInfo(null);
 
@@ -504,6 +506,7 @@ const MatchView: React.FC<MatchViewProps> = ({
             return; // Lock the UI permanently until the parent unmounts this view
         }
 
+        isProcessingRef.current = false;
         setIsProcessing(false);
     };
 

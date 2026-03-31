@@ -124,9 +124,12 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({ isAdmin, onResumeMatch,
         // Only accept updates for the match we are following
         if (['LIVE_SCORE_UPDATE', 'STATE_SYNC'].includes(lastMessage?.type || '')) {
             const data = lastMessage.data;
-            console.log(`📥 WS Message ${lastMessage.type} -> target:`, targetMatchId, "incoming:", data.matchId, data);
-            if (!targetMatchId || data.matchId === targetMatchId) {
-                setLiveData(data);
+            console.log(`📥 WS Message ${lastMessage.type} -> target:`, targetMatchId, "incoming:", data?.matchId, data);
+            
+            if (data && (!targetMatchId || data.matchId === targetMatchId)) {
+                // Safely unwrap the nested v2.0 Fan-Out envelope
+                setLiveData(data.ballData ? data.ballData : data);
+                
                 if (data.matchTotalOvers !== undefined) {
                     setMatchMeta(prev => prev ? { ...prev, totalOvers: data.matchTotalOvers } : null);
                 }

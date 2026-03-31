@@ -5,18 +5,25 @@ This document provides a breakdown of the estimated operational costs for the Cr
 ## 🏗️ AWS Infrastructure (US-East-1 Estimates)
 
 ### 1. **Compute: AWS Lambda**
-*   **Cost**: First 1 Million requests per month are **FREE**.
-*   **Memory Optimization**: We upgraded the `score-updates` lambda to **256MB RAM**. While this technically costs 2x more per millisecond than the 128MB tier, the increased CPU power handles the **mTLS (Kafka) and SSL (Postgres) handshakes** significantly faster, reducing total billable duration and preventing timeouts.
-*   **Est. Max Load**: You can host ~4,000 matches per month for $0 compute cost.
+*   **Free Tier Limit**: 1,000,000 Requests AND 400,000 GB-Seconds per month.
+*   **The Fan-Out Multiplier (3x)**: Every single ball event (1 click) triggers **3 Lambda invocations** (`score-update` -> `broadcaster` -> `storage-worker`). 
+*   **Est. Max Load**: 1M requests / 3 lambdas = 333,333 ball events = **~1,350 Matches per month** remaining at absolutely $0 cost.
+*   **Memory Optimization**: We upgraded lambdas to **256MB RAM** (consuming 2x GB-Seconds but preventing CPU throttling on the mTLS / PostgreSQL handshakes).
 
 ### 2. **Real-time: WebSocket API Gateway**
-*   **Cost**: $1.00 per million messages (after free tier).
-*   **Free Tier**: 1 million messages + 750,000 connection minutes per month are **FREE**.
-*   **Est. Usage**: High fan counts (100+ fans per match) consume messages quickly, but standard usage remains free.
+*   **Free Tier Limit**: 1,000,000 Messages + 750,000 Connection Minutes per month.
+*   **Cost After Tier**: $1.00 per 1M messages.
+*   **Multiplier (`X`)**: For every 1 ball scored, API Gateway pushes **`X` messages** (Where `X` is the number of active, live spectators). If 100 fans watch 1 over (6 balls), it costs 600 messages. 
 
-### 3. **Storage: Amazon S3 & DynamoDB**
-*   **S3**: First 5GB is **FREE**. (The React app is ~5MB).
-*   **DynamoDB**: 25GB of storage is **FREE**. (Connection tracking is negligible).
+### 3. **Messaging & Buffering (AWS SNS & SQS)**
+*   **SNS (Fan-Out Hub)**: First 1,000,000 Publishes + 100,000 HTTP Deliveries per month are **FREE**.
+*   **SQS (Reliability Buffer)**: First 1,000,000 Standard Requests per month are **FREE**.
+*   **The Multiplier**: 1 Ball = 1 SNS Publish + 2 SNS Deliveries (Lambda + SQS) + 1 SQS Write.
+*   **Est. Usage**: 300,000 ball events comfortably fit within these limits.
+
+### 4. **Storage: Amazon S3 & DynamoDB**
+*   **S3**: First 5GB of Standard Storage + 20,000 GET requests per month are **FREE**. (The React app is ~5MB).
+*   **DynamoDB**: 25GB of Storage + 2.5 Million Read/Write capacity per month. (Spectator connection tracking is negligible).
 
 ### 4. **Delivery: CloudFront & Route 53**
 *   **CloudFront**: First 1TB of data transfer out is **FREE**. Effectively $0 for this app's payload.
@@ -31,7 +38,8 @@ This document provides a breakdown of the estimated operational costs for the Cr
 ## 🗄️ Database & Kafka (Aiven)
 
 ### 1. **PostgreSQL (Aiven)**
-*   **Free Tier**: Aiven offers a free-tier for PostgreSQL (1 CPU, 2GB RAM, 5GB Storage).
+*   **Free Tier**: Aiven offers a free-tier for PostgreSQL (1 CPU, 1GB RAM, 1GB Storage).
+*   **Availability**: Note that Free-tier instances may power-cycle after prolonged inactivity but can be restarted manually. No SLA applies.
 *   **Lifecycle**: Auto-backups are included. 
 *   **Upgrade Path**: DigitalOcean or AWS-managed RDS starts at ~$15/mo if high-availability is required.
 
@@ -41,7 +49,7 @@ This document provides a breakdown of the estimated operational costs for the Cr
 
 ---
 
-## 💸 Detailed Ownership Costs (v1.5.2)
+## 💸 Detailed Ownership Costs (v2.0)
 
 CricScore is designed for **maximum profitability** on minimal infrastructure. Below is the projected cost of ownership, including a custom domain (starting from **$2.00/year**).
 
@@ -56,14 +64,15 @@ CricScore is designed for **maximum profitability** on minimal infrastructure. B
 
 ---
 
-## 🏗️ Match Capacity & Scale (v1.5.2)
+## 🏗️ Match Capacity & Scale (v2.0)
 
 For a standard **20-Overs Match** (120 balls per innings = **240 total events/match**), the platform can support the following volume before exceeding the $0 tier.
 
-### 1. **Compute (AWS Lambda / API Gateway)**
+### 1. **Compute (AWS Lambda & Messaging Hub)**
 - **Limit**: 1,000,000 requests per month.
-- **Conversion**: 1,000,000 / 240 = **~4,166 full matches per month**.
-- **Usage**: You can host over **130 matches per day for free**.
+- **The Multiplier**: 1 Ball = 3 Lambda Requests + 3 SNS Actions. (Effectively 720 compute-actions per match).
+- **Conversion**: 1,000,000 / 720 = **~1,388 full matches per month**.
+- **Usage**: You can host approximately **45 full matches per day for free**.
 
 ### 2. **Storage (Aiven PostgreSQL)**
 - **Limit**: 1.0 GB Storage (Free Tier).
