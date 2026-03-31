@@ -41,17 +41,48 @@ This document provides a breakdown of the estimated operational costs for the Cr
 
 ---
 
+## 💸 Detailed Ownership Costs (v1.5.2)
+
+CricScore is designed for **maximum profitability** on minimal infrastructure. Below is the projected cost of ownership, including a custom domain (starting from **$2.00/year**).
+
+| Duration | AWS (Free + R53) | Aiven (Free) | Domain ($2/yr) | **Total Cost** |
+| :--- | :--- | :--- | :--- | :--- |
+| **6 Hours** | $0.003 | $0.00 | $0.001 | **~$0.004** |
+| **1 Day** | $0.016 | $0.00 | $0.005 | **~$0.021** |
+| **1 Month** | $0.500 | $0.00 | $0.160 | **~$0.660** |
+| **1 Year** | $6.000 | $0.00 | $2.000 | **~$8.000** |
+
+*Note: Route 53 Hosted Zone is a fixed $0.50/mo. Domain costs vary ($2+ for .site/.me, ~$12 for .com).*
+
+---
+
+## 🏗️ Match Capacity & Scale (v1.5.2)
+
+For a standard **20-Overs Match** (120 balls per innings = **240 total events/match**), the platform can support the following volume before exceeding the $0 tier.
+
+### 1. **Compute (AWS Lambda / API Gateway)**
+- **Limit**: 1,000,000 requests per month.
+- **Conversion**: 1,000,000 / 240 = **~4,166 full matches per month**.
+- **Usage**: You can host over **130 matches per day for free**.
+
+### 2. **Storage (Aiven PostgreSQL)**
+- **Limit**: 1.0 GB Storage (Free Tier).
+- **Consumption**: One match (including metadata and 240 ball records) consumes ~50KB.
+- **Capacity**: 1,000,000 KB / 50 KB = **~20,000 historical matches**.
+- **Strategy**: Use the **Admin Global Purge** periodically to maintain this archive.
+
+### 3. **Messaging (Aiven Kafka)**
+- **Limit**: 5.0 GB Storage (Free Tier).
+- **Usage**: Kafka topics use **Time-Based Retention** (e.g., 24 hours). Storage is recycled daily, allowing for practically **unlimited matches** as long as concurrent traffic stays within the MB/s bandwidth limits.
+
+---
+
 ## 📉 Cost Optimization Tips
 
-1.  **Match Lifecycle Management**:
-    *   Set a matches `status` to `COMPLETED` when finished to stop unnecessary WebSocket polling.
-2.  **Log Retention**:
-    *   Configure CloudWatch logs for 7-day retention to avoid storage creep.
-3.  **Kafka Compaction**:
-    *   Ensure the `score-updates` topic has a retention policy (e.g., 24 hours), as we persist permanent ball data in PostgreSQL anyway.
-4.  **Database Purge (Admin Control)**:
-    *   Use the **Global Purge** feature in the `Admin Hub` to periodically clear historical test data, ensuring you stay within the 5GB Aiven PostgreSQL storage limit.
+1.  **Match Lifecycle Management**: Set a matches `status` to `COMPLETED` to stop unnecessary WebSocket polling.
+2.  **Log Retention**: Configure CloudWatch logs for 7-day retention to avoid storage creep.
+3.  **Domain Selection**: Use low-cost TLDs (like `.site` or `.me`) to keep your yearly overhead under **$2.00**.
 
 ## ⚖️ Total Monthly Estimated Cost
-*   **Development / Small Tournaments**: **$0.50** (Primarily the Route 53 Hosted Zone cost, as everything else fits into Free Tiers).
-*   **Large-scale Public Launch**: **$10.00 - $25.00** (If upgrading to non-free Aiven Kafka/DB or if domain registration fees are included).
+- **Small-to-Medium Tournaments**: **~$0.66** (Route 53 + Amortized Domain Registration).
+- **Large-scale Public Launch**: **$10.00 - $25.00** (Only if upgrading to non-free Aiven Kafka or if you require high-availability RDS).
