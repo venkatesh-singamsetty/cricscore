@@ -4,10 +4,10 @@ This document tracks the complete evolutionary history of the CricScore platform
 
 ---
 
-## ⚡ Current Status: [2026-03-31] v2.0 DECOUPLED FAN-OUT ARCHITECTURE
+## ⚡ Current Status: [2026-03-31] v2.0.0 DECOUPLED FAN-OUT ARCHITECTURE
 - **AWS SNS Event Hub**: Completely decoupled the `score-update` lambda from synchronous database writes, allowing Scorers to experience sub-100ms UI response times.
 - **AWS SQS Reliability Buffer**: Implemented an asynchronous message queue to protect Aiven PostgreSQL and Kafka endpoints from match-day ingestion spikes.
-- **v2.0 Storage Worker**: Provisioned a dedicated serverless worker to handle all ACID-compliant persistence and enterprise event bus streaming in the background, ensuring zero data loss.
+- **v2.0.0 Storage Worker**: Provisioned a dedicated serverless worker to handle all ACID-compliant persistence and enterprise event bus streaming in the background, ensuring zero data loss.
 - **Universal Broadcaster Hub**: Refactored the WebSocket broadcaster to instantly trigger directly from SNS payloads, bypassing traditional data indexing latency.
 - **Infrastructure Integrity Fixes**: Resolved strict Node v18 Aiven TLS rejections (`SELF_SIGNED_CERT_IN_CHAIN`), fully automated `kafkajs` cloud deployment hydration boundaries, and structurally debounced React `useRef` race conditions during high-impact rapid scoring bursts.
 

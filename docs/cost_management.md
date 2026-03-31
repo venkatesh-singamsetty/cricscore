@@ -68,11 +68,10 @@ CricScore is designed for **maximum profitability** on minimal infrastructure. B
 
 For a standard **20-Overs Match** (120 balls per innings = **240 total events/match**), the platform can support the following volume before exceeding the $0 tier.
 
-### 1. **Compute (AWS Lambda & Messaging Hub)**
+### 1. **Compute (AWS Lambda / API Gateway)**
 - **Limit**: 1,000,000 requests per month.
-- **The Multiplier**: 1 Ball = 3 Lambda Requests + 3 SNS Actions. (Effectively 720 compute-actions per match).
-- **Conversion**: 1,000,000 / 720 = **~1,388 full matches per month**.
-- **Usage**: You can host approximately **45 full matches per day for free**.
+- **Conversion**: 1,000,000 / 240 = **~4,166 full matches per month**.
+- **Usage**: You can host over **130 matches per day for free**.
 
 ### 2. **Storage (Aiven PostgreSQL)**
 - **Limit**: 1.0 GB Storage (Free Tier).

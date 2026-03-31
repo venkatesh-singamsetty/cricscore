@@ -36,7 +36,7 @@ graph TD
     Broadcaster --> APIGW_WS
 ```
 
-## 🔄 Detailed Sequence Flows (v2.0 Fan-Out)
+## 🔄 Detailed Sequence Flows (v2.0.0 Fan-Out)
 
 ### 1. 📊 Fetch Match Details (Deep-Link Hydration)
 ```mermaid
@@ -65,6 +65,7 @@ sequenceDiagram
     participant Producer as Match API Gateway
     participant SNS as AWS SNS (Event Hub)
     participant Broadcaster as Broadcaster Lambda
+    participant DDB as DynamoDB (Connections)
     participant APIGW_WS as API Gateway (WebSockets)
     actor Viewer as Fan / Spectator
     
@@ -79,6 +80,8 @@ sequenceDiagram
     rect rgb(0, 0, 0, 0.1)
         Note right of SNS: Phase 1: Zero-Latency Spectator Sync
         SNS-)Broadcaster: Fast-Path Push
+        Broadcaster->>DDB: Fetch Active Spectator IDs
+        DDB-->>Broadcaster: Return Connection[]
         Broadcaster->>APIGW_WS: POST to Active Connections
         APIGW_WS-->>Viewer: Live Score Payload
     end
@@ -96,10 +99,10 @@ sequenceDiagram
 ## 🏛️ Technical Pillars & Specifications
 CricScore implements a high-performance **Event-Driven Architecture (EDA)** using 100% serverless and managed services:
 
-- **Decoupled Fan-Out (v2.0):** Leverages AWS SNS for instant UI responses and AWS SQS for asynchronous background persistence to Aiven PostgreSQL and Kafka.
+- **Decoupled Fan-Out (v2.0.0):** Leverages AWS SNS for instant UI responses and AWS SQS for asynchronous background persistence to Aiven PostgreSQL and Kafka.
 - **mTLS Security:** Hardened, certificate-based encryption for all Kafka traffic using serverless certificate injection.
 - **Zero-Latency Broadcast:** Achieves sub-100ms global score delivery using an asynchronous broadcaster lambda driven instantly by SNS.
-- **State Restoration (v2.0):** Automated deep-link hydration for instant bypass-routing to active match scoreboards via UUID-anchored URLs.
+- **State Restoration (v2.0.0):** Automated deep-link hydration for instant bypass-routing to active match scoreboards via UUID-anchored URLs.
 - **Aiven TLS Bypass:** Explicit fallback overriding Node v18 strict intermediate CAs (`NODE_TLS_REJECT_UNAUTHORIZED = '0'`) allowing seamless PostgreSQL scaling.
 - **UI Render Debouncing:** Synchronous `useRef` execution locks prevent React async state-drifts during rapid scoring bursts, enforcing exact chronological network sequences.
 - **Secure Isolation:** Enterprise-grade multi-tenant scoring engine with **VITE_ADMIN_PIN** record governance.
