@@ -4,89 +4,59 @@ CricScore provides a RESTful interface for scoring actions and a real-time WebSo
 
 ---
 
-## 🚦 HTTP API Endpoints
+## 🚦 RESTful Service Endpoints (Aiven PostgreSQL)
 **Base URL**: `https://mmiwp8rgrf.execute-api.us-east-1.amazonaws.com`
 
-### 🏟️ Match Management (REST)
-
-| Endpoint | Method | Description |
-| :--- | :--- | :--- |
-| `/match` | `POST` | **Initialize Match**: Registers a new game in Aiven PostgreSQL. Returns a unique `matchId`. |
-| `/match/{id}/innings` | `POST` | **Create Second Innings**: Registers the second innings. Returns a unique `inningId`. |
-| `/match/{id}` | `DELETE` | **Permanent Cleanup**: Removes a match record and all associated innings/stats. |
-| `/match/{id}/email` | `POST` | **Cloud Scorecard**: Generates and sends a high-fidelity HTML email via AWS SES. |
-| `/match/{id}/details` | `GET` | **Full Match Details**: Retrieves full scorecard details including all innings, players, bowlers, and ball events for a specific match ID. |
-| `/matches` | `GET` | **Match Discovery Hub**: Returns all active and historical matches, including `STALE`/`STALLED` status flags. |
-- **Response**: Full match metadata from Aiven PostgreSQL.
-
-### 3. **Update Score (The Engine)**
-`POST /update-score` - Logs a ball delivery and streams it globally.
-- **Body**: `{ matchId, inningId, ballData }`
-- **Payload Structure**:
-    ```json
-    {
-      "ballData": {
-        "overNumber": 0, "ballNumber": 1,
-        "bowlerName": "Bumrah", "batterName": "Willamson",
-        "runs": 4, "isExtra": false,
-        "commentary": "Superb drive!"
-      }
-    }
-    ```
-- **Response**: `{"success": true, "ballId": "ball_uuid"}`
-- **Error Handling (v1.3.0)**: Returns `404 Not Found` if the `matchId` has been deleted by an Administrator. The Scorer UI performs a **Force Reset** upon detection.
+| Endpoint | Method | Role | Auth Required |
+| :--- | :--- | :--- | :--- |
+| `/match` | `POST` | Initialize fresh match UUID | None |
+| `/matches` | `GET` | Discovery Hub (Browse active games) | None |
+| `/match/{id}` | `DELETE` | Permanent DB Cleanup | **Admin PIN** |
+| `/match/{id}/details` | `GET` | **Deep-Link Recovery** (v1.5.2) | None |
+| `/match/{id}/innings` | `POST` | Register 2nd Innings | None |
+| `/update-score` | `POST` | Dual-Write Event Producer | None |
 
 ---
 
-## 🌐 WebSocket Gateway
-**WebSocket URL**: `wss://i4cnmjy0tg.execute-api.us-east-1.amazonaws.com/prod`
+## 🏛️ Key Implementation Details
 
-### 1. **Subscribe**
-Connection establishes a persistent session. The `onConnect` handler automatically stores your session ID in DynamoDB.
+### 1. **Deep-Link Restoration Gateway**
+`GET /match/{matchId}/details`
 
-### 2. **Live Event Stream**
-When a score is updated, all connected clients receive the following event:
-```json
-{
-  "type": "LIVE_SCORE_UPDATE",
-  "data": {
-    "ballId": "becb2056-...",
-    "runs": 6,
-    "commentary": "HUGE! Over the ropes!"
-    ... 
-  }
-}
-```
+This is the primary engine for **v1.5.2 Viral Sharing**. When a spectator arrives via a sharable link (`?matchId=xxx`), the client performs a high-fidelity hydration:
+- **Response**: A complete JSON snapshot of the match state from Aiven PostgreSQL.
+- **Includes**: Match metadata, innings objects, player/bowler stats, and full event history.
+- **Goal**: Instant scoreboard recovery without account creation or email verification.
+
+### 2. **Score Update (The Engine)**
+`POST /update-score`
+
+This endpoint triggers the **Dual-Write Protocol**. It persists the ball to Aiven PostgreSQL for history and publishes an encrypted message to **Aiven Kafka** for real-time broadcast.
+- **Payload**: `{ matchId, inningId, ballData }`
+- **Error States**: Returns `404` if the match has been deleted from the registry (triggering a client-side force reset).
+
+### 3. **Administrative Match Cleanup**
+`DELETE /match/{id}`
+
+Restricted endpoint for match management. Purges the record and all child ball events via `CASCADE DELETE`.
+- **Requirement**: Must include the correct `VITE_ADMIN_PIN` in the request header or body logic.
 
 ---
 
----
+## 🌐 WebSocket Stream (Aiven Kafka)
+**URL**: `wss://i4cnmjy0tg.execute-api.us-east-1.amazonaws.com/prod`
 
-## 🛠️ Post-Match Actions
+The WebSocket gateway handles the high-throughput broadcast from Aiven Kafka to spectators globally.
 
-### POST `/match/:matchId/email`
-Triggers scorecard report delivery via AWS SES.
-
-**Request Body:**
-```json
-{
-  "emailTo": "official@example.com",
-  "origin": "https://cricscore.venkateshsingamsetty.site"
-}
-```
-
-**Response (200 OK):**
-```json
-{
-  "message": "Email dispatch completed",
-  "adminSent": true,
-  "scorerSent": false
-}
-```
-*Note: `scorerSent` may be false if the AWS account is in SES Sandbox mode and the scorer's address is not verified.*
+- **Fast-Path Broadcast**: Messages are distributed with **<100ms** internal latency.
+- **Identity Registry**: Client connection IDs are managed via **AWS DynamoDB**.
+- **Event Type**: `LIVE_SCORE_UPDATE` - Unified JSON payload containing real-time ball metrics.
 
 ---
 
 ## 🛠️ Testing Tools
 - **WebSocket Tester**: [PieSocket Client Tool](https://piehost.com/websocket-tester)
-- **HTTP Client**: Use `curl`, `Postman`, or the Scorer UI (Phase 6).
+- **REST Client**: `curl`, `Postman`, or the Scorer UI in debug mode.
+
+© 2026 CricScore Documentation. 🛰️🏁🚀
+
