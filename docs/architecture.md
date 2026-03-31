@@ -21,6 +21,8 @@ graph TD
         Producer --> SNS{AWS SNS Topic}
         
         SNS -->|4. Fast Broadast| Broadcaster[Broadcaster Lambda]
+        Broadcaster <-->|Manage Connections| DDB[(AWS DynamoDB)]
+        
         SNS -->|5. Reliability Buffer| SQS[[AWS SQS Queue]]
         SQS -->|6. Storage| Consumer[Storage Lambda]
     end
