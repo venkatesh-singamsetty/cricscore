@@ -19,6 +19,8 @@ This document tracks the complete evolutionary history of the CricScore platform
 
 - **2026-03-26**: **v1.4.0 PRODUCTION RELEASE**: Decoupled Admin and Scorer email dispatch to bypass SES Sandbox restrictions. Guaranteed scorecard delivery to `venky.2k57@gmail.com`. Implemented Sandbox-Aware UI to inform Scorers of verification-pending statuses.
 
+- **2026-03-26**: **v1.3.0 ENTERPRISE MULTI-TENANT ISOLATION**: Implemented per-user match persistence, match-specific live caching, and real-time cloud synchronization for Admin deletions. Fixed data leakage between concurrent user sessions on shared devices. 🛡️🚀
+
 - **2026-03-25**: **v1.2.0 PRODUCTION RELEASE**: Finalized production convergence from `develop` to `main`. Full resilience & premium reporting engine integration.
 
 - **2026-03-22**: Initial competition project kickoff.
