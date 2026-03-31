@@ -1,44 +1,9 @@
-const { Kafka } = require('kafkajs');
-const { Client } = require('pg');
-const { LambdaClient, InvokeCommand } = require("@aws-sdk/client-lambda");
-const fs = require('fs');
-const path = require('path');
+const { SNSClient, PublishCommand } = require("@aws-sdk/client-sns");
 
-process.env.KAFKAJS_NO_PARTITIONER_WARNING = '1';
-
-const lambdaClient = new LambdaClient({});
-const BROADCASTER_LAMBDA = process.env.BROADCASTER_LAMBDA;
-
-// Dynamic Certificate Loading (Base64 Env Vars preferred, Fallback to files for local dev)
-const getCert = (envName, fileName) => {
-    if (process.env[envName]) {
-        return Buffer.from(process.env[envName], 'base64').toString('utf-8');
-    }
-    if (fs.existsSync(path.join(__dirname, fileName))) {
-        return fs.readFileSync(path.join(__dirname, fileName));
-    }
-    return null; // Will fail later if required
-};
-
-const caCert = getCert('KAFKA_CA_CERT', 'ca.pem');
-const accessCert = getCert('KAFKA_ACCESS_CERT', 'cert.pem');
-const accessKey = getCert('KAFKA_ACCESS_KEY', 'key.pem');
-
-const kafka = new Kafka({
-    clientId: 'cricscore-producer',
-    brokers: (process.env.KAFKA_BROKERS || '').split(','),
-    ssl: {
-        ca: caCert ? [caCert] : undefined,
-        cert: accessCert || undefined,
-        key: accessKey || undefined,
-        rejectUnauthorized: false
-    }
-});
-
-const producer = kafka.producer();
+const snsClient = new SNSClient({});
+const TOPIC_ARN = process.env.MATCH_EVENTS_TOPIC;
 
 exports.handler = async (event) => {
-    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
     const { httpMethod } = event || {};
     if (httpMethod === 'OPTIONS') {
         return {
@@ -51,272 +16,54 @@ exports.handler = async (event) => {
             body: ''
         };
     }
-    const client = new Client({
-        connectionString: process.env.DATABASE_URL,
-        ssl: { rejectUnauthorized: false }
-    });
 
     try {
-        const { 
-            matchId, 
-            inningId, 
-            ballData, 
-            strikerName, 
-            nonStrikerName, 
-            bowlerName, 
-            syncOnly, 
-            totalOvers: legacyOvers, 
-            currentOvers,
-            totalBalls: legacyBalls, 
-            currentBalls,
-            matchTotalOvers,
-            bowlerOvers: explicitBowlerOvers, 
-            bowlerBalls: explicitBowlerBalls,
-            totalRuns: explicitTotalRuns,
-            totalWickets: explicitTotalWickets,
-            undo // Added for reverting the last ball record
-        } = JSON.parse(event.body);
+        const body = JSON.parse(event.body);
+        const { matchId, inningId, syncOnly, undo } = body;
 
-        const explicitOvers = currentOvers !== undefined ? currentOvers : legacyOvers;
-        const explicitBalls = currentBalls !== undefined ? currentBalls : legacyBalls;
-        
-        await client.connect();
-        await producer.connect();
+        console.log(`Producing v2.0 Fan-Out event for match: ${matchId}, Inning: ${inningId}, Type: ${syncOnly ? 'SYNC' : 'SCORE'}`);
 
-        if (undo) {
-             // 0. Revert history by fetching AND reverting aggregate stats for the last ball
-             const lastBallRes = await client.query(
-                 'SELECT * FROM ball_events WHERE inning_id = $1 ORDER BY created_at DESC LIMIT 1',
-                 [inningId]
-             );
-
-             if (lastBallRes.rows.length > 0) {
-                 const ball = lastBallRes.rows[0];
-
-                 // A. Revert Batter Totals
-                 const isWide = ball.extra_type === 'WIDE';
-                 const isBye = ball.extra_type === 'BYE';
-                 const isLegBye = ball.extra_type === 'LEG_BYE';
-                 const isNoBall = ball.extra_type === 'NO_BALL';
-
-                 const batterRunsToDeduct = (!isWide && !isBye && !isLegBye) ? ball.runs : 0;
-                 const isValidBall = !isWide && !isNoBall;
-
-                 await client.query(
-                     `UPDATE players SET 
-                         runs = runs - $1, 
-                         balls_faced = balls_faced - $2,
-                         fours = fours - $3,
-                         sixes = sixes - $4,
-                         is_out = CASE WHEN $5 THEN false ELSE is_out END,
-                         wicket_by = null, wicket_type = null, fielder_name = null
-                      WHERE inning_id = $6 AND name = $7`,
-                     [
-                         batterRunsToDeduct,
-                         isValidBall ? 1 : 0,
-                         ball.runs === 4 ? 1 : 0,
-                         ball.runs === 6 ? 1 : 0,
-                         ball.is_wicket,
-                         inningId,
-                         ball.batter_name
-                     ]
-                 );
-
-                 // B. Revert Bowler Totals
-                 const totalRunsInBall = ball.runs + (isWide || isNoBall ? 1 : 0);
-                 const bowlerRunsToDeduct = (!isBye && !isLegBye) ? totalRunsInBall : 0;
-                 const isBowlerWicket = ball.is_wicket && !['RUN_OUT', 'RETIRED_HURT', 'RETIRED_OUT'].includes(ball.wicket_type);
-
-                 await client.query(
-                     `UPDATE bowlers SET 
-                         runs_conceded = runs_conceded - $1, 
-                         wickets = wickets - $2,
-                         overs_completed = $3,
-                         balls = $4
-                      WHERE inning_id = $5 AND name = $6`,
-                     [
-                         bowlerRunsToDeduct,
-                         isBowlerWicket ? 1 : 0,
-                         explicitBowlerOvers, 
-                         explicitBowlerBalls,
-                         inningId,
-                         ball.bowler_name
-                     ]
-                 );
-
-                 // C. Delete the ball event
-                 await client.query('DELETE FROM ball_events WHERE id = $1', [ball.id]);
-             }
-        }
-
-        // 1. Update Inning Current State (Active Players & Totals)
-        await client.query(
-            `UPDATE innings SET 
-                striker_name = COALESCE($1, striker_name), 
-                non_striker_name = COALESCE($2, non_striker_name), 
-                current_bowler_name = COALESCE($3, current_bowler_name), 
-                overs = COALESCE($4, overs),
-                balls = COALESCE($5, balls),
-                total_runs = COALESCE($6, total_runs),
-                total_wickets = COALESCE($7, total_wickets),
-                updated_at = CURRENT_TIMESTAMP
-             WHERE id = $8`,
-            [
-                strikerName, 
-                nonStrikerName, 
-                bowlerName, 
-                explicitOvers, 
-                explicitBalls, 
-                explicitTotalRuns, 
-                explicitTotalWickets, 
-                inningId
-            ]
-        );
-
-        // Update parent match metadata (failover for standalone metadata patch)
-        await client.query(
-            `UPDATE matches SET 
-                total_overs = COALESCE($2, total_overs), 
-                updated_at = CURRENT_TIMESTAMP 
-             WHERE id = $1`, 
-            [matchId, matchTotalOvers]
-        );
-
-        if (!syncOnly && ballData && !undo) {
-            // 2. Log Ball Event in Postgres
-            const ballRes = await client.query(
-                `INSERT INTO ball_events (inning_id, over_number, ball_number, bowler_name, batter_name, runs, is_extra, extra_type, extra_runs, is_wicket, wicket_type, fielder_name, commentary) 
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
-                [inningId, ballData.overNumber, ballData.ballNumber, ballData.bowlerName, ballData.batterName, ballData.runs, ballData.isExtra, ballData.extraType, ballData.extraRuns, ballData.isWicket, ballData.wicketType, ballData.fielderName, ballData.commentary]
-            );
-
-            const ballId = ballRes.rows[0].id;
-
-            // 2b. Sync Aggregates to Postgres
-            const isWide = ballData.extraType === 'WIDE';
-            const isNoBall = ballData.extraType === 'NO_BALL';
-            const isBye = ballData.extraType === 'BYE';
-            const isLegBye = ballData.extraType === 'LEG_BYE';
-
-            const totalRunsToAdd = ballData.runs + (isWide || isNoBall ? 1 : 0);
-            const batterRunsToAdd = (!isWide && !isBye && !isLegBye) ? ballData.runs : 0;
-            const bowlerRunsToAdd = (!isBye && !isLegBye) ? totalRunsToAdd : 0;
-            const isWicket = ballData.isWicket;
-            const isValidBall = !isWide && !isNoBall;
-
-            // A. (REDUNDANT team total UPDATE REMOVED - already handled at top of handler)
-
-            // B. Update Batter Stats (Prioritize Absolute Snapshot for Scorer Sync)
-            const { runs: absStrikerRuns, ballsFaced: absStrikerBalls, fours: absStrikerFours, sixes: absStrikerSixes } = JSON.parse(event.body);
-
-            await client.query(
-                `UPDATE players SET 
-                    runs = COALESCE($1, runs + $2), 
-                    balls_faced = COALESCE($3, balls_faced + $4),
-                    fours = COALESCE($5, fours + $6),
-                    sixes = COALESCE($7, sixes + $8),
-                    is_out = $9,
-                    wicket_by = $10,
-                    wicket_type = $11,
-                    fielder_name = $12
-                 WHERE inning_id = $13 AND name = $14`,
-                [
-                    absStrikerRuns, batterRunsToAdd,
-                    absStrikerBalls, isValidBall ? 1 : 0,
-                    absStrikerFours, ballData.runs === 4 ? 1 : 0,
-                    absStrikerSixes, ballData.runs === 6 ? 1 : 0,
-                    isWicket && ballData.wicketType !== 'RETIRED_HURT',
-                    isWicket ? ballData.bowlerName : null,
-                    isWicket ? ballData.wicketType : null,
-                    ballData.fielderName || null,
-                    inningId,
-                    ballData.batterName
-                ]
-            );
-
-            // C. Update Bowler Stats (Prioritize Absolute Snapshot for Scorer Sync)
-            const { bowlerRuns: absBowlerRuns, bowlerWickets: absBowlerWickets } = JSON.parse(event.body);
-            const nextBowlerOvers = (explicitBowlerOvers !== undefined) ? explicitBowlerOvers : Math.floor((ballData.overNumber * 6 + ballData.ballNumber) / 6);
-            const nextBowlerBalls = (explicitBowlerBalls !== undefined) ? explicitBowlerBalls : ballData.ballNumber % 6;
-
-            await client.query(
-                `UPDATE bowlers SET 
-                    runs_conceded = COALESCE($1, runs_conceded + $2), 
-                    wickets = COALESCE($3, wickets + $4),
-                    overs_completed = $5,
-                    balls = $6
-                 WHERE inning_id = $7 AND name = $8`,
-                [
-                    absBowlerRuns, bowlerRunsToAdd,
-                    absBowlerWickets, (isWicket && !['RUN_OUT', 'RETIRED_HURT', 'RETIRED_OUT'].includes(ballData.wicketType)) ? 1 : 0,
-                    nextBowlerOvers,
-                    nextBowlerBalls,
-                    inningId,
-                    ballData.bowlerName
-                ]
-            );
-        }
-
-        // 3. Stream to Kafka (Summary update for sync-only, or full ball update)
+        // Construct the unified match event message
         const message = {
-            ...ballData, // Ball-specific details (must come first)
-            matchId,
-            inningId,
-            type: (syncOnly || undo) ? 'STATE_SYNC' : 'LIVE_SCORE_UPDATE',
+            ...body,
             timestamp: new Date().toISOString(),
-            strikerName,
-            nonStrikerName,
-            bowlerName,
-            bowlerOvers: explicitBowlerOvers,
-            bowlerBalls: explicitBowlerBalls,
-            runs: explicitTotalRuns, // Definitive total match runs
-            wickets: explicitTotalWickets, // Definitive total match wickets
-            matchTotalOvers: matchTotalOvers,
-            currentOvers: explicitOvers,
-            currentBalls: explicitBalls,
-            overs: explicitOvers, // Backwards compat for old clients
-            balls: explicitBalls, // Backwards compat for old clients
-            undo: undo || false
+            type: (syncOnly || undo) ? 'STATE_SYNC' : 'LIVE_SCORE_UPDATE'
         };
 
-        await producer.send({
-            topic: 'score-updates',
-            messages: [{ value: JSON.stringify(message) }],
+        // 1. Publish to character-perfectly technically shard SNS Topic (The Fan-Out Hub)
+        const command = new PublishCommand({
+            TopicArn: TOPIC_ARN,
+            Message: JSON.stringify(message),
+            MessageAttributes: {
+                'EventType': {
+                    DataType: 'String',
+                    StringValue: (syncOnly || undo) ? 'STATE_SYNC' : 'LIVE_SCORE_UPDATE'
+                }
+            }
         });
 
-        // 4. Fast-Path Broadcast Trigger
-        const mockKafkaEvent = {
-            records: {
-                "score-updates-0": [
-                    { value: Buffer.from(JSON.stringify(message)).toString('base64') }
-                ]
-            }
-        };
-
-        try {
-            await lambdaClient.send(new InvokeCommand({
-                FunctionName: BROADCASTER_LAMBDA,
-                InvocationType: "Event",
-                Payload: JSON.stringify(mockKafkaEvent)
-            }));
-        } catch (broadCastErr) {
-            console.error("Fast-Path Broadcast Trigger failed:", broadCastErr);
-        }
+        const snsRes = await snsClient.send(command);
+        console.log(`SNS Event Published: ${snsRes.MessageId}`);
 
         return {
             statusCode: 200,
-            body: JSON.stringify({ success: true, ballId: ballId }),
-            headers: { 'Content-Type': 'application/json' }
+            body: JSON.stringify({ 
+                success: true, 
+                messageId: snsRes.MessageId,
+                note: "v2.0 Decoupled Fan-Out Active"
+            }),
+            headers: { 
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*' 
+            }
         };
 
     } catch (error) {
-        console.error('Error producing score update:', error);
+        console.error('Producer Error:', error);
         return {
             statusCode: 500,
-            body: JSON.stringify({ error: error.message })
+            body: JSON.stringify({ error: error.message }),
+            headers: { 'Access-Control-Allow-Origin': '*' }
         };
-    } finally {
-        await client.end();
-        await producer.disconnect();
     }
 };

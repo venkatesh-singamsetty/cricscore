@@ -14,7 +14,12 @@ This document provides a breakdown of the estimated operational costs for the Cr
 *   **Free Tier**: 1 million messages + 750,000 connection minutes per month are **FREE**.
 *   **Est. Usage**: High fan counts (100+ fans per match) consume messages quickly, but standard usage remains free.
 
-### 3. **Storage: Amazon S3 & DynamoDB**
+### 3. **Messaging & Buffering (AWS SNS & SQS)**
+*   **SNS (Fan-Out Hub)**: First 1 Million requests per month are **FREE**.
+*   **SQS (Reliability Buffer)**: First 1 Million requests per month are **FREE**.
+*   **Est. Usage**: Even with 4,000 matches (240 balls each), the messaging infrastructure operates entirely within the $0 tier.
+
+### 4. **Storage: Amazon S3 & DynamoDB**
 *   **S3**: First 5GB is **FREE**. (The React app is ~5MB).
 *   **DynamoDB**: 25GB of storage is **FREE**. (Connection tracking is negligible).
 
@@ -41,7 +46,7 @@ This document provides a breakdown of the estimated operational costs for the Cr
 
 ---
 
-## 💸 Detailed Ownership Costs (v1.5.2)
+## 💸 Detailed Ownership Costs (v2.0)
 
 CricScore is designed for **maximum profitability** on minimal infrastructure. Below is the projected cost of ownership, including a custom domain (starting from **$2.00/year**).
 
@@ -56,7 +61,7 @@ CricScore is designed for **maximum profitability** on minimal infrastructure. B
 
 ---
 
-## 🏗️ Match Capacity & Scale (v1.5.2)
+## 🏗️ Match Capacity & Scale (v2.0)
 
 For a standard **20-Overs Match** (120 balls per innings = **240 total events/match**), the platform can support the following volume before exceeding the $0 tier.
 

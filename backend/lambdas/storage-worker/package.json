@@ -1,0 +1,11 @@
+{
+  "name": "storage-worker",
+  "version": "1.0.0",
+  "description": "CricScore v2.0 Storage Worker",
+  "main": "index.js",
+  "type": "commonjs",
+  "dependencies": {
+    "kafkajs": "^2.2.4",
+    "pg": "^8.20.0"
+  }
+}

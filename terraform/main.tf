@@ -236,16 +236,26 @@ resource "aws_iam_role_policy_attachment" "lambda_dynamo_attach" {
   policy_arn = aws_iam_policy.lambda_dynamo.arn
 }
 
-# Add policy for SES access
-resource "aws_iam_policy" "lambda_ses" {
-  name        = "${var.project_name}-lambda-ses"
-  description = "Allows Lambda to send emails via SES"
+# Add policy for SNS & SQS access (v2.0)
+resource "aws_iam_policy" "lambda_messaging" {
+  name        = "${var.project_name}-lambda-messaging"
+  description = "Allows Lambda to use SNS & SQS for Fan-Out"
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        Action   = ["ses:SendEmail", "ses:SendRawEmail"]
+        Action   = ["sns:Publish", "sns:Subscribe"]
+        Effect   = "Allow"
+        Resource = "*"
+      },
+      {
+        Action   = [
+          "sqs:ReceiveMessage",
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes",
+          "sqs:SendMessage"
+        ]
         Effect   = "Allow"
         Resource = "*"
       }
@@ -253,9 +263,9 @@ resource "aws_iam_policy" "lambda_ses" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "lambda_ses_attach" {
+resource "aws_iam_role_policy_attachment" "lambda_messaging_attach" {
   role       = aws_iam_role.lambda_role.name
-  policy_arn = aws_iam_policy.lambda_ses.arn
+  policy_arn = aws_iam_policy.lambda_messaging.arn
 }
 
 # --- 8. Match API Lambda Function ---
@@ -382,11 +392,7 @@ resource "aws_lambda_function" "score_update" {
 
   environment {
     variables = {
-      DATABASE_URL       = var.database_url
-      KAFKA_BROKERS      = var.kafka_bootstrap_servers
-      KAFKA_USERNAME     = var.kafka_username
-      KAFKA_PASSWORD     = var.kafka_password
-      BROADCASTER_LAMBDA = aws_lambda_function.kafka_consumer.arn
+      MATCH_EVENTS_TOPIC = aws_sns_topic.match_events.arn
     }
   }
 
@@ -568,28 +574,90 @@ resource "aws_iam_role_policy_attachment" "lambda_websocket_attach" {
   policy_arn = aws_iam_policy.lambda_websocket.arn
 }
 
-# IAM Policy for Lambda Invocation (Fast-Path)
-resource "aws_iam_policy" "lambda_invoke" {
-  name        = "${var.project_name}-lambda-invoke"
-  description = "Allow Lambda to trigger other Lambdas"
+# --- 11. v2.0 'Fan-Out' Messaging Infrastructure ---
 
-  policy = jsonencode({
+# SNS Topic: The Event Hub
+resource "aws_sns_topic" "match_events" {
+  name = "${var.project_name}-match-events"
+}
+
+# SQS Queue: The Reliability Buffer
+resource "aws_sqs_queue" "storage_buffer" {
+  name                      = "${var.project_name}-storage-buffer"
+  message_retention_seconds = 86400 # 1 day
+  receive_wait_time_seconds = 20    # Long polling
+}
+
+# SNS Sub 1: Broadcaster (Fast-Path)
+resource "aws_sns_topic_subscription" "broadcaster_sub" {
+  topic_arn = aws_sns_topic.match_events.arn
+  protocol  = "lambda"
+  endpoint  = aws_lambda_function.kafka_consumer.arn
+}
+
+resource "aws_lambda_permission" "sns_broadcaster" {
+  statement_id  = "AllowExecutionFromSNS"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.kafka_consumer.function_name
+  principal     = "sns.amazonaws.com"
+  source_arn    = aws_sns_topic.match_events.arn
+}
+
+# SNS Sub 2: SQS Queue (Reliability Path)
+resource "aws_sns_topic_subscription" "sqs_sub" {
+  topic_arn = aws_sns_topic.match_events.arn
+  protocol  = "sqs"
+  endpoint  = aws_sqs_queue.storage_buffer.arn
+}
+
+resource "aws_sqs_queue_policy" "allow_sns" {
+  queue_url = aws_sqs_queue.storage_buffer.id
+  policy    = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Action = [
-          "lambda:InvokeFunction"
-        ]
-        Effect   = "Allow"
-        Resource = "arn:aws:lambda:${var.aws_region}:*:function:*"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = "*"
+      Action    = "sqs:SendMessage"
+      Resource  = aws_sqs_queue.storage_buffer.arn
+      Condition = {
+        ArnEquals = { "aws:SourceArn" = aws_sns_topic.match_events.arn }
       }
-    ]
+    }]
   })
 }
 
-resource "aws_iam_role_policy_attachment" "lambda_invoke_attach" {
-  role       = aws_iam_role.lambda_role.name
-  policy_arn = aws_iam_policy.lambda_invoke.arn
+# --- 12. v2.0 'Storage Worker' Lambda ---
+
+data "archive_file" "storage_worker_zip" {
+  type        = "zip"
+  source_dir  = "${path.module}/../backend/lambdas/storage-worker"
+  output_path = "${path.module}/storage_worker.zip"
+}
+
+resource "aws_lambda_function" "storage_worker" {
+  filename         = data.archive_file.storage_worker_zip.output_path
+  function_name    = "${var.project_name}-storage-worker"
+  role             = aws_iam_role.lambda_role.arn
+  handler          = "index.handler"
+  runtime          = "nodejs18.x"
+  memory_size      = 256
+  timeout          = 30
+  source_code_hash = data.archive_file.storage_worker_zip.output_base64sha256
+
+  environment {
+    variables = {
+      DATABASE_URL   = var.database_url
+      KAFKA_BROKERS  = var.kafka_bootstrap_servers
+      KAFKA_USERNAME = var.kafka_username
+      KAFKA_PASSWORD = var.kafka_password
+    }
+  }
+}
+
+resource "aws_lambda_event_source_mapping" "sqs_trigger" {
+  event_source_arn = aws_sqs_queue.storage_buffer.arn
+  function_name    = aws_lambda_function.storage_worker.arn
+  batch_size       = 1
 }
 
 
