@@ -81,10 +81,10 @@ resource "aws_route53_zone" "primary" {
 
 🔍 **Technical Logic**: See **[`docs/aiven.md`](./aiven.md)** for deep details on Kafka mTLS security and PostgreSQL persistence.
 
-### 2. Security Vault (`certs/`)
+### 2. Security Vault (`certs/`) & Automated Pipeline
 CricScore uses mTLS for Kafka security. Download `ca.pem`, `cert.pem`, and `key.pem` from the Aiven Kafka service console.
 - **Location**: Place these in a root `/certs/` folder.
-- **Injection**: The `./deploy.sh` script automatically copies these to your `kafka-consumer` and `storage-worker` prior to Terraform bundling.
+- **Automated Hydration**: The `./deploy.sh` script automatically traverses all lambda directories, executes `npm install --production`, and securely injects certificates prior to Terraform bundling, preventing `Runtime.ImportModuleError`.
 - **⚠️ SECURITY**: Never commit this folder to GitHub. It is excluded by `.gitignore`.
 
 ### 3. Infrastructure Variables (`terraform.tfvars`)

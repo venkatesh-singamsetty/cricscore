@@ -3,55 +3,6 @@
 CricScore is built on a high-concurrency, **Event-Driven Architecture (EDA)** where every ball event is a persistent record in **Aiven PostgreSQL** and a real-time broadcast via **Aiven Kafka**.
 
 ---
-
-## 🔄 Detailed Sequence Flows (v2.0 Fan-Out)
-
-### 1. 📊 Fetch Match Details (Deep-Link Hydration)
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Viewer as Fan / Spectator
-    participant App as React App
-    participant Lambda as Match API Lambda
-    participant Aiven_PG as Aiven PostgreSQL
-
-    Viewer->>App: Visit Link (?matchId=xxx)
-    App->>App: useEffect: Read ID from URL
-    App->>Lambda: GET /match/{id}/details
-    rect rgb(0, 0, 0, 0.1)
-        Lambda->>Aiven_PG: SELECT matches, innings, players, balls
-    end
-    Lambda-->>App: Return Unified State
-    App-->>Viewer: Render Scoreboard
-```
-
-### 2. ⚡ Live Score Update (Decoupled Fan-Out)
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Scorer as Scorer
-    participant Producer as Match Producer (Lambda)
-    participant SNS as AWS SNS (Event Hub)
-    participant Broadcaster as Broadcaster (Lambda)
-    participant SQS as AWS SQS (Storage Buffer)
-    participant Consumer as Storage Worker (Lambda)
-    participant Aiven_Hub as Aiven Data Hub (PG/Kafka)
-
-    Scorer->>Producer: POST /update-score
-    Producer->>SNS: Publish Match Event
-    Producer-->>Scorer: HTTP 200 OK (Instant)
-    
-    rect rgb(0, 0, 0, 0.1)
-        SNS-)Broadcaster: Fast-Path Invoke (WebSockets)
-    end
-    
-    rect rgb(0, 100, 0, 0.1)
-        SNS->>SQS: Buffer for Reliability
-        SQS-)Consumer: Asynch Ingest
-        Consumer->>Aiven_Hub: Commit PG & Publish Kafka
-    end
-```
-
 ## 🔄 System Overview & Infrastructure Journey (v2.0)
 ```mermaid
 graph TD
@@ -83,6 +34,61 @@ graph TD
     Broadcaster --> APIGW_WS
 ```
 
+## 🔄 Detailed Sequence Flows (v2.0 Fan-Out)
+
+### 1. 📊 Fetch Match Details (Deep-Link Hydration)
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Viewer as Fan / Spectator
+    participant App as React App
+    participant Lambda as Match API Lambda
+    participant Aiven_PG as Aiven PostgreSQL
+
+    Viewer->>App: Visit Link (?matchId=xxx)
+    App->>App: useEffect: Read ID from URL
+    App->>Lambda: GET /match/{id}/details
+    rect rgb(0, 0, 0, 0.1)
+        Lambda->>Aiven_PG: SELECT matches, innings, players, balls
+    end
+    Lambda-->>App: Return Unified State
+    App-->>Viewer: Render Scoreboard
+```
+
+### 2. ⚡ Live Score Update (Decoupled Fan-Out)
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Scorer as Scorer
+    participant Producer as Match API Gateway
+    participant SNS as AWS SNS (Event Hub)
+    participant Broadcaster as Broadcaster Lambda
+    participant APIGW_WS as API Gateway (WebSockets)
+    actor Viewer as Fan / Spectator
+    
+    participant SQS as AWS SQS (Storage Buffer)
+    participant Consumer as Storage Worker (Lambda)
+    participant Aiven_Hub as Aiven PostgreSQL & Kafka
+
+    Scorer->>Producer: POST /update-score
+    Producer->>SNS: Publish Match Event
+    Producer-->>Scorer: HTTP 200 OK (Sub-100ms)
+    
+    rect rgb(0, 0, 0, 0.1)
+        Note right of SNS: Phase 1: Zero-Latency Spectator Sync
+        SNS-)Broadcaster: Fast-Path Push
+        Broadcaster->>APIGW_WS: POST to Active Connections
+        APIGW_WS-->>Viewer: Live Score Payload
+    end
+    
+    rect rgb(0, 100, 0, 0.1)
+        Note right of SNS: Phase 2: Reliable Data Persistence
+        SNS->>SQS: Reliable Enqueue
+        SQS-)Consumer: Batch Event Pull
+        Consumer->>Aiven_Hub: ACID Commit (PG) & SSL Stream (Kafka)
+    end
+```
+
 ---
 
 ## 🏛️ Technical Pillars & Specifications
@@ -92,6 +98,8 @@ CricScore implements a high-performance **Event-Driven Architecture (EDA)** usin
 - **mTLS Security:** Hardened, certificate-based encryption for all Kafka traffic using serverless certificate injection.
 - **Zero-Latency Broadcast:** Achieves sub-100ms global score delivery using an asynchronous broadcaster lambda driven instantly by SNS.
 - **State Restoration (v2.0):** Automated deep-link hydration for instant bypass-routing to active match scoreboards via UUID-anchored URLs.
+- **Aiven TLS Bypass:** Explicit fallback overriding Node v18 strict intermediate CAs (`NODE_TLS_REJECT_UNAUTHORIZED = '0'`) allowing seamless PostgreSQL scaling.
+- **UI Render Debouncing:** Synchronous `useRef` execution locks prevent React async state-drifts during rapid scoring bursts, enforcing exact chronological network sequences.
 - **Secure Isolation:** Enterprise-grade multi-tenant scoring engine with **VITE_ADMIN_PIN** record governance.
 
 ---

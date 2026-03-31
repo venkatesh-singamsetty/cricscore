@@ -15,7 +15,7 @@ CricScore is a highly performant, serverless cricket engine designed for sub-100
 ## 🗄️ Aiven Managed Services & AWS Fan-Out
 CricScore utilizes the **Aiven Lifecycle Management** platform combined with **AWS SNS/SQS** to provide professional-grade, high-availability data integrity:
 
-- **AWS SNS & SQS**: The **Fast-Path Event Hub** and **Reliability Buffer** ensuring ultra-low-latency UI updates without overwhelming databases.
+- **AWS SNS & SQS (v2.0)**: The **Fast-Path Event Hub** and **Reliability Buffer** fan-out pattern ensures sub-100ms ultra-low-latency UI broadcasts while synchronously protecting Aiven from traffic spikes.
 - **Aiven for PostgreSQL**: The **System of Record** for all historical match data, innings, and ball-by-ball archives.
 - **Aiven for Apache Kafka**: The **Enterprise Event Bus** providing persistent, replayable data streams for sub-second global propagation.
 - **Mutual TLS (mTLS)**: Hardened, certificate-based encryption for all Kafka traffic using serverless certificate injection.

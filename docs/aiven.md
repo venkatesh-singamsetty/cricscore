@@ -54,6 +54,7 @@ CricScore solves the **"Live Score Lag"** problem (the 10-30 second delay in typ
 ### ⚠️ Engineering Challenges Overcome
 -   **The mTLS Handshake**: Handshaking with Kafka using client certificates is resource-intensive for standard 128MB Lambdas. We optimized library selection and memory allocation (Upgrading to 256MB) to ensure smooth, zero-latency connections.
 -   **Synchronizing State**: We implemented a custom **"Undo" engine** that synchronizes deletions across both Postgres and Kafka streams to ensure spectators never see "ghost" balls.
+-   **Strict Certificate Chains**: Aiven's intermediate certificate authorities were natively blocked by Node v18 (`SELF_SIGNED_CERT_IN_CHAIN`). We implemented a raw environmental override (`NODE_TLS_REJECT_UNAUTHORIZED='0'`) to establish the connection without dropping AWS-to-Aiven traffic.
 
 ---
 
