@@ -55,7 +55,24 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ currentInnings, previousInnings
                 <td className={`px-4 py-3 text-[10px] font-black uppercase tracking-tight ${highlight ? 'text-indigo-100' : 'text-slate-500'}`}>
                   {player.isOut ? (
                     <span className="text-red-400 opacity-90">
-                      {player.wicketType?.toLowerCase().replace('_', ' ')} b {player.wicketBy}
+                      {(() => {
+                        const type = player.wicketType;
+                        const bowler = player.wicketBy;
+                        const fielder = player.fielderName;
+
+                        if (type === 'CAUGHT') {
+                          if (fielder === bowler) return `c & b ${bowler}`;
+                          return `c ${fielder || '---'} b ${bowler}`;
+                        }
+                        if (type === 'STUMPED') return `st ${fielder || '---'} b ${bowler}`;
+                        if (type === 'RUN_OUT') return `run out (${fielder || '---'})`;
+                        if (type === 'LBW') return `lbw b ${bowler}`;
+                        if (type === 'BOWLED') return `b ${bowler}`;
+                        if (type === 'HIT_WICKET') return `hit wicket b ${bowler}`;
+                        if (type === 'RETIRED_HURT') return 'retired hurt';
+                        if (type === 'RETIRED_OUT') return 'retired out';
+                        return `${type?.toLowerCase().replace(/_/g, ' ')}`;
+                      })()}
                     </span>
                   ) : (
                     <span className="text-green-300 opacity-90">{highlight ? 'batting' : 'not out'}</span>
@@ -239,9 +256,9 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ currentInnings, previousInnings
                       <div key={overNum} className="bg-white/5 border border-white/5 rounded-2xl p-4 hover:bg-white/10 transition-colors">
                         <div className="flex justify-between items-center mb-3">
                           <div className="flex items-center gap-2">
-                             <span className="text-xs font-black text-indigo-400 uppercase italic">Over {Number(overNum) + 1}</span>
-                             <span className="w-1 h-3 bg-slate-700 rounded-full"></span>
-                             <span className="text-[11px] font-bold text-slate-300 uppercase tracking-widest">{bowler}</span>
+                            <span className="text-xs font-black text-indigo-400 uppercase italic">Over {Number(overNum) + 1}</span>
+                            <span className="w-1 h-3 bg-slate-700 rounded-full"></span>
+                            <span className="text-[11px] font-bold text-slate-300 uppercase tracking-widest">{bowler}</span>
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-2">
@@ -281,10 +298,10 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ currentInnings, previousInnings
                     {(() => {
                       let w = 0, nb = 0, b = 0, lb = 0;
                       displayInnings.allBalls.forEach(ball => {
-                          if (ball.extraType === ExtraType.WIDE) w += (ball.extraRuns + ball.runs);
-                          if (ball.extraType === ExtraType.NO_BALL) nb += ball.extraRuns;
-                          if (ball.extraType === ExtraType.BYE) b += ball.runs;
-                          if (ball.extraType === ExtraType.LEG_BYE) lb += ball.runs;
+                        if (ball.extraType === ExtraType.WIDE) w += (ball.extraRuns + ball.runs);
+                        if (ball.extraType === ExtraType.NO_BALL) nb += ball.extraRuns;
+                        if (ball.extraType === ExtraType.BYE) b += ball.runs;
+                        if (ball.extraType === ExtraType.LEG_BYE) lb += ball.runs;
                       });
                       return (
                         <>

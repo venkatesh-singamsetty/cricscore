@@ -413,7 +413,10 @@ const MatchView: React.FC<MatchViewProps> = ({
 
         // Wicket Logic
         if (isWicket) {
-            nextInnings.totalWickets += 1;
+            // RETIRED_HURT does NOT count as a wicket (Law of Cricket)
+            if (wicketType !== WicketType.RETIRED_HURT) {
+                nextInnings.totalWickets += 1;
+            }
             if (!isWide && !isNoBall && wicketType !== WicketType.RUN_OUT && wicketType !== WicketType.RETIRED_HURT && wicketType !== WicketType.RETIRED_OUT) {
                 nextBowler.wickets += 1;
             }
@@ -456,16 +459,19 @@ const MatchView: React.FC<MatchViewProps> = ({
         }
 
         // Maiden Over check
+        // A maiden requires ZERO runs and NO wides/no-balls in the over
         if (overCompleted) {
             const currentOverNumber = newBallEvent.overNumber;
             const overBalls = finalInnings.allBalls.filter(b => b.overNumber === currentOverNumber);
 
-            const runsOffBatInOver = overBalls.reduce((sum, b) => {
-                if (b.extraType !== ExtraType.NONE) return sum;
-                return sum + b.runs;
-            }, 0);
+            const isMaiden = !overBalls.some(b =>
+                b.extraType === ExtraType.WIDE ||
+                b.extraType === ExtraType.NO_BALL ||
+                b.runs > 0 ||
+                b.extraRuns > 0
+            );
 
-            if (runsOffBatInOver === 0) {
+            if (isMaiden) {
                 const updatedBowler = { ...finalInnings.bowlers[bowler.id], maidens: (finalInnings.bowlers[bowler.id].maidens || 0) + 1 };
                 finalInnings.bowlers[bowler.id] = updatedBowler;
             }
@@ -477,7 +483,9 @@ const MatchView: React.FC<MatchViewProps> = ({
         setPendingWicketInfo(null);
 
         // Check Match/Innings End Conditions
-        const isAllOut = finalInnings.totalWickets >= 10;
+        // Innings ends if 10 wickets fall OR if fewer than 2 batters are left not out (handles teams < 11 players)
+        const validBattersCount = finalInnings.battingOrder.filter(id => !finalInnings.players[id].isOut).length;
+        const isAllOut = finalInnings.totalWickets >= 10 || validBattersCount < 2;
         const isOversDone = finalInnings.overs >= totalOvers;
         const isTargetChased = finalInnings.target && finalInnings.totalRuns >= finalInnings.target;
         const isMatchEnding = isAllOut || isOversDone || isTargetChased;
@@ -605,7 +613,16 @@ const MatchView: React.FC<MatchViewProps> = ({
                     </div>
                 </div>
                 <div className="p-6 grid grid-cols-2 gap-3">
-                    {[WicketType.BOWLED, WicketType.CAUGHT, WicketType.LBW, WicketType.RUN_OUT, WicketType.STUMPED].map((type) => (
+                    {/* Filter valid dismissals by delivery type per Laws of Cricket:
+                        Wide  → only Run Out (Law 25.6)
+                        No-Ball → only Caught & Run Out (Laws 23, 37, 39)
+                        Normal  → all modes */}
+                    {(pendingExtra === ExtraType.WIDE
+                        ? [WicketType.RUN_OUT]
+                        : pendingExtra === ExtraType.NO_BALL
+                            ? [WicketType.CAUGHT, WicketType.RUN_OUT]
+                            : [WicketType.BOWLED, WicketType.CAUGHT, WicketType.LBW, WicketType.RUN_OUT, WicketType.STUMPED, WicketType.HIT_WICKET]
+                    ).map((type) => (
                         <button
                             key={type}
                             onClick={() => {
@@ -781,23 +798,31 @@ const MatchView: React.FC<MatchViewProps> = ({
                     {innings.bowlingOrder.map(id => {
                         const bowler = innings.bowlers[id];
                         const isCurrent = id === innings.currentBowlerId;
+                        const maxBowlerOvers = Math.ceil(totalOvers / 5);
+                        const hasReachedQuota = bowler.overs >= maxBowlerOvers;
+                        const isDisabled = isCurrent || hasReachedQuota;
                         return (
                             <button
                                 key={id}
                                 onClick={() => handleBowlerSelected(id)}
-                                disabled={isCurrent}
-                                className={`w-full text-left px-5 py-4 rounded-2xl flex justify-between items-center transition-all ${isCurrent ? 'bg-slate-800/30 opacity-20 cursor-not-allowed grayscale' : 'bg-white/5 hover:bg-purple-600 group active:scale-95 border border-white/5'}`}
+                                disabled={isDisabled}
+                                className={`w-full text-left px-5 py-4 rounded-2xl flex justify-between items-center transition-all ${isDisabled ? 'bg-slate-800/30 opacity-20 cursor-not-allowed grayscale' : 'bg-white/5 hover:bg-purple-600 group active:scale-95 border border-white/5'}`}
                             >
                                 <div className="flex items-center gap-3 min-w-0">
                                     <span className="text-lg opacity-40 group-hover:opacity-100 transition-opacity">🎾</span>
                                     <div className="flex flex-col min-w-0">
-                                        <span className={`font-black uppercase tracking-tight text-sm italic truncate ${isCurrent ? 'text-slate-500' : 'text-slate-200 group-hover:text-white'}`}>{bowler.name}</span>
-                                        <div className="text-[10px] font-bold text-slate-500 group-hover:text-purple-200">{bowler.overs}.{bowler.balls} OVS • {bowler.wickets} WKT</div>
+                                        <span className={`font-black uppercase tracking-tight text-sm italic truncate ${isDisabled ? 'text-slate-500' : 'text-slate-200 group-hover:text-white'}`}>{bowler.name}</span>
+                                        <div className="text-[10px] font-bold text-slate-500 group-hover:text-purple-200">
+                                            {bowler.overs}.{bowler.balls} OVS • {bowler.wickets} WKT
+                                            {hasReachedQuota
+                                                ? <span className="ml-1 text-red-400 font-black"> • QUOTA FULL</span>
+                                                : <span className="ml-1 opacity-40">/ {maxBowlerOvers} max</span>}
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <span className="text-xs p-2 hover:bg-white/20 rounded-lg transition-colors" onClick={(e) => { e.stopPropagation(); handleRenameBowler(id); }}>✏️</span>
-                                    {!isCurrent && <span className="text-[10px] font-black uppercase tracking-widest text-purple-400 group-hover:text-white opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">Select</span>}
+                                    {!isDisabled && <span className="text-[10px] font-black uppercase tracking-widest text-purple-400 group-hover:text-white opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">Select</span>}
                                 </div>
                             </button>
                         );
