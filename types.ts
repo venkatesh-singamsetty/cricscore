@@ -20,6 +20,7 @@ export enum WicketType {
   LBW = 'LBW',
   RUN_OUT = 'RUN_OUT',
   STUMPED = 'STUMPED',
+  HIT_WICKET = 'HIT_WICKET',
   RETIRED_HURT = 'RETIRED_HURT',
   RETIRED_OUT = 'RETIRED_OUT'
 }
