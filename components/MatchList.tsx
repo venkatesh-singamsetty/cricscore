@@ -212,31 +212,44 @@ const MatchList: React.FC<MatchListProps> = ({ onSelectMatch, isAdmin, onResumeM
                                     </div>
                                     
                                     <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-center">
-                                        <div className="flex flex-col">
-                                            <h4 className="text-base font-black text-white uppercase tracking-tight italic group-hover:text-indigo-400 transition-colors">
-                                                {match.team_a_name}
-                                            </h4>
-                                            {match.innings?.[0] && (
-                                                <span className="text-xs font-black text-slate-400 tabular-nums">
-                                                    {match.innings[0].total_runs}/{match.innings[0].total_wickets} 
-                                                    <span className="text-[10px] text-slate-600 lowercase ml-1">({match.innings[0].overs}.{match.innings[0].balls})</span>
-                                                </span>
-                                            )}
-                                        </div>
+                                        {(() => {
+                                            // Match each team's innings by batting_team_name (not by index position)
+                                            const teamAInnings = match.innings?.find(i => i.batting_team_name === match.team_a_name);
+                                            const teamBInnings = match.innings?.find(i => i.batting_team_name === match.team_b_name);
+                                            return (
+                                                <>
+                                                    <div className="flex flex-col">
+                                                        <h4 className="text-base font-black text-white uppercase tracking-tight italic group-hover:text-indigo-400 transition-colors">
+                                                            {match.team_a_name}
+                                                        </h4>
+                                                        {teamAInnings ? (
+                                                            <span className="text-xs font-black text-slate-400 tabular-nums">
+                                                                {teamAInnings.total_runs}/{teamAInnings.total_wickets}
+                                                                <span className="text-[10px] text-slate-600 lowercase ml-1">({teamAInnings.overs}.{teamAInnings.balls})</span>
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-xs font-black text-slate-600 tabular-nums">—</span>
+                                                        )}
+                                                    </div>
 
-                                        <div className="text-[10px] font-black text-slate-600 uppercase italic">VS</div>
+                                                    <div className="text-[10px] font-black text-slate-600 uppercase italic">VS</div>
 
-                                        <div className="flex flex-col text-right">
-                                            <h4 className="text-base font-black text-white uppercase tracking-tight italic group-hover:text-indigo-400 transition-colors">
-                                                {match.team_b_name}
-                                            </h4>
-                                            {match.innings?.[1] && (
-                                                <span className="text-xs font-black text-slate-400 tabular-nums">
-                                                    {match.innings[1].total_runs}/{match.innings[1].total_wickets} 
-                                                    <span className="text-[10px] text-slate-600 lowercase ml-1">({match.innings[1].overs}.{match.innings[1].balls})</span>
-                                                </span>
-                                            )}
-                                        </div>
+                                                    <div className="flex flex-col text-right">
+                                                        <h4 className="text-base font-black text-white uppercase tracking-tight italic group-hover:text-indigo-400 transition-colors">
+                                                            {match.team_b_name}
+                                                        </h4>
+                                                        {teamBInnings ? (
+                                                            <span className="text-xs font-black text-slate-400 tabular-nums">
+                                                                {teamBInnings.total_runs}/{teamBInnings.total_wickets}
+                                                                <span className="text-[10px] text-slate-600 lowercase ml-1">({teamBInnings.overs}.{teamBInnings.balls})</span>
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-xs font-black text-slate-600 tabular-nums">—</span>
+                                                        )}
+                                                    </div>
+                                                </>
+                                            );
+                                        })()}
                                     </div>
 
                                     {result && (

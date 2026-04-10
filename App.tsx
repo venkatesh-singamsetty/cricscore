@@ -300,16 +300,25 @@ const App: React.FC = () => {
             setCurrentInnings(completedInnings);
             setMatchStatus(MatchStatus.COMPLETED);
 
-            // Sync final match status to DB
+            // Sync final match status + winner to DB
             if (matchId) {
                 const API_URL = import.meta.env.VITE_API_URL || "";
                 try {
+                    // Compute winner string from completedInnings (2nd innings)
+                    const target = completedInnings.target || 0;
+                    let matchWinner = '';
+                    if (completedInnings.totalRuns >= target) {
+                        matchWinner = `${completedInnings.battingTeamName} WON BY ${10 - completedInnings.totalWickets} WICKETS`;
+                    } else {
+                        const runDiff = (target - 1) - completedInnings.totalRuns;
+                        matchWinner = runDiff === 0 ? 'MATCH TIED' : `${completedInnings.bowlingTeamName} WON BY ${runDiff} RUNS`;
+                    }
                     await fetch(`${API_URL}/match/${matchId}`, {
                         method: "PATCH",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ status: MatchStatus.COMPLETED })
+                        body: JSON.stringify({ status: MatchStatus.COMPLETED, matchWinner })
                     });
-                    console.log("Match Status Updated to COMPLETED ✅");
+                    console.log("Match Status + Winner Updated to COMPLETED ✅", matchWinner);
                 } catch (err) {
                     console.error("Failed to update match status:", err);
                 }

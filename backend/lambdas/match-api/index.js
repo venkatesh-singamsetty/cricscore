@@ -159,6 +159,13 @@ exports.handler = async (event) => {
 
             await client.query('BEGIN');
             try {
+                // ✅ Mark innings 1 as completed before creating innings 2
+                await client.query(
+                    `UPDATE innings SET is_completed = TRUE, updated_at = CURRENT_TIMESTAMP
+                     WHERE match_id = $1 AND inning_number = $2`,
+                    [matchId, inningNumber - 1]
+                );
+
                 const res = await client.query(
                     'INSERT INTO innings (match_id, inning_number, batting_team_name, bowling_team_name, target) VALUES ($1, $2, $3, $4, $5) RETURNING id',
                     [matchId, inningNumber, battingTeam, bowlingTeam, target]
@@ -177,6 +184,9 @@ exports.handler = async (event) => {
                 }
 
                 await client.query('COMMIT');
+
+                // 📡 Notify viewers that innings 2 has started
+                await broadcastHubUpdate(matchId);
 
                 return {
                     statusCode: 201,
@@ -229,7 +239,7 @@ exports.handler = async (event) => {
         // PATCH /match/{matchId} (Update Metadata)
         if (httpMethod === 'PATCH' && pathParameters && pathParameters.matchId) {
             const matchId = pathParameters.matchId;
-            const { totalOvers, status } = JSON.parse(body);
+            const { totalOvers, status, matchWinner } = JSON.parse(body);
             
             const updates = [];
             const params = [matchId];
@@ -242,10 +252,24 @@ exports.handler = async (event) => {
                 updates.push(`status = $${params.length + 1}`);
                 params.push(status);
             }
+            if (matchWinner !== undefined) {
+                updates.push(`match_winner = $${params.length + 1}`);
+                params.push(matchWinner);
+            }
             
             if (updates.length > 0) {
                 const query = `UPDATE matches SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *`;
                 const res = await client.query(query, params);
+
+                // ✅ When match completes, mark all innings as completed
+                if (status === 'COMPLETED') {
+                    await client.query(
+                        `UPDATE innings SET is_completed = TRUE, updated_at = CURRENT_TIMESTAMP WHERE match_id = $1`,
+                        [matchId]
+                    );
+                    console.log(`✅ All innings for match ${matchId} marked as completed.`);
+                }
+
                 return {
                     statusCode: 200,
                     body: JSON.stringify(res.rows[0] || {}),
@@ -283,21 +307,26 @@ exports.handler = async (event) => {
 
                 const innArr = inningsToReport;
 
+            // Derive result from frontend-provided reportState (avoids DB status race condition)
             let resultText = "MATCH IN PROGRESS";
-            if (matchRecord.status === 'COMPLETED') {
-                if (innArr.length >= 2) {
-                    const i1 = innArr[0];
-                    const i2 = innArr[1];
-                    if (i2.total_runs > i1.total_runs) {
-                        resultText = `${i2.batting_team_name} WON BY ${10 - i2.total_wickets} WICKETS`;
-                    } else if (i1.total_runs > i2.total_runs) {
-                        resultText = `${i1.batting_team_name} WON BY ${i1.total_runs - i2.total_runs} RUNS`;
-                    } else if (i1.total_runs === i2.total_runs && i2.balls >= (matchRecord.total_overs * 6)) {
-                        resultText = "MATCH TIED";
-                    }
-                } else if (matchRecord.updated_at < (new Date(Date.now() - 86400000))) {
-                    resultText = "INCOMPLETE / ABANDONED";
+            if (innArr.length >= 2) {
+                const i1 = innArr[0];
+                const i2 = innArr[1];
+                // Support both DB snake_case and frontend camelCase field names
+                const r1 = i1.totalRuns !== undefined ? i1.totalRuns : (i1.total_runs || 0);
+                const r2 = i2.totalRuns !== undefined ? i2.totalRuns : (i2.total_runs || 0);
+                const w2 = i2.totalWickets !== undefined ? i2.totalWickets : (i2.total_wickets || 0);
+                const t1 = i1.battingTeamName || i1.batting_team_name || 'Team 1';
+                const t2 = i2.battingTeamName || i2.batting_team_name || 'Team 2';
+                if (r2 > r1) {
+                    resultText = `${t2} WON BY ${10 - w2} WICKETS`;
+                } else if (r1 > r2) {
+                    resultText = `${t1} WON BY ${r1 - r2} RUNS`;
+                } else {
+                    resultText = "MATCH TIED";
                 }
+            } else if (matchRecord.status === 'COMPLETED') {
+                resultText = "INCOMPLETE / ABANDONED";
             }
 
             console.log(`📧 Preparing SES Email for ${matchId} to ${emailTo}. Result: ${resultText}`);
