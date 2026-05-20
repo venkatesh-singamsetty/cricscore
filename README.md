@@ -117,3 +117,25 @@ CricScore implements a high-performance **Event-Driven Architecture (EDA)** usin
 
 ---
 © 2026 CricScore Engine. Designed for the Serverless Generation.
+
+## 🔐 CI / GitHub Secrets
+The GitHub Actions workflows require a few repository secrets to run safely. Add these under the repository Settings → Secrets → Actions.
+
+- **AWS_REGION**: AWS region to deploy into (e.g. `us-east-1`).
+- **AWS_ACCESS_KEY_ID** and **AWS_SECRET_ACCESS_KEY**: credentials used by `aws-actions/configure-aws-credentials`.
+- **AWS_ACCOUNT_ID**: (used to compose ECR / ARNs in CI).
+- **API_GATEWAY_ID**: API Gateway REST API id used by the frontend (replaces hard-coded id).
+- **WS_API_GATEWAY_ID**: API Gateway WebSocket API id used by the frontend.
+- **VITE_ADMIN_PIN**: Admin PIN injected into the frontend build (kept secret).
+- **TF_SES_SOURCE_EMAIL**, **TF_DATABASE_URL**, **TF_KAFKA_BROKERS**, **TF_KAFKA_USERNAME**, **TF_KAFKA_PASSWORD**: Terraform / backend secrets used by `backend-deploy`.
+- **KAFKA_CA_CERT_B64**, **KAFKA_CERT_B64**, **KAFKA_KEY_B64**: base64-encoded certificates restored by the CI into Lambda packages.
+
+Tip: Non-sensitive values such as `S3_BUCKET` or `CLOUDFRONT_DISTRIBUTION_ID` can be stored as repository Variables or documented in `docs/deployment.md` if you prefer not to use secrets.
+
+### Repository Variables (non-sensitive)
+For convenience and safer workflow configuration, set the following repository-level Variables (Settings → Variables → Actions). These values are referenced by the workflows as `vars.*` and are intended for non-sensitive identifiers.
+
+- **S3_BUCKET**: S3 bucket name used to host the frontend build (e.g. `cricscore-app-20260308065217521900000001`).
+- **CLOUDFRONT_DISTRIBUTION_ID**: CloudFront distribution ID for invalidations (e.g. `EIXAGLEK1KNCP`).
+
+If these variables are not set, the workflow will emit a warning during the `Validate repository Variables` step. For sensitive values keep using repository Secrets.
