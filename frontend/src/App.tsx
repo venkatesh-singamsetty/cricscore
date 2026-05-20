@@ -630,7 +630,7 @@ const App: React.FC = () => {
         let batting = `\n┃ 🏏 BATTING                                          ┃\n`;
         innings.battingOrder.forEach(id => {
             const p = innings.players[id];
-            if (p.ballsFaced > 0 || p.isOut || p.id === innings.strikerId || p.id === innings.nonStrikerId) {
+            if (p.ballsFaced > 0 || p.isOut || p.wicketType === 'RETIRED_HURT' || p.wicketType === 'RETIRED_OUT' || p.id === innings.strikerId || p.id === innings.nonStrikerId) {
                 const score = `${p.runs}(${p.ballsFaced})`.padEnd(10);
                 const boundary = `${p.fours}x4 ${p.sixes}x6`.padEnd(10);
                 const line = `┃ ${p.name.padEnd(15)} | ${score} | ${boundary} ┃`;

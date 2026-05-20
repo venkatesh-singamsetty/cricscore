@@ -3,7 +3,7 @@ set -e
 
 # 1. Install Dependencies & Build the app
 echo "📦 Installing required frontend dependencies..."
-npm install
+(cd frontend && npm install)
 
 echo "📦 Installing required Lambda dependencies..."
 for dir in backend/lambdas/*/; do
@@ -14,7 +14,7 @@ for dir in backend/lambdas/*/; do
 done
 
 echo "🚀 Building the application..."
-npm run build
+(cd frontend && npm run build)
 
 
 # 2. Inject certificates from central vault into Lambda directories
@@ -38,7 +38,7 @@ BUCKET_NAME=$(terraform output -raw s3_bucket_name)
 
 # 5. Sync files
 echo "📦 Syncing files to S3 bucket: $BUCKET_NAME..."
-aws s3 sync ../dist/ s3://$BUCKET_NAME/ --delete
+aws s3 sync ../frontend/dist/ s3://$BUCKET_NAME/ --delete
 
 # 6. Invalidate CloudFront
 DIST_ID=$(terraform output -raw cloudfront_distribution_id)

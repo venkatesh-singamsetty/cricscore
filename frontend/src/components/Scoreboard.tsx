@@ -39,7 +39,7 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ currentInnings, previousInnings
           {(order || []).map((id) => {
             const player = players?.[id];
             if (!player) return null;
-            if (player.ballsFaced === 0 && !player.isOut && id !== displayInnings?.strikerId && id !== displayInnings?.nonStrikerId) {
+            if (player.ballsFaced === 0 && !player.isOut && player.wicketType !== 'RETIRED_HURT' && id !== displayInnings?.strikerId && id !== displayInnings?.nonStrikerId) {
               return null;
             }
             const isStriker = id === displayInnings?.strikerId;
@@ -53,8 +53,8 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ currentInnings, previousInnings
                   {player.name} {isStriker && <span className="text-indigo-300 animate-pulse ml-1 text-base">🏏</span>}
                 </td>
                 <td className={`px-4 py-3 text-[10px] font-black uppercase tracking-tight ${highlight ? 'text-indigo-100' : 'text-slate-500'}`}>
-                  {player.isOut ? (
-                    <span className="text-red-400 opacity-90">
+                  {player.isOut || player.wicketType === 'RETIRED_HURT' ? (
+                    <span className={player.wicketType === 'RETIRED_HURT' ? "text-amber-400 opacity-90" : "text-red-400 opacity-90"}>
                       {(() => {
                         const type = player.wicketType;
                         const bowler = player.wicketBy;

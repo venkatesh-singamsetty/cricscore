@@ -79,9 +79,19 @@ CricScore utilizes the **Aiven Lifecycle Management** platform combined with **A
 
 ## ⚡ Getting Started
 - **Local Developer Preview**: Run the frontend locally (Requires **Node.js 18.x+**).
-    - **Step 1:** `npm install`
-    - **Step 2:** `cp .env.example .env`
-    - **Step 3:** `npm run dev`
+    - **Step 1:** Install frontend dependencies:
+      ```bash
+      npm install --prefix frontend
+      ```
+      *(Alternatively, run `npm install` inside the `frontend/` directory)*
+    - **Step 2:** Copy the environment config:
+      ```bash
+      cp frontend/.env.example frontend/.env
+      ```
+    - **Step 3:** Start the local development server:
+      ```bash
+      npm run dev
+      ```
 - **Full Deployment Guide:** **🚀 [How to Clone and Deploy Your Own Infrastructure](./docs/deployment.md)**
 
 ---
