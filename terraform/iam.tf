@@ -55,7 +55,7 @@ resource "aws_iam_policy" "lambda_messaging" {
         Resource = "*"
       },
       {
-        Action   = [
+        Action = [
           "sqs:ReceiveMessage",
           "sqs:DeleteMessage",
           "sqs:GetQueueAttributes",

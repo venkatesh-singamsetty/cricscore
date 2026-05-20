@@ -36,7 +36,7 @@ resource "aws_sns_topic_subscription" "sqs_sub" {
 
 resource "aws_sqs_queue_policy" "allow_sns" {
   queue_url = aws_sqs_queue.storage_buffer.id
-  policy    = jsonencode({
+  policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
       Effect    = "Allow"
