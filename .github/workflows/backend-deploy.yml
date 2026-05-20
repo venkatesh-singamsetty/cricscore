@@ -55,6 +55,21 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Set up Node.js (for packaging Lambdas)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Lambda dependencies
+        run: |
+          set -e
+          for d in backend/lambdas/*; do
+            if [ -f "$d/package.json" ]; then
+              echo "Installing production dependencies in $d"
+              (cd "$d" && npm ci --production)
+            fi
+          done
+
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
         with:
