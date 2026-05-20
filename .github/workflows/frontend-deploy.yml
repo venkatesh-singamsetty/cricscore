@@ -2,7 +2,7 @@ name: Deploy — Frontend to AWS
 
 on:
   push:
-    branches: [main]
+    branches: [main, feature/**]
     paths:
       - 'frontend/**'
 
