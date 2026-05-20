@@ -1,0 +1,62 @@
+name: Deploy — Backend Lambda Functions
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/lambdas/**'
+
+  # Allow manual deploys from the GitHub Actions UI
+  workflow_dispatch:
+
+jobs:
+  deploy-lambdas:
+    name: Package & Deploy Lambdas via Terraform
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: us-east-1
+      # Terraform reads TF_VAR_* env vars automatically — no tfvars file needed in CI
+      TF_VAR_aws_region: us-east-1
+      TF_VAR_domain_name: cricscore.venkateshsingamsetty.site
+      TF_VAR_zone_domain: venkateshsingamsetty.site
+      TF_VAR_subdomain_prefix: cricscore
+      TF_VAR_project_name: cricscore
+      TF_VAR_ses_source_email: ${{ secrets.TF_SES_SOURCE_EMAIL }}
+      TF_VAR_database_url: ${{ secrets.TF_DATABASE_URL }}
+      TF_VAR_kafka_bootstrap_servers: ${{ secrets.TF_KAFKA_BROKERS }}
+      TF_VAR_kafka_username: ${{ secrets.TF_KAFKA_USERNAME }}
+      TF_VAR_kafka_password: ${{ secrets.TF_KAFKA_PASSWORD }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '~1.9'
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init
+
+      - name: Terraform Validate
+        working-directory: terraform
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: terraform
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        working-directory: terraform
+        run: terraform apply -auto-approve tfplan
+
