@@ -18,7 +18,7 @@ jobs:
       # Read AWS region from repository secrets to avoid hard-coded regions
       AWS_REGION: ${{ secrets.AWS_REGION }}
       # Terraform reads TF_VAR_* env vars automatically — no tfvars file needed in CI
-      TF_VAR_aws_region: ${{ env.AWS_REGION }}
+      TF_VAR_aws_region: ${{ secrets.AWS_REGION }}
       TF_VAR_domain_name: cricscore.venkateshsingamsetty.site
       TF_VAR_zone_domain: venkateshsingamsetty.site
       TF_VAR_subdomain_prefix: cricscore
@@ -36,8 +36,7 @@ jobs:
       - name: Validate AWS_REGION secret
         run: |
           if [ -z "$AWS_REGION" ]; then echo "Missing AWS_REGION. Set secrets.AWS_REGION"; exit 1; fi
-        env:
-          AWS_REGION: ${{ env.AWS_REGION }}
+        # The job-level `env` already exposes $AWS_REGION to steps, no need to rebind here.
 
       - name: Restore Kafka certificates from secrets
         run: |
