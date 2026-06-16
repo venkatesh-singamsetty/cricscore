@@ -43,3 +43,11 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
         working-directory: terraform
+
+      - name: Run Checkov static analysis
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: terraform
+          framework: terraform
+          output_format: cli
+          soft_fail: true

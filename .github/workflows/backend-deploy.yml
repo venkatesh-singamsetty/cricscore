@@ -64,6 +64,16 @@ jobs:
             fi
           done
 
+      - name: Run Trivy vulnerability scanner (fs)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: 'backend/lambdas'
+          ignore-unfixed: true
+          format: 'table'
+          exit-code: '0'
+          severity: 'HIGH,CRITICAL'
+
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
         with:
