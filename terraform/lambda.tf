@@ -116,8 +116,8 @@ resource "aws_lambda_function" "broadcaster" {
 
   environment {
     variables = {
-      TABLE_NAME     = aws_dynamodb_table.connections.name
-      WEBSOCKET_URL  = "${aws_apigatewayv2_api.websocket_api.api_endpoint}/prod"
+      TABLE_NAME    = aws_dynamodb_table.connections.name
+      WEBSOCKET_URL = "${aws_apigatewayv2_api.websocket_api.api_endpoint}/prod"
     }
   }
 }
@@ -141,7 +141,7 @@ resource "aws_lambda_function" "storage_worker" {
 
   environment {
     variables = {
-      DATABASE_URL   = var.database_url
+      DATABASE_URL = var.database_url
     }
   }
 }
