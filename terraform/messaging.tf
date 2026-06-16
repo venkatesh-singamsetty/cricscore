@@ -16,13 +16,13 @@ resource "aws_sqs_queue" "storage_buffer" {
 resource "aws_sns_topic_subscription" "broadcaster_sub" {
   topic_arn = aws_sns_topic.match_events.arn
   protocol  = "lambda"
-  endpoint  = aws_lambda_function.kafka_consumer.arn
+  endpoint  = aws_lambda_function.broadcaster.arn
 }
 
 resource "aws_lambda_permission" "sns_broadcaster" {
   statement_id  = "AllowExecutionFromSNS"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.kafka_consumer.function_name
+  function_name = aws_lambda_function.broadcaster.function_name
   principal     = "sns.amazonaws.com"
   source_arn    = aws_sns_topic.match_events.arn
 }

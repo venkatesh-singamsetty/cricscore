@@ -1,6 +1,6 @@
 # 🏗️ Architecture: Live Event-Driven Scoring Engine
 
-CricScore is built on a high-concurrency, **Event-Driven Architecture (EDA)** where every ball event is a persistent record in **Aiven PostgreSQL** and a real-time broadcast via **Aiven Kafka**.
+CricScore is built on a high-concurrency, **Event-Driven Architecture (EDA)** where every ball event is a persistent record in **Aiven PostgreSQL** and a real-time broadcast via **AWS API Gateway WebSockets**.
 
 ## 🔄 Detailed Sequence Flows (v2.0.0 Fan-Out)
 
@@ -30,14 +30,14 @@ sequenceDiagram
     actor Scorer as Scorer
     participant Producer as score-upd Lambda
     participant SNS as AWS SNS (Event Hub)
-    participant Broadcaster as broadcaster-hub Lambda
+    participant Broadcaster as broadcaster Lambda
     participant DDB as DynamoDB (Connections)
     participant APIGW_WS as API Gateway (WebSockets)
     actor Viewer as Fan / Spectator
     
     participant SQS as AWS SQS (Storage Buffer)
     participant Consumer as storage-worker (Lambda)
-    participant Aiven_Hub as Aiven PostgreSQL & Kafka
+    participant Aiven_Hub as Aiven PostgreSQL
 
     Scorer->>Producer: POST /update-score
     Producer->>SNS: Publish Match Event
@@ -56,7 +56,7 @@ sequenceDiagram
         Note right of SNS: Phase 2: Reliable Data Persistence
         SNS->>SQS: Buffer Event
         SQS-)Consumer: Pull/Trigger Batch
-        Consumer->>Aiven_Hub: Pg SQL Save & Kafka mTLS Stream
+        Consumer->>Aiven_Hub: Pg SQL Save
     end
 ```
 
@@ -65,8 +65,7 @@ sequenceDiagram
 ## 🏛️ Technical Pillars & Specifications
 CricScore implements a high-performance **Event-Driven Architecture (EDA)** using 100% serverless and managed services:
 
-- **Decoupled Fan-Out (v2.0.0):** Leverages AWS SNS for instant UI responses and AWS SQS for asynchronous background persistence to Aiven PostgreSQL and Kafka.
-- **mTLS Security:** Hardened, certificate-based encryption for all Kafka traffic using serverless certificate injection.
+- **Decoupled Fan-Out (v2.0.0):** Leverages AWS SNS for instant UI responses and AWS SQS for asynchronous background persistence to Aiven PostgreSQL.
 - **Zero-Latency Broadcast:** Achieves sub-100ms global score delivery using an asynchronous broadcaster lambda driven instantly by SNS.
 - **State Restoration (v2.0.0):** Automated deep-link hydration for instant bypass-routing to active match scoreboards via UUID-anchored URLs.
 - **Aiven TLS Bypass:** Explicit fallback overriding Node v18 strict intermediate CAs (`NODE_TLS_REJECT_UNAUTHORIZED = '0'`) allowing seamless PostgreSQL scaling.
@@ -84,16 +83,16 @@ CricScore implements a high-performance **Event-Driven Architecture (EDA)** usin
 
 ### **2. Managed Fan Hub (The Discovery Engine)**
 *   **match_api Lambda**: The entry point for fans. Handles match discovery hub fetching and initial deep-link hydration to retrieve match state from Aiven PostgreSQL.
-*   **broadcaster_hub Lambda**: The heart of the v2.0.0 fast-path. It consumes SNS events and performs a massive parallel push to all active spectator WebSocket tunnels by querying the DynamoDB Registry.
+*   **broadcaster Lambda**: The heart of the v2.0.0 fast-path. It consumes SNS events and performs a massive parallel push to all active spectator WebSocket tunnels by querying the DynamoDB Registry.
 *   **WebSocket Lifecycle (onConnect/onDisconnect)**: These Lambdas manage the "who is watching now" registry in DynamoDB, ensuring zero-latency fan-out targeting.
 *   **Deep-Link System**: Zero-friction URL-restoration logic for immediate spectator bypass-routing.
 
 ### **3. Reliability & Persistence (The Storage Buffer)**
-*   **storage_worker Lambda**: Subscribed to the AWS SQS queue. It processes match events in reliable batches, ensuring that even during high-traffic bursts, database commits to Aiven PostgreSQL and event-streaming to Aiven Kafka remain consistent and ordered.
+*   **storage_worker Lambda**: Subscribed to the AWS SQS queue. It processes match events in reliable batches, ensuring that even during high-traffic bursts, database commits to Aiven PostgreSQL remain consistent and ordered.
 
 ### **4. Security Strategy**
 - **Administrative Sovereignty**: Operations impacting global match state (e.g., `DELETE /match/{id}`) are restricted via a **State-Sync PIN** (`VITE_ADMIN_PIN`), ensuring only authorized board-governance actors can purge records.
-- **Mutual TLS (mTLS)**: Hardened, certificate-based connections for all Kafka event traffic.
+
 - **SSL Enforcement**: Mandatory for all Aiven PostgreSQL persistence sessions.
 - **Multi-Tenant Isolation**: Dual-scoped session logic ensures that scorer identities and match states are isolated by both Email and MatchID, preventing cross-tenant data leakage.
 - **Role-Based Access Hierarchy**:

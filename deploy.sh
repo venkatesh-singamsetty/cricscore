@@ -17,11 +17,7 @@ echo "🚀 Building the application..."
 (cd frontend && npm run build)
 
 
-# 2. Inject certificates from central vault into Lambda directories
-echo "🔐 Injecting secure certificates from vault..."
-cp certs/*.pem backend/lambdas/score-update/
-cp certs/*.pem backend/lambdas/storage-worker/
-cp certs/*.pem backend/lambdas/kafka-consumer/
+
 
 # 3. Go into terraform dir
 cd terraform

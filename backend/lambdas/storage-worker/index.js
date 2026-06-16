@@ -1,38 +1,6 @@
-const { Kafka } = require('kafkajs');
 const { Client } = require('pg');
-const fs = require('fs');
-const path = require('path');
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-process.env.KAFKAJS_NO_PARTITIONER_WARNING = '1';
-
-// Dynamic Certificate Loading
-const getCert = (envName, fileName) => {
-    if (process.env[envName]) {
-        return Buffer.from(process.env[envName], 'base64').toString('utf-8');
-    }
-    if (fs.existsSync(path.join(__dirname, fileName))) {
-        return fs.readFileSync(path.join(__dirname, fileName));
-    }
-    return null;
-};
-
-const caCert = getCert('KAFKA_CA_CERT', 'ca.pem');
-const accessCert = getCert('KAFKA_ACCESS_CERT', 'cert.pem');
-const accessKey = getCert('KAFKA_ACCESS_KEY', 'key.pem');
-
-const kafka = new Kafka({
-    clientId: 'cricscore-storage-worker',
-    brokers: (process.env.KAFKA_BROKERS || '').split(','),
-    ssl: {
-        ca: caCert ? [caCert] : undefined,
-        cert: accessCert || undefined,
-        key: accessKey || undefined,
-        rejectUnauthorized: false
-    }
-});
-
-const producer = kafka.producer();
 
 exports.handler = async (event) => {
     // SQS batch source check
@@ -46,7 +14,6 @@ exports.handler = async (event) => {
 
     try {
         await client.connect();
-        await producer.connect();
 
         for (const record of records) {
             // SNS message within SQS message
@@ -222,12 +189,6 @@ exports.handler = async (event) => {
                     ]
                 );
             }
-
-            // 5. Emit to Aiven Kafka for Enterprise Event Bus Persistence
-            await producer.send({
-                topic: 'score-updates',
-                messages: [{ value: JSON.stringify(matchEvent) }],
-            });
         }
 
         return { statusCode: 200, body: JSON.stringify({ success: true }) };
@@ -237,6 +198,5 @@ exports.handler = async (event) => {
         throw error; // Let SQS retry
     } finally {
         await client.end();
-        await producer.disconnect();
     }
 };

@@ -35,17 +35,13 @@ This document provides a breakdown of the estimated operational costs for the Cr
 
 ---
 
-## 🗄️ Database & Kafka (Aiven)
+## 🗄️ Database (Aiven PostgreSQL)
 
 ### 1. **PostgreSQL (Aiven)**
 *   **Free Tier**: Aiven offers a free-tier for PostgreSQL (1 CPU, 1GB RAM, 1GB Storage).
 *   **Availability**: Note that Free-tier instances may power-cycle after prolonged inactivity but can be restarted manually. No SLA applies.
 *   **Lifecycle**: Auto-backups are included. 
 *   **Upgrade Path**: DigitalOcean or AWS-managed RDS starts at ~$15/mo if high-availability is required.
-
-### 2. **Kafka (Aiven)**
-*   **Free Tier / Startup Plan**: Aiven provides a standard startup plan for Kafka. For low-throughput cricket updates, the entry-level plan (~$0.01/hr or dedicated free tiers where available) is sufficient.
-*   **Optimization**: We use mTLS to keep traffic secure without the cost of a VPC Private Link.
 
 ---
 
@@ -79,10 +75,6 @@ For a standard **20-Overs Match** (120 balls per innings = **240 total events/ma
 - **Capacity**: 1,000,000 KB / 50 KB = **~20,000 historical matches**.
 - **Strategy**: Use the **Admin Global Purge** periodically to maintain this archive.
 
-### 3. **Messaging (Aiven Kafka)**
-- **Limit**: 5.0 GB Storage (Free Tier).
-- **Usage**: Kafka topics use **Time-Based Retention** (e.g., 24 hours). Storage is recycled daily, allowing for practically **unlimited matches** as long as concurrent traffic stays within the MB/s bandwidth limits.
-
 ---
 
 ## 📉 Cost Optimization Tips
@@ -93,4 +85,4 @@ For a standard **20-Overs Match** (120 balls per innings = **240 total events/ma
 
 ## ⚖️ Total Monthly Estimated Cost
 - **Small-to-Medium Tournaments**: **~$0.66** (Route 53 + Amortized Domain Registration).
-- **Large-scale Public Launch**: **$10.00 - $25.00** (Only if upgrading to non-free Aiven Kafka or if you require high-availability RDS).
+- **Large-scale Public Launch**: **$10.00 - $25.00** (Only if you require high-availability RDS).

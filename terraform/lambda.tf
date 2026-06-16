@@ -99,28 +99,25 @@ resource "aws_lambda_function" "ondisconnect" {
   }
 }
 
-# --- Kafka Consumer Lambda ---
-data "archive_file" "kafka_consumer_zip" {
+# --- WebSocket Broadcaster Lambda ---
+data "archive_file" "broadcaster_zip" {
   type        = "zip"
-  source_dir  = "${path.module}/../backend/lambdas/kafka-consumer"
-  output_path = "${path.module}/kafka_consumer.zip"
+  source_dir  = "${path.module}/../backend/lambdas/broadcaster"
+  output_path = "${path.module}/broadcaster.zip"
 }
 
-resource "aws_lambda_function" "kafka_consumer" {
-  filename         = data.archive_file.kafka_consumer_zip.output_path
-  function_name    = "${var.project_name}-kafka-consumer"
+resource "aws_lambda_function" "broadcaster" {
+  filename         = data.archive_file.broadcaster_zip.output_path
+  function_name    = "${var.project_name}-broadcaster"
   role             = aws_iam_role.lambda_role.arn
   handler          = "index.handler"
   runtime          = "nodejs18.x"
-  source_code_hash = data.archive_file.kafka_consumer_zip.output_base64sha256
+  source_code_hash = data.archive_file.broadcaster_zip.output_base64sha256
 
   environment {
     variables = {
       TABLE_NAME     = aws_dynamodb_table.connections.name
       WEBSOCKET_URL  = "${aws_apigatewayv2_api.websocket_api.api_endpoint}/prod"
-      KAFKA_BROKERS  = var.kafka_bootstrap_servers
-      KAFKA_USERNAME = var.kafka_username
-      KAFKA_PASSWORD = var.kafka_password
     }
   }
 }
@@ -145,9 +142,6 @@ resource "aws_lambda_function" "storage_worker" {
   environment {
     variables = {
       DATABASE_URL   = var.database_url
-      KAFKA_BROKERS  = var.kafka_bootstrap_servers
-      KAFKA_USERNAME = var.kafka_username
-      KAFKA_PASSWORD = var.kafka_password
     }
   }
 }

@@ -6,7 +6,7 @@
 [![Event-Driven](https://img.shields.io/badge/SNS%2FSQS-Fan--Out-black)](https://aws.amazon.com/sns/)
 [![Version](https://img.shields.io/badge/CricScore-v2.0.0-indigo)](./docs/changelog.md)
 
-CricScore is a highly performant, serverless cricket engine designed for sub-100ms match updates. It leverages a decoupled, hybrid-cloud event-driven stack (AWS SNS/SQS + Aiven Kafka) for global real-time broadcasting.
+CricScore is a highly performant, serverless cricket engine designed for sub-100ms match updates. It leverages a decoupled, serverless event-driven stack (AWS SNS/SQS) for global real-time broadcasting.
 
 🚀 **Live Production:** **https://cricscore.venkateshsingamsetty.site**
 
@@ -31,7 +31,7 @@ graph TD
         SNS -->|Reliability| SQS[[AWS SQS Queue]]
         SQS --> storage_worker[storage-worker Lambda]
         
-        SNS -->|Fast-Path| broadcaster_hub[broadcaster-hub Lambda]
+        SNS -->|Fast-Path| broadcaster[broadcaster Lambda]
         
         %% WebSocket Gateway Hub
         WS_GW[API Gateway: WebSockets] -->|1. Trigger| onConnect[onconnect Lambda]
@@ -40,20 +40,18 @@ graph TD
         onConnect -->|2. Register| DDB[(DynamoDB Registry)]
         onDisconnect -->|2. Prune| DDB
         
-        broadcaster_hub -->|3. Data Push| WS_GW
+        broadcaster -->|3. Data Push| WS_GW
         WS_GW -->|4. Stream| Fan
     end
 
     %% Data Hub vertically stacked for clear routing
     subgraph Aiven [Aiven Managed Data Hub]
         PG[(Aiven PostgreSQL)]
-        Kafka((Aiven Kafka mTLS))
     end
 
     %% Explicit data routing
     match_api -->|Initial Setup| PG
     storage_worker -->|ACID Commit| PG
-    storage_worker -->|Kafka Stream| Kafka
 
     %% User Interaction Labels
     Fan((Fan)) -.->|Request| REST_GET
@@ -69,8 +67,6 @@ CricScore utilizes the **Aiven Lifecycle Management** platform combined with **A
 - **AWS SNS & SQS (v2.0.0)**: The **Fast-Path Event Hub** and **Reliability Buffer** fan-out pattern ensures sub-100ms ultra-low-latency UI broadcasts while synchronously protecting Aiven from traffic spikes.
 - **AWS DynamoDB**: The **Connection Registry** tracking all active spectator WebSocket tunnels in real-time.
 - **Aiven for PostgreSQL**: The **System of Record** for all historical match data, innings, and ball-by-ball archives.
-- **Aiven for Apache Kafka**: The **Enterprise Event Bus** providing persistent, replayable data streams for sub-second global propagation.
-- **Mutual TLS (mTLS)**: Hardened, certificate-based encryption for all Kafka traffic using serverless certificate injection.
 
 📖 **[Detailed Aiven & Infrastructure Breakdown](./docs/aiven.md)**
 
@@ -108,7 +104,7 @@ CricScore implements a high-performance **Event-Driven Architecture (EDA)** usin
 
 ### 📖 Technical Guides & Documentation
 - **[Full Deployment & Infrastructure](./docs/deployment.md)**: Local preview, bootstrap foundations, and AWS/Aiven Setup.
-- **[Aiven Managed Services](./docs/aiven.md)**: PostgreSQL & Kafka mTLS configuration.
+- **[Aiven Managed Services](./docs/aiven.md)**: PostgreSQL configuration.
 - **[Detailed Architecture](./docs/architecture.md)**: System design, sequence flows, and EDA logic.
 - **[API Guide](./docs/api.md)**: REST & WebSocket contract specifications.
 - **[Cost & Performance](./docs/cost_management.md)**: Aiven & AWS Free-tier monitoring strategy.
@@ -127,8 +123,7 @@ The GitHub Actions workflows require a few repository secrets to run safely. Add
 - **API_GATEWAY_ID**: API Gateway REST API id used by the frontend (replaces hard-coded id).
 - **WS_API_GATEWAY_ID**: API Gateway WebSocket API id used by the frontend.
 - **VITE_ADMIN_PIN**: Admin PIN injected into the frontend build (kept secret).
-- **TF_SES_SOURCE_EMAIL**, **TF_DATABASE_URL**, **TF_KAFKA_BROKERS**, **TF_KAFKA_USERNAME**, **TF_KAFKA_PASSWORD**: Terraform / backend secrets used by `backend-deploy`.
-- **KAFKA_CA_CERT_B64**, **KAFKA_CERT_B64**, **KAFKA_KEY_B64**: base64-encoded certificates restored by the CI into Lambda packages.
+- **TF_SES_SOURCE_EMAIL**, **TF_DATABASE_URL**: Terraform / backend secrets used by `backend-deploy`.
 
 Tip: Non-sensitive values such as `S3_BUCKET` or `CLOUDFRONT_DISTRIBUTION_ID` can be stored as repository Variables or documented in `docs/deployment.md` if you prefer not to use secrets.
 
