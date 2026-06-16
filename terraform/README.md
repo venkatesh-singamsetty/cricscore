@@ -43,3 +43,4 @@ terraform apply -auto-approve
 
 ## 🛡️ Security Handlers
 - **IAM Policies**: Policies for DynamoDB Scan/Put and API Gateway Push are attached to the common Lambda role.
+
