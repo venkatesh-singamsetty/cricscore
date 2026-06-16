@@ -299,9 +299,9 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ currentInnings, previousInnings
                       let w = 0, nb = 0, b = 0, lb = 0;
                       displayInnings.allBalls.forEach(ball => {
                         if (ball.extraType === ExtraType.WIDE) w += (ball.extraRuns + ball.runs);
-                        if (ball.extraType === ExtraType.NO_BALL) nb += ball.extraRuns;
-                        if (ball.extraType === ExtraType.BYE) b += ball.runs;
-                        if (ball.extraType === ExtraType.LEG_BYE) lb += ball.runs;
+                        if (ball.extraType === ExtraType.NO_BALL) nb += (ball.extraRuns + ball.runs);
+                        if (ball.extraType === ExtraType.BYE) b += (ball.extraRuns + ball.runs);
+                        if (ball.extraType === ExtraType.LEG_BYE) lb += (ball.extraRuns + ball.runs);
                       });
                       return (
                         <>
