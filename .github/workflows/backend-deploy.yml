@@ -2,12 +2,19 @@ name: Deploy — Backend Lambda Functions
 
 on:
   push:
-    branches: [main, feature/**]
+    branches: [main]
     paths:
       - 'backend/lambdas/**'
 
   # Allow manual deploys from the GitHub Actions UI
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   deploy-lambdas:

@@ -11,6 +11,13 @@ on:
     paths:
       - 'terraform/**'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   terraform-validate:
     name: Terraform Validate & Format Check

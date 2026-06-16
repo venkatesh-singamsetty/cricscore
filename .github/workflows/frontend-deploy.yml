@@ -2,12 +2,19 @@ name: Deploy — Frontend to AWS
 
 on:
   push:
-    branches: [main, feature/**]
+    branches: [main]
     paths:
       - 'frontend/**'
 
   # Allow manual deploys from the GitHub Actions UI
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   deploy:
