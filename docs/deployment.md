@@ -110,4 +110,38 @@ Because the frontend requires the **API Gateway Endpoints** to be built into its
     ./deploy.sh
     ```
 
+---
+
+## ⚙️ Phase 3: CI/CD — GitHub Actions Workflows
+
+All deployments are fully automated via GitHub Actions. The three workflow files are:
+
+| Workflow | Trigger | What it does |
+|---|---|---|
+| `frontend.yml` | PR → `main` (validate only) / push to `main` (+ deploy) | Lint, Trivy scan, unit test, build → S3 sync + CloudFront invalidation |
+| `backend-infra.yml` | PR → `main` (validate only) / push to `main` (+ deploy) | Lambda checks, Trivy, Terraform validate, Checkov → Terraform apply |
+| `codeql.yml` | PR → `main`, push to `main`, weekly schedule | CodeQL SAST analysis (results in Security tab) |
+
+### Branch Protection (main)
+The `main` branch is protected. All PRs must pass all 3 CI status checks before merging:
+- `Lint & Test` (Frontend CI/CD)
+- `Backend & Terraform Validation` (Backend & Infrastructure CI/CD)
+- `Analyze Code (javascript-typescript)` (CodeQL Analysis)
+
+### Required Secrets & Variables
+Configure in **Settings → Secrets → Actions** and **Settings → Variables → Actions**:
+
+| Name | Type | Used By |
+|---|---|---|
+| `AWS_REGION` | Secret | All workflows |
+| `AWS_ACCESS_KEY_ID` | Secret | Deploy workflows |
+| `AWS_SECRET_ACCESS_KEY` | Secret | Deploy workflows |
+| `API_GATEWAY_ID` | Secret | Frontend deploy |
+| `WS_API_GATEWAY_ID` | Secret | Frontend deploy |
+| `VITE_ADMIN_PIN` | Secret | Frontend deploy |
+| `TF_SES_SOURCE_EMAIL` | Secret | Backend deploy |
+| `TF_DATABASE_URL` | Secret | Backend deploy |
+| `S3_BUCKET` | Variable | Frontend deploy |
+| `CLOUDFRONT_DISTRIBUTION_ID` | Variable | Frontend deploy |
+
 © 2026 CricScore Documentation. 🏎️🏁🚀
