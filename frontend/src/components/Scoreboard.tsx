@@ -268,7 +268,13 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ currentInnings, previousInnings
                             let label = ball.runs;
                             if (ball.extraType === 'WIDE') label = `${ball.extraRuns + ball.runs}wd`;
                             if (ball.extraType === 'NO_BALL') label = `${ball.extraRuns + ball.runs}nb`;
-                            if (isWicket) label = 'W';
+                            if (isWicket) {
+                              if (ball.wicketType === 'RUN_OUT' && ball.runs > 0) {
+                                label = `${ball.runs}W`;
+                              } else {
+                                label = 'W';
+                              }
+                            }
 
                             return (
                               <div key={idx} className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black ${isWicket ? 'bg-red-600 text-white shadow-lg shadow-red-600/20' : isExtra ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/20' : 'bg-slate-800 text-slate-300'}`}>
