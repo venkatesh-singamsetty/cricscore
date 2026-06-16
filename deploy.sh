@@ -16,27 +16,24 @@ done
 echo "🚀 Building the application..."
 (cd frontend && npm run build)
 
-
-
-
 # 3. Go into terraform dir
 cd terraform
 
-# 3. Initialize & Apply infrastructure
+# 4. Initialize & Apply infrastructure
 echo "⚙️ Initializing & Upgrading Terraform..."
 terraform init -reconfigure -upgrade
 
 echo "☁️ Applying AWS Infrastructure (S3, CloudFront, Route53, ACM)..."
 terraform apply -auto-approve
 
-# 4. Get the bucket name
+# 5. Get the bucket name
 BUCKET_NAME=$(terraform output -raw s3_bucket_name)
 
-# 5. Sync files
+# 6. Sync files
 echo "📦 Syncing files to S3 bucket: $BUCKET_NAME..."
 aws s3 sync ../frontend/dist/ s3://$BUCKET_NAME/ --delete
 
-# 6. Invalidate CloudFront
+# 7. Invalidate CloudFront
 DIST_ID=$(terraform output -raw cloudfront_distribution_id)
 if [ -n "$DIST_ID" ]; then
     echo "🔄 Invalidating CloudFront cache ($DIST_ID)..."
