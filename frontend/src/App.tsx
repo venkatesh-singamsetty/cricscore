@@ -20,6 +20,7 @@ const App: React.FC = () => {
     const emailInputRef = React.useRef<HTMLInputElement>(null);
     const endEmailInputRef = React.useRef<HTMLInputElement>(null);
     const isRestoringRef = React.useRef(false);
+    const isEndingInningsRef = React.useRef(false);
 
     // Auto-position cursor before @gmail.com when modal opens
 
@@ -263,10 +264,16 @@ const App: React.FC = () => {
 
     const handleInningsEnd = async (completedInnings: InningsState) => {
         if (completedInnings.inningNumber === 1) {
+            if (isEndingInningsRef.current) return;
+            isEndingInningsRef.current = true;
+
             // Transition to 2nd Innings
             setPreviousInnings(completedInnings);
 
-            if (!teamA || !teamB) return;
+            if (!teamA || !teamB) {
+                isEndingInningsRef.current = false;
+                return;
+            }
 
             const nextBattingTeam = completedInnings.battingTeamName === teamA.name ? teamB : teamA;
             const nextBowlingTeam = completedInnings.battingTeamName === teamA.name ? teamA : teamB;
@@ -295,6 +302,8 @@ const App: React.FC = () => {
                 setMatchStatus(MatchStatus.INNINGS_BREAK);
             } catch (err) {
                 console.error("Failed to create 2nd Innings:", err);
+            } finally {
+                isEndingInningsRef.current = false;
             }
         } else {
             setCurrentInnings(completedInnings);
@@ -630,7 +639,7 @@ const App: React.FC = () => {
         let batting = `\n┃ 🏏 BATTING                                          ┃\n`;
         innings.battingOrder.forEach(id => {
             const p = innings.players[id];
-            if (p.ballsFaced > 0 || p.isOut || p.id === innings.strikerId || p.id === innings.nonStrikerId) {
+            if (p.ballsFaced > 0 || p.isOut || p.wicketType === 'RETIRED_HURT' || p.wicketType === 'RETIRED_OUT' || p.id === innings.strikerId || p.id === innings.nonStrikerId) {
                 const score = `${p.runs}(${p.ballsFaced})`.padEnd(10);
                 const boundary = `${p.fours}x4 ${p.sixes}x6`.padEnd(10);
                 const line = `┃ ${p.name.padEnd(15)} | ${score} | ${boundary} ┃`;

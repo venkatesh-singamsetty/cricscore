@@ -73,32 +73,18 @@ resource "aws_route53_zone" "primary" {
 ### 1. Aiven Provisioning Checklist (Signup & Capture)
 1.  **Signup:** Create an account at [**console.aiven.io**](https://console.aiven.io/).
 2.  **Create PG:** Provision **Aiven for PostgreSQL** (Free Tier). Set **SSL Mode** to `require`.
-3.  **Create Kafka:** Provision **Aiven for Apache Kafka**. Enable **mTLS** in the console.
-4.  **Capture Metadata**: 
-    -   **Postgres**: Copy the **Service URI** (e.g., `postgres://avnadmin...`).
-    -   **Kafka**: Copy the **Bootstrap Servers** (`host:port`), **Username**, and **Password**.
-5.  **Inject into Local**: Update **`terraform/terraform.tfvars`** with these 4 variables.
+3.  **Capture Metadata**: Copy the PostgreSQL **Service URI** (e.g., `postgres://avnadmin...`).
+4.  **Inject into Local**: Update **`terraform/terraform.tfvars`** with the `database_url` variable.
 
-🔍 **Technical Logic**: See **[`docs/aiven.md`](./aiven.md)** for deep details on Kafka mTLS security and PostgreSQL persistence.
+🔍 **Technical Logic**: See **[`docs/aiven.md`](./aiven.md)** for details on PostgreSQL database configuration.
 
-### 2. Security Vault (`certs/`) & Automated Pipeline
-CricScore uses mTLS for Kafka security. Download `ca.pem`, `cert.pem`, and `key.pem` from the Aiven Kafka service console.
-- **Location**: Place these in a root `/certs/` folder.
-- **Automated Hydration**: The `./deploy.sh` script automatically traverses all lambda directories, executes `npm install --production`, and securely injects certificates prior to Terraform bundling, preventing `Runtime.ImportModuleError`.
-- **⚠️ SECURITY**: Never commit this folder to GitHub. It is excluded by `.gitignore`.
-
-### 3. Infrastructure Variables (`terraform.tfvars`)
+### 2. Infrastructure Variables (`terraform.tfvars`)
 Create a file at `terraform/terraform.tfvars` with the following keys. 
 - **⚠️ SECURITY**: This file contains secrets. **DO NOT commit it to version control.**
 
 ```hcl
 # Aiven PostgreSQL
 database_url = "postgres://avnadmin:...@host:port/defaultdb?sslmode=require"
-
-# Aiven Kafka
-kafka_bootstrap_servers = "host...aivencloud.com:17729"
-kafka_username          = "avnadmin"
-kafka_password          = "your-password"
 
 # AWS Domain & SES
 zone_domain      = "yourdomain.com"

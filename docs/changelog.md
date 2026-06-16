@@ -4,68 +4,54 @@ This document tracks the complete evolutionary history of the CricScore platform
 
 ---
 
-## ⚡ Current Status: [2026-03-31] v2.0.0 DECOUPLED FAN-OUT ARCHITECTURE
-- **AWS SNS Event Hub**: Completely decoupled the `score-update` lambda from synchronous database writes, allowing Scorers to experience sub-100ms UI response times.
-- **AWS SQS Reliability Buffer**: Implemented an asynchronous message queue to protect Aiven PostgreSQL and Kafka endpoints from match-day ingestion spikes.
-- **v2.0.0 Storage Worker**: Provisioned a dedicated serverless worker to handle all ACID-compliant persistence and enterprise event bus streaming in the background, ensuring zero data loss.
-- **Universal Broadcaster Hub**: Refactored the WebSocket broadcaster to instantly trigger directly from SNS payloads, bypassing traditional data indexing latency.
-- **Infrastructure Integrity Fixes**: Resolved strict Node v18 Aiven TLS rejections (`SELF_SIGNED_CERT_IN_CHAIN`), fully automated `kafkajs` cloud deployment hydration boundaries, and structurally debounced React `useRef` race conditions during high-impact rapid scoring bursts.
+## ⚡ v2.1.0: Complete Kafka & mTLS Cleanup [2026-06-16]
+* **Decoupled Architecture Consolidation**: Removed all references, environment configuration variables, and dependencies on Apache Kafka (`kafkajs`). The platform now operates purely on the AWS SNS + SQS fan-out buffer.
+* **Credential Cleanup**: Deleted 6 obsolete secrets (`KAFKA_CA_CERT_B64`, `KAFKA_CERT_B64`, `KAFKA_KEY_B64`, `TF_KAFKA_BROKERS`, `TF_KAFKA_PASSWORD`, `TF_KAFKA_USERNAME`) from the GitHub Repository Actions secrets.
+* **Certificate Purge**: Deleted all local untracked `.pem` files in lambda compute and certificates directories to prevent deployment bundle bloat.
+* **Broadcaster Lambda**: Renamed legacy `kafka-consumer` lambda to `broadcaster` in both folder structures and Terraform configuration, aligning the codebase with its true functional purpose (fast-path SNS-to-WebSocket fan-out).
 
 ---
 
-## 📜 Full History
-
-- **2026-03-30**: **v1.5.2 DEEP-LINK RESTORATION & SHARING FINALIZATION**: Visitors hitting sharable links (`?matchId=xxx`) are now instantly routed to the specific match scoreboard. Autonomous fetching empowered the Viewer Hub.
-
-- **2026-03-30**: **v1.5.0 STRATEGIC PIVOT: VIRAL SHARING**: Transitioned from non-functional email reports to an **Instant Sharable Match Link** system. Integrated "SHARE SCORECARD 🔗" button with haptic "COPIED! ✅" feedback.
-
-- **2026-03-26**: **v1.4.0 PRODUCTION RELEASE**: Decoupled Admin and Scorer email dispatch to bypass SES Sandbox restrictions. Guaranteed scorecard delivery to `venky.2k57@gmail.com`. Implemented Sandbox-Aware UI to inform Scorers of verification-pending statuses.
-
-- **2026-03-26**: **v1.3.0 ENTERPRISE MULTI-TENANT ISOLATION**: Implemented per-user match persistence, match-specific live caching, and real-time cloud synchronization for Admin deletions. Fixed data leakage between concurrent user sessions on shared devices. 🛡️🚀
-
-- **2026-03-25**: **v1.2.0 PRODUCTION RELEASE**: Finalized production convergence from `develop` to `main`. Full resilience & premium reporting engine integration.
-
-- **2026-03-22**: Initial competition project kickoff.
-- **2026-03-22**: **Phase 2 Complete**: Aiven PostgreSQL persistence layer fully operational.
-- **2026-03-22**: **Phase 3 Complete**: Aiven Kafka event producer secured with mTLS.
-- **2026-03-22**: **Phase 4 & 5 Complete**: Real-time WebSocket broadcasting verified.
-- **2026-03-22**: **Phase 6 Complete**: Integrated Discovery Hub & Multi-Match Fan Dashboard. ✨
-- **2026-03-22**: Sub-second latency verified across Aiven Kafka + AWS WebSockets. 🚀
-- **2026-03-22**: **Live Update Patch**: Fixed match provisioning, data hydration, and dynamic route routing for Spectator/History Views. 🏏
-- **2026-03-23**: **Persistence & Analytics Fix**: Implemented DB-side aggregate tracking for players, bowlers, and innings. Fixed "Empty Analytics" bug by synchronizing squad initialization and real-time stat accumulation in PostgreSQL. 📊
-- **2026-03-23**: **Fans Live Visibility & Navigation Patch**: Removed "white screen" bugs in Spectator view. Implemented forced tab-refreshing via React keys and enabled immediate snapshot data (Batters/Bowlers) for fans joining live matches. 📡
-- **2026-03-23**: **Live Score Accuracy Patch**: Fixed "off-by-one" over display at end of over. Implemented proactive crease synchronization for spectators and filtered summaries to show only active players. 🏏
-- **2026-03-23**: **Core Stability Update**: Implemented Deep Aggregate Reversion (ARUP fix) for perfect undo-consistency in analytics.
-
-- **[2026-03-24] Resilience & Premium Reporting Milestone**: 
-    - **Role-Based Access Control (RBAC)**: Implemented 3-tab UI (**VIEWER**, **SCORER**, **ADMIN**). 🛡️
-        - **VIEWER**: Pure spectator experience (Read-only).
-        - **SCORER**: Streamlined "one-match" flow with automatic resume of current match and no deletion rights.
-        - **ADMIN**: Full control (Manual Resume, Single Delete, and Global DB Purge).
-    - **UX & Spectator Experience Finalization**: 
-        - **Celebratory UI**: Overhauled the match conclusion experience with a premium, high-impact "Match Over" banner featuring shimmering gradients, trophies, and final result summary. 🏆
-        - **Unified Hub Search**: Transformed the "Follow Match ID" field into a powerful **Search & Filter** engine. Spectators can now find matches by **Team Name** or ID instantly. 🔍
-        - **Intelligent Navigation**: 
-            - **Auto-Open Scorecard**: Selecting a finished match from the Hub now immediately launches the full Scorecard modal, bypassing intermediate views.
-            - **Auto-Return**: Closing a historical scorecard now automatically takes the viewer back to the Match Hub list, streamlining review workflows. 🔄
-        - **Real-Time Hub Updates**: Implemented a cross-session broadcast system (`HUB_UPDATE`). Match Hub lists now update automatically across all devices when a new game is started or an old one is deleted, with no manual refresh required. 📡
-        - **Email Throttling**: Integrated `localStorage` state-based persistence to prevent duplicate scorecard emails on page reloads after match conclusion. ✉️
-        - **Infrastructure Upgrades**: Configured cross-Lambda invocation permissions for synchronous WebSocket-to-HTTP signaling. 🔗
-    - **High-Reliability Email Reporting (SES)**: 
-        - Automated scorecard delivery on match completion (+ manual resend option for Admins). 🚀
-        - **Enterprise DNS**: Verified domain identity (`cricscore.venkateshsingamsetty.site`) with DKIM/SPF records for high deliverability.
-    - **Database Governance**: 
-        - Full `ON DELETE CASCADE` implementation for clean record purging.
-        - **Global Purge**: Admin button to wipe all matches/innings/balls to clear storage. 🗑️
-    - **Deep State Persistence**: 
-        - Tabs & live scoring state survive browser refreshes and mobile closure.
-        - Synchronized ball-by-ball updates from MatchView to App root for multi-tab resilience. 🛡️
-    - **Match Lifecycle**: 
-        - **STALED Label**: Live matches >24h old are flagged but remain resumable for completion.
-        - **COMPLETED**: Historical records are locked from further editing/resuming.
+## 🏏 v2.0.2: Timeline Standardization & Cricket Laws Compliance [2026-06-16]
+* **Standardized Event Timeline**: Harmonized timeline display across both completed scorecards and live scorers. All special events now display as `<Type>` or `<Type>+<runs>` (e.g., `W`, `W+1`, `Wd`, `Wd+1`, `Nb`, `Nb+2`, `B+1`, `Lb+1`).
+* **Bowler Wicket Crediting**: Corrected scoring rules off extra deliveries. Stumpings and Hit Wickets off Wide deliveries are now correctly credited as wickets to the Bowler, whereas other wickets off extras (such as run outs) are not.
+* **No-Ball Dismissal Restrictions**: Disabled caught-out options off No-balls in accordance with the Laws of Cricket. Only valid dismissals (such as Run Out) are permitted.
+* **API Routing & IAM Permissions**: Resolved email dispatch failures by appending `ses:SendEmail` and `ses:SendRawEmail` actions to the Lambda role and adding missing `DELETE /match/{matchId}` and `POST /match/{matchId}/email` routes to the API Gateway.
 
 ---
 
-## 🚀 Next Phases
-- **Phase 8**: Native Mobile App Integration.
-- **Phase 9**: Real-time Push Notifications for wickets and milestones.
+## 👥 v2.0.1: Team Sizes, Quotas & Scoreboard Enhancements [2026-06-05]
+* **Custom Team Sizes & All-Out Logic**: Added dynamic innings end detection for teams with fewer than 11 players. Innings end automatically when fewer than 2 active batters remain capable of batting, preventing infinite select loops.
+* **Bowler Over Quotas**: Enforced over-quotas (`Total Match Overs / 5`) with UI warnings and disabled selects.
+* **Maiden Over Detection**: Fixed overs containing Wides or No-balls being counted as maidens.
+* **Scorecard Display**: Integrated Hit Wicket display formats and fixed Retired Hurt showing bowler attribution.
+
+---
+
+## ⚡ v2.0.0: Decoupled Fan-Out Architecture [2026-03-31]
+* **AWS SNS Event Hub**: Completely decoupled the `score-update` lambda from synchronous database writes, allowing Scorers to experience sub-100ms UI response times.
+* **AWS SQS Reliability Buffer**: Implemented an asynchronous message queue to protect Aiven PostgreSQL from match-day ingestion spikes.
+* **Storage Worker**: Provisioned a dedicated serverless worker to handle all ACID-compliant persistence and event scheduling.
+* **Universal Broadcaster Hub**: Refactored the WebSocket broadcaster to instantly trigger directly from SNS payloads, bypassing traditional data indexing latency.
+* **Infrastructure Integrity Fixes**: Resolved strict Node v18 Aiven TLS rejections (`SELF_SIGNED_CERT_IN_CHAIN`), fully automated deployment hydration boundaries, and structurally debounced React `useRef` race conditions during high-impact rapid scoring bursts.
+
+---
+
+## 🐛 v1.6.0: Bug Fixes & Data Integrity [2026-04-10]
+* **Match Hub Innings Scores**: Fixed scores displaying under the incorrect team when the visiting team batted first.
+* **Innings Completion States**: Ensured `is_completed` is set to `TRUE` on innings end and match completion.
+* **Winner Persistence**: Persisted `match_winner` to PostgreSQL upon match completion.
+* **Email Race Conditions**: Derived final email results directly from the frontend state to ensure accurate "Completed" statuses.
+* **Viewer Hub WS Synchronizations**: Added live WebSocket updates when a new 2nd innings starts.
+
+---
+
+## 📜 Historical Changelog (v1.0.0 - v1.5.2)
+
+* **2026-03-30 (v1.5.2)**: **Deep-Link Restoration & Sharing Finalization**: Sharable links (`?matchId=xxx`) instantly route to active scoreboards.
+* **2026-03-30 (v1.5.0)**: **Strategic Pivot: Viral Sharing**: Transitioned from email-only reporting to an Instant Sharable Match Link system.
+* **2026-03-26 (v1.4.0)**: **Production Release**: Decoupled Admin and Scorer email dispatch to bypass SES Sandbox restrictions.
+* **2026-03-26 (v1.3.0)**: **Enterprise Multi-Tenant Isolation**: Implemented per-user match persistence and match-specific live caches.
+* **2026-03-25 (v1.2.0)**: **Production Release**: Finalized production convergence from `develop` to `main`.
+* **2026-03-23 (v1.1.0)**: **Persistence & UI Patches**: Fixed "empty analytics" bug and "white screen" spectator views by adding React keys and forced tab-refreshing.
+* **2026-03-22 (v1.0.0)**: **Kickoff**: Aiven PostgreSQL persistence and real-time WebSocket broadcasting verified.

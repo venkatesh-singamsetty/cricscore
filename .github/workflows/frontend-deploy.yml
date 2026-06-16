@@ -1,0 +1,109 @@
+name: Deploy — Frontend to AWS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+
+  # Allow manual deploys from the GitHub Actions UI
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Build & Deploy to S3 + CloudFront
+    runs-on: ubuntu-latest
+
+    env:
+      # Read AWS region from repository secrets to avoid hard-coded regions
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      # Parameterize API gateway IDs so they can be changed without editing workflows
+      API_GATEWAY_ID: ${{ secrets.API_GATEWAY_ID }}
+      WS_API_GATEWAY_ID: ${{ secrets.WS_API_GATEWAY_ID }}
+      # Non-sensitive infrastructure identifiers stored as repository Variables
+      S3_BUCKET: ${{ vars.S3_BUCKET }}
+      CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate AWS_REGION and API gateway IDs
+        run: |
+          if [ -z "$AWS_REGION" ]; then echo "Missing AWS_REGION. Set secrets.AWS_REGION"; exit 1; fi
+          if [ -z "$API_GATEWAY_ID" ]; then echo "Missing API_GATEWAY_ID. Set secrets.API_GATEWAY_ID"; exit 1; fi
+          if [ -z "$WS_API_GATEWAY_ID" ]; then echo "Missing WS_API_GATEWAY_ID. Set secrets.WS_API_GATEWAY_ID"; exit 1; fi
+        env:
+          AWS_REGION: ${{ env.AWS_REGION }}
+          API_GATEWAY_ID: ${{ env.API_GATEWAY_ID }}
+          WS_API_GATEWAY_ID: ${{ env.WS_API_GATEWAY_ID }}
+
+      - name: Validate repository Variables (S3 bucket, CloudFront ID)
+        run: |
+          if [ -z "$S3_BUCKET" ]; then echo "WARNING: Repository Variable S3_BUCKET not set (Settings → Variables)."; fi
+          if [ -z "$CLOUDFRONT_DISTRIBUTION_ID" ]; then echo "WARNING: Repository Variable CLOUDFRONT_DISTRIBUTION_ID not set (Settings → Variables)."; fi
+        env:
+          S3_BUCKET: ${{ env.S3_BUCKET }}
+          CLOUDFRONT_DISTRIBUTION_ID: ${{ env.CLOUDFRONT_DISTRIBUTION_ID }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Type-check
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Run unit tests
+        working-directory: frontend
+        run: npm run test
+  
+      - name: Build production bundle
+        working-directory: frontend
+        env:
+          VITE_API_URL: https://${{ env.API_GATEWAY_ID }}.execute-api.${{ env.AWS_REGION }}.amazonaws.com
+          VITE_WS_URL: wss://${{ env.WS_API_GATEWAY_ID }}.execute-api.${{ env.AWS_REGION }}.amazonaws.com/prod
+          VITE_ADMIN_PIN: ${{ secrets.VITE_ADMIN_PIN }}
+        run: npm run build
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Upload build to S3
+        run: |
+          aws s3 sync frontend/dist/ s3://${{ env.S3_BUCKET }}/ \
+            --delete \
+            --cache-control "public,max-age=31536000,immutable" \
+            --exclude "index.html"
+
+          # index.html should never be cached — always serve fresh
+          aws s3 cp frontend/dist/index.html s3://${{ env.S3_BUCKET }}/index.html \
+            --cache-control "no-cache,no-store,must-revalidate" \
+            --content-type "text/html"
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*"
+
+      - name: Print live URL
+        run: echo "✅ Deployed to https://cricscore.venkateshsingamsetty.site"

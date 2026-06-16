@@ -39,7 +39,7 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ currentInnings, previousInnings
           {(order || []).map((id) => {
             const player = players?.[id];
             if (!player) return null;
-            if (player.ballsFaced === 0 && !player.isOut && id !== displayInnings?.strikerId && id !== displayInnings?.nonStrikerId) {
+            if (player.ballsFaced === 0 && !player.isOut && player.wicketType !== 'RETIRED_HURT' && id !== displayInnings?.strikerId && id !== displayInnings?.nonStrikerId) {
               return null;
             }
             const isStriker = id === displayInnings?.strikerId;
@@ -53,8 +53,8 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ currentInnings, previousInnings
                   {player.name} {isStriker && <span className="text-indigo-300 animate-pulse ml-1 text-base">🏏</span>}
                 </td>
                 <td className={`px-4 py-3 text-[10px] font-black uppercase tracking-tight ${highlight ? 'text-indigo-100' : 'text-slate-500'}`}>
-                  {player.isOut ? (
-                    <span className="text-red-400 opacity-90">
+                  {player.isOut || player.wicketType === 'RETIRED_HURT' ? (
+                    <span className={player.wicketType === 'RETIRED_HURT' ? "text-amber-400 opacity-90" : "text-red-400 opacity-90"}>
                       {(() => {
                         const type = player.wicketType;
                         const bowler = player.wicketBy;
@@ -265,10 +265,18 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ currentInnings, previousInnings
                           {balls.map((ball: any, idx: number) => {
                             const isWicket = ball.isWicket;
                             const isExtra = ball.isExtra;
-                            let label = ball.runs;
-                            if (ball.extraType === 'WIDE') label = `${ball.extraRuns + ball.runs}wd`;
-                            if (ball.extraType === 'NO_BALL') label = `${ball.extraRuns + ball.runs}nb`;
-                            if (isWicket) label = 'W';
+                            let label = String(ball.runs);
+                            if (isWicket) {
+                              label = ball.runs > 0 ? `W+${ball.runs}` : 'W';
+                            } else if (ball.extraType === 'WIDE') {
+                              label = ball.runs > 0 ? `Wd+${ball.runs}` : 'Wd';
+                            } else if (ball.extraType === 'NO_BALL') {
+                              label = ball.runs > 0 ? `Nb+${ball.runs}` : 'Nb';
+                            } else if (ball.extraType === 'BYE') {
+                              label = ball.runs > 0 ? `B+${ball.runs}` : 'B';
+                            } else if (ball.extraType === 'LEG_BYE') {
+                              label = ball.runs > 0 ? `Lb+${ball.runs}` : 'Lb';
+                            }
 
                             return (
                               <div key={idx} className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black ${isWicket ? 'bg-red-600 text-white shadow-lg shadow-red-600/20' : isExtra ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/20' : 'bg-slate-800 text-slate-300'}`}>
@@ -299,15 +307,15 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ currentInnings, previousInnings
                       let w = 0, nb = 0, b = 0, lb = 0;
                       displayInnings.allBalls.forEach(ball => {
                         if (ball.extraType === ExtraType.WIDE) w += (ball.extraRuns + ball.runs);
-                        if (ball.extraType === ExtraType.NO_BALL) nb += ball.extraRuns;
-                        if (ball.extraType === ExtraType.BYE) b += ball.runs;
-                        if (ball.extraType === ExtraType.LEG_BYE) lb += ball.runs;
+                        if (ball.extraType === ExtraType.NO_BALL) nb += (ball.extraRuns + ball.runs);
+                        if (ball.extraType === ExtraType.BYE) b += (ball.extraRuns + ball.runs);
+                        if (ball.extraType === ExtraType.LEG_BYE) lb += (ball.extraRuns + ball.runs);
                       });
                       return (
                         <>
                           <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Extras Total: {w + nb + b + lb}</span>
                           <div className="flex gap-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest">
-                            <span className="bg-white/5 px-2 py-0.5 rounded">W: {w}</span>
+                            <span className="bg-white/5 px-2 py-0.5 rounded">WD: {w}</span>
                             <span className="bg-white/5 px-2 py-0.5 rounded">NB: {nb}</span>
                             <span className="bg-white/5 px-2 py-0.5 rounded">B: {b}</span>
                             <span className="bg-white/5 px-2 py-0.5 rounded">LB: {lb}</span>

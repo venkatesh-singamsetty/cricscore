@@ -1,6 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { InningsState, BallEvent, ExtraType, WicketType, Bowler } from '../types';
 import Scoreboard from './Scoreboard';
+import { FielderSelectModal } from './MatchView/FielderSelectModal';
+import { WicketTypeModal } from './MatchView/WicketTypeModal';
+import { RetireModal } from './MatchView/RetireModal';
+import { RunOutModal } from './MatchView/RunOutModal';
+import { BatterSelectModal } from './MatchView/BatterSelectModal';
+import { BowlerSelectModal } from './MatchView/BowlerSelectModal';
+import { ExtraRunsModal } from './MatchView/ExtraRunsModal';
 
 interface MatchViewProps {
     initialState: InningsState;
@@ -14,7 +21,7 @@ interface MatchViewProps {
     onStateChange?: (state: InningsState) => void;
 }
 
-type ModalType = 'NONE' | 'WICKET_TYPE' | 'BATTER_SELECT' | 'BOWLER_SELECT' | 'FIELDER_SELECT' | 'EXTRA_RUNS' | 'RUN_OUT_MODAL';
+type ModalType = 'NONE' | 'WICKET_TYPE' | 'BATTER_SELECT' | 'BOWLER_SELECT' | 'FIELDER_SELECT' | 'EXTRA_RUNS' | 'RUN_OUT_MODAL' | 'RETIRE_MODAL';
 
 const MatchView: React.FC<MatchViewProps> = ({
     initialState,
@@ -318,7 +325,7 @@ const MatchView: React.FC<MatchViewProps> = ({
                 return;
             }
 
-            console.log("Live Sync: Ball sent to Aiven Kafka 🏏📡");
+            console.log("Live Sync: Ball record sent successfully 🏏📡");
         } catch (err) {
             console.error("Live Sync Failed:", err);
         }
@@ -417,7 +424,10 @@ const MatchView: React.FC<MatchViewProps> = ({
             if (wicketType !== WicketType.RETIRED_HURT) {
                 nextInnings.totalWickets += 1;
             }
-            if (!isWide && !isNoBall && wicketType !== WicketType.RUN_OUT && wicketType !== WicketType.RETIRED_HURT && wicketType !== WicketType.RETIRED_OUT) {
+            const isBowlerWicket = 
+                (!isNoBall && !isWide && wicketType !== WicketType.RUN_OUT && wicketType !== WicketType.RETIRED_HURT && wicketType !== WicketType.RETIRED_OUT) ||
+                (isWide && (wicketType === WicketType.STUMPED || wicketType === WicketType.HIT_WICKET));
+            if (isBowlerWicket) {
                 nextBowler.wickets += 1;
             }
             if (wicketType === WicketType.RUN_OUT && outBatterId === nextInnings.nonStrikerId) {
@@ -428,10 +438,14 @@ const MatchView: React.FC<MatchViewProps> = ({
                 nextNonStriker.fielderName = fielderName;
                 nextInnings.players[nextInnings.nonStrikerId] = nextNonStriker;
             } else {
-                nextStriker.isOut = true;
+                nextStriker.isOut = wicketType !== WicketType.RETIRED_HURT;
                 nextStriker.wicketType = wicketType;
                 nextStriker.wicketBy = bowler.name;
                 nextStriker.fielderName = fielderName;
+            }
+
+            if (wicketType === WicketType.RETIRED_HURT) {
+                nextInnings.strikerId = "";
             }
         }
 
@@ -522,7 +536,22 @@ const MatchView: React.FC<MatchViewProps> = ({
         setInnings(prev => {
             const updated = { ...prev };
 
-            if (updated.strikerId === "" || updated.players[updated.strikerId]?.isOut) {
+            if (updated.players[newBatterId]) {
+                const player = { ...updated.players[newBatterId] };
+                if (player.wicketType === WicketType.RETIRED_HURT) {
+                    player.wicketType = undefined;
+                    player.wicketBy = undefined;
+                    player.fielderName = undefined;
+                    updated.players[newBatterId] = player;
+                }
+            }
+
+            if (newBatterId === updated.nonStrikerId) {
+                // Swap striker and non-striker
+                [updated.strikerId, updated.nonStrikerId] = [updated.nonStrikerId, updated.strikerId];
+            } else if (newBatterId === updated.strikerId) {
+                // Do nothing if same striker is selected
+            } else if (updated.strikerId === "" || updated.players[updated.strikerId]?.isOut) {
                 updated.strikerId = newBatterId;
             } else if (updated.nonStrikerId === "" || updated.players[updated.nonStrikerId]?.isOut) {
                 updated.nonStrikerId = newBatterId;
@@ -564,344 +593,120 @@ const MatchView: React.FC<MatchViewProps> = ({
         }
     };
 
-    // --- SUB COMPONENTS ---
-
-    const FielderSelectModal = () => {
-        let title = "Who took the fielder action?";
-        if (pendingWicketInfo?.wicketType === WicketType.CAUGHT) title = "Who took the catch?";
-        else if (pendingWicketInfo?.wicketType === WicketType.STUMPED) title = "Who performed the stumping?";
-        else if (pendingWicketInfo?.wicketType === WicketType.RUN_OUT) title = "Who performed the run out?";
-
-        return (
-            <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[150] p-4 backdrop-blur-sm">
-                <div className="bg-white rounded-xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col max-h-[80vh] text-slate-900">
-                    <div className="p-4 bg-slate-50 border-b border-slate-100">
-                        <h3 className="text-lg font-bold text-slate-800">{title}</h3>
-                    </div>
-                    <div className="overflow-y-auto p-2 pb-10">
-                        {innings.bowlingOrder.map(id => {
-                            const fielder = innings.bowlers[id];
-                            return (
-                                <button
-                                    key={id}
-                                    onClick={() => handleFielderSelected(fielder.name)}
-                                    className="w-full text-left px-4 py-3 hover:bg-blue-50 rounded-lg flex justify-between items-center group transition-colors border-b border-slate-50 last:border-0"
-                                >
-                                    <span className="font-medium text-slate-700 group-hover:text-blue-700">{fielder.name}</span>
-                                    <span className="text-blue-500 opacity-0 group-hover:opacity-100">Select →</span>
-                                </button>
-                            );
-                        })}
-                    </div>
-                    <button onClick={() => {
-                        setModalView('NONE');
-                        setPendingWicketInfo(null);
-                        setIsProcessing(false);
-                    }} className="p-4 text-sm text-slate-400 hover:text-slate-600 border-t">Cancel</button>
-                </div>
-            </div>
-        );
-    };
-
-    const WicketTypeModal = () => (
-        <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[200] p-4 backdrop-blur-md animate-in fade-in duration-300">
-            <div className="bg-slate-900 border border-white/10 rounded-[2.5rem] w-full max-w-sm shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-500">
-                <div className="p-6 bg-slate-950 border-b border-white/5 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="w-1.5 h-6 bg-red-600 rounded-full"></div>
-                        <h3 className="text-lg font-black uppercase tracking-tighter italic text-white">Dismissal Type</h3>
-                    </div>
-                </div>
-                <div className="p-6 grid grid-cols-2 gap-3">
-                    {/* Filter valid dismissals by delivery type per Laws of Cricket:
-                        Wide  → only Run Out (Law 25.6)
-                        No-Ball → only Caught & Run Out (Laws 23, 37, 39)
-                        Normal  → all modes */}
-                    {(pendingExtra === ExtraType.WIDE
-                        ? [WicketType.RUN_OUT]
-                        : pendingExtra === ExtraType.NO_BALL
-                            ? [WicketType.CAUGHT, WicketType.RUN_OUT]
-                            : [WicketType.BOWLED, WicketType.CAUGHT, WicketType.LBW, WicketType.RUN_OUT, WicketType.STUMPED, WicketType.HIT_WICKET]
-                    ).map((type) => (
-                        <button
-                            key={type}
-                            onClick={() => {
-                                if (type === WicketType.RUN_OUT) {
-                                    setModalView('RUN_OUT_MODAL');
-                                } else {
-                                    handleScore(0, true, type);
-                                }
-                            }}
-                            className="py-5 px-4 bg-white/5 text-slate-200 border border-white/5 rounded-2xl font-black hover:bg-red-600 hover:text-white hover:border-red-400 transition-all active:scale-95 uppercase text-xs italic"
-                        >
-                            {type.replace('_', ' ')}
-                        </button>
-                    ))}
-                    <button
-                        onClick={() => setModalView('NONE')}
-                        className="col-span-2 mt-4 py-4 px-4 bg-slate-800 text-slate-400 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:text-white transition-all"
-                    >
-                        Abort
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-
-    const RunOutModal = () => {
-        return (
-            <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[200] p-4 backdrop-blur-md animate-in fade-in duration-300">
-                <div className="bg-slate-900 border border-white/10 rounded-[2.5rem] p-6 w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-500 flex flex-col gap-4">
-                    <div className="flex items-center gap-3 border-b border-white/10 pb-4">
-                        <div className="w-1.5 h-6 bg-red-600 rounded-full"></div>
-                        <h3 className="text-lg font-black uppercase tracking-tighter italic text-white flex-1">Run Out Details</h3>
-                    </div>
-
-                    {runOutRuns === null ? (
-                        <div className="flex flex-col gap-3">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Runs Completed Before Run Out?</label>
-                            <div className="grid grid-cols-3 gap-2">
-                                {[0, 1, 2, 3, 4, 5].map(r => (
-                                    <button
-                                        key={r}
-                                        onClick={() => setRunOutRuns(r)}
-                                        className="py-4 rounded-xl font-black text-xl transition-all active:scale-95 shadow-lg border border-white/5 bg-slate-800 text-white hover:bg-slate-700 hover:border-white/20"
-                                    >
-                                        {r}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="flex flex-col gap-3">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Who was Run Out?</label>
-                            <div className="flex flex-col gap-2">
-                                <button
-                                    onClick={() => {
-                                        setRunOutRuns(null);
-                                        handleScore(runOutRuns, true, WicketType.RUN_OUT, undefined, innings.strikerId);
-                                    }}
-                                    className="py-4 px-4 bg-slate-800 text-slate-200 border border-white/5 rounded-2xl font-black hover:bg-red-600 hover:text-white transition-all active:scale-95 text-sm uppercase italic flex justify-between items-center"
-                                >
-                                    <span>{innings.players[innings.strikerId]?.name || 'Striker'}</span>
-                                    <span className="text-[9px] opacity-50 tracking-widest">STRIKER</span>
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        setRunOutRuns(null);
-                                        handleScore(runOutRuns, true, WicketType.RUN_OUT, undefined, innings.nonStrikerId);
-                                    }}
-                                    className="py-4 px-4 bg-slate-800 text-slate-200 border border-white/5 rounded-2xl font-black hover:bg-red-600 hover:text-white transition-all active:scale-95 text-sm uppercase italic flex justify-between items-center"
-                                >
-                                    <span>{innings.players[innings.nonStrikerId]?.name || 'Non-Striker'}</span>
-                                    <span className="text-[9px] opacity-50 tracking-widest">NON-STRIKER</span>
-                                </button>
-                            </div>
-                            <button
-                                onClick={() => setRunOutRuns(null)}
-                                className="mt-2 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white transition-colors text-center"
-                            >
-                                ← Back
-                            </button>
-                        </div>
-                    )}
-                    <button
-                        onClick={() => {
-                            setModalView('NONE');
-                            setRunOutRuns(null);
-                        }}
-                        className="mt-2 py-3 px-4 bg-transparent text-slate-500 rounded-full font-black uppercase tracking-widest text-[9px] hover:bg-white/5 hover:text-white transition-all border border-transparent hover:border-white/10"
-                    >
-                        Abort Wicket
-                    </button>
-                </div>
-            </div>
-        );
-    };
-
-    const BatterSelectModal = () => {
-        const availableBatters = innings.battingOrder.filter(id => {
-            const p = innings.players[id];
-            return !p.isOut && id !== innings.strikerId && id !== innings.nonStrikerId;
-        });
-
-        const title = innings.strikerId === "" ? "Select Striker" : (innings.nonStrikerId === "" ? "Select Non-Striker" : "Select New Batter");
-
-        return (
-            <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[200] p-4 backdrop-blur-md animate-in fade-in duration-300">
-                <div className="bg-slate-900 border border-white/10 rounded-[2.5rem] w-full max-w-sm shadow-2xl overflow-hidden flex flex-col max-h-[70vh] animate-in zoom-in-95 duration-500">
-                    <div className="p-6 bg-slate-950 border-b border-white/5 flex items-center justify-between shrink-0">
-                        <div className="flex items-center gap-3">
-                            <div className="w-1.5 h-6 bg-indigo-500 rounded-full"></div>
-                            <h3 className="text-lg font-black uppercase tracking-tighter italic text-white">{title}</h3>
-                        </div>
-                        <span className="text-2xl animate-bounce">🏏</span>
-                    </div>
-                    <div className="overflow-y-auto p-4 space-y-3 pb-8 scrollbar-hide flex-1">
-                        {availableBatters.length === 0 ? (
-                            <p className="p-8 text-center text-slate-500 font-bold uppercase tracking-widest text-[10px]">No batters remaining in squad.</p>
-                        ) : (
-                            availableBatters.map(id => (
-                                <button
-                                    key={id}
-                                    onClick={() => handleBatterSelected(id)}
-                                    className="w-full text-left px-5 py-4 bg-white/5 hover:bg-indigo-600 rounded-2xl flex justify-between items-center group transition-all active:scale-95 border border-white/5"
-                                >
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        <span className="text-lg opacity-40 group-hover:opacity-100 transition-opacity">🏏</span>
-                                        <span className="font-black text-slate-200 group-hover:text-white uppercase tracking-tight text-sm italic truncate">{innings.players[id].name}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xs p-2 hover:bg-white/20 rounded-lg transition-colors" onClick={(e) => { e.stopPropagation(); handleRenamePlayer(id); }}>✏️</span>
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400 group-hover:text-white opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">Select</span>
-                                    </div>
-                                </button>
-                            ))
-                        )}
-                    </div>
-                    <div className="p-4 border-t border-white/10 bg-slate-950/50 flex flex-col gap-2 shrink-0">
-                        <button
-                            onClick={() => handleQuickAddPlayer(true)}
-                            className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all shadow-xl shadow-indigo-600/20"
-                        >
-                            + ADD NEW PLAYER TO SQUAD
-                        </button>
-                        {!(innings.strikerId === "" || innings.nonStrikerId === "" || innings.players[innings.strikerId]?.isOut || innings.players[innings.nonStrikerId]?.isOut) && <button onClick={() => setModalView('NONE')} className="w-full py-2 text-slate-500 text-[9px] font-black uppercase tracking-widest hover:text-white transition-colors">Close View</button>}
-                    </div>
-                </div>
-            </div>
-        );
-    };
-
-    const BowlerSelectModal = () => (
-        <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[200] p-4 backdrop-blur-md animate-in fade-in duration-300">
-            <div className="bg-slate-900 border border-white/10 rounded-[2.5rem] w-full max-w-sm shadow-2xl overflow-hidden flex flex-col max-h-[75vh] animate-in zoom-in-95 duration-500">
-                <div className="p-6 bg-slate-950 border-b border-white/5 flex items-center justify-between shrink-0">
-                    <div className="flex items-center gap-3">
-                        <div className="w-1.5 h-6 bg-purple-500 rounded-full"></div>
-                        <h3 className="text-lg font-black uppercase tracking-tighter italic text-white">
-                            {innings.allBalls.length === 0 ? "Opening Bowler" : "Next Bowler"}
-                        </h3>
-                    </div>
-                    <span className="text-2xl">🎾</span>
-                </div>
-                <div className="overflow-y-auto p-4 space-y-3 pb-8 scrollbar-hide flex-1">
-                    {innings.allBalls.length > 0 && (
-                        <>
-                            <div className="px-2 mb-2">
-                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Previous Bowler</span>
-                                <span className="text-xs font-black text-indigo-400 uppercase italic">{getCurrentBowler()?.name || '---'}</span>
-                            </div>
-                            <div className="h-px bg-white/5 mx-2 my-4"></div>
-                        </>
-                    )}
-                    {innings.bowlingOrder.map(id => {
-                        const bowler = innings.bowlers[id];
-                        const isCurrent = id === innings.currentBowlerId;
-                        const maxBowlerOvers = Math.ceil(totalOvers / 5);
-                        const hasReachedQuota = bowler.overs >= maxBowlerOvers;
-                        const isDisabled = isCurrent || hasReachedQuota;
-                        return (
-                            <button
-                                key={id}
-                                onClick={() => handleBowlerSelected(id)}
-                                disabled={isDisabled}
-                                className={`w-full text-left px-5 py-4 rounded-2xl flex justify-between items-center transition-all ${isDisabled ? 'bg-slate-800/30 opacity-20 cursor-not-allowed grayscale' : 'bg-white/5 hover:bg-purple-600 group active:scale-95 border border-white/5'}`}
-                            >
-                                <div className="flex items-center gap-3 min-w-0">
-                                    <span className="text-lg opacity-40 group-hover:opacity-100 transition-opacity">🎾</span>
-                                    <div className="flex flex-col min-w-0">
-                                        <span className={`font-black uppercase tracking-tight text-sm italic truncate ${isDisabled ? 'text-slate-500' : 'text-slate-200 group-hover:text-white'}`}>{bowler.name}</span>
-                                        <div className="text-[10px] font-bold text-slate-500 group-hover:text-purple-200">
-                                            {bowler.overs}.{bowler.balls} OVS • {bowler.wickets} WKT
-                                            {hasReachedQuota
-                                                ? <span className="ml-1 text-red-400 font-black"> • QUOTA FULL</span>
-                                                : <span className="ml-1 opacity-40">/ {maxBowlerOvers} max</span>}
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-xs p-2 hover:bg-white/20 rounded-lg transition-colors" onClick={(e) => { e.stopPropagation(); handleRenameBowler(id); }}>✏️</span>
-                                    {!isDisabled && <span className="text-[10px] font-black uppercase tracking-widest text-purple-400 group-hover:text-white opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">Select</span>}
-                                </div>
-                            </button>
-                        );
-                    })}
-                </div>
-                <div className="p-4 border-t border-white/10 bg-slate-950/50 flex flex-col gap-2 shrink-0">
-                    <button
-                        onClick={() => handleQuickAddPlayer(false)}
-                        className="w-full py-4 bg-purple-600 hover:bg-purple-500 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all shadow-xl shadow-purple-600/20"
-                    >
-                        + ADD NEW BOWLER TO SQUAD
-                    </button>
-                    {!(innings.currentBowlerId === "" || (innings.balls === 0 && innings.allBalls.length > 0)) && <button onClick={() => setModalView('NONE')} className="w-full py-2 text-slate-500 text-[9px] font-black uppercase tracking-widest hover:text-white transition-colors">Close View</button>}
-                </div>
-            </div>
-        </div>
-    );
-
-    const ExtraRunsModal = () => (
-        <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[200] p-4 backdrop-blur-md animate-in fade-in duration-300">
-            <div className="bg-slate-900 border border-white/10 rounded-[2.5rem] p-8 w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-500 text-center">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 mb-4">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400 italic">
-                        {pendingExtra.replace('_', ' ')} Detected
-                    </span>
-                </div>
-                <h3 className="text-2xl font-black text-white uppercase tracking-tighter italic mb-2">Additional Runs?</h3>
-                <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-8">Select any runs conceded from this delivery</p>
-                <div className="grid grid-cols-4 gap-2 md:gap-3">
-                    {[0, 1, 2, 3].map(r => (
-                        <button
-                            key={r}
-                            onClick={() => handleScore(r)}
-                            className="py-5 sm:py-6 rounded-2xl font-black text-2xl sm:text-3xl transition-all active:scale-95 shadow-xl border-t border-white/10 bg-slate-900 text-white hover:bg-slate-800"
-                        >
-                            {r}
-                        </button>
-                    ))}
-                    {[4, 5, 6].map(r => (
-                        <button
-                            key={r}
-                            onClick={() => handleScore(r)}
-                            className={`py-5 sm:py-6 rounded-2xl font-black text-2xl sm:text-3xl transition-all active:scale-95 shadow-xl border-t border-white/10 ${r === 4 ? 'bg-blue-600 text-white shadow-blue-600/20' :
-                                r === 5 ? 'bg-emerald-600 text-white shadow-emerald-600/20' :
-                                    'bg-purple-600 text-white shadow-purple-600/20'
-                                }`}
-                        >
-                            {r}
-                        </button>
-                    ))}
-                </div>
-                <button
-                    onClick={() => {
-                        setPendingExtra(ExtraType.NONE);
-                        setModalView('NONE');
-                    }}
-                    className="mt-8 w-full py-4 text-slate-500 font-black uppercase text-[10px] tracking-[0.2em] hover:text-white transition-colors"
-                >
-                    Ignore Extra
-                </button>
-            </div>
-        </div>
-    );
+    // --- SUB COMPONENTS EXTRACTED ---
 
     const equation = getEquation();
 
     return (
         <div className="h-full bg-slate-900 text-slate-100 flex flex-col overflow-hidden selection:bg-indigo-500/30">
-            {innings.strikerId === "" && <BatterSelectModal />}
-            {/* Modal rendering remains the same... */}
-            {innings.strikerId !== "" && innings.nonStrikerId === "" && <BatterSelectModal />}
-            {innings.strikerId !== "" && innings.nonStrikerId !== "" && innings.currentBowlerId === "" && <BowlerSelectModal />}
+            {innings.strikerId === "" && (
+                <BatterSelectModal
+                    innings={innings}
+                    onSelect={handleBatterSelected}
+                    onRename={handleRenamePlayer}
+                    onQuickAdd={handleQuickAddPlayer}
+                    onClose={() => setModalView('NONE')}
+                />
+            )}
+            {innings.strikerId !== "" && innings.nonStrikerId === "" && (
+                <BatterSelectModal
+                    innings={innings}
+                    onSelect={handleBatterSelected}
+                    onRename={handleRenamePlayer}
+                    onQuickAdd={handleQuickAddPlayer}
+                    onClose={() => setModalView('NONE')}
+                />
+            )}
+            {innings.strikerId !== "" && innings.nonStrikerId !== "" && innings.currentBowlerId === "" && (
+                <BowlerSelectModal
+                    innings={innings}
+                    totalOvers={totalOvers}
+                    onSelect={handleBowlerSelected}
+                    onRename={handleRenameBowler}
+                    onQuickAdd={handleQuickAddPlayer}
+                    onClose={() => setModalView('NONE')}
+                />
+            )}
 
-            {modalView === 'WICKET_TYPE' && <WicketTypeModal />}
-            {modalView === 'RUN_OUT_MODAL' && <RunOutModal />}
-            {modalView === 'BATTER_SELECT' && <BatterSelectModal />}
-            {modalView === 'BOWLER_SELECT' && <BowlerSelectModal />}
-            {modalView === 'FIELDER_SELECT' && <FielderSelectModal />}
-            {modalView === 'EXTRA_RUNS' && <ExtraRunsModal />}
+            {modalView === 'WICKET_TYPE' && (
+                <WicketTypeModal
+                    pendingExtra={pendingExtra}
+                    onSelect={(type) => {
+                        if (type === WicketType.RUN_OUT) {
+                            setModalView('RUN_OUT_MODAL');
+                        } else {
+                            handleScore(0, true, type);
+                        }
+                    }}
+                    onClose={() => setModalView('NONE')}
+                />
+            )}
+            {modalView === 'RUN_OUT_MODAL' && (
+                <RunOutModal
+                    innings={innings}
+                    runOutRuns={runOutRuns}
+                    setRunOutRuns={setRunOutRuns}
+                    onSelect={(runs, outBatterId) => {
+                        setRunOutRuns(null);
+                        handleScore(runs, true, WicketType.RUN_OUT, undefined, outBatterId);
+                    }}
+                    onClose={() => {
+                        setModalView('NONE');
+                        setRunOutRuns(null);
+                    }}
+                />
+            )}
+            {modalView === 'BATTER_SELECT' && (
+                <BatterSelectModal
+                    innings={innings}
+                    onSelect={handleBatterSelected}
+                    onRename={handleRenamePlayer}
+                    onQuickAdd={handleQuickAddPlayer}
+                    onClose={() => setModalView('NONE')}
+                />
+            )}
+            {modalView === 'BOWLER_SELECT' && (
+                <BowlerSelectModal
+                    innings={innings}
+                    totalOvers={totalOvers}
+                    onSelect={handleBowlerSelected}
+                    onRename={handleRenameBowler}
+                    onQuickAdd={handleQuickAddPlayer}
+                    onClose={() => setModalView('NONE')}
+                />
+            )}
+            {modalView === 'FIELDER_SELECT' && (
+                <FielderSelectModal
+                    innings={innings}
+                    pendingWicketInfo={pendingWicketInfo}
+                    onSelect={handleFielderSelected}
+                    onClose={() => {
+                        setModalView('NONE');
+                        setPendingWicketInfo(null);
+                        setIsProcessing(false);
+                    }}
+                />
+            )}
+            {modalView === 'EXTRA_RUNS' && (
+                <ExtraRunsModal
+                    pendingExtra={pendingExtra}
+                    onScore={(runs) => handleScore(runs)}
+                    onIgnore={() => {
+                        setPendingExtra(ExtraType.NONE);
+                        setModalView('NONE');
+                    }}
+                />
+            )}
+            {modalView === 'RETIRE_MODAL' && (
+                <RetireModal
+                    strikerName={innings.players[innings.strikerId]?.name || "Striker"}
+                    onRetire={(type) => {
+                        handleRetire(type);
+                        setModalView('NONE');
+                    }}
+                    onClose={() => setModalView('NONE')}
+                />
+            )}
 
             {showScoreboard && (
                 <Scoreboard
@@ -1057,7 +862,17 @@ const MatchView: React.FC<MatchViewProps> = ({
                                                     ball.isExtra ? 'bg-amber-500 text-amber-950 border-amber-300 shadow-amber-500/40' :
                                                         'bg-white text-slate-900 border-white shadow-white/10'
                                             }`}>
-                                            {ball.isWicket ? (ball.runs > 0 ? `W+${ball.runs}` : 'W') : (ball.isExtra ? (ball.runs > 0 ? `${ball.runs}${ball.extraType[0]}` : ball.extraType[0]) : ball.runs)}
+                                            {(() => {
+                                                if (ball.isWicket) return ball.runs > 0 ? `W+${ball.runs}` : 'W';
+                                                if (ball.isExtra) {
+                                                    if (ball.extraType === 'WIDE') return ball.runs > 0 ? `Wd+${ball.runs}` : 'Wd';
+                                                    if (ball.extraType === 'NO_BALL') return ball.runs > 0 ? `Nb+${ball.runs}` : 'Nb';
+                                                    if (ball.extraType === 'BYE') return ball.runs > 0 ? `B+${ball.runs}` : 'B';
+                                                    if (ball.extraType === 'LEG_BYE') return ball.runs > 0 ? `Lb+${ball.runs}` : 'Lb';
+                                                    return ball.runs > 0 ? `${ball.extraType[0]}+${ball.runs}` : ball.extraType[0];
+                                                }
+                                                return ball.runs;
+                                            })()}
                                         </div>
                                         <span className="text-[8px] md:text-[9px] font-black text-slate-500 uppercase">{ball.isExtra ? ball.extraType.split('_')[0] : 'RUN'}</span>
                                     </div>
@@ -1106,9 +921,13 @@ const MatchView: React.FC<MatchViewProps> = ({
                             <span className="text-base">🏏</span>
                             Change Batter
                         </button>
-                        <button onClick={() => handleRetire(WicketType.RETIRED_HURT)} className="py-2 flex flex-col items-center justify-center gap-1 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white hover:bg-white/5 transition-all">
-                            <span className="text-base">🤕</span>
-                            Hurt
+                        <button 
+                            onClick={() => innings.strikerId && setModalView('RETIRE_MODAL')} 
+                            disabled={!innings.strikerId}
+                            className={`py-2 flex flex-col items-center justify-center gap-1 text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all ${!innings.strikerId ? 'opacity-40 cursor-not-allowed text-slate-600' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+                        >
+                            <span className="text-base">🚪</span>
+                            Retire
                         </button>
                     </div>
 

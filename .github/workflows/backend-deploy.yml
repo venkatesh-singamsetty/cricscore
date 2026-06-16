@@ -1,0 +1,87 @@
+name: Deploy — Backend Lambda Functions
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/lambdas/**'
+
+  # Allow manual deploys from the GitHub Actions UI
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-lambdas:
+    name: Package & Deploy Lambdas via Terraform
+    runs-on: ubuntu-latest
+
+    env:
+      # Read AWS region from repository secrets to avoid hard-coded regions
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      # Terraform reads TF_VAR_* env vars automatically — no tfvars file needed in CI
+      TF_VAR_aws_region: ${{ secrets.AWS_REGION }}
+      TF_VAR_domain_name: cricscore.venkateshsingamsetty.site
+      TF_VAR_zone_domain: venkateshsingamsetty.site
+      TF_VAR_subdomain_prefix: cricscore
+      TF_VAR_project_name: cricscore
+      TF_VAR_ses_source_email: ${{ secrets.TF_SES_SOURCE_EMAIL }}
+      TF_VAR_database_url: ${{ secrets.TF_DATABASE_URL }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate AWS_REGION secret
+        run: |
+          if [ -z "$AWS_REGION" ]; then echo "Missing AWS_REGION. Set secrets.AWS_REGION"; exit 1; fi
+        # The job-level `env` already exposes $AWS_REGION to steps, no need to rebind here.
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set up Node.js (for packaging Lambdas)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Lambda dependencies
+        run: |
+          set -e
+          for d in backend/lambdas/*; do
+            if [ -f "$d/package.json" ]; then
+              echo "Installing production dependencies in $d"
+              (cd "$d" && npm ci --production)
+            fi
+          done
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '~1.9'
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init
+
+      - name: Terraform Validate
+        working-directory: terraform
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: terraform
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        working-directory: terraform
+        run: terraform apply -auto-approve tfplan
+
