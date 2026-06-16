@@ -63,6 +63,24 @@ resource "aws_apigatewayv2_route" "post_innings" {
   target    = "integrations/${aws_apigatewayv2_integration.match_api.id}"
 }
 
+resource "aws_apigatewayv2_route" "delete_matches" {
+  api_id    = aws_apigatewayv2_api.http_api.id
+  route_key = "DELETE /matches"
+  target    = "integrations/${aws_apigatewayv2_integration.match_api.id}"
+}
+
+resource "aws_apigatewayv2_route" "delete_match" {
+  api_id    = aws_apigatewayv2_api.http_api.id
+  route_key = "DELETE /match/{matchId}"
+  target    = "integrations/${aws_apigatewayv2_integration.match_api.id}"
+}
+
+resource "aws_apigatewayv2_route" "post_match_email" {
+  api_id    = aws_apigatewayv2_api.http_api.id
+  route_key = "POST /match/{matchId}/email"
+  target    = "integrations/${aws_apigatewayv2_integration.match_api.id}"
+}
+
 resource "aws_lambda_permission" "api_gw" {
   statement_id  = "AllowExecutionFromAPIGateway"
   action        = "lambda:InvokeFunction"

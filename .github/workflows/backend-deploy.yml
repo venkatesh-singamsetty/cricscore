@@ -2,12 +2,19 @@ name: Deploy — Backend Lambda Functions
 
 on:
   push:
-    branches: [main, feature/**]
+    branches: [main]
     paths:
       - 'backend/lambdas/**'
 
   # Allow manual deploys from the GitHub Actions UI
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   deploy-lambdas:
@@ -25,9 +32,6 @@ jobs:
       TF_VAR_project_name: cricscore
       TF_VAR_ses_source_email: ${{ secrets.TF_SES_SOURCE_EMAIL }}
       TF_VAR_database_url: ${{ secrets.TF_DATABASE_URL }}
-      TF_VAR_kafka_bootstrap_servers: ${{ secrets.TF_KAFKA_BROKERS }}
-      TF_VAR_kafka_username: ${{ secrets.TF_KAFKA_USERNAME }}
-      TF_VAR_kafka_password: ${{ secrets.TF_KAFKA_PASSWORD }}
 
     steps:
       - name: Checkout code
@@ -37,16 +41,6 @@ jobs:
         run: |
           if [ -z "$AWS_REGION" ]; then echo "Missing AWS_REGION. Set secrets.AWS_REGION"; exit 1; fi
         # The job-level `env` already exposes $AWS_REGION to steps, no need to rebind here.
-
-      - name: Restore Kafka certificates from secrets
-        run: |
-          # Decode base64 secrets and write certs to all Lambda dirs that need them
-          for dir in backend/lambdas/kafka-consumer backend/lambdas/score-update backend/lambdas/storage-worker certs; do
-            mkdir -p "$dir"
-            echo "${{ secrets.KAFKA_CA_CERT_B64 }}"   | base64 -d > "$dir/ca.pem"
-            echo "${{ secrets.KAFKA_CERT_B64 }}"      | base64 -d > "$dir/cert.pem"
-            echo "${{ secrets.KAFKA_KEY_B64 }}"       | base64 -d > "$dir/key.pem"
-          done
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -69,6 +63,16 @@ jobs:
               (cd "$d" && npm ci --production)
             fi
           done
+
+      - name: Run Trivy vulnerability scanner (fs)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: 'backend/lambdas'
+          ignore-unfixed: true
+          format: 'table'
+          exit-code: '0'
+          severity: 'HIGH,CRITICAL'
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3

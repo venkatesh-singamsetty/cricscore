@@ -11,6 +11,13 @@ on:
     paths:
       - 'terraform/**'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   terraform-validate:
     name: Terraform Validate & Format Check
@@ -36,3 +43,11 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
         working-directory: terraform
+
+      - name: Run Checkov static analysis
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: terraform
+          framework: terraform
+          output_format: cli
+          soft_fail: true

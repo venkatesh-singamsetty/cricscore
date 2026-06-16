@@ -20,6 +20,7 @@ const App: React.FC = () => {
     const emailInputRef = React.useRef<HTMLInputElement>(null);
     const endEmailInputRef = React.useRef<HTMLInputElement>(null);
     const isRestoringRef = React.useRef(false);
+    const isEndingInningsRef = React.useRef(false);
 
     // Auto-position cursor before @gmail.com when modal opens
 
@@ -263,10 +264,16 @@ const App: React.FC = () => {
 
     const handleInningsEnd = async (completedInnings: InningsState) => {
         if (completedInnings.inningNumber === 1) {
+            if (isEndingInningsRef.current) return;
+            isEndingInningsRef.current = true;
+
             // Transition to 2nd Innings
             setPreviousInnings(completedInnings);
 
-            if (!teamA || !teamB) return;
+            if (!teamA || !teamB) {
+                isEndingInningsRef.current = false;
+                return;
+            }
 
             const nextBattingTeam = completedInnings.battingTeamName === teamA.name ? teamB : teamA;
             const nextBowlingTeam = completedInnings.battingTeamName === teamA.name ? teamA : teamB;
@@ -295,6 +302,8 @@ const App: React.FC = () => {
                 setMatchStatus(MatchStatus.INNINGS_BREAK);
             } catch (err) {
                 console.error("Failed to create 2nd Innings:", err);
+            } finally {
+                isEndingInningsRef.current = false;
             }
         } else {
             setCurrentInnings(completedInnings);
