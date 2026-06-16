@@ -61,8 +61,10 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({ isAdmin, onResumeMatch,
                     ...b,
                     bowlerName: b.bowler_name,
                     batterName: b.batter_name,
+                    isExtra: b.is_extra,
                     extraType: b.extra_type as ExtraType,
                     extraRuns: b.extra_runs,
+                    isWicket: b.is_wicket,
                     wicketType: b.wicket_type as WicketType,
                     overNumber: b.over_number,
                     ballNumber: b.ball_number
@@ -230,7 +232,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({ isAdmin, onResumeMatch,
                     {matchDetails && matchMeta?.status !== 'COMPLETED' ? (() => {
                         const currentInnings = matchDetails.innings[matchDetails.innings.length - 1];
                         
-                        // Fallback strikers/bowlers from DB if no live Kafka update yet
+                        // Fallback strikers/bowlers from DB if no live sync update yet
                         const displayStrikerName = liveData?.batterName || currentInnings.players[currentInnings.strikerId]?.name || 'Waiting...';
                         const displayNonStrikerName = currentInnings.players[currentInnings.nonStrikerId]?.name || 'Waiting...';
                         const displayBowlerName = liveData?.bowlerName || currentInnings.bowlers[currentInnings.currentBowlerId]?.name || 'Waiting...';
@@ -441,7 +443,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({ isAdmin, onResumeMatch,
                         );
                     })() : (
                          <div className="py-12 text-center">
-                            <p className="text-slate-500 font-black uppercase tracking-widest text-[10px] italic">Waiting for Kafka update...</p>
+                            <p className="text-slate-500 font-black uppercase tracking-widest text-[10px] italic">Waiting for live update...</p>
                         </div>
                     )}
                 </div>

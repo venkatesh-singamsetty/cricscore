@@ -25,6 +25,189 @@ const broadcastHubUpdate = async (matchId = 'global') => {
     }
 }
 
+const sendMatchReportEmail = async (matchId, emailTo, origin, reportState, client) => {
+    // Get match details
+    const matchRes = await client.query('SELECT * FROM matches WHERE id = $1', [matchId]);
+    const matchRecord = matchRes.rows[0];
+    if (!matchRecord) return { success: false, error: 'Match not found' };
+
+    let inningsToReport = [];
+
+    if (reportState && reportState.innings) {
+        console.log("Using provided state for report dispatch.");
+        inningsToReport = reportState.innings;
+    } else {
+        const inningsRes = await client.query('SELECT * FROM innings WHERE match_id = $1 ORDER BY inning_number', [matchId]);
+        for (const inn of inningsRes.rows) {
+            const pRes = await client.query('SELECT * FROM players WHERE inning_id = $1 ORDER BY runs DESC', [inn.id]);
+            const bRes = await client.query('SELECT * FROM bowlers WHERE inning_id = $1 ORDER BY wickets DESC', [inn.id]);
+            inningsToReport.push({
+                ...inn,
+                players: pRes.rows,
+                bowlers: bRes.rows
+            });
+        }
+    }
+
+    const innArr = inningsToReport;
+
+    // Derive result
+    let resultText = "MATCH IN PROGRESS";
+    if (innArr.length >= 2) {
+        const i1 = innArr[0];
+        const i2 = innArr[1];
+        const r1 = i1.totalRuns !== undefined ? i1.totalRuns : (i1.total_runs || 0);
+        const r2 = i2.totalRuns !== undefined ? i2.totalRuns : (i2.total_runs || 0);
+        const w2 = i2.totalWickets !== undefined ? i2.totalWickets : (i2.total_wickets || 0);
+        const t1 = i1.battingTeamName || i1.batting_team_name || 'Team 1';
+        const t2 = i2.battingTeamName || i2.batting_team_name || 'Team 2';
+        if (r2 > r1) {
+            resultText = `${t2} WON BY ${10 - w2} WICKETS`;
+        } else if (r1 > r2) {
+            resultText = `${t1} WON BY ${r1 - r2} RUNS`;
+        } else {
+            resultText = "MATCH TIED";
+        }
+    } else if (matchRecord.status === 'COMPLETED') {
+        resultText = "INCOMPLETE / ABANDONED";
+    }
+
+    console.log(`📧 Preparing SES Email for ${matchId} to ${emailTo}. Result: ${resultText}`);
+
+    let htmlBody = `
+    <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #0f172a; color: white; padding: 40px; border-radius: 20px;">
+        <h1 style="color: #6366f1; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 5px;">🏆 CRICSCORE OFFICIAL REPORT</h1>
+        <p style="color: #94a3b8; font-weight: bold; margin-top: 0;">${matchRecord.team_a_name} vs ${matchRecord.team_b_name}</p>
+        
+        <div style="background: #1e293b; padding: 20px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.05); margin: 20px 0;">
+            <h2 style="margin: 0; color: #fb7185; text-transform: uppercase; font-style: italic;">${resultText}</h2>
+            <p style="font-size: 14px; color: #94a3b8;">${new Date(matchRecord.created_at).toLocaleString()}</p>
+            <a href="${origin || 'https://cricscore.venkateshsingamsetty.site'}?matchId=${matchId}" style="display: inline-block; padding: 12px 24px; background: #4f46e5; color: white; text-decoration: none; border-radius: 10px; font-weight: bold; margin-top: 10px;">VIEW INTERACTIVE SCORECARD ⚡</a>
+        </div>`;
+
+    for (const inn of innArr) {
+        const battingTeam = inn.batting_team_name || inn.battingTeamName || 'Unknown Team';
+        const runs = inn.total_runs !== undefined ? inn.total_runs : (inn.totalRuns || 0);
+        const wickets = inn.total_wickets !== undefined ? inn.total_wickets : (inn.totalWickets || 0);
+        const ov = inn.overs !== undefined ? inn.overs : 0;
+        const balls = inn.balls !== undefined ? inn.balls : 0;
+
+        let players = inn.players || [];
+        let bowlers = inn.bowlers || [];
+
+        if (!inn.players || !inn.bowlers) {
+            const pR = await client.query('SELECT * FROM players WHERE inning_id = $1 ORDER BY runs DESC', [inn.id]);
+            const bR = await client.query('SELECT * FROM bowlers WHERE inning_id = $1 ORDER BY wickets DESC', [inn.id]);
+            players = pR.rows;
+            bowlers = bR.rows;
+        } else {
+            if (!Array.isArray(players)) players = Object.values(players);
+            if (!Array.isArray(bowlers)) bowlers = Object.values(bowlers);
+            
+            players.sort((a, b) => (b.runs || 0) - (a.runs || 0));
+            bowlers.sort((a, b) => (b.wickets || (b.runsConceded ? 0 : -1)) - (a.wickets || (a.runsConceded ? 0 : -1)));
+        }
+
+        htmlBody += `
+        <div style="margin-top: 40px;">
+            <h3 style="background: #334155; padding: 10px 20px; border-radius: 8px; color: #e2e8f0; margin-bottom: 10px;">🏏 ${battingTeam} - ${runs}/${wickets} (${ov}.${balls})</h3>
+        <table style="width: 100%; border-collapse: collapse; text-align: left; background: rgba(255,255,255,0.02); border-radius: 10px; overflow: hidden;">
+            <thead>
+                <tr style="background: rgba(255,255,255,0.05); color: #94a3b8; font-size: 12px; text-transform: uppercase;">
+                    <th style="padding: 12px;">Batter</th><th style="padding: 12px;">R</th><th style="padding: 12px;">B</th><th style="padding: 12px;">4s/6s</th>
+                </tr>
+            </thead>
+            <tbody>`;
+    
+        players.filter(p => (p.balls_faced || p.ballsFaced) > 0 || p.is_out).forEach(p => {
+            const r = p.runs || 0;
+            const b = p.balls_faced || p.ballsFaced || 0;
+            const f = p.fours || 0;
+            const s = p.sixes || 0;
+            htmlBody += `
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
+                    <td style="padding: 12px; font-weight: bold;">${p.name} ${p.is_out ? '' : '*'}</td>
+                    <td style="padding: 12px;">${r}</td>
+                    <td style="padding: 12px; color: #64748b;">${b}</td>
+                    <td style="padding: 12px; color: #64748b;">${f}/${s}</td>
+                </tr>`;
+        });
+
+        htmlBody += `</tbody></table></div>`;
+
+        // --- BOWLING SECTION ---
+        htmlBody += `
+        <div style="margin-top: 20px;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; background: rgba(255,255,255,0.02); border-radius: 10px; overflow: hidden;">
+                <thead>
+                    <tr style="background: rgba(255,255,255,0.05); color: #94a3b8; font-size: 12px; text-transform: uppercase;">
+                        <th style="padding: 12px;">Bowler</th><th style="padding: 12px;">O</th><th style="padding: 12px;">M</th><th style="padding: 12px;">R</th><th style="padding: 12px;">W</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+        bowlers.filter(b => (b.overs_completed || b.overs) > 0 || (b.balls || 0) > 0).forEach(b => {
+            const ov = b.overs_completed || b.overs || 0;
+            const balls = b.balls || 0;
+            const runs = b.runs_conceded || b.runsConceded || 0;
+            htmlBody += `
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
+                    <td style="padding: 12px; font-weight: bold;">${b.name}</td>
+                    <td style="padding: 12px;">${ov}.${balls}</td>
+                    <td style="padding: 12px; color: #64748b;">${b.maidens || 0}</td>
+                    <td style="padding: 12px;">${runs}</td>
+                    <td style="padding: 12px; color: #fb7185; font-weight: 800;">${b.wickets}</td>
+                </tr>`;
+        });
+
+        htmlBody += `</tbody></table></div>`;
+    }
+
+    htmlBody += `<p style="text-align: center; color: #475569; font-size: 12px; margin-top: 40px;">Generated securely via CricScore on AWS</p></div>`;
+
+    const ses = new SESClient({ region: 'us-east-1' });
+    let adminEmailSent = false;
+    let scorerEmailSent = false;
+
+    // --- 1. SEND TO ADMIN ---
+    if (process.env.ADMIN_REPORT_EMAIL) {
+        try {
+            await ses.send(new SendEmailCommand({
+                Destination: { ToAddresses: [process.env.ADMIN_REPORT_EMAIL] },
+                Message: {
+                    Body: { Html: { Charset: "UTF-8", Data: htmlBody } },
+                    Subject: { Charset: "UTF-8", Data: `🏏 ADMIN REPORT: ${matchRecord.team_a_name} vs ${matchRecord.team_b_name}` }
+                },
+                Source: process.env.SES_SOURCE || "noreply@venkateshsingamsetty.site"
+            }));
+            console.log("✅ Admin Email Sent Successfully 📡");
+            adminEmailSent = true;
+        } catch (err) {
+            console.error("❌ Admin Email Failed:", err.message);
+        }
+    }
+
+    // --- 2. SEND TO SCORER ---
+    if (emailTo && emailTo !== process.env.ADMIN_REPORT_EMAIL) {
+        try {
+            await ses.send(new SendEmailCommand({
+                Destination: { ToAddresses: [emailTo] },
+                Message: {
+                    Body: { Html: { Charset: "UTF-8", Data: htmlBody } },
+                    Subject: { Charset: "UTF-8", Data: `🏏 FINAL SCORECARD: ${matchRecord.team_a_name} vs ${matchRecord.team_b_name}` }
+                },
+                Source: process.env.SES_SOURCE || "noreply@venkateshsingamsetty.site"
+            }));
+            console.log("✅ Scorer Email Sent Successfully ⚽");
+            scorerEmailSent = true;
+        } catch (err) {
+            console.warn("⚠️ Scorer Email Rejected (Likely Sandbox mode):", err.message);
+        }
+    }
+
+    return { adminEmailSent, scorerEmailSent };
+};
+
 exports.handler = async (event) => {
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
     const client = new Client({
@@ -261,13 +444,36 @@ exports.handler = async (event) => {
                 const query = `UPDATE matches SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *`;
                 const res = await client.query(query, params);
 
-                // ✅ When match completes, mark all innings as completed
+                // ✅ When match completes, mark all innings as completed and trigger automated report email
                 if (status === 'COMPLETED') {
                     await client.query(
                         `UPDATE innings SET is_completed = TRUE, updated_at = CURRENT_TIMESTAMP WHERE match_id = $1`,
                         [matchId]
                     );
                     console.log(`✅ All innings for match ${matchId} marked as completed.`);
+
+                    // Sync final scores and wickets to matches table columns
+                    await client.query(`
+                        UPDATE matches m
+                        SET team_a_score = COALESCE((SELECT total_runs FROM innings WHERE match_id = m.id AND batting_team_name = m.team_a_name), 0),
+                            team_a_wickets = COALESCE((SELECT total_wickets FROM innings WHERE match_id = m.id AND batting_team_name = m.team_a_name), 0),
+                            team_a_overs = COALESCE((SELECT CONCAT(overs, '.', balls) FROM innings WHERE match_id = m.id AND batting_team_name = m.team_a_name), '0.0'),
+                            team_b_score = COALESCE((SELECT total_runs FROM innings WHERE match_id = m.id AND batting_team_name = m.team_b_name), 0),
+                            team_b_wickets = COALESCE((SELECT total_wickets FROM innings WHERE match_id = m.id AND batting_team_name = m.team_b_name), 0),
+                            team_b_overs = COALESCE((SELECT CONCAT(overs, '.', balls) FROM innings WHERE match_id = m.id AND batting_team_name = m.team_b_name), '0.0')
+                        WHERE id = $1
+                    `, [matchId]);
+                    console.log(`✅ Synchronized team scores and wickets on matches table for ${matchId}.`);
+
+                    // Auto-trigger email report to the tournament master (admin email)
+                    if (process.env.ADMIN_REPORT_EMAIL) {
+                        try {
+                            await sendMatchReportEmail(matchId, process.env.ADMIN_REPORT_EMAIL, null, null, client);
+                            console.log(`✅ Automated match completion report sent to ${process.env.ADMIN_REPORT_EMAIL}`);
+                        } catch (emailErr) {
+                            console.error("❌ Failed to send automated report on match completion:", emailErr);
+                        }
+                    }
                 }
 
                 return {
@@ -278,200 +484,30 @@ exports.handler = async (event) => {
             }
         }
 
-            // POST /match/{matchId}/email (Send Fancy HTML Email)
-            if (httpMethod === 'POST' && pathParameters && pathParameters.matchId && path.includes('/email')) {
-                const matchId = pathParameters.matchId;
-                const { emailTo, origin, reportState } = JSON.parse(body);
+        // POST /match/{matchId}/email (Send Fancy HTML Email)
+        if (httpMethod === 'POST' && pathParameters && pathParameters.matchId && path.includes('/email')) {
+            const matchId = pathParameters.matchId;
+            const { emailTo, origin, reportState } = JSON.parse(body);
 
-                // Get match details (same logic as /details)
-                const matchRes = await client.query('SELECT * FROM matches WHERE id = $1', [matchId]);
-                const matchRecord = matchRes.rows[0];
-
-                let inningsToReport = [];
-
-                if (reportState && reportState.innings) {
-                    console.log("📡 Using Frontend-provided state for accurate report dispatch.");
-                    inningsToReport = reportState.innings;
-                } else {
-                    const inningsRes = await client.query('SELECT * FROM innings WHERE match_id = $1 ORDER BY inning_number', [matchId]);
-                    for (const inn of inningsRes.rows) {
-                        const pRes = await client.query('SELECT * FROM players WHERE inning_id = $1 ORDER BY runs DESC', [inn.id]);
-                        const bRes = await client.query('SELECT * FROM bowlers WHERE inning_id = $1 ORDER BY wickets DESC', [inn.id]);
-                        inningsToReport.push({
-                            ...inn,
-                            players: pRes.rows,
-                            bowlers: bRes.rows
-                        });
-                    }
-                }
-
-                const innArr = inningsToReport;
-
-            // Derive result from frontend-provided reportState (avoids DB status race condition)
-            let resultText = "MATCH IN PROGRESS";
-            if (innArr.length >= 2) {
-                const i1 = innArr[0];
-                const i2 = innArr[1];
-                // Support both DB snake_case and frontend camelCase field names
-                const r1 = i1.totalRuns !== undefined ? i1.totalRuns : (i1.total_runs || 0);
-                const r2 = i2.totalRuns !== undefined ? i2.totalRuns : (i2.total_runs || 0);
-                const w2 = i2.totalWickets !== undefined ? i2.totalWickets : (i2.total_wickets || 0);
-                const t1 = i1.battingTeamName || i1.batting_team_name || 'Team 1';
-                const t2 = i2.battingTeamName || i2.batting_team_name || 'Team 2';
-                if (r2 > r1) {
-                    resultText = `${t2} WON BY ${10 - w2} WICKETS`;
-                } else if (r1 > r2) {
-                    resultText = `${t1} WON BY ${r1 - r2} RUNS`;
-                } else {
-                    resultText = "MATCH TIED";
-                }
-            } else if (matchRecord.status === 'COMPLETED') {
-                resultText = "INCOMPLETE / ABANDONED";
+            try {
+                const emailResult = await sendMatchReportEmail(matchId, emailTo, origin, reportState, client);
+                return {
+                    statusCode: 200,
+                    body: JSON.stringify({ 
+                        message: "Email dispatch completed", 
+                        adminSent: emailResult.adminEmailSent,
+                        scorerSent: emailResult.scorerEmailSent 
+                    }),
+                    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+                };
+            } catch (err) {
+                console.error("Email dispatch failed:", err);
+                return {
+                    statusCode: 500,
+                    body: JSON.stringify({ error: err.message }),
+                    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+                };
             }
-
-            console.log(`📧 Preparing SES Email for ${matchId} to ${emailTo}. Result: ${resultText}`);
-
-            let htmlBody = `
-            <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #0f172a; color: white; padding: 40px; border-radius: 20px;">
-                <h1 style="color: #6366f1; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 5px;">🏆 CRICSCORE OFFICIAL REPORT</h1>
-                <p style="color: #94a3b8; font-weight: bold; margin-top: 0;">${matchRecord.team_a_name} vs ${matchRecord.team_b_name}</p>
-                
-                <div style="background: #1e293b; padding: 20px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.05); margin: 20px 0;">
-                    <h2 style="margin: 0; color: #fb7185; text-transform: uppercase; font-style: italic;">${resultText}</h2>
-                    <p style="font-size: 14px; color: #94a3b8;">${new Date(matchRecord.created_at).toLocaleString()}</p>
-                    <a href="${origin}?matchId=${matchId}" style="display: inline-block; padding: 12px 24px; background: #4f46e5; color: white; text-decoration: none; border-radius: 10px; font-weight: bold; margin-top: 10px;">VIEW INTERACTIVE SCORECARD ⚡</a>
-                </div>`;
-
-                for (const inn of innArr) {
-                    const battingTeam = inn.batting_team_name || inn.battingTeamName || 'Unknown Team';
-                    const runs = inn.total_runs !== undefined ? inn.total_runs : (inn.totalRuns || 0);
-                    const wickets = inn.total_wickets !== undefined ? inn.total_wickets : (inn.totalWickets || 0);
-                    const ov = inn.overs !== undefined ? inn.overs : 0;
-                    const balls = inn.balls !== undefined ? inn.balls : 0;
-
-                    let players = inn.players || [];
-                    let bowlers = inn.bowlers || [];
-
-                    if (!inn.players || !inn.bowlers) {
-                        const pR = await client.query('SELECT * FROM players WHERE inning_id = $1 ORDER BY runs DESC', [inn.id]);
-                        const bR = await client.query('SELECT * FROM bowlers WHERE inning_id = $1 ORDER BY wickets DESC', [inn.id]);
-                        players = pR.rows;
-                        bowlers = bR.rows;
-                    } else {
-                        // Normalize if passed as record from frontend
-                        if (!Array.isArray(players)) players = Object.values(players);
-                        if (!Array.isArray(bowlers)) bowlers = Object.values(bowlers);
-                        
-                        players.sort((a, b) => (b.runs || 0) - (a.runs || 0));
-                        bowlers.sort((a, b) => (b.wickets || (b.runsConceded ? 0 : -1)) - (a.wickets || (a.runsConceded ? 0 : -1))); // Wait! wickets might be same. Let's stick to wickets.
-                    }
-
-                    htmlBody += `
-                    <div style="margin-top: 40px;">
-                        <h3 style="background: #334155; padding: 10px 20px; border-radius: 8px; color: #e2e8f0; margin-bottom: 10px;">🏏 ${battingTeam} - ${runs}/${wickets} (${ov}.${balls})</h3>
-                    <table style="width: 100%; border-collapse: collapse; text-align: left; background: rgba(255,255,255,0.02); border-radius: 10px; overflow: hidden;">
-                        <thead>
-                            <tr style="background: rgba(255,255,255,0.05); color: #94a3b8; font-size: 12px; text-transform: uppercase;">
-                                <th style="padding: 12px;">Batter</th><th style="padding: 12px;">R</th><th style="padding: 12px;">B</th><th style="padding: 12px;">4s/6s</th>
-                            </tr>
-                        </thead>
-                        <tbody>`;
-                
-                players.filter(p => (p.balls_faced || p.ballsFaced) > 0 || p.is_out).forEach(p => {
-                    const r = p.runs || 0;
-                    const b = p.balls_faced || p.ballsFaced || 0;
-                    const f = p.fours || 0;
-                    const s = p.sixes || 0;
-                    htmlBody += `
-                            <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
-                                <td style="padding: 12px; font-weight: bold;">${p.name} ${p.is_out ? '' : '*'}</td>
-                                <td style="padding: 12px;">${r}</td>
-                                <td style="padding: 12px; color: #64748b;">${b}</td>
-                                <td style="padding: 12px; color: #64748b;">${f}/${s}</td>
-                            </tr>`;
-                });
-
-                htmlBody += `</tbody></table></div>`;
-
-                // --- BOWLING SECTION ---
-                htmlBody += `
-                <div style="margin-top: 20px;">
-                    <table style="width: 100%; border-collapse: collapse; text-align: left; background: rgba(255,255,255,0.02); border-radius: 10px; overflow: hidden;">
-                        <thead>
-                            <tr style="background: rgba(255,255,255,0.05); color: #94a3b8; font-size: 12px; text-transform: uppercase;">
-                                <th style="padding: 12px;">Bowler</th><th style="padding: 12px;">O</th><th style="padding: 12px;">M</th><th style="padding: 12px;">R</th><th style="padding: 12px;">W</th>
-                            </tr>
-                        </thead>
-                        <tbody>`;
-
-                bowlers.filter(b => (b.overs_completed || b.overs) > 0 || (b.balls || 0) > 0).forEach(b => {
-                    const ov = b.overs_completed || b.overs || 0;
-                    const balls = b.balls || 0;
-                    const runs = b.runs_conceded || b.runsConceded || 0;
-                    htmlBody += `
-                            <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
-                                <td style="padding: 12px; font-weight: bold;">${b.name}</td>
-                                <td style="padding: 12px;">${ov}.${balls}</td>
-                                <td style="padding: 12px; color: #64748b;">${b.maidens || 0}</td>
-                                <td style="padding: 12px;">${runs}</td>
-                                <td style="padding: 12px; color: #fb7185; font-weight: 800;">${b.wickets}</td>
-                            </tr>`;
-                });
-
-                htmlBody += `</tbody></table></div>`;
-            }
-
-            htmlBody += `<p style="text-align: center; color: #475569; font-size: 12px; margin-top: 40px;">Generated securely via CricScore on AWS</p></div>`;
-
-            const ses = new SESClient({ region: 'us-east-1' });
-            let adminEmailSent = false;
-            let scorerEmailSent = false;
-
-            // --- 1. SEND TO ADMIN (High Priority, likely verified) ---
-            if (process.env.ADMIN_REPORT_EMAIL) {
-                try {
-                    await ses.send(new SendEmailCommand({
-                        Destination: { ToAddresses: [process.env.ADMIN_REPORT_EMAIL] },
-                        Message: {
-                            Body: { Html: { Charset: "UTF-8", Data: htmlBody } },
-                            Subject: { Charset: "UTF-8", Data: `🏏 ADMIN REPORT: ${matchRecord.team_a_name} vs ${matchRecord.team_b_name}` }
-                        },
-                        Source: process.env.SES_SOURCE || "noreply@venkateshsingamsetty.site"
-                    }));
-                    console.log("✅ Admin Email Sent Successfully 📡");
-                    adminEmailSent = true;
-                } catch (err) {
-                    console.error("❌ Admin Email Failed (Verification issue?):", err.message);
-                }
-            }
-
-            // --- 2. SEND TO SCORER (Might fail if not verified in Sandbox) ---
-            if (emailTo && emailTo !== process.env.ADMIN_REPORT_EMAIL) {
-                try {
-                    await ses.send(new SendEmailCommand({
-                        Destination: { ToAddresses: [emailTo] },
-                        Message: {
-                            Body: { Html: { Charset: "UTF-8", Data: htmlBody } },
-                            Subject: { Charset: "UTF-8", Data: `🏏 FINAL SCORECARD: ${matchRecord.team_a_name} vs ${matchRecord.team_b_name}` }
-                        },
-                        Source: process.env.SES_SOURCE || "noreply@venkateshsingamsetty.site"
-                    }));
-                    console.log("✅ Scorer Email Sent Successfully ⚽");
-                    scorerEmailSent = true;
-                } catch (err) {
-                    console.warn("⚠️ Scorer Email Rejected (Likely Sandbox mode):", err.message);
-                }
-            }
-
-            return {
-                statusCode: 200,
-                body: JSON.stringify({ 
-                    message: "Email dispatch completed", 
-                    adminSent: adminEmailSent,
-                    scorerSent: scorerEmailSent 
-                }),
-                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-            };
         }
 
         // GET /match/{matchId}/details (Full Scorecard Data)

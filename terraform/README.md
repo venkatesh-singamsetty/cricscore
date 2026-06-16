@@ -7,13 +7,12 @@ This folder contains the Infrastructure as Code (IaC) required to provision and 
 ## 🛠️ Main Components (`main.tf`)
 
 ### 1. **Compute Layer**
-- **Lambda Functions**: `match_api`, `score_update`, `kafka_consumer`.
+- **Lambda Functions**: `match_api`, `score_update`, `broadcaster`.
 - **IAM Roles**: Least-privilege roles for all compute units.
 
 ### 2. **State & Database**
 - **DynamoDB**: `cricscore-connections` (User session tracking).
 - **PostgreSQL**: Aiven Service integration (via `database_url`).
-- **Kafka**: Aiven Service integration (via `kafka_bootstrap_servers`).
 
 ### 3. **Routing Gateway**
 - **HTTP API Gateway**: `/match`, `/update-score`.
@@ -31,9 +30,6 @@ aws_region             = "us-east-1"
 project_name           = "cricscore"
 domain_name            = "yourdomain.com"
 database_url           = "postgres://..."
-kafka_bootstrap_servers = "..."
-kafka_username         = "avnadmin"
-kafka_password         = "..."
 ```
 
 ### 2. **Apply Infrastructure**
@@ -46,5 +42,4 @@ terraform apply -auto-approve
 ---
 
 ## 🛡️ Security Handlers
-- **mTLS Secrets**: The Lambda ZIP files are dynamically created here to include the required Aiven **CA/Cert/Key** files for secure Kafka connections.
 - **IAM Policies**: Policies for DynamoDB Scan/Put and API Gateway Push are attached to the common Lambda role.

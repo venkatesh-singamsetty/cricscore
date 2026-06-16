@@ -1,6 +1,6 @@
-# 🗄️ Aiven Managed Services: The Professional Pivot
+# 🗄️ Aiven Managed PostgreSQL: The Professional Pivot
 
-CricScore leverages **Aiven for PostgreSQL** and **Aiven for Apache Kafka** to transform a foundational serverless deployment into a high-visibility, event-driven cricket engine.
+CricScore leverages **Aiven for PostgreSQL** to transform a foundational serverless deployment into a high-visibility, persistent cricket engine.
 
 ---
 
@@ -49,21 +49,19 @@ CricScore solves the **"Live Score Lag"** problem (the 10-30 second delay in typ
 
 1.  **Fast-Path UI**: Every `POST /update-score` instantly publishes to **AWS SNS** and returns a 200 OK, offering the Scorer a **sub-100ms** experience without waiting on database writes.
 2.  **Broadcasting**: An asynchronous broadcaster lambda instantly picks up the SNS trigger and flushes scores to fans via **WebSockets**.
-3.  **Reliable Persistence (SQS)**: The SNS hub simultaneously routes the event to an **AWS SQS Buffer**. A dedicated `storage-worker` processes these batches, securely writing to **Aiven PostgreSQL** (System of Record) and **Aiven Kafka** (Event Bus) in the background.
+3.  **Reliable Persistence (SQS)**: The SNS hub simultaneously routes the event to an **AWS SQS Buffer**. A dedicated `storage-worker` processes these batches, securely writing to **Aiven PostgreSQL** (System of Record) in the background.
 
 ### ⚠️ Engineering Challenges Overcome
--   **The mTLS Handshake**: Handshaking with Kafka using client certificates is resource-intensive for standard 128MB Lambdas. We optimized library selection and memory allocation (Upgrading to 256MB) to ensure smooth, zero-latency connections.
--   **Synchronizing State**: We implemented a custom **"Undo" engine** that synchronizes deletions across both Postgres and Kafka streams to ensure spectators never see "ghost" balls.
+-   **Synchronizing State**: We implemented a custom **"Undo" engine** that synchronizes ball event deletions in the PostgreSQL database so that spectators never see "ghost" balls if a scorer corrects a mistake.
 -   **Strict Certificate Chains**: Aiven's intermediate certificate authorities were natively blocked by Node v18 (`SELF_SIGNED_CERT_IN_CHAIN`). We implemented a raw environmental override (`NODE_TLS_REJECT_UNAUTHORIZED='0'`) to establish the connection without dropping AWS-to-Aiven traffic.
 
 ---
 
 ## 🚀 Why Aiven Managed Services? (The Transformation)
-Aiven provided the high-concurrency event-engine that allowed CricScore to scale from a static cloud-front to a professional real-time discovery engine:
+Aiven provided the robust database storage that allowed CricScore to scale from a static cloud-front to a professional real-time discovery engine:
 
-1.  **Architecture Pillar (Kafka)**: Enabled sub-100ms broadcasting via **mTLS-secured** pipelines.
-2.  **Persistence Pillar (PostgreSQL)**: Provided an ACID-compliant repository for global match statistics and ball-archives.
-3.  **Governance Pillar**: Empowered administrators to maintain sovereignty over match records through persistent PostgreSQL archiving.
+1.  **Persistence Pillar (PostgreSQL)**: Provided an ACID-compliant repository for global match statistics and ball-archives.
+2.  **Governance Pillar**: Empowered administrators to maintain sovereignty over match records through persistent PostgreSQL archiving.
 
 ---
 © 2026 CricScore Documentation. 🏎️🏁🚀

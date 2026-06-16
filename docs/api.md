@@ -31,7 +31,7 @@ This is the primary engine for **v1.5.2 Viral Sharing**. When a spectator arrive
 ### 2. **Score Update (The Engine)**
 `POST /update-score`
 
-This endpoint triggers the **SNS Fan-Out Protocol** (v2.0). It instantly publishes the ball event to AWS SNS returning a `200 OK` in milliseconds. AWS SQS then responsibly persists it to Aiven PostgreSQL for history and Aiven Kafka for enterprise streaming.
+This endpoint triggers the **SNS Fan-Out Protocol** (v2.0). It instantly publishes the ball event to AWS SNS returning a `200 OK` in milliseconds. AWS SQS then responsibly persists it to Aiven PostgreSQL for history.
 - **Payload**: `{ matchId, inningId, ballData }`
 - **Error States**: Returns `404` if the match has been deleted from the registry (triggering a client-side force reset).
 
@@ -43,10 +43,10 @@ Restricted endpoint for match management. Purges the record and all child ball e
 
 ---
 
-## 🌐 WebSocket Stream (Aiven Kafka)
+## 🌐 WebSocket Stream (Spectator Feed)
 **URL**: `wss://i4cnmjy0tg.execute-api.us-east-1.amazonaws.com/prod`
 
-The WebSocket gateway handles the high-throughput broadcast from AWS SNS / Aiven Kafka to spectators globally.
+The WebSocket gateway handles the high-throughput broadcast from AWS SNS to spectators globally.
 
 - **Fast-Path Broadcast**: Messages are distributed directly via SNS triggers with **<100ms** internal latency.
 - **Identity Registry**: Client connection IDs are managed via **AWS DynamoDB**.

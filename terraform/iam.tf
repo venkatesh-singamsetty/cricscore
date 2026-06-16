@@ -96,3 +96,28 @@ resource "aws_iam_role_policy_attachment" "lambda_websocket_attach" {
   role       = aws_iam_role.lambda_role.name
   policy_arn = aws_iam_policy.lambda_websocket.arn
 }
+
+# --- IAM Policy for SES Email Dispatch ---
+resource "aws_iam_policy" "lambda_ses" {
+  name        = "${var.project_name}-lambda-ses"
+  description = "Allow Lambda to send emails via AWS SES"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "ses:SendEmail",
+          "ses:SendRawEmail"
+        ]
+        Effect   = "Allow"
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_ses_attach" {
+  role       = aws_iam_role.lambda_role.name
+  policy_arn = aws_iam_policy.lambda_ses.arn
+}

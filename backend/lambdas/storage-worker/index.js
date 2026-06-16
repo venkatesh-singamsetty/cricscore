@@ -1,38 +1,6 @@
-const { Kafka } = require('kafkajs');
 const { Client } = require('pg');
-const fs = require('fs');
-const path = require('path');
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-process.env.KAFKAJS_NO_PARTITIONER_WARNING = '1';
-
-// Dynamic Certificate Loading
-const getCert = (envName, fileName) => {
-    if (process.env[envName]) {
-        return Buffer.from(process.env[envName], 'base64').toString('utf-8');
-    }
-    if (fs.existsSync(path.join(__dirname, fileName))) {
-        return fs.readFileSync(path.join(__dirname, fileName));
-    }
-    return null;
-};
-
-const caCert = getCert('KAFKA_CA_CERT', 'ca.pem');
-const accessCert = getCert('KAFKA_ACCESS_CERT', 'cert.pem');
-const accessKey = getCert('KAFKA_ACCESS_KEY', 'key.pem');
-
-const kafka = new Kafka({
-    clientId: 'cricscore-storage-worker',
-    brokers: (process.env.KAFKA_BROKERS || '').split(','),
-    ssl: {
-        ca: caCert ? [caCert] : undefined,
-        cert: accessCert || undefined,
-        key: accessKey || undefined,
-        rejectUnauthorized: false
-    }
-});
-
-const producer = kafka.producer();
 
 exports.handler = async (event) => {
     // SQS batch source check
@@ -46,7 +14,6 @@ exports.handler = async (event) => {
 
     try {
         await client.connect();
-        await producer.connect();
 
         for (const record of records) {
             // SNS message within SQS message
@@ -149,11 +116,19 @@ exports.handler = async (event) => {
                 [strikerName, nonStrikerName, bowlerName, currentOvers, currentBalls, explicitTotalRuns, explicitTotalWickets, inningId]
             );
 
-            // 2. Update Match Metadata
-            await client.query(
-                `UPDATE matches SET total_overs = COALESCE($2, total_overs), updated_at = CURRENT_TIMESTAMP WHERE id = $1`, 
-                [matchId, matchTotalOvers]
-            );
+            // 2. Update Match Metadata + Sync Scores, Wickets, and Overs
+            await client.query(`
+                UPDATE matches m
+                SET total_overs = COALESCE($2, total_overs),
+                    team_a_score = COALESCE((SELECT total_runs FROM innings WHERE match_id = m.id AND batting_team_name = m.team_a_name), 0),
+                    team_a_wickets = COALESCE((SELECT total_wickets FROM innings WHERE match_id = m.id AND batting_team_name = m.team_a_name), 0),
+                    team_a_overs = COALESCE((SELECT CONCAT(overs, '.', balls) FROM innings WHERE match_id = m.id AND batting_team_name = m.team_a_name), '0.0'),
+                    team_b_score = COALESCE((SELECT total_runs FROM innings WHERE match_id = m.id AND batting_team_name = m.team_b_name), 0),
+                    team_b_wickets = COALESCE((SELECT total_wickets FROM innings WHERE match_id = m.id AND batting_team_name = m.team_b_name), 0),
+                    team_b_overs = COALESCE((SELECT CONCAT(overs, '.', balls) FROM innings WHERE match_id = m.id AND batting_team_name = m.team_b_name), '0.0'),
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = $1
+            `, [matchId, matchTotalOvers]);
 
             if (!syncOnly && ballData && !undo) {
                 // 3. Log Ball Event
@@ -195,6 +170,11 @@ exports.handler = async (event) => {
                     ]
                 );
 
+                const isBowlerWicket = isWicket && (
+                    (!isNoBall && !isWide && !['RUN_OUT', 'RETIRED_HURT', 'RETIRED_OUT'].includes(ballData.wicketType)) ||
+                    (isWide && ['STUMPED', 'HIT_WICKET'].includes(ballData.wicketType))
+                );
+
                 // Bowler Update
                 await client.query(
                     `UPDATE bowlers SET 
@@ -204,17 +184,11 @@ exports.handler = async (event) => {
                         balls = $4
                      WHERE inning_id = $5 AND name = $6`,
                     [
-                        bowlerRunsToAdd, (isWicket && !['RUN_OUT', 'RETIRED_HURT', 'RETIRED_OUT'].includes(ballData.wicketType)) ? 1 : 0,
+                        bowlerRunsToAdd, isBowlerWicket ? 1 : 0,
                         explicitBowlerOvers, explicitBowlerBalls, inningId, ballData.bowlerName
                     ]
                 );
             }
-
-            // 5. Emit to Aiven Kafka for Enterprise Event Bus Persistence
-            await producer.send({
-                topic: 'score-updates',
-                messages: [{ value: JSON.stringify(matchEvent) }],
-            });
         }
 
         return { statusCode: 200, body: JSON.stringify({ success: true }) };
@@ -224,6 +198,5 @@ exports.handler = async (event) => {
         throw error; // Let SQS retry
     } finally {
         await client.end();
-        await producer.disconnect();
     }
 };

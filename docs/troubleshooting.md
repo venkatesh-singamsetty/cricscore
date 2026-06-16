@@ -6,28 +6,14 @@ This engineering trace documents the real-world resolutions for the CricScore ba
 
 ## 🚦 Resolved Issues Summary
 
-### 1. **`SSL Alert: Bad Certificate` (Phase 3)**
-- **Symptom**: `SSLAlert: Bad Certificate` when Kafka Producer tried to connect.
-- **Cause**: Broker was configured for **Mutual TLS (mTLS)** and was rejecting the client for missing certificates.
-- **Fix**: 
-    - Switched from SASL/PLAIN to Client Certificate authentication.
-    - Downloaded Aiven `service.cert` and `service.key`.
-    - Embedded `ca.pem`, `cert.pem`, and `key.pem` into the Lambda build.
-    - Updated `index.js` `ssl` block to include `cert` and `key` buffers.
-
-### 2. **`Connection Timeout` (Phase 3)**
+### 1. **`Connection Timeout` (Phase 3)**
 - **Symptom**: `LambdaTimeout: 30s` exceeded during ball scoring.
-- **Cause**: Initial 3s timeout + 128MB RAM was too slow for (1) PG SSL handshake + (2) Kafka mTLS handshake + (3) SQL dual-write.
+- **Cause**: Initial 3s timeout + 128MB RAM was too slow for (1) PG SSL handshake + (2) SQL write operations.
 - **Fix**: 
     - Increased memory to **256MB** (Giving the Lambda more CPU power for encryption).
     - Hardened the timeout to **30s**.
 
-### 3. **`CERTIFICATE_UNKNOWN` (Phase 4)**
-- **Symptom**: SSL Alert 46 from the broker.
-- **Cause**: Mismatch between the broker listener port and the client's handshake protocol.
-- **Fix**: Identified Port **17729** as the universal SSL listener for this specific Aiven cluster.
-
-### 4. **Empty Match Analytics / Missing History**
+### 2. **Empty Match Analytics / Missing History**
 - **Symptom**: "Old Matches" or "Analytics" modal was empty (0 runs, 0 players).
 - **Cause**: Squad data was only in-memory; `players` and `bowlers` tables in DB were never initialized or updated.
 - **Fix**: 
@@ -35,14 +21,14 @@ This engineering trace documents the real-world resolutions for the CricScore ba
     - Updated `score-update` lambda to `UPDATE` aggregate stats in DB for every ball.
     - Added `striker_name` / `non_striker_name` tracking to the `innings` table.
 
-### 5. **Fans Live "White Screen" / Stale Old Matches**
+### 3. **Fans Live "White Screen" / Stale Old Matches**
 - **Symptom**: "Fans Live" appeared empty/white unless a match was LIVE. Switching to "Old Matches" didn't show new records without a browser refresh.
 - **Cause**: React was reusing component instances without re-fetching; conditional rendering in `App.tsx` was too restrictive.
 - **Fix**: 
     - Added `key={view}` to `LiveScoreboard` to force remount on tab change.
-    - Refactored `LiveScoreboard` to show DB snapshot data (Batters/Bowlers) immediately if Kafka broadcast is pending.
+    - Refactored `LiveScoreboard` to show DB snapshot data (Batters/Bowlers) immediately if WebSocket broadcast is pending.
 
-### 6. **Overs Showing One Less / Active Player Lag**
+### 4. **Overs Showing One Less / Active Player Lag**
 - **Symptom**: After the 6th ball, the score showed 2.0 instead of 3.0 for several seconds. Also, spectators saw "Waiting for first ball" despite players being selected.
 - **Cause**: Backend relied on the ball's current over ID rather than the resulting total; crease state was only saved during ball events.
 - **Fix**: 
@@ -50,19 +36,19 @@ This engineering trace documents the real-world resolutions for the CricScore ba
     - Added `syncOnly` mode to `score-update` lambda to persist player roles immediately upon selection.
     - Filtered `LiveScoreboard` summary to strictly show currently playing batsmen.
 
-### 7. **New Bowler Showing High Over Count**
+### 5. **New Bowler Showing High Over Count**
 - **Symptom**: A bowler starting the 2nd over was incorrectly showing `1.1` overs instead of `0.1` in the spectator view.
 - **Cause**: Backend was calculating bowler figures based on the global `overNumber` index instead of their individual spell count.
 - **Fix**: 
     - Updated `MatchView` to explicitly track and send `bowlerOvers` and `bowlerBalls` to the backend.
     - Updated `score-update` lambda to prioritize these explicit personal figures when updating the `bowlers` table.
 
-### 8. **Match Creation Latency**
+### 6. **Match Creation Latency**
 - **Symptom**: Starting a new match took several seconds.
 - **Cause**: Sequential `INSERT` statements for 22+ players/bowlers caused multiple round-trips to the DB.
 - **Fix**: Implemented **Bulk SQL Inserts** and Transactions in the `match-api`, reducing round-trips from ~25 to 4.
 
-### 9. **Undo Score Mismatch / Ghost Balls**
+### 7. **Undo Score Mismatch / Ghost Balls**
 - **Symptom**: Clicking "Undo" reverted the scorer's screen but left spectators with the old score or "ghost" balls in the timeline.
 - **Cause**: Undo only reverted local state; the DB still held the undone ball record, and shallow-copy mutations leaked into the history logs.
 - **Fix**: 
@@ -70,22 +56,22 @@ This engineering trace documents the real-world resolutions for the CricScore ba
     - Implemented a **Full State Sync** to overwrite DB totals immediately after an undo.
     - Refactored frontend to use **Strict Immutability** to prevent history log corruption.
 
-### 10. **Aggregate Stat Mismatch on Undo**
+### 8. **Aggregate Stat Mismatch on Undo**
 - **Symptom**: After undoing a ball, the team score reverted, but individual batter/bowler runs and wickets in the "Match Analytics" modal stayed high.
 - **Cause**: The backend only reverted the `innings` table totals but didn't subtract runs from the `players` or `bowlers` aggregate tables.
 - **Fix**: Updated the `score-update` lambda to fetch the last ball before deletion, identify the participating players, and explicitly subtract their personal runs/wickets/balls to restore perfect analytics consistency.
 
-### 11. **The "1 Run Extra" Bug (Double-Counting)**
+### 9. **The "1 Run Extra" Bug (Double-Counting)**
 - **Symptom**: After a ball or undo, the spectator view consistently showed exactly one more run than the scorer.
 - **Cause**: The backend was performing two overlapping updates: one to `SET` the total score and another to `INCREMENT` it by the ball's runs.
 - **Fix**: Removed the redundant increment logic; the system now treats the scorer's transmitted total as the absolute source of truth.
 
-### 12. **The "Less Score" Bug (Missing Sync Totals)**
+### 10. **The "Less Score" Bug (Missing Sync Totals)**
 - **Symptom**: After fixing double-counting, spectators saw a LOWER score than the scorer (stuck on the previous ball).
 - **Cause**: The `postScoreUpdate` frontend sync was missing the `totalRuns` and `totalWickets` fields, sending `null` to the backend.
 - **Fix**: Refactored `postScoreUpdate` to send the complete, finalized `InningsState` totals in every message.
 
-### 13. **Match Hub Consolidation & Layout Clarity**
+### 11. **Match Hub Consolidation & Layout Clarity**
 - **Symptom**: Redundant "Fans Live" vs "Old Matches" tabs; missing bowling team name; confused striker position.
 - **Cause**: Tab clutter led to navigation fatigue; UI was missing contextual team labels in the scoring header.
 - **Fix**:
@@ -93,31 +79,31 @@ This engineering trace documents the real-world resolutions for the CricScore ba
     - Added the bowling team name to all headers and cards.
     - Implemented a `.sort()` pinned-striker logic to ensure the facing batsman is always at the top for fans.
 
-### 14. **Match Overs "Flicker" (10 vs 20)**
+### 12. **Match Overs "Flicker" (10 vs 20)**
 - **Symptom**: Scorer updated match to 10 overs, but spectators saw it flicker between 10 and 20 every ball.
-- **Cause**: Race condition between the Kafka broadcast (10) and the API Metadata poll (20). The `PATCH /match` was failing to persist the new value to the database.
+- **Cause**: Race condition between the WebSocket broadcast (10) and the API Metadata poll (20). The `PATCH /match` was failing to persist the new value to the database.
 - **Fix**: 
     - Implemented a **Triple-Layer Sync**: Standalone `PATCH`, WebSocket broadcast, and failover DB update during every ball event.
-    - Updated `LiveScoreboard` to prioritize Kafka metadata over potentially stale polling results.
+    - Updated `LiveScoreboard` to prioritize WebSocket metadata over potentially stale polling results.
 
-### 15. **Forbidden PATCH / CORS Restriction**
+### 13. **Forbidden PATCH / CORS Restriction**
 - **Symptom**: The "Edit Overs" feature worked in the scorer's local UI but never saved to the backend.
 - **Cause**: Browser blocked the cross-origin `PATCH` because (1) it wasn't in `Access-Control-Allow-Methods` and (2) the API Gateway route didn't exist in Terraform.
 - **Fix**: 
     - Updated `match-api` and `score-update` lambdas to explicitly allow `PATCH` in the `OPTIONS` pre-flight.
     - Added the `PATCH /match/{matchId}` route to the `aws_apigatewayv2_api` in Terraform.
 
-### 16. **Intrusive Browser Prompts**
+### 14. **Intrusive Browser Prompts**
 - **Symptom**: Editing overs opened a clunky browser `prompt()` box which felt non-premium.
 - **Cause**: Use of native `window.prompt` for quick implementation.
 - **Fix**: Replaced with a **Seamless Inline UI**. The overs count now transforms into a stylized input field on-click, supporting Enter-to-save and Escape-to-cancel.
 
-### 17. **`Runtime.ImportModuleError` / Missing `kafkajs` & `pg`**
-- **Symptom**: "Cloud Connection Failed" alert in the UI; Lambda logs showed `Error: Cannot find module 'pg'` or `kafkajs`.
-- **Cause**: Updating the Lambda code via Terraform `zip` lacked the `node_modules` directory required for database and messaging connectivity.
+### 15. **`Runtime.ImportModuleError` / Missing `pg`**
+- **Symptom**: "Cloud Connection Failed" alert in the UI; Lambda logs showed `Error: Cannot find module 'pg'`.
+- **Cause**: Updating the Lambda code via Terraform `zip` lacked the `node_modules` directory required for database connectivity.
 - **Fix**: Added dynamic traversal to `deploy.sh`. The pipeline now automatically runs `npm install --production` inside every Lambda directory prior to packaging the root modules.
 
-### 18. **SES `MessageRejected` & Missing API Routes**
+### 16. **`SES MessageRejected` & Missing API Routes**
 - **Symptom**: "Fancy" reports were not being received; "DELETE FAILED! Failed to fetch" alerts in the Admin Hub.
 - **Cause**: 
     1. The `match-api` IAM role lacked `ses:SendEmail` permission.

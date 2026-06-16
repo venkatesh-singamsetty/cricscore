@@ -128,6 +128,8 @@ const MatchSetup: React.FC<MatchSetupProps> = ({ onStartMatch, onResumeMatch, hi
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
+        if (isCreating) return;
+
         if (!isValid) {
             alert("Both teams must have at least 2 players to start a match.");
             return;
@@ -393,14 +395,16 @@ const MatchSetup: React.FC<MatchSetupProps> = ({ onStartMatch, onResumeMatch, hi
                     {/* Launch Button - Must stay visible */}
                     <button
                         type="submit"
-                        disabled={!isValid}
-                        className={`group relative w-full h-16 rounded-[1.5rem] overflow-hidden transition-all shrink-0 shadow-2xl border-t border-white/20 ${isValid ? 'bg-indigo-600 hover:scale-[1.002] active:scale-[0.98]' : 'bg-slate-800 opacity-80 cursor-not-allowed'}`}
+                        disabled={!isValid || isCreating}
+                        className={`group relative w-full h-16 rounded-[1.5rem] overflow-hidden transition-all shrink-0 shadow-2xl border-t border-white/20 ${(isValid && !isCreating) ? 'bg-indigo-600 hover:scale-[1.002] active:scale-[0.98]' : 'bg-slate-800 opacity-80 cursor-not-allowed'}`}
                     >
-                        {isValid && <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 group-hover:opacity-90"></div>}
+                        {isValid && !isCreating && <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 group-hover:opacity-90"></div>}
                         <div className="relative flex flex-col items-center justify-center h-full">
                             <div className="flex items-center gap-4">
-                                <span className={`text-xl font-black uppercase italic transition-all ${isValid ? 'text-white tracking-[0.4em] group-hover:tracking-[0.5em]' : 'text-slate-500 tracking-[0.2em]'}`}>Start Fresh Match</span>
-                                {isValid && <span className="text-2xl group-hover:translate-x-2 transition-transform">🏁</span>}
+                                <span className={`text-xl font-black uppercase italic transition-all ${(isValid && !isCreating) ? 'text-white tracking-[0.4em] group-hover:tracking-[0.5em]' : 'text-slate-500 tracking-[0.2em]'}`}>
+                                    {isCreating ? 'Provisioning...' : 'Start Fresh Match'}
+                                </span>
+                                {isValid && !isCreating && <span className="text-2xl group-hover:translate-x-2 transition-transform">🏁</span>}
                             </div>
                             {!isValid && <span className="text-[10px] font-bold text-red-500 mt-1 uppercase tracking-widest">Requires min. 2 players per team</span>}
                         </div>

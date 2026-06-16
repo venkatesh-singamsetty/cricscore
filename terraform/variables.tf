@@ -37,43 +37,7 @@ variable "database_url" {
   sensitive   = true
 }
 
-variable "kafka_bootstrap_servers" {
-  type        = string
-  description = "Aiven Kafka Bootstrap Servers (CSV)"
-}
 
-variable "kafka_username" {
-  type        = string
-  description = "Aiven Kafka SASL Username"
-  sensitive   = true
-}
-
-variable "kafka_password" {
-  type        = string
-  description = "Aiven Kafka SASL Password"
-  sensitive   = true
-}
-
-variable "kafka_ca_cert" {
-  type        = string
-  description = "Base64 encoded Aiven Kafka CA Certificate"
-  sensitive   = true
-  default     = ""
-}
-
-variable "kafka_access_cert" {
-  type        = string
-  description = "Base64 encoded Aiven Kafka Access Certificate"
-  sensitive   = true
-  default     = ""
-}
-
-variable "kafka_access_key" {
-  type        = string
-  description = "Base64 encoded Aiven Kafka Access Key"
-  sensitive   = true
-  default     = ""
-}
 
 variable "admin_email" {
   type        = string

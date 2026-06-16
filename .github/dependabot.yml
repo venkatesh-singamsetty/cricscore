@@ -1,0 +1,31 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "daily"
+
+  - package-ecosystem: "npm"
+    directory: "/backend/lambdas/match-api"
+    schedule:
+      interval: "daily"
+
+  - package-ecosystem: "npm"
+    directory: "/backend/lambdas/score-update"
+    schedule:
+      interval: "daily"
+
+  - package-ecosystem: "npm"
+    directory: "/backend/lambdas/broadcaster"
+    schedule:
+      interval: "daily"
+
+  - package-ecosystem: "npm"
+    directory: "/backend/lambdas/storage-worker"
+    schedule:
+      interval: "daily"
+
+  - package-ecosystem: "terraform"
+    directory: "/terraform"
+    schedule:
+      interval: "daily"

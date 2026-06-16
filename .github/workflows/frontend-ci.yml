@@ -11,6 +11,13 @@ on:
     paths:
       - 'frontend/**'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   lint-and-test:
     name: Lint & Test
@@ -32,6 +39,16 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Run Trivy vulnerability scanner (fs)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: 'frontend'
+          ignore-unfixed: true
+          format: 'table'
+          exit-code: '0'
+          severity: 'HIGH,CRITICAL'
 
       - name: TypeScript type-check
         run: npm run lint

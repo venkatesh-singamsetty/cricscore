@@ -36,17 +36,6 @@ exports.handler = async (event) => {
         for (const record of event.Records) {
             matchEvents.push(JSON.parse(record.Sns.Message));
         }
-    } 
-    // CASE B: Kafka Event (Legacy or SQS/Kafka trigger)
-    else if (event.records) {
-        console.log("Source: Kafka/Legacy Sink");
-        const records = event.records;
-        for (const key in records) {
-            for (const record of records[key]) {
-                 const payload = Buffer.from(record.value, 'base64').toString('utf8');
-                 matchEvents.push(JSON.parse(payload));
-            }
-        }
     } else {
         console.warn("Unknown event source mapping. Broadcasting raw event as data.");
         matchEvents.push(event); // Fallback for direct testing
