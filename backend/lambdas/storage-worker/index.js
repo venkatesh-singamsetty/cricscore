@@ -203,6 +203,11 @@ exports.handler = async (event) => {
                     ]
                 );
 
+                const isBowlerWicket = isWicket && (
+                    (!isNoBall && !isWide && !['RUN_OUT', 'RETIRED_HURT', 'RETIRED_OUT'].includes(ballData.wicketType)) ||
+                    (isWide && ['STUMPED', 'HIT_WICKET'].includes(ballData.wicketType))
+                );
+
                 // Bowler Update
                 await client.query(
                     `UPDATE bowlers SET 
@@ -212,7 +217,7 @@ exports.handler = async (event) => {
                         balls = $4
                      WHERE inning_id = $5 AND name = $6`,
                     [
-                        bowlerRunsToAdd, (isWicket && !['RUN_OUT', 'RETIRED_HURT', 'RETIRED_OUT'].includes(ballData.wicketType)) ? 1 : 0,
+                        bowlerRunsToAdd, isBowlerWicket ? 1 : 0,
                         explicitBowlerOvers, explicitBowlerBalls, inningId, ballData.bowlerName
                     ]
                 );

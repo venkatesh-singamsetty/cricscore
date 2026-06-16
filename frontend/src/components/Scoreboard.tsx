@@ -265,15 +265,17 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ currentInnings, previousInnings
                           {balls.map((ball: any, idx: number) => {
                             const isWicket = ball.isWicket;
                             const isExtra = ball.isExtra;
-                            let label = ball.runs;
-                            if (ball.extraType === 'WIDE') label = `${ball.extraRuns + ball.runs}wd`;
-                            if (ball.extraType === 'NO_BALL') label = `${ball.extraRuns + ball.runs}nb`;
+                            let label = String(ball.runs);
                             if (isWicket) {
-                              if (ball.wicketType === 'RUN_OUT' && ball.runs > 0) {
-                                label = `${ball.runs}W`;
-                              } else {
-                                label = 'W';
-                              }
+                              label = ball.runs > 0 ? `W+${ball.runs}` : 'W';
+                            } else if (ball.extraType === 'WIDE') {
+                              label = ball.runs > 0 ? `Wd+${ball.runs}` : 'Wd';
+                            } else if (ball.extraType === 'NO_BALL') {
+                              label = ball.runs > 0 ? `Nb+${ball.runs}` : 'Nb';
+                            } else if (ball.extraType === 'BYE') {
+                              label = ball.runs > 0 ? `B+${ball.runs}` : 'B';
+                            } else if (ball.extraType === 'LEG_BYE') {
+                              label = ball.runs > 0 ? `Lb+${ball.runs}` : 'Lb';
                             }
 
                             return (

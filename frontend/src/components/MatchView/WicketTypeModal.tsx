@@ -22,13 +22,13 @@ export const WicketTypeModal: React.FC<WicketTypeModalProps> = ({
       </div>
       <div className="p-6 grid grid-cols-2 gap-3">
         {/* Filter valid dismissals by delivery type per Laws of Cricket:
-            Wide  → only Run Out (Law 25.6)
-            No-Ball → only Caught & Run Out (Laws 23, 37, 39)
+            Wide    → Run Out, Stumped, Hit Wicket
+            No-Ball → Run Out
             Normal  → all modes */}
         {(pendingExtra === ExtraType.WIDE
-          ? [WicketType.RUN_OUT]
+          ? [WicketType.RUN_OUT, WicketType.STUMPED, WicketType.HIT_WICKET]
           : pendingExtra === ExtraType.NO_BALL
-            ? [WicketType.CAUGHT, WicketType.RUN_OUT]
+            ? [WicketType.RUN_OUT]
             : [WicketType.BOWLED, WicketType.CAUGHT, WicketType.LBW, WicketType.RUN_OUT, WicketType.STUMPED, WicketType.HIT_WICKET]
         ).map((type) => (
           <button

@@ -424,7 +424,10 @@ const MatchView: React.FC<MatchViewProps> = ({
             if (wicketType !== WicketType.RETIRED_HURT) {
                 nextInnings.totalWickets += 1;
             }
-            if (!isWide && !isNoBall && wicketType !== WicketType.RUN_OUT && wicketType !== WicketType.RETIRED_HURT && wicketType !== WicketType.RETIRED_OUT) {
+            const isBowlerWicket = 
+                (!isNoBall && !isWide && wicketType !== WicketType.RUN_OUT && wicketType !== WicketType.RETIRED_HURT && wicketType !== WicketType.RETIRED_OUT) ||
+                (isWide && (wicketType === WicketType.STUMPED || wicketType === WicketType.HIT_WICKET));
+            if (isBowlerWicket) {
                 nextBowler.wickets += 1;
             }
             if (wicketType === WicketType.RUN_OUT && outBatterId === nextInnings.nonStrikerId) {
@@ -859,7 +862,17 @@ const MatchView: React.FC<MatchViewProps> = ({
                                                     ball.isExtra ? 'bg-amber-500 text-amber-950 border-amber-300 shadow-amber-500/40' :
                                                         'bg-white text-slate-900 border-white shadow-white/10'
                                             }`}>
-                                            {ball.isWicket ? (ball.runs > 0 ? `${ball.runs}W` : 'W') : (ball.isExtra ? (ball.runs > 0 ? `${ball.runs}${ball.extraType[0]}` : ball.extraType[0]) : ball.runs)}
+                                            {(() => {
+                                                if (ball.isWicket) return ball.runs > 0 ? `W+${ball.runs}` : 'W';
+                                                if (ball.isExtra) {
+                                                    if (ball.extraType === 'WIDE') return ball.runs > 0 ? `Wd+${ball.runs}` : 'Wd';
+                                                    if (ball.extraType === 'NO_BALL') return ball.runs > 0 ? `Nb+${ball.runs}` : 'Nb';
+                                                    if (ball.extraType === 'BYE') return ball.runs > 0 ? `B+${ball.runs}` : 'B';
+                                                    if (ball.extraType === 'LEG_BYE') return ball.runs > 0 ? `Lb+${ball.runs}` : 'Lb';
+                                                    return ball.runs > 0 ? `${ball.extraType[0]}+${ball.runs}` : ball.extraType[0];
+                                                }
+                                                return ball.runs;
+                                            })()}
                                         </div>
                                         <span className="text-[8px] md:text-[9px] font-black text-slate-500 uppercase">{ball.isExtra ? ball.extraType.split('_')[0] : 'RUN'}</span>
                                     </div>
