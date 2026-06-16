@@ -859,7 +859,7 @@ const MatchView: React.FC<MatchViewProps> = ({
                                                     ball.isExtra ? 'bg-amber-500 text-amber-950 border-amber-300 shadow-amber-500/40' :
                                                         'bg-white text-slate-900 border-white shadow-white/10'
                                             }`}>
-                                            {ball.isWicket ? (ball.runs > 0 ? `W+${ball.runs}` : 'W') : (ball.isExtra ? (ball.runs > 0 ? `${ball.runs}${ball.extraType[0]}` : ball.extraType[0]) : ball.runs)}
+                                            {ball.isWicket ? (ball.runs > 0 ? `${ball.runs}W` : 'W') : (ball.isExtra ? (ball.runs > 0 ? `${ball.runs}${ball.extraType[0]}` : ball.extraType[0]) : ball.runs)}
                                         </div>
                                         <span className="text-[8px] md:text-[9px] font-black text-slate-500 uppercase">{ball.isExtra ? ball.extraType.split('_')[0] : 'RUN'}</span>
                                     </div>
