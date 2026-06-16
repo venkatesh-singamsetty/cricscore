@@ -1,12 +1,18 @@
-name: Deploy — Backend Lambda Functions
+name: Backend & Infrastructure CI/CD
 
 on:
   push:
     branches: [main]
     paths:
       - 'backend/lambdas/**'
-
-  # Allow manual deploys from the GitHub Actions UI
+      - 'terraform/**'
+      - '.github/workflows/backend-infra.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/lambdas/**'
+      - 'terraform/**'
+      - '.github/workflows/backend-infra.yml'
   workflow_dispatch:
 
 concurrency:
@@ -17,14 +23,72 @@ permissions:
   contents: read
 
 jobs:
-  deploy-lambdas:
-    name: Package & Deploy Lambdas via Terraform
+  validate:
+    name: Backend & Terraform Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js (for packaging check)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Lambda dependencies
+        run: |
+          set -e
+          for d in backend/lambdas/*; do
+            if [ -f "$d/package.json" ]; then
+              echo "Installing dependencies in $d"
+              (cd "$d" && npm ci)
+            fi
+          done
+
+      - name: Run Trivy vulnerability scanner (fs) on Lambdas
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: 'backend/lambdas'
+          ignore-unfixed: true
+          format: 'table'
+          exit-code: '0'
+          severity: 'HIGH,CRITICAL'
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '~1.9'
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+        working-directory: terraform
+
+      - name: Terraform Init (no backend)
+        run: terraform init -backend=false
+        working-directory: terraform
+
+      - name: Terraform Validate
+        run: terraform validate
+        working-directory: terraform
+
+      - name: Run Checkov static analysis on Terraform
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: terraform
+          framework: terraform
+          output_format: cli
+          soft_fail: true
+
+  deploy:
+    name: Provision & Deploy Backend + Infra
+    needs: validate
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
 
     env:
-      # Read AWS region from repository secrets to avoid hard-coded regions
       AWS_REGION: ${{ secrets.AWS_REGION }}
-      # Terraform reads TF_VAR_* env vars automatically — no tfvars file needed in CI
       TF_VAR_aws_region: ${{ secrets.AWS_REGION }}
       TF_VAR_domain_name: cricscore.venkateshsingamsetty.site
       TF_VAR_zone_domain: venkateshsingamsetty.site
@@ -40,7 +104,6 @@ jobs:
       - name: Validate AWS_REGION secret
         run: |
           if [ -z "$AWS_REGION" ]; then echo "Missing AWS_REGION. Set secrets.AWS_REGION"; exit 1; fi
-        # The job-level `env` already exposes $AWS_REGION to steps, no need to rebind here.
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -54,7 +117,7 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Install Lambda dependencies
+      - name: Install Lambda dependencies (production only)
         run: |
           set -e
           for d in backend/lambdas/*; do
@@ -94,4 +157,3 @@ jobs:
       - name: Terraform Apply
         working-directory: terraform
         run: terraform apply -auto-approve tfplan
-
