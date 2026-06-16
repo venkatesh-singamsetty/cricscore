@@ -27,7 +27,7 @@ resource "aws_lambda_function" "match_api" {
   }
 }
 
-# --- 10. Score Update (Kafka Producer) Lambda ---
+# --- 10. Score Update Lambda ---
 data "archive_file" "score_update_zip" {
   type        = "zip"
   source_dir  = "${path.module}/../backend/lambdas/score-update"

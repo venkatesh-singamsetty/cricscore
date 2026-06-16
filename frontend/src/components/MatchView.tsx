@@ -325,7 +325,7 @@ const MatchView: React.FC<MatchViewProps> = ({
                 return;
             }
 
-            console.log("Live Sync: Ball sent to Aiven Kafka 🏏📡");
+            console.log("Live Sync: Ball record sent successfully 🏏📡");
         } catch (err) {
             console.error("Live Sync Failed:", err);
         }
