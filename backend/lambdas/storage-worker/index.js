@@ -149,11 +149,19 @@ exports.handler = async (event) => {
                 [strikerName, nonStrikerName, bowlerName, currentOvers, currentBalls, explicitTotalRuns, explicitTotalWickets, inningId]
             );
 
-            // 2. Update Match Metadata
-            await client.query(
-                `UPDATE matches SET total_overs = COALESCE($2, total_overs), updated_at = CURRENT_TIMESTAMP WHERE id = $1`, 
-                [matchId, matchTotalOvers]
-            );
+            // 2. Update Match Metadata + Sync Scores, Wickets, and Overs
+            await client.query(`
+                UPDATE matches m
+                SET total_overs = COALESCE($2, total_overs),
+                    team_a_score = COALESCE((SELECT total_runs FROM innings WHERE match_id = m.id AND batting_team_name = m.team_a_name), 0),
+                    team_a_wickets = COALESCE((SELECT total_wickets FROM innings WHERE match_id = m.id AND batting_team_name = m.team_a_name), 0),
+                    team_a_overs = COALESCE((SELECT CONCAT(overs, '.', balls) FROM innings WHERE match_id = m.id AND batting_team_name = m.team_a_name), '0.0'),
+                    team_b_score = COALESCE((SELECT total_runs FROM innings WHERE match_id = m.id AND batting_team_name = m.team_b_name), 0),
+                    team_b_wickets = COALESCE((SELECT total_wickets FROM innings WHERE match_id = m.id AND batting_team_name = m.team_b_name), 0),
+                    team_b_overs = COALESCE((SELECT CONCAT(overs, '.', balls) FROM innings WHERE match_id = m.id AND batting_team_name = m.team_b_name), '0.0'),
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = $1
+            `, [matchId, matchTotalOvers]);
 
             if (!syncOnly && ballData && !undo) {
                 // 3. Log Ball Event

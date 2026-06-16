@@ -307,7 +307,7 @@ const Scoreboard: React.FC<ScoreboardProps> = ({ currentInnings, previousInnings
                         <>
                           <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Extras Total: {w + nb + b + lb}</span>
                           <div className="flex gap-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest">
-                            <span className="bg-white/5 px-2 py-0.5 rounded">W: {w}</span>
+                            <span className="bg-white/5 px-2 py-0.5 rounded">WD: {w}</span>
                             <span className="bg-white/5 px-2 py-0.5 rounded">NB: {nb}</span>
                             <span className="bg-white/5 px-2 py-0.5 rounded">B: {b}</span>
                             <span className="bg-white/5 px-2 py-0.5 rounded">LB: {lb}</span>
