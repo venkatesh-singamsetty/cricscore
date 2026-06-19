@@ -80,15 +80,73 @@ CricScore utilizes the **Aiven Lifecycle Management** platform combined with **A
       npm install --prefix frontend
       ```
       *(Alternatively, run `npm install` inside the `frontend/` directory)*
-    - **Step 2:** Copy the environment config:
+    - **Step 2 (Per-folder):** Create `frontend/.env` containing the `VITE_` variables (do NOT commit secrets), then run the dev server:
       ```bash
-      cp frontend/.env.example frontend/.env
+      # create frontend/.env with VITE_ keys (manually)
+      npm run dev --prefix frontend
       ```
-    - **Step 3:** Start the local development server:
-      ```bash
-      npm run dev
-      ```
+
+    - **Local deploy (concise)**
+
+      - Create a git-ignored `./.env.local` containing your `TF_` (sensitive) and `VITE_` (client) values.
+      - Deploy (recommended):
+        ```bash
+        ./deploy.sh --use-local-env
+        ```
+        or explicitly:
+        ```bash
+        set -a; . ./.env.local; set +a
+        ./deploy.sh
+        ```
+      - Frontend dev (no terraform):
+        ```bash
+        ./scripts/sync-env.sh
+        npm run dev --prefix frontend
+        ```
+      - Notes: CI builds use GitHub Secrets (API_GATEWAY_ID / WS_API_GATEWAY_ID). Do not commit `.env.local`. `VITE_` variables are exposed to clients.
 - **Full Deployment Guide:** **🚀 [How to Clone and Deploy Your Own Infrastructure](./docs/deployment.md)**
+
+### Local deploy — required local files
+
+To run a full deploy from your workstation (the same `./deploy.sh` used in CI), prepare two local files:
+
+- `.env.local` (repository root, NOT committed)
+  - Purpose: contains Terraform/backend overrides and non-AWS repo variables used by the local deploy script.
+  - Required keys (example values shown; DO NOT commit real secrets):
+    ```
+    TF_DATABASE_URL='postgres://...@cricscore-db.example.com:17727/defaultdb?sslmode=require'
+    TF_SES_SOURCE_EMAIL='you@example.com'
+
+    # Non-sensitive repo vars (optional; can also be set as repo Variables)
+    S3_BUCKET=cricscore-app-XXXXXXXXXXXX
+    CLOUDFRONT_DISTRIBUTION_ID=EXXXXXXXXXXXX
+    SITE_DOMAIN=your.domain.tld
+    ```
+  - Usage: load into your shell before running `./deploy.sh`:
+    ```bash
+    # Export variables from .env.local for this shell session
+    set -a
+    . .env.local
+    set +a
+
+    # then run the deploy script
+    ./deploy.sh
+    ```
+  - Note: `.env.local` is ignored by `.gitignore` to avoid accidental commits.
+
+- AWS credentials: `~/.aws/credentials` or environment
+  - Purpose: the deploy uses the AWS CLI and Terraform which must authenticate to your AWS account.
+  - Recommended: store access keys in `~/.aws/credentials` under a profile, or use `aws sso login` if your org uses SSO.
+  - Example (~/.aws/credentials):
+    ```ini
+    [default]
+    aws_access_key_id = AKIA...
+    aws_secret_access_key = ....
+    region = us-east-1
+    ```
+  - The repository previously included a helper script `scripts/load-env.sh` to emit export lines — that script was removed to avoid accidentally overwriting AWS credentials. Do NOT place long-lived AWS keys in repo files.
+
+With these two local files configured, `./deploy.sh` will initialize Terraform, build the frontend, upload assets to S3, and invalidate CloudFront — matching the CI workflow behavior.
 
 ---
 
