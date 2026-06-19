@@ -47,6 +47,7 @@ const MatchList: React.FC<MatchListProps> = ({ onSelectMatch, isAdmin, onResumeM
     } | null>(null);
     const [alertMessage, setAlertMessage] = useState<string | null>(null);
     const API_URL = import.meta.env.VITE_API_URL || "https://ispht71fh0.execute-api.us-east-1.amazonaws.com";
+    const WS_URL = import.meta.env.VITE_WS_URL || "";
 
     const fetchMatches = async () => {
         setLoading(true);
@@ -66,6 +67,34 @@ const MatchList: React.FC<MatchListProps> = ({ onSelectMatch, isAdmin, onResumeM
     useEffect(() => {
         fetchMatches();
     }, [refreshTrigger, API_URL]);
+
+    // Connect to websocket to receive hub updates and refresh match list
+    useEffect(() => {
+        if (!WS_URL) return;
+        let ws: WebSocket | null = null;
+        try {
+            ws = new WebSocket(WS_URL);
+            ws.onopen = () => console.log('MatchList WS connected');
+            ws.onmessage = (evt) => {
+                try {
+                    const msg = JSON.parse(evt.data);
+                    const t = msg?.type || '';
+                    // Refresh on hub-level updates or match list changes
+                    if (t === 'HUB_UPDATE' || t === 'MATCH_CREATED' || t === 'MATCH_UPDATED' || t === 'SCORE_UPDATE') {
+                        console.log('MatchList received WS event', t);
+                        fetchMatches();
+                    }
+                } catch (e) {
+                    console.error('MatchList WS parse error', e);
+                }
+            };
+            ws.onclose = () => console.log('MatchList WS disconnected');
+            ws.onerror = (e) => console.error('MatchList WS error', e);
+        } catch (err) {
+            console.error('Failed to connect MatchList WS', err);
+        }
+        return () => { if (ws) ws.close(); };
+    }, [WS_URL]);
 
     const calculateResult = (match: MatchMetadata) => {
         if (!match.innings || match.innings.length < 2) return null;
