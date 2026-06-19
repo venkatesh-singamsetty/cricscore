@@ -2,7 +2,7 @@
 
 # SNS Topic: The Event Hub
 resource "aws_sns_topic" "match_events" {
-  name = "${var.project_name}-match-events"
+  name              = "${var.project_name}-match-events"
   kms_master_key_id = aws_kms_key.cric_key.arn
 }
 
@@ -31,9 +31,9 @@ resource "aws_lambda_permission" "sns_broadcaster" {
 
 # SNS Sub 2: SQS Buffer Subscription
 resource "aws_sns_topic_subscription" "sqs_sub" {
-  topic_arn = aws_sns_topic.match_events.arn
-  protocol  = "sqs"
-  endpoint  = aws_sqs_queue.storage_buffer.arn
+  topic_arn            = aws_sns_topic.match_events.arn
+  protocol             = "sqs"
+  endpoint             = aws_sqs_queue.storage_buffer.arn
   raw_message_delivery = true
 }
 

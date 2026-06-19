@@ -10,15 +10,15 @@ resource "aws_kms_key" "cric_key" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid = "Allow administration of the key"
-        Effect = "Allow"
+        Sid       = "Allow administration of the key"
+        Effect    = "Allow"
         Principal = { AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root" }
-        Action = "kms:*"
-        Resource = "*"
+        Action    = "kms:*"
+        Resource  = "*"
       },
       {
-        Sid = "Allow SNS and SQS use of the key"
-        Effect = "Allow"
+        Sid       = "Allow SNS and SQS use of the key"
+        Effect    = "Allow"
         Principal = { Service = ["sns.amazonaws.com", "sqs.amazonaws.com"] }
         Action = [
           "kms:Encrypt",
