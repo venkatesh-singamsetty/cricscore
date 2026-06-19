@@ -320,7 +320,7 @@ const MatchView: React.FC<MatchViewProps> = ({
         });
     };
 
-    const API_URL = import.meta.env.VITE_API_URL || "https://mmiwp8rgrf.execute-api.us-east-1.amazonaws.com";
+    const API_URL = import.meta.env.VITE_API_URL || "https://ispht71fh0.execute-api.us-east-1.amazonaws.com";
     
     const syncMatchState = async () => {
         if (!innings.strikerId || !innings.nonStrikerId || !innings.currentBowlerId) return;

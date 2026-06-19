@@ -125,7 +125,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({ onStartMatch, onResumeMatch, hi
 
     const [isCreating, setIsCreating] = useState(false);
     const [alertMessage, setAlertMessage] = useState<string | null>(null);
-    const API_URL = import.meta.env.VITE_API_URL || "https://mmiwp8rgrf.execute-api.us-east-1.amazonaws.com";
+    const API_URL = import.meta.env.VITE_API_URL || "https://ispht71fh0.execute-api.us-east-1.amazonaws.com";
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
