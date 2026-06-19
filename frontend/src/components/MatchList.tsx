@@ -47,14 +47,20 @@ const MatchList: React.FC<MatchListProps> = ({ onSelectMatch, isAdmin, onResumeM
     } | null>(null);
     const [alertMessage, setAlertMessage] = useState<string | null>(null);
     const API_URL = import.meta.env.VITE_API_URL || "https://ispht71fh0.execute-api.us-east-1.amazonaws.com";
+    const WS_URL = import.meta.env.VITE_WS_URL || "";
 
     const fetchMatches = async () => {
         setLoading(true);
         try {
             const response = await fetch(`${API_URL}/matches`);
             const data = await response.json();
-            // Sort by latest first
-            const sorted = [...data].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+            // Prioritize matches with higher scores so recently created empty matches don't dominate the top
+            const sorted = [...data].sort((a, b) => {
+                const scoreA = Math.max(a.team_a_score || 0, a.team_b_score || 0);
+                const scoreB = Math.max(b.team_a_score || 0, b.team_b_score || 0);
+                if (scoreA !== scoreB) return scoreB - scoreA;
+                return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+            });
             setMatches(sorted);
         } catch (err) {
             console.error("Failed to fetch matches:", err);
@@ -66,6 +72,34 @@ const MatchList: React.FC<MatchListProps> = ({ onSelectMatch, isAdmin, onResumeM
     useEffect(() => {
         fetchMatches();
     }, [refreshTrigger, API_URL]);
+
+    // Connect to websocket to receive hub updates and refresh match list
+    useEffect(() => {
+        if (!WS_URL) return;
+        let ws: WebSocket | null = null;
+        try {
+            ws = new WebSocket(WS_URL);
+            ws.onopen = () => console.log('MatchList WS connected');
+            ws.onmessage = (evt) => {
+                try {
+                    const msg = JSON.parse(evt.data);
+                    const t = msg?.type || '';
+                    // Refresh on hub-level updates or match list changes
+                    if (t === 'HUB_UPDATE' || t === 'MATCH_CREATED' || t === 'MATCH_UPDATED' || t === 'SCORE_UPDATE') {
+                        console.log('MatchList received WS event', t);
+                        fetchMatches();
+                    }
+                } catch (e) {
+                    console.error('MatchList WS parse error', e);
+                }
+            };
+            ws.onclose = () => console.log('MatchList WS disconnected');
+            ws.onerror = (e) => console.error('MatchList WS error', e);
+        } catch (err) {
+            console.error('Failed to connect MatchList WS', err);
+        }
+        return () => { if (ws) ws.close(); };
+    }, [WS_URL]);
 
     const calculateResult = (match: MatchMetadata) => {
         if (!match.innings || match.innings.length < 2) return null;
@@ -196,7 +230,7 @@ const MatchList: React.FC<MatchListProps> = ({ onSelectMatch, isAdmin, onResumeM
                                 <div className="flex flex-col gap-4 cursor-pointer" onClick={() => onSelectMatch(match.id)}>
                                     <div className="flex justify-between items-start">
                                         <span className="text-[9px] font-black uppercase tracking-widest text-indigo-500/70 italic">
-                                            {getTimeAgo(match.created_at)}
+                                            {getTimeAgo(match.updated_at)}
                                         </span>
                                         <div className="mr-24 md:mr-32">
                                             {match.status === 'COMPLETED' ? (
