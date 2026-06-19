@@ -53,8 +53,8 @@ const MatchList: React.FC<MatchListProps> = ({ onSelectMatch, isAdmin, onResumeM
         try {
             const response = await fetch(`${API_URL}/matches`);
             const data = await response.json();
-            // Sort by latest first
-            const sorted = [...data].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+            // Sort by latest update first (use updated_at so score changes surface immediately)
+            const sorted = [...data].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
             setMatches(sorted);
         } catch (err) {
             console.error("Failed to fetch matches:", err);
@@ -196,7 +196,7 @@ const MatchList: React.FC<MatchListProps> = ({ onSelectMatch, isAdmin, onResumeM
                                 <div className="flex flex-col gap-4 cursor-pointer" onClick={() => onSelectMatch(match.id)}>
                                     <div className="flex justify-between items-start">
                                         <span className="text-[9px] font-black uppercase tracking-widest text-indigo-500/70 italic">
-                                            {getTimeAgo(match.created_at)}
+                                            {getTimeAgo(match.updated_at)}
                                         </span>
                                         <div className="mr-24 md:mr-32">
                                             {match.status === 'COMPLETED' ? (
