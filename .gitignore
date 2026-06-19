@@ -105,3 +105,11 @@ desktop.ini
 coverage/
 .nyc_output/
 .env
+# Local environment overrides (may contain secrets)
+.env.local
+.env.local.bak
+.env.local.aws.bak
+
+# Local helper scripts containing plaintext secrets
+setup-secrets.sh
+setup-secrets.sh.bak
