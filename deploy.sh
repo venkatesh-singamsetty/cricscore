@@ -1,5 +1,36 @@
 #!/bin/bash
-set -e
+set -euo pipefail
+
+# Optional flags
+USE_LOCAL_ENV=false
+while [[ "$#" -gt 0 ]]; do
+  case "$1" in
+    --use-local-env)
+      USE_LOCAL_ENV=true
+      shift
+      ;;
+    --help|-h)
+      echo "Usage: $0 [--use-local-env]"
+      exit 0
+      ;;
+    *)
+      echo "Unknown argument: $1" >&2
+      exit 1
+      ;;
+  esac
+done
+
+# If requested, load variables from local .env.local into the environment
+if [ "$USE_LOCAL_ENV" = true ]; then
+  if [ -f ".env.local" ]; then
+    echo "📥 Loading local environment from .env.local (only for this shell session)..."
+    set -a
+    . ./.env.local
+    set +a
+  else
+    echo "⚠️  --use-local-env requested but .env.local not found; continuing." >&2
+  fi
+fi
 
 # 1. Install Dependencies
 echo "📦 Installing required frontend dependencies..."
@@ -29,8 +60,12 @@ echo "⚙️ Synchronizing frontend environment variables..."
 cat <<EOF > frontend/.env
 VITE_API_URL=$API_URL
 VITE_WS_URL=$WS_URL
-VITE_ADMIN_PIN=2403
+VITE_ADMIN_PIN=${VITE_ADMIN_PIN:-2403}
 EOF
+
+if [ -z "${VITE_ADMIN_PIN:-}" ]; then
+  echo "WARNING: VITE_ADMIN_PIN is not set; using default (2403). Consider setting VITE_ADMIN_PIN as an env var or GitHub secret." >&2
+fi
 
 # 4. Build the application with the correct variables
 echo "🚀 Building the frontend application..."
