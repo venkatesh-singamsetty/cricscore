@@ -17,9 +17,9 @@ exports.handler = async (event) => {
         await client.connect();
 
         for (const record of records) {
-            // SNS message within SQS message
-            const snsBody = JSON.parse(record.body);
-            const matchEvent = JSON.parse(snsBody.Message);
+            // Since raw_message_delivery is true on the SQS subscription, 
+            // record.body is the actual message payload, not wrapped in SNS metadata
+            const matchEvent = JSON.parse(record.body);
 
             const { 
                 matchId, 

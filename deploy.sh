@@ -69,7 +69,7 @@ fi
 
 # 4. Build the application with the correct variables
 echo "🚀 Building the frontend application..."
-(cd frontend && npm run build)
+(unset VITE_API_URL VITE_WS_URL VITE_ADMIN_PIN VITE_SCORER_PIN; cd frontend && npm run build)
 
 # 5. Sync files to S3
 cd terraform
