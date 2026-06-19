@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { InningsState, MatchStatus, TeamData, Player, Bowler, BallEvent } from './types';
 import MatchSetup from './components/MatchSetup';
 import MatchView from './components/MatchView';
