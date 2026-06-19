@@ -16,6 +16,7 @@ resource "aws_apigatewayv2_route" "onconnect" {
   api_id    = aws_apigatewayv2_api.websocket_api.id
   route_key = "$connect"
   target    = "integrations/${aws_apigatewayv2_integration.onconnect.id}"
+  authorization_type = "NONE"
 }
 
 resource "aws_lambda_permission" "websocket_onconnect" {
@@ -37,6 +38,7 @@ resource "aws_apigatewayv2_route" "ondisconnect" {
   api_id    = aws_apigatewayv2_api.websocket_api.id
   route_key = "$disconnect"
   target    = "integrations/${aws_apigatewayv2_integration.ondisconnect.id}"
+  authorization_type = "NONE"
 }
 
 resource "aws_lambda_permission" "websocket_ondisconnect" {
@@ -52,4 +54,17 @@ resource "aws_apigatewayv2_stage" "websocket_stage" {
   api_id      = aws_apigatewayv2_api.websocket_api.id
   name        = "prod"
   auto_deploy = true
+  access_log_settings {
+    destination_arn = aws_cloudwatch_log_group.ws_api_access_logs.arn
+    format          = "$context.requestId $context.identity.sourceIp $context.requestTime $context.routeKey $context.status"
+  }
 }
+
+# CloudWatch Log Group for WebSocket API access logs
+resource "aws_cloudwatch_log_group" "ws_api_access_logs" {
+  name              = "/aws/apigateway/${var.project_name}-ws"
+  retention_in_days = 30
+}
+
+# Attach access logging to websocket stage
+
