@@ -3,6 +3,7 @@
 # SNS Topic: The Event Hub
 resource "aws_sns_topic" "match_events" {
   name = "${var.project_name}-match-events"
+  kms_master_key_id = aws_kms_key.cric_key.arn
 }
 
 # SQS Queue: The Reliability Buffer
@@ -10,6 +11,7 @@ resource "aws_sqs_queue" "storage_buffer" {
   name                      = "${var.project_name}-storage-buffer"
   message_retention_seconds = 86400 # 1 day
   receive_wait_time_seconds = 20    # Long polling
+  kms_master_key_id         = aws_kms_key.cric_key.arn
 }
 
 # SNS Sub 1: Broadcaster (Fast-Path)
@@ -32,6 +34,7 @@ resource "aws_sns_topic_subscription" "sqs_sub" {
   topic_arn = aws_sns_topic.match_events.arn
   protocol  = "sqs"
   endpoint  = aws_sqs_queue.storage_buffer.arn
+  raw_message_delivery = true
 }
 
 resource "aws_sqs_queue_policy" "allow_sns" {

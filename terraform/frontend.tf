@@ -14,6 +14,31 @@ resource "aws_s3_bucket" "static_app" {
   }
 }
 
+resource "aws_s3_bucket_versioning" "static_app_versioning" {
+  bucket = aws_s3_bucket.static_app.id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "static_app_sse" {
+  bucket = aws_s3_bucket.static_app.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      kms_master_key_id = aws_kms_key.cric_key.arn
+      sse_algorithm     = "aws:kms"
+    }
+  }
+}
+
+resource "aws_s3_bucket_logging" "static_app_access_logs" {
+  bucket = aws_s3_bucket.static_app.id
+  target_bucket = aws_s3_bucket.static_app_logs.id
+  target_prefix = "access-logs/"
+}
+
 resource "aws_s3_bucket_public_access_block" "static_app" {
   bucket = aws_s3_bucket.static_app.id
 
@@ -112,6 +137,7 @@ resource "aws_cloudfront_distribution" "s3_distribution" {
     }
 
     viewer_protocol_policy = "redirect-to-https"
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.security_headers.id
     min_ttl                = 0
     default_ttl            = 3600
     max_ttl                = 86400
@@ -167,6 +193,43 @@ resource "aws_s3_bucket_policy" "allow_cloudfront" {
   bucket = aws_s3_bucket.static_app.id
   policy = data.aws_iam_policy_document.allow_cloudfront_access.json
 }
+
+// Optional: Response headers policy for CloudFront to improve security
+resource "aws_cloudfront_response_headers_policy" "security_headers" {
+  name = "${var.project_name}-security-headers"
+
+  security_headers_config {
+    content_security_policy {
+      override            = true
+      content_security_policy = "default-src 'self'; img-src 'self' data: https:; script-src 'self' https:; style-src 'self' https:"
+    }
+
+    xss_protection {
+      protection = true
+      mode_block  = true
+      override    = true
+    }
+
+    referrer_policy {
+      override = true
+      referrer_policy = "no-referrer"
+    }
+
+    strictly_transport_security {
+      override = true
+      include_subdomains = true
+      preload = true
+      access_control_max_age_sec = 63072000
+    }
+
+    frame_options {
+      frame_option = "DENY"
+      override     = true
+    }
+  }
+}
+
+// (response headers policy attached via `default_cache_behavior.response_headers_policy_id`)
 
 data "aws_iam_policy_document" "allow_cloudfront_access" {
   statement {
