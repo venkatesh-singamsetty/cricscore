@@ -17,6 +17,7 @@ resource "aws_apigatewayv2_stage" "default" {
     destination_arn = aws_cloudwatch_log_group.http_api_access_logs.arn
     format          = "$context.requestId $context.identity.sourceIp $context.requestTime $context.routeKey $context.status"
   }
+  depends_on = [aws_api_gateway_account.apigateway_account]
 }
 
 # CloudWatch Log Group for API Gateway HTTP access logs

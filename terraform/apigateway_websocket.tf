@@ -58,6 +58,7 @@ resource "aws_apigatewayv2_stage" "websocket_stage" {
     destination_arn = aws_cloudwatch_log_group.ws_api_access_logs.arn
     format          = "$context.requestId $context.identity.sourceIp $context.requestTime $context.routeKey $context.status"
   }
+  depends_on = [aws_api_gateway_account.apigateway_account]
 }
 
 # CloudWatch Log Group for WebSocket API access logs
