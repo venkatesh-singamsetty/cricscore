@@ -17,9 +17,9 @@ resource "aws_kms_key" "cric_key" {
         Resource  = "*"
       },
       {
-        Sid       = "Allow SNS and SQS use of the key"
+        Sid       = "Allow SNS, SQS, and CloudFront use of the key"
         Effect    = "Allow"
-        Principal = { Service = ["sns.amazonaws.com", "sqs.amazonaws.com"] }
+        Principal = { Service = ["sns.amazonaws.com", "sqs.amazonaws.com", "cloudfront.amazonaws.com"] }
         Action = [
           "kms:Encrypt",
           "kms:Decrypt",

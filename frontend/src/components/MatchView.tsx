@@ -43,35 +43,41 @@ const PromptModal: React.FC<PromptModalProps> = ({ title, placeholder, defaultVa
     };
 
     return (
-        <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[300] p-4 backdrop-blur-md">
-            <form onSubmit={handleSubmit} className="bg-slate-900 border border-slate-700/50 rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden p-6 text-slate-100 animate-in zoom-in-95 duration-200">
-                <div className="w-12 h-12 bg-indigo-500/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-indigo-500/20">
-                    <span className="text-xl">✏️</span>
+        <div className="fixed inset-0 bg-slate-950/90 flex items-center justify-center z-[300] p-4 backdrop-blur-xl animate-in fade-in duration-300">
+            <form onSubmit={handleSubmit} className="bg-slate-900 border border-indigo-500/20 rounded-[2.5rem] w-full max-w-sm shadow-2xl shadow-indigo-500/10 overflow-hidden p-8 text-slate-100 animate-in zoom-in-95 duration-500 relative">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl rounded-full pointer-events-none"></div>
+                <div className="absolute bottom-0 left-0 w-32 h-32 bg-purple-500/10 blur-3xl rounded-full pointer-events-none"></div>
+                
+                <div className="w-16 h-16 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-indigo-500/30 rotate-3 shadow-inner">
+                    <span className="text-2xl -rotate-3">✍️</span>
                 </div>
-                <h3 className="text-lg font-black uppercase tracking-widest text-white mb-2 italic text-center">{title}</h3>
-                <p className="text-slate-400 text-xs font-medium mb-4 text-center leading-relaxed">{placeholder}</p>
-                <div className="mb-6">
+                
+                <h3 className="text-2xl font-black uppercase tracking-tighter text-white mb-2 italic text-center drop-shadow-sm">{title}</h3>
+                <p className="text-indigo-300/80 text-[11px] font-black uppercase tracking-widest mb-6 text-center">{placeholder}</p>
+                
+                <div className="mb-8 relative group">
                     <input
                         type="text"
                         autoFocus
                         value={value}
                         onChange={(e) => setValue(e.target.value)}
-                        className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors uppercase text-center font-bold"
-                        placeholder="Type name here..."
+                        className="w-full bg-slate-950/50 border-2 border-slate-800 rounded-2xl px-5 py-4 text-lg text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-all uppercase text-center font-black tracking-wider shadow-inner group-hover:border-slate-700"
+                        placeholder="TYPE NAME HERE..."
                     />
                 </div>
-                <div className="flex gap-3">
+                
+                <div className="flex gap-4 relative z-10">
                     <button
                         type="button"
                         onClick={onClose}
-                        className="flex-1 py-3 bg-slate-800 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] text-slate-300 hover:text-white hover:bg-slate-700 transition-all border border-slate-700/50 active:scale-95"
+                        className="flex-1 py-4 bg-slate-800/50 hover:bg-slate-800 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] text-slate-400 hover:text-white transition-all border border-slate-700/50 active:scale-95"
                     >
                         Cancel
                     </button>
                     <button
                         type="submit"
                         disabled={!value.trim()}
-                        className="flex-1 py-3 bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-black text-[10px] uppercase tracking-[0.2em] text-white hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-600/20 active:scale-95"
+                        className="flex-1 py-4 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 disabled:opacity-50 disabled:grayscale rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] text-white transition-all shadow-xl shadow-indigo-600/20 active:scale-95 border border-indigo-400/30"
                     >
                         Confirm
                     </button>

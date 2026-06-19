@@ -54,11 +54,10 @@ const MatchList: React.FC<MatchListProps> = ({ onSelectMatch, isAdmin, onResumeM
         try {
             const response = await fetch(`${API_URL}/matches`);
             const data = await response.json();
-            // Prioritize matches with higher scores so recently created empty matches don't dominate the top
+            // Sort matches so LIVE matches are on top, and then sort by most recently updated
             const sorted = [...data].sort((a, b) => {
-                const scoreA = Math.max(a.team_a_score || 0, a.team_b_score || 0);
-                const scoreB = Math.max(b.team_a_score || 0, b.team_b_score || 0);
-                if (scoreA !== scoreB) return scoreB - scoreA;
+                if (a.status === 'LIVE' && b.status !== 'LIVE') return -1;
+                if (b.status === 'LIVE' && a.status !== 'LIVE') return 1;
                 return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
             });
             setMatches(sorted);

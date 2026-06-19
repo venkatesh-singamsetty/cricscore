@@ -52,7 +52,7 @@ resource "aws_iam_policy" "lambda_messaging" {
       {
         Action   = ["sns:Publish", "sns:Subscribe"]
         Effect   = "Allow"
-        Resource = "*"
+        Resource = aws_sns_topic.match_events.arn
       },
       {
         Action = [
@@ -62,7 +62,16 @@ resource "aws_iam_policy" "lambda_messaging" {
           "sqs:SendMessage"
         ]
         Effect   = "Allow"
-        Resource = "*"
+        Resource = aws_sqs_queue.storage_buffer.arn
+      },
+      {
+        Action = [
+          "kms:GenerateDataKey*",
+          "kms:Decrypt",
+          "kms:Encrypt"
+        ]
+        Effect   = "Allow"
+        Resource = aws_kms_key.cric_key.arn
       }
     ]
   })
