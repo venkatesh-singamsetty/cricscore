@@ -13,9 +13,9 @@ resource "aws_apigatewayv2_integration" "onconnect" {
 }
 
 resource "aws_apigatewayv2_route" "onconnect" {
-  api_id    = aws_apigatewayv2_api.websocket_api.id
-  route_key = "$connect"
-  target    = "integrations/${aws_apigatewayv2_integration.onconnect.id}"
+  api_id             = aws_apigatewayv2_api.websocket_api.id
+  route_key          = "$connect"
+  target             = "integrations/${aws_apigatewayv2_integration.onconnect.id}"
   authorization_type = "NONE"
 }
 
@@ -35,9 +35,9 @@ resource "aws_apigatewayv2_integration" "ondisconnect" {
 }
 
 resource "aws_apigatewayv2_route" "ondisconnect" {
-  api_id    = aws_apigatewayv2_api.websocket_api.id
-  route_key = "$disconnect"
-  target    = "integrations/${aws_apigatewayv2_integration.ondisconnect.id}"
+  api_id             = aws_apigatewayv2_api.websocket_api.id
+  route_key          = "$disconnect"
+  target             = "integrations/${aws_apigatewayv2_integration.ondisconnect.id}"
   authorization_type = "NONE"
 }
 
