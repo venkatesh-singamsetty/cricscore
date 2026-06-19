@@ -23,6 +23,19 @@ resource "aws_s3_bucket_public_access_block" "static_app" {
   restrict_public_buckets = true
 }
 
+resource "aws_s3_bucket_cors_configuration" "static_app" {
+  bucket = aws_s3_bucket.static_app.id
+
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["GET", "HEAD"]
+    allowed_origins = ["*"]
+    expose_headers  = ["ETag"]
+    max_age_seconds = 3000
+  }
+}
+
+
 # --- 2. ACM Certificate (SSL) ---
 resource "aws_acm_certificate" "cert" {
   provider          = aws.us-east-1
@@ -92,6 +105,7 @@ resource "aws_cloudfront_distribution" "s3_distribution" {
 
     forwarded_values {
       query_string = false
+      headers      = ["Origin", "Access-Control-Request-Headers", "Access-Control-Request-Method"]
       cookies {
         forward = "none"
       }

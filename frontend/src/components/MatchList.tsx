@@ -40,7 +40,13 @@ const getTimeAgo = (dateStr: string) => {
 const MatchList: React.FC<MatchListProps> = ({ onSelectMatch, isAdmin, onResumeMatch, refreshTrigger, searchTerm = "" }) => {
     const [matches, setMatches] = useState<MatchMetadata[]>([]);
     const [loading, setLoading] = useState(true);
-    const API_URL = import.meta.env.VITE_API_URL || "https://mmiwp8rgrf.execute-api.us-east-1.amazonaws.com";
+    const [confirmAction, setConfirmAction] = useState<{
+        type: 'DELETE_MATCH' | 'PURGE_DB';
+        matchId?: string;
+        matchName?: string;
+    } | null>(null);
+    const [alertMessage, setAlertMessage] = useState<string | null>(null);
+    const API_URL = import.meta.env.VITE_API_URL || "https://ispht71fh0.execute-api.us-east-1.amazonaws.com";
 
     const fetchMatches = async () => {
         setLoading(true);
@@ -120,9 +126,7 @@ const MatchList: React.FC<MatchListProps> = ({ onSelectMatch, isAdmin, onResumeM
                     <div className="flex gap-4">
                         <button
                             onClick={() => {
-                                if (confirm("🧨 PURGE ALL RECORDS?\nThis will clear everything from the cloud.")) {
-                                    fetch(`${API_URL}/matches`, { method: 'DELETE' }).then(() => fetchMatches());
-                                }
+                                setConfirmAction({ type: 'PURGE_DB' });
                             }}
                             className="flex flex-col items-center gap-1 group"
                         >
@@ -174,13 +178,13 @@ const MatchList: React.FC<MatchListProps> = ({ onSelectMatch, isAdmin, onResumeM
                                     {isAdmin && (
                                         <button
                                             type="button"
-                                            onClick={async (e) => {
+                                            onClick={(e) => {
                                                 e.stopPropagation();
-                                                if (confirm("🚨 DELETE MATCH?")) {
-                                                    setMatches(prev => prev.filter(m => m.id !== match.id));
-                                                    await fetch(`${API_URL}/match/${match.id}`, { method: 'DELETE' });
-                                                    fetchMatches();
-                                                }
+                                                setConfirmAction({
+                                                    type: 'DELETE_MATCH',
+                                                    matchId: match.id,
+                                                    matchName: `${match.team_a_name} VS ${match.team_b_name}`
+                                                });
                                             }}
                                             className="w-8 h-8 flex items-center justify-center bg-red-900/20 text-red-500 rounded-lg hover:bg-red-600 hover:text-white transition-all text-xs border border-red-500/10"
                                         >
@@ -270,6 +274,112 @@ const MatchList: React.FC<MatchListProps> = ({ onSelectMatch, isAdmin, onResumeM
                             </div>
                         );
                     })}
+                </div>
+            )}
+
+            {confirmAction && (
+                <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[300] p-4 backdrop-blur-md">
+                    <div className="bg-slate-900 border border-slate-700/50 rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden p-6 text-center text-slate-100 animate-in zoom-in-95 duration-200">
+                        {confirmAction.type === 'PURGE_DB' ? (
+                            <>
+                                <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20">
+                                    <span className="text-3xl">🧨</span>
+                                </div>
+                                <h3 className="text-xl font-black uppercase tracking-widest text-white mb-2 italic">Purge Database?</h3>
+                                <p className="text-slate-400 text-sm font-medium mb-8 leading-relaxed">
+                                    This will clear everything from the cloud. All historical records will be gone.<br />
+                                    <br />
+                                    <strong className="text-white uppercase tracking-wider text-xs block">Do you want to continue?</strong>
+                                </p>
+                                <div className="flex gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setConfirmAction(null)}
+                                        className="flex-1 py-4 bg-slate-800 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] text-slate-300 hover:text-white hover:bg-slate-700 transition-all border border-slate-700/50 active:scale-95"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            setConfirmAction(null);
+                                            try {
+                                                const res = await fetch(`${API_URL}/matches`, { method: 'DELETE' });
+                                                if (!res.ok) throw new Error("Purge failed");
+                                                fetchMatches();
+                                            } catch (err: any) {
+                                                setAlertMessage(`Purge failed!\n${err.message}`);
+                                            }
+                                        }}
+                                        className="flex-1 py-4 bg-red-600 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] text-white hover:bg-red-500 transition-all shadow-lg shadow-red-600/20 active:scale-95"
+                                    >
+                                        Purge All
+                                    </button>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20">
+                                    <span className="text-3xl">🚨</span>
+                                </div>
+                                <h3 className="text-xl font-black uppercase tracking-widest text-white mb-2 italic">Delete Match?</h3>
+                                <p className="text-slate-400 text-sm font-medium mb-8 leading-relaxed">
+                                    This record <span className="text-indigo-400 font-bold">({confirmAction.matchName})</span> will be permanently removed.<br />
+                                    <br />
+                                    <strong className="text-white uppercase tracking-wider text-xs block">Do you want to continue?</strong>
+                                </p>
+                                <div className="flex gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setConfirmAction(null)}
+                                        className="flex-1 py-4 bg-slate-800 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] text-slate-300 hover:text-white hover:bg-slate-700 transition-all border border-slate-700/50 active:scale-95"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            const matchId = confirmAction.matchId!;
+                                            setConfirmAction(null);
+                                            setMatches(prev => prev.filter(m => m.id !== matchId));
+                                            try {
+                                                const res = await fetch(`${API_URL}/match/${matchId}`, { method: 'DELETE' });
+                                                if (!res.ok) throw new Error("Delete failed");
+                                                fetchMatches();
+                                            } catch (err: any) {
+                                                setAlertMessage(`Delete failed!\n${err.message}`);
+                                                fetchMatches();
+                                            }
+                                        }}
+                                        className="flex-1 py-4 bg-red-600 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] text-white hover:bg-red-500 transition-all shadow-lg shadow-red-600/20 active:scale-95"
+                                    >
+                                        Delete Match
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {alertMessage && (
+                <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[400] p-4 backdrop-blur-md">
+                    <div className="bg-slate-900 border border-slate-700/50 rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden p-6 text-center text-slate-100 animate-in zoom-in-95 duration-200">
+                        <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20">
+                            <span className="text-3xl">⚠️</span>
+                        </div>
+                        <h3 className="text-xl font-black uppercase tracking-widest text-white mb-2 italic">Notification</h3>
+                        <p className="text-slate-300 text-sm font-medium mb-8 leading-relaxed whitespace-pre-line">
+                            {alertMessage}
+                        </p>
+                        <button
+                            type="button"
+                            onClick={() => setAlertMessage(null)}
+                            className="w-full py-4 bg-indigo-600 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] text-white hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-600/20 active:scale-95"
+                        >
+                            Acknowledge
+                        </button>
+                    </div>
                 </div>
             )}
         </div>

@@ -7,8 +7,9 @@ exports.handler = async (event) => {
     const records = event.Records || [];
     console.log(`Processing batch of ${records.length} events from SQS`);
 
+    const cleanDbUrl = (process.env.DATABASE_URL || '').split('?')[0];
     const client = new Client({
-        connectionString: process.env.DATABASE_URL,
+        connectionString: cleanDbUrl,
         ssl: { rejectUnauthorized: false }
     });
 
