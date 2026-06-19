@@ -4,6 +4,9 @@
   "description": "CricScore v2.0 SNS Producer",
   "main": "index.js",
   "type": "commonjs",
+  "engines": {
+    "node": ">=24"
+  },
   "dependencies": {
     "@aws-sdk/client-sns": "^3.1072.0"
   }
