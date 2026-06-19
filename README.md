@@ -74,7 +74,15 @@ CricScore utilizes the **Aiven Lifecycle Management** platform combined with **A
 
 
 ## ⚡ Getting Started
-- **Local Developer Preview**: Run the frontend locally (Requires **Node.js 18.x+**).
+ **Local Developer Preview**: Run the frontend locally (Requires Node.js 24.x — pin with `.nvmrc`).
+    
+    - Node version (recommended): the repository is pinned to **Node 24**. Use `nvm` or your preferred version manager to match the project:
+      ```bash
+      # installs Node 24 (reads .nvmrc) and uses it for this shell
+      nvm install
+      nvm use
+      ```
+      CI workflows are pinned to Node 24 as well.
     - **Step 1:** Install frontend dependencies:
       ```bash
       npm install --prefix frontend
