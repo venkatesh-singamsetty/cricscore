@@ -54,8 +54,13 @@ const MatchList: React.FC<MatchListProps> = ({ onSelectMatch, isAdmin, onResumeM
         try {
             const response = await fetch(`${API_URL}/matches`);
             const data = await response.json();
-            // Sort by latest update first (use updated_at so score changes surface immediately)
-            const sorted = [...data].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+            // Prioritize matches with higher scores so recently created empty matches don't dominate the top
+            const sorted = [...data].sort((a, b) => {
+                const scoreA = Math.max(a.team_a_score || 0, a.team_b_score || 0);
+                const scoreB = Math.max(b.team_a_score || 0, b.team_b_score || 0);
+                if (scoreA !== scoreB) return scoreB - scoreA;
+                return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+            });
             setMatches(sorted);
         } catch (err) {
             console.error("Failed to fetch matches:", err);
