@@ -2,6 +2,21 @@
 
 This engineering trace documents the real-world resolutions for the CricScore backend integration.
 
+### 35. **OWASP ZAP Artifact Upload Crash (400 Bad Request)**
+- **Symptom**: DAST pipeline fails at the very end with `Create Artifact Container - Error is not retryable`.
+- **Cause**: The `zaproxy/action-baseline@v0.12.0` relies on legacy `upload-artifact@v3` API, which is blocked by GitHub's strict v4 validation schema.
+- **Fix**: Bumped the plugin version to `v0.15.0`, which implements the v4 artifact architecture natively and eliminates Node 20 deprecation warnings.
+
+### 34. **OWASP ZAP Pipeline `Errno 13 Permission denied`**
+- **Symptom**: ZAP Docker container fails to generate `zap.yaml` or output HTML reports in GitHub Actions.
+- **Cause**: The ZAP container runs internally as the `zap` user, but the mounted GitHub workspace is owned by `runner`.
+- **Fix**: Inserted an explicit `chmod -R 777 ${{ github.workspace }}` step before the ZAP baseline action runs.
+
+### 33. **GitHub Action `Resource not accessible by integration` (Issue Creation)**
+- **Symptom**: Pipeline fails when OWASP ZAP tries to create a GitHub Issue containing the security warnings.
+- **Cause**: Default GitHub Action tokens are read-only and lack `issues: write` permission.
+- **Fix**: Added explicit `permissions: issues: write` and `contents: read` strictly to the DAST job configuration.
+
 ### 32. **Local Deployment Failures (Missing Dependencies)**
 - **Symptom**: New developers failed to run `./deploy.sh` locally because fundamental CLI utilities were missing.
 - **Cause**: Lack of an automated bootstrap procedure across Mac and Linux systems.

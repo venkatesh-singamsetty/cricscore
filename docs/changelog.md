@@ -2,6 +2,13 @@
 
 This document tracks the complete evolutionary history of the CricScore platform.
 
+## 🔒 v2.8.0: AppSec Pipelines & DAST Automation [2026-06-20]
+
+### Highlights
+* **DAST Pipeline Hardening**: Resolved critical GitHub Actions compatibility issues with OWASP ZAP (Node 20 deprecation, v4 artifact API crash, Docker permission denial, and Issue Creation scope).
+* **CloudFront Security Headers**: Injected `X-Content-Type-Options`, `Permissions-Policy`, and extended Content-Security-Policy (CSP) via Terraform to natively patch HTTP security warnings from the DAST scan.
+* **Server Fingerprint Protection**: Explicitly stripped the AWS `Server` header at the CDN edge to prevent architecture leakage.
+
 ## 🚀 v2.7.0: Dynamic Badging & CodeQL Completion [2026-06-20]
 
 ### Highlights
