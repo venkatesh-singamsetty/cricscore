@@ -285,7 +285,7 @@ const App: React.FC = () => {
             const API_URL = import.meta.env.VITE_API_URL || "";
             
             try {
-                const response = await fetch(`${API_URL}/match/${matchId}/innings`, {
+                const response = await fetch(`${API_URL}/match/${encodeURIComponent(matchId)}/innings`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -324,7 +324,7 @@ const App: React.FC = () => {
                         const runDiff = (target - 1) - completedInnings.totalRuns;
                         matchWinner = runDiff === 0 ? 'MATCH TIED' : `${completedInnings.bowlingTeamName} WON BY ${runDiff} RUNS`;
                     }
-                    await fetch(`${API_URL}/match/${matchId}`, {
+                    await fetch(`${API_URL}/match/${encodeURIComponent(matchId)}`, {
                         method: "PATCH",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ status: MatchStatus.COMPLETED, matchWinner })
@@ -341,7 +341,7 @@ const App: React.FC = () => {
         const API_URL = import.meta.env.VITE_API_URL || "";
         try {
             console.log("Resuming Match...", mId);
-            const response = await fetch(`${API_URL}/match/${mId}/details`);
+            const response = await fetch(`${API_URL}/match/${encodeURIComponent(mId)}/details`);
             const data = await response.json();
 
             const { match, innings } = data;
@@ -543,7 +543,7 @@ const App: React.FC = () => {
                         // 🔍 Cloud Sync: Wipe local if deleted by Admin
                         if (saved.matchId) {
                             const API_URL = import.meta.env.VITE_API_URL || "";
-                            fetch(`${API_URL}/match/${saved.matchId}/details`).then(res => {
+                            fetch(`${API_URL}/match/${encodeURIComponent(saved.matchId)}/details`).then(res => {
                                 if (res.status === 404) {
                                     console.warn("RESTORED MATCH WAS DELETED BY ADMIN.");
                                     localStorage.removeItem(getMatchStateKey(value));
@@ -611,7 +611,7 @@ const App: React.FC = () => {
         setTotalOvers(newOvers);
         const API_URL = import.meta.env.VITE_API_URL || "";
         try {
-             await fetch(`${API_URL}/match/${matchId}`, {
+             await fetch(`${API_URL}/match/${encodeURIComponent(matchId)}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ totalOvers: newOvers })
@@ -633,34 +633,6 @@ const App: React.FC = () => {
             if (runDiff === 0) return "MATCH TIED!";
             return `${currentInnings.bowlingTeamName} WON BY ${runDiff} RUNS`;
         }
-    };
-
-    const generateScorecardText = (innings: InningsState) => {
-        const header = `┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n┃ ${innings.battingTeamName.padEnd(30)} ${innings.totalRuns.toString().padStart(3)}/${innings.totalWickets} ┃\n┃ ${(`${innings.overs}.${innings.balls} Overs`).padEnd(30)}        ┃\n┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫`;
-        
-        let batting = `\n┃ 🏏 BATTING                                          ┃\n`;
-        innings.battingOrder.forEach(id => {
-            const p = innings.players[id];
-            if (p.ballsFaced > 0 || p.isOut || p.wicketType === 'RETIRED_HURT' || p.wicketType === 'RETIRED_OUT' || p.id === innings.strikerId || p.id === innings.nonStrikerId) {
-                const score = `${p.runs}(${p.ballsFaced})`.padEnd(10);
-                const boundary = `${p.fours}x4 ${p.sixes}x6`.padEnd(10);
-                const line = `┃ ${p.name.padEnd(15)} | ${score} | ${boundary} ┃`;
-                batting += line + `\n`;
-            }
-        });
-
-        let bowling = `┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫\n┃ 🥎 BOWLING                                          ┃\n`;
-        innings.bowlingOrder.forEach(id => {
-            const b = innings.bowlers[id];
-            if (b.overs > 0 || b.balls > 0) {
-                const stats = `${b.overs}.${b.balls}ov ${b.runsConceded}r ${b.wickets}w`.padEnd(25);
-                const line = `┃ ${b.name.padEnd(15)} | ${stats}  ┃`;
-                bowling += line + `\n`;
-            }
-        });
-
-        const footer = `┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛`;
-        return header + batting + bowling + footer;
     };
 
     const [sendingEmail, setSendingEmail] = useState(false);
@@ -688,7 +660,7 @@ const App: React.FC = () => {
                 ]
             };
 
-            const response = await fetch(`${API_URL}/match/${matchId}/email`, {
+            const response = await fetch(`${API_URL}/match/${encodeURIComponent(matchId)}/email`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -716,8 +688,8 @@ const App: React.FC = () => {
             console.error("Email API failed:", err);
             if (!silent) {
                 const subject = encodeURIComponent(`🏆 FINAL RESULT: ${previousInnings.battingTeamName} vs ${currentInnings.battingTeamName}`);
-                const body = encodeURIComponent(`🏆 VIEW FANCY SCORECARD:\n${window.location.origin}?matchId=${matchId}\n\n(Cloud email service requires manual verification. Please forward this link!)`);
-                window.location.href = `mailto:${emailTo}?subject=${subject}&body=${body}`;
+                const body = encodeURIComponent(`🏆 VIEW FANCY SCORECARD:\n${window.location.origin}?matchId=${encodeURIComponent(matchId)}\n\n(Cloud email service requires manual verification. Please forward this link!)`);
+                window.location.assign(`mailto:${encodeURIComponent(emailTo)}?subject=${subject}&body=${body}`);
             }
         } finally {
             setSendingEmail(false);

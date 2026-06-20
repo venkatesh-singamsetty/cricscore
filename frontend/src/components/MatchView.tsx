@@ -161,18 +161,9 @@ const MatchView: React.FC<MatchViewProps> = ({
     const getCurrentStriker = () => innings.players[innings.strikerId] || { name: 'Selecting...', runs: 0, ballsFaced: 0, fours: 0, sixes: 0, id: '' };
     const getCurrentNonStriker = () => innings.players[innings.nonStrikerId] || { name: 'Selecting...', runs: 0, ballsFaced: 0, fours: 0, sixes: 0, id: '' };
     const getCurrentBowler = () => innings.bowlers[innings.currentBowlerId] || { name: 'Selecting...', overs: 0, balls: 0, maidens: 0, runsConceded: 0, wickets: 0, id: '' };
-    const getPreviousBowler = () => {
-        if (innings.allBalls.length === 0) return null;
-        const currentBowlerName = getCurrentBowler().name;
-        const lastDifferentBall = [...innings.allBalls].reverse().find(b => b.bowlerName !== currentBowlerName);
-        if (!lastDifferentBall) return null;
-        return (Object.values(innings.bowlers) as Bowler[]).find(b => b.name === lastDifferentBall.bowlerName) || null;
-    };
-
     const striker = getCurrentStriker();
     const nonStriker = getCurrentNonStriker();
     const bowler = getCurrentBowler();
-    const prevBowler = getPreviousBowler();
 
     // Calculate equation for 2nd innings
     const getEquation = () => {
