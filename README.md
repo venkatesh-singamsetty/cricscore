@@ -135,14 +135,14 @@ If these variables are not set, the workflow will emit a warning during the `Val
 ## 🛡️ Hardened CI/CD & Security Stack
 CricScore implements a robust, enterprise-grade CI/CD and security auditing lifecycle powered by GitHub Actions:
 
-* **Dependabot (Automated updates)**: Performs daily updates for npm packages and Terraform providers, raising automated pull requests for security updates.
 * **Branch Isolation & Safety**: Deployment workflows to AWS only trigger automatically on pushes/merges to the `main` branch, ensuring development branches never overwrite the live production environment.
 * **Concurrency Optimization**: Cancel-in-progress concurrency groups automatically prune older, redundant pipeline runs, saving run minutes.
-* **CodeQL (SAST scanning)**: Runs native GitHub CodeQL static analysis to check the JavaScript/TypeScript code for coding logic bugs and vulnerabilities.
+* **Dependabot (Automated updates)**: Performs daily updates for npm packages and Terraform providers, raising automated pull requests for security updates.
 * **GitLeaks (Secrets Detection)**: Proactively scans the entire commit history to block accidentally pushed API keys, tokens, and passwords from merging.
-* **OWASP ZAP (DAST scanning)**: Automated black-box dynamic application security testing executed against the live application endpoints.
+* **CodeQL (SAST scanning)**: Runs native GitHub CodeQL static analysis to check the JavaScript/TypeScript code for coding logic bugs and vulnerabilities.
 * **Trivy (Dependency & filesystem scanning)**: Scans package locks and directories for `HIGH` and `CRITICAL` severity vulnerability alerts during frontend validation and backend lambda packing steps.
 * **Checkov (Infrastructure-as-Code auditing)**: Performs static security audits on the Terraform configuration directory to catch AWS misconfigurations before provisioning.
+* **OWASP ZAP (DAST scanning)**: Automated black-box dynamic application security testing executed against the live application endpoints.
 
 ---
 
