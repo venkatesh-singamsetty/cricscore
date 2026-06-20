@@ -201,7 +201,11 @@ resource "aws_cloudfront_response_headers_policy" "security_headers" {
   security_headers_config {
     content_security_policy {
       override                = true
-      content_security_policy = "default-src 'self'; connect-src 'self' https: wss:; img-src 'self' data: https:; script-src 'self' https: 'unsafe-inline'; style-src 'self' https: 'unsafe-inline';"
+      content_security_policy = "default-src 'self'; connect-src 'self' https: wss:; img-src 'self' data: https:; script-src 'self' https: 'unsafe-inline'; style-src 'self' https: 'unsafe-inline'; base-uri 'self'; form-action 'self';"
+    }
+
+    content_type_options {
+      override = true
     }
 
     xss_protection {
@@ -225,6 +229,20 @@ resource "aws_cloudfront_response_headers_policy" "security_headers" {
     frame_options {
       frame_option = "DENY"
       override     = true
+    }
+  }
+
+  custom_headers_config {
+    items {
+      header   = "Permissions-Policy"
+      override = true
+      value    = "geolocation=(), microphone=(), camera=()"
+    }
+  }
+
+  remove_headers_config {
+    items {
+      header = "Server"
     }
   }
 }
