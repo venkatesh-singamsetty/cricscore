@@ -145,6 +145,7 @@ CricScore implements a robust, enterprise-grade CI/CD and security auditing life
 ---
 
 ## 📖 Technical Documentation
+- **[Toolchain & Security Stack](./docs/tools.md)**: Master list of all development, infrastructure, and AppSec tools.
 - **[Full Deployment & Infrastructure](./docs/deployment.md)**: Local preview, bootstrap foundations, and AWS/Aiven Setup.
 - **[Aiven Managed Services](./docs/aiven.md)**: PostgreSQL configuration.
 - **[Detailed Architecture](./docs/architecture.md)**: System design, sequence flows, and EDA logic.
