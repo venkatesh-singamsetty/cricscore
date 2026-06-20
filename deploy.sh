@@ -32,6 +32,16 @@ if [ "$USE_LOCAL_ENV" = true ]; then
   fi
 fi
 
+# Auto-map GitHub-style variables to Terraform variables for a seamless local experience
+if [ -n "${TF_DATABASE_URL:-}" ]; then export TF_VAR_database_url="$TF_DATABASE_URL"; fi
+if [ -n "${TF_SES_SOURCE_EMAIL:-}" ]; then export TF_VAR_ses_source_email="$TF_SES_SOURCE_EMAIL"; fi
+if [ -n "${AWS_REGION:-}" ]; then export TF_VAR_aws_region="$AWS_REGION"; fi
+if [ -n "${DOMAIN_NAME:-}" ]; then export TF_VAR_domain_name="$DOMAIN_NAME"; fi
+if [ -n "${ZONE_DOMAIN:-}" ]; then export TF_VAR_zone_domain="$ZONE_DOMAIN"; fi
+if [ -n "${SUBDOMAIN_PREFIX:-}" ]; then export TF_VAR_subdomain_prefix="$SUBDOMAIN_PREFIX"; fi
+if [ -n "${PROJECT_NAME:-}" ]; then export TF_VAR_project_name="$PROJECT_NAME"; fi
+if [ -n "${ADMIN_EMAIL:-}" ]; then export TF_VAR_admin_email="$ADMIN_EMAIL"; fi
+
 # 1. Install Dependencies
 echo "📦 Installing required frontend dependencies..."
 (cd frontend && npm install)
@@ -57,15 +67,17 @@ API_URL=$(cd terraform && terraform output -raw http_api_url)
 WS_URL=$(cd terraform && terraform output -raw websocket_url)
 
 echo "⚙️ Synchronizing frontend environment variables..."
-cat <<EOF > frontend/.env
+# Preserve existing variables (like VITE_ADMIN_PIN) by only filtering out old URLs
+if [ -f frontend/.env ]; then
+  grep -v "^VITE_API_URL=" frontend/.env | grep -v "^VITE_WS_URL=" > frontend/.env.tmp || true
+  mv frontend/.env.tmp frontend/.env
+fi
+
+# Append the live AWS URLs to the end of the file
+cat <<EOF >> frontend/.env
 VITE_API_URL=$API_URL
 VITE_WS_URL=$WS_URL
-VITE_ADMIN_PIN=${VITE_ADMIN_PIN:-2403}
 EOF
-
-if [ -z "${VITE_ADMIN_PIN:-}" ]; then
-  echo "WARNING: VITE_ADMIN_PIN is not set; using default (2403). Consider setting VITE_ADMIN_PIN as an env var or GitHub secret." >&2
-fi
 
 # 4. Build the application with the correct variables
 echo "🚀 Building the frontend application..."

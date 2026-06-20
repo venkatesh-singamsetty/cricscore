@@ -25,11 +25,11 @@ This document provides a breakdown of the estimated operational costs for the Cr
 *   **S3**: First 5GB of Standard Storage + 20,000 GET requests per month are **FREE**. (The React app is ~5MB).
 *   **DynamoDB**: 25GB of Storage + 2.5 Million Read/Write capacity per month. (Spectator connection tracking is negligible).
 
-### 4. **Delivery: CloudFront & Route 53**
+### 5. **Delivery: CloudFront & Route 53**
 *   **CloudFront**: First 1TB of data transfer out is **FREE**. Effectively $0 for this app's payload.
-*   **Route 53**: Hosting a custom domain (e.g., `cricscore.venkateshsingamsetty.site`) incurs a fixed cost of **$0.50 per month** per hosted zone + domain registration fees.
+*   **Route 53**: Hosting a custom domain (e.g., `cricscore.example.com`) incurs a fixed cost of **$0.50 per month** per hosted zone + domain registration fees.
 
-### 5. **Reporting: AWS SES (Email)**
+### 6. **Reporting: AWS SES (Email)**
 *   **Cost**: First 62,000 emails per month are **FREE** when sent from AWS Lambda. 
 *   **Usage**: Each match conclusion triggers 1 auto-email to fans/admins. Even with extreme usage (1,000 matches), this remains well within the $0 cost tier.
 
@@ -45,7 +45,7 @@ This document provides a breakdown of the estimated operational costs for the Cr
 
 ---
 
-## 💸 Detailed Ownership Costs (v2.0)
+## 💸 Detailed Ownership Costs
 
 CricScore is designed for **maximum profitability** on minimal infrastructure. Below is the projected cost of ownership, including a custom domain (starting from **$2.00/year**).
 
@@ -60,7 +60,7 @@ CricScore is designed for **maximum profitability** on minimal infrastructure. B
 
 ---
 
-## 🏗️ Match Capacity & Scale (v2.0)
+## 🏗️ Match Capacity & Scale
 
 For a standard **20-Overs Match** (120 balls per innings = **240 total events/match**), the platform can support the following volume before exceeding the $0 tier.
 
@@ -82,6 +82,7 @@ For a standard **20-Overs Match** (120 balls per innings = **240 total events/ma
 1.  **Match Lifecycle Management**: Set a matches `status` to `COMPLETED` to stop unnecessary WebSocket polling.
 2.  **Log Retention**: Configure CloudWatch logs for 7-day retention to avoid storage creep.
 3.  **Domain Selection**: Use low-cost TLDs (like `.site` or `.me`) to keep your yearly overhead under **$2.00**.
+4.  **Strict Zero-Cost Infrastructure**: We have explicitly disabled **S3 Versioning** and **DynamoDB Point-in-Time Recovery (PITR)** across the Terraform stack to guarantee $0 hidden backup costs.
 
 ## ⚖️ Total Monthly Estimated Cost
 - **Small-to-Medium Tournaments**: **~$0.66** (Route 53 + Amortized Domain Registration).
