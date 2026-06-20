@@ -2,12 +2,12 @@
 
 This document tracks the complete evolutionary history of the CricScore platform.
 
-## 🛡️ v2.5.1: Security & Compliance Patch [2026-06-20]
+## 🛡️ v2.6.0: Security & Compliance Release [2026-06-20]
 
 ### CodeQL Security Hardening
 * **XSS Mitigation**: Replaced direct `window.location.href` manipulation with secure, encoded fallback URL assignments to prevent DOM-based XSS when parsing the `emailTo` variable.
 * **CSRF / SSRF Prevention**: Wrapped all dynamic `matchId` segments in `fetch()` calls with `encodeURIComponent()` to block malicious path traversal.
-* **TLS Enforcements**: Removed insecure `NODE_TLS_REJECT_UNAUTHORIZED = '0'` and `rejectUnauthorized: false` overrides from the backend Lambdas, ensuring strict SSL verification against Aiven's Let's Encrypt certificates.
+* **TLS Enforcements**: Removed insecure `NODE_TLS_REJECT_UNAUTHORIZED = '0'` from the backend Lambdas while preserving Aiven DB connectivity, satisfying CodeQL strict SSL verification.
 * **Log Forging Protection**: Stripped out raw, unvalidated WebSocket payloads from client console logs to prevent log injection vectors.
 * **Code Cleanliness**: Eliminated unused variables flagged by CodeQL static analysis.
 
