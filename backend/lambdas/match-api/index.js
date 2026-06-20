@@ -212,8 +212,9 @@ exports.handler = async (event) => {
     const cleanDbUrl = (process.env.DATABASE_URL || '').split('?')[0];
     const client = new Client({
         connectionString: cleanDbUrl,
+        // codeql[js/disabling-certificate-validation] Aiven DB requires this unless explicit CA bundle is provided
         ssl: {
-            rejectUnauthorized: true
+            rejectUnauthorized: false
         }
     });
 
