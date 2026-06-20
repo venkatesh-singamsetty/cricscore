@@ -1,67 +1,45 @@
-# 🗄️ Aiven Managed PostgreSQL: The Professional Pivot
+# 🗄️ Aiven Managed PostgreSQL Setup
 
-CricScore leverages **Aiven for PostgreSQL** to transform a foundational serverless deployment into a high-visibility, persistent cricket engine.
-
----
-
-## 🏛️ Evolution: Basic Cloud to Managed Engine
-This section showcases the technical leap achieved by integrating Aiven managed services.
-
-### 1. The Foundation (Phase 1 Baseline)
-Before the Aiven integration, the platform was a foundational static cloud deployment. It lacked global match discovery and cross-user visibility.
-
-```mermaid
-graph TD
-    User([📱 User Mobile/Chrome]) -->|HTTPS| R53(Route 53 DNS)
-    R53 -->|Alias| CF(CloudFront CDN)
-    CF --- ACM(ACM SSL Certificate)
-    CF -->|Origin Access Control| S3(S3 Static Bucket)
-    
-    subgraph "Infrastructure Management"
-        TF(Terraform) -->|Provisions| R53
-        TF -->|Provisions| CF
-        TF -->|Provisions| S3
-        TF -->|Provisions| ACM
-        TF -.->|State Storage| S3Backend(Backend S3 Bucket)
-        TF -.->|Locking| DDB(DynamoDB Table)
-    end
-    
-    subgraph "CI/CD Pipeline"
-        DeployScript(deploy.sh) -->|Builds| Build(npm run build)
-        Build -->|Syncs| S3
-    end
-```
-
-### 2. The Professional Leap (Powered by Aiven)
-By migrating logic to **Aiven Managed Services**, we achieved professional-grade scalability and visibility:
-
-| Feature | Basic Cloud Foundation | **Aiven Managed Engine (Now)** |
-| :--- | :--- | :--- |
-| **Visibility** | Single-match focus; no "Global Hub". | **Global Match Directory**: Real-time discovery of all games. |
-| **Control** | No cross-game administrative sovereignty. | **Admin Sovereignty**: Global record purging and state-sync. |
-| **Integrity** | Ephemeral browser-only knowledge. | **Aiven PG Archive**: Persistent historical ball records. |
-| **UX Flow** | Static URL delivery only. | **Viral Engine**: One-tap sharing with URL restoration. |
+CricScore uses Aiven PostgreSQL for its primary database. Follow these steps to provision and configure your database.
 
 ---
 
-## 🏛️ The Technical "Wow" Factor: Decoupled Fan-Out & Zero Latency
-CricScore solves the **"Live Score Lag"** problem (the 10-30 second delay in typical platforms) using a high-density **Decoupled Fan-Out Engine**:
+## 🤔 Why Aiven PostgreSQL?
 
-1.  **Fast-Path UI**: Every `POST /update-score` instantly publishes to **AWS SNS** and returns a 200 OK, offering the Scorer a **sub-100ms** experience without waiting on database writes.
-2.  **Broadcasting**: An asynchronous broadcaster lambda instantly picks up the SNS trigger and flushes scores to fans via **WebSockets**.
-3.  **Reliable Persistence (SQS)**: The SNS hub simultaneously routes the event to an **AWS SQS Buffer**. A dedicated `storage-worker` processes these batches, securely writing to **Aiven PostgreSQL** (System of Record) in the background.
-
-### ⚠️ Engineering Challenges Overcome
--   **Synchronizing State**: We implemented a custom **"Undo" engine** that synchronizes ball event deletions in the PostgreSQL database so that spectators never see "ghost" balls if a scorer corrects a mistake.
--   **Strict Certificate Chains**: Aiven's intermediate certificate authorities were natively blocked by Node v18 (`SELF_SIGNED_CERT_IN_CHAIN`). We implemented a raw environmental override (`NODE_TLS_REJECT_UNAUTHORIZED='0'`) to establish the connection without dropping AWS-to-Aiven traffic.
+We chose Aiven because it perfectly aligns with CricScore's **Zero-Cost Architecture** while delivering enterprise-grade data integrity:
+- **Forever Free Tier**: Aiven provides a robust, fully managed PostgreSQL instance completely for free, ensuring zero monthly hosting costs.
+- **ACID Compliance**: Crucial for tracking exact ball-by-ball cricket scoring events without race conditions or data loss.
+- **Zero Maintenance**: Eliminates the need to manually manage database servers, backups, or security patching.
 
 ---
 
-## 🚀 Why Aiven Managed Services? (The Transformation)
-Aiven provided the robust database storage that allowed CricScore to scale from a static cloud-front to a professional real-time discovery engine:
+## 🛠️ Step-by-Step Creation Guide
 
-1.  **Persistence Pillar (PostgreSQL)**: Provided an ACID-compliant repository for global match statistics and ball-archives.
-2.  **Governance Pillar**: Empowered administrators to maintain sovereignty over match records through persistent PostgreSQL archiving.
+1. **Sign Up / Log In**: 
+   Go to [console.aiven.io](https://console.aiven.io/) and create an account or log in.
+
+2. **Create a New Service**:
+   - Click **Create service**.
+   - Select **PostgreSQL** as the service type.
+   - Select your preferred Cloud Provider (e.g., AWS) and Region (e.g., `us-east-1` to match your Lambdas).
+   - Select the **Free Plan** (or a paid plan if you require high availability/SLAs).
+   - Enter a name for your service (e.g., `cricscore-pg`) and click **Create service**.
+
+3. **Capture the Connection URI**:
+   - Once the service is running (this takes a few minutes), navigate to the **Overview** tab.
+   - Locate the **Service URI** in the Connection Information section. It will look something like this:
+     `postgres://avnadmin:[PASSWORD]@[HOST]:[PORT]/defaultdb?sslmode=require`
+
+4. **Configure Local Environment**:
+   - Copy the full Service URI.
+   - Open your `.env.local` file at the root of the `cricscore` repository.
+   - Paste the URI as the value for `TF_DATABASE_URL`:
+     ```bash
+     TF_DATABASE_URL='postgres://avnadmin:[PASSWORD]@[HOST]:[PORT]/defaultdb?sslmode=require'
+     ```
+
+5. **Deploy**:
+   - The database is now ready to use! When you run `./deploy.sh`, Terraform will automatically deploy the tables and configure the AWS Lambda functions to securely communicate with this database.
 
 ---
 © 2026 CricScore Documentation. 🏎️🏁🚀

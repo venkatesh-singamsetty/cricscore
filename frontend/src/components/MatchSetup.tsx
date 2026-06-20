@@ -103,7 +103,7 @@ const SquadInput = ({
     );
 };
 
-const MatchSetup: React.FC<MatchSetupProps> = ({ onStartMatch, onResumeMatch, hideResume, canDelete = true, initialEmail = 'venky.2k57@gmail.com' }) => {
+const MatchSetup: React.FC<MatchSetupProps> = ({ onStartMatch, onResumeMatch, hideResume, canDelete = true, initialEmail = import.meta.env.VITE_DEFAULT_EMAIL || '' }) => {
     const [teamAName, setTeamAName] = useState('TEAM A');
     const [teamBName, setTeamBName] = useState('TEAM B');
     const [teamASquad, setTeamASquad] = useState('P1\nP2\nP3\nP4\nP5');
@@ -185,7 +185,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({ onStartMatch, onResumeMatch, hi
             // FILTER: Scorer only sees the MOST RECENT LIVE match to resume
             const resumeable = data
                 .filter((m: any) => m.status === 'LIVE')
-                .slice(0, 1); 
+                .slice(0, 1);
             setRecentMatches(resumeable);
         } catch (err) {
             console.error("Failed to fetch recent matches:", err);
@@ -241,7 +241,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({ onStartMatch, onResumeMatch, hi
                                             {m.team_a_name} <span className="text-[8px] text-slate-600 not-italic mx-0.5">vs</span> {m.team_b_name}
                                         </div>
                                         <div className="flex justify-between items-center mt-2 group/meta">
-                                            <span className="text-[8px] font-black text-slate-600 uppercase tracking-tighter">ID: {m.id.substring(0,6)}</span>
+                                            <span className="text-[8px] font-black text-slate-600 uppercase tracking-tighter">ID: {m.id.substring(0, 6)}</span>
                                             <div className="flex items-center gap-2">
                                                 {canDelete && (
                                                     <button
@@ -403,74 +403,74 @@ const MatchSetup: React.FC<MatchSetupProps> = ({ onStartMatch, onResumeMatch, hi
                     <p className="text-[8px] font-black uppercase tracking-[0.8em] text-slate-500">CricScore Hyper-Secure Protocol</p>
                 </div>
 
-            {deleteConfirmId && (
-                <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[300] p-4 backdrop-blur-md">
-                    <div className="bg-slate-900 border border-slate-700/50 rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden p-6 text-center text-slate-100 animate-in zoom-in-95 duration-200">
-                        <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20">
-                            <span className="text-3xl">🚨</span>
-                        </div>
-                        <h3 className="text-xl font-black uppercase tracking-widest text-white mb-2 italic">Delete Match?</h3>
-                        <p className="text-slate-400 text-sm font-medium mb-8 leading-relaxed">
-                            This record will be permanently removed.<br />
-                            <br />
-                            <strong className="text-white uppercase tracking-wider text-xs block">Do you want to continue?</strong>
-                        </p>
-                        <div className="flex gap-3">
-                            <button
-                                type="button"
-                                onClick={() => setDeleteConfirmId(null)}
-                                className="flex-1 py-4 bg-slate-800 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] text-slate-300 hover:text-white hover:bg-slate-700 transition-all border border-slate-700/50 active:scale-95"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="button"
-                                onClick={async () => {
-                                    const matchId = deleteConfirmId;
-                                    setDeleteConfirmId(null);
-                                    // Optimistic UI update
-                                    setRecentMatches(prev => prev.filter(item => item.id !== matchId));
-                                    try {
-                                        const res = await fetch(`${API_URL}/match/${matchId}`, { method: 'DELETE' });
-                                        if (!res.ok) {
-                                            const errData = await res.json();
-                                            throw new Error(errData.error || "Server failed");
+                {deleteConfirmId && (
+                    <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[300] p-4 backdrop-blur-md">
+                        <div className="bg-slate-900 border border-slate-700/50 rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden p-6 text-center text-slate-100 animate-in zoom-in-95 duration-200">
+                            <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20">
+                                <span className="text-3xl">🚨</span>
+                            </div>
+                            <h3 className="text-xl font-black uppercase tracking-widest text-white mb-2 italic">Delete Match?</h3>
+                            <p className="text-slate-400 text-sm font-medium mb-8 leading-relaxed">
+                                This record will be permanently removed.<br />
+                                <br />
+                                <strong className="text-white uppercase tracking-wider text-xs block">Do you want to continue?</strong>
+                            </p>
+                            <div className="flex gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setDeleteConfirmId(null)}
+                                    className="flex-1 py-4 bg-slate-800 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] text-slate-300 hover:text-white hover:bg-slate-700 transition-all border border-slate-700/50 active:scale-95"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={async () => {
+                                        const matchId = deleteConfirmId;
+                                        setDeleteConfirmId(null);
+                                        // Optimistic UI update
+                                        setRecentMatches(prev => prev.filter(item => item.id !== matchId));
+                                        try {
+                                            const res = await fetch(`${API_URL}/match/${matchId}`, { method: 'DELETE' });
+                                            if (!res.ok) {
+                                                const errData = await res.json();
+                                                throw new Error(errData.error || "Server failed");
+                                            }
+                                            fetchRecentMatches();
+                                        } catch (err: any) {
+                                            setAlertMessage(`Delete failed!\n${err.message}`);
+                                            fetchRecentMatches();
                                         }
-                                        fetchRecentMatches();
-                                    } catch (err: any) { 
-                                        setAlertMessage(`Delete failed!\n${err.message}`); 
-                                        fetchRecentMatches(); 
-                                    }
-                                }}
-                                className="flex-1 py-4 bg-red-600 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] text-white hover:bg-red-500 transition-all shadow-lg shadow-red-600/20 active:scale-95"
+                                    }}
+                                    className="flex-1 py-4 bg-red-600 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] text-white hover:bg-red-500 transition-all shadow-lg shadow-red-600/20 active:scale-95"
+                                >
+                                    Delete Match
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {alertMessage && (
+                    <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[400] p-4 backdrop-blur-md">
+                        <div className="bg-slate-900 border border-slate-700/50 rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden p-6 text-center text-slate-100 animate-in zoom-in-95 duration-200">
+                            <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20">
+                                <span className="text-3xl">⚠️</span>
+                            </div>
+                            <h3 className="text-xl font-black uppercase tracking-widest text-white mb-2 italic">Notification</h3>
+                            <p className="text-slate-300 text-sm font-medium mb-8 leading-relaxed whitespace-pre-line">
+                                {alertMessage}
+                            </p>
+                            <button
+                                type="button"
+                                onClick={() => setAlertMessage(null)}
+                                className="w-full py-4 bg-indigo-600 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] text-white hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-600/20 active:scale-95"
                             >
-                                Delete Match
+                                Acknowledge
                             </button>
                         </div>
                     </div>
-                </div>
-            )}
-
-            {alertMessage && (
-                <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[400] p-4 backdrop-blur-md">
-                    <div className="bg-slate-900 border border-slate-700/50 rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden p-6 text-center text-slate-100 animate-in zoom-in-95 duration-200">
-                        <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20">
-                            <span className="text-3xl">⚠️</span>
-                        </div>
-                        <h3 className="text-xl font-black uppercase tracking-widest text-white mb-2 italic">Notification</h3>
-                        <p className="text-slate-300 text-sm font-medium mb-8 leading-relaxed whitespace-pre-line">
-                            {alertMessage}
-                        </p>
-                        <button
-                            type="button"
-                            onClick={() => setAlertMessage(null)}
-                            className="w-full py-4 bg-indigo-600 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] text-white hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-600/20 active:scale-95"
-                        >
-                            Acknowledge
-                        </button>
-                    </div>
-                </div>
-            )}
+                )}
             </div>
         </div>
     );

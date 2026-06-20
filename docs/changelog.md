@@ -2,6 +2,24 @@
 
 This document tracks the complete evolutionary history of the CricScore platform.
 
+## 🚀 v2.4.0: Developer Experience & Infrastructure Unification [2026-06-20]
+
+### Automated Environment Bootstrapping
+* **Intelligent Setup Pipeline**: Completely rebuilt `scripts/setup.sh` into an OS-aware (macOS/Linux) installer. It now automatically detects and installs missing mission-critical tools (`node@24`, `terraform`, `aws-cli`, `jq`) using native package managers (`brew`/`apt`).
+* **Deprecation Cleanup**: Deleted obsolete scripts (`setup.ps1`, `sync-env.sh`) to reduce maintenance surface area.
+
+### Configuration & Deployment Resilience
+* **ALL CAPS Unification**: Enforced a strict, universal ALL CAPS variable convention (e.g., `DOMAIN_NAME`, `TF_DATABASE_URL`) that perfectly aligns local `.env.local` files with GitHub Repository UI standards.
+* **Terraform Under-the-Hood**: Upgraded `deploy.sh` to automatically translate and map these beautiful uppercase variables into the messy lowercase `TF_VAR_` syntax Terraform secretly requires, protecting the developer experience.
+* **Non-Destructive Frontend Syncing**: `deploy.sh` now intelligently *appends* live AWS API Gateway URLs to `frontend/.env` instead of overwriting the file. This perfectly preserves manual local variables like `VITE_ADMIN_PIN` without requiring redundant entries in `.env.local`.
+
+### CI/CD & Documentation Modernization
+* **Dynamic Pipeline Hydration**: Eradicated hardcoded infrastructure parameters (domains, namespaces) from the `.github/workflows/backend-infra.yml` file. The CI/CD pipelines now hydrate completely dynamically from GitHub Repository Variables (`vars.DOMAIN_NAME`).
+* **Zero-Cost Guarantees**: Updated Cost Management docs to explicitly record the $0-cost architectural optimizations deployed via Terraform (disabling S3 Versioning and DynamoDB Point-in-Time Recovery).
+* **Agnostic Documentation**: Sanitized all architecture, API, and deployment markdown files to permanently remove hardcoded structural version labels (like `v2.0`), significantly reducing future maintenance overhead.
+
+---
+
 ## 🛡️ v2.2.0: Enterprise CI/CD, Security Hardening & Public Release [2026-06-16]
 
 ### CI/CD Pipeline Restructuring
@@ -38,13 +56,6 @@ This document tracks the complete evolutionary history of the CricScore platform
 
 ---
 
-## ⚡ v2.1.0: Complete Kafka & mTLS Cleanup [2026-06-16]
-* **Decoupled Architecture Consolidation**: Removed all references, environment configuration variables, and dependencies on Apache Kafka (`kafkajs`). The platform now operates purely on the AWS SNS + SQS fan-out buffer.
-* **Credential Cleanup**: Deleted 6 obsolete secrets (`KAFKA_CA_CERT_B64`, `KAFKA_CERT_B64`, `KAFKA_KEY_B64`, `TF_KAFKA_BROKERS`, `TF_KAFKA_PASSWORD`, `TF_KAFKA_USERNAME`) from the GitHub Repository Actions secrets.
-* **Certificate Purge**: Deleted all local untracked `.pem` files in lambda compute and certificates directories to prevent deployment bundle bloat.
-* **Broadcaster Lambda**: Renamed legacy `kafka-consumer` lambda to `broadcaster` in both folder structures and Terraform configuration, aligning the codebase with its true functional purpose (fast-path SNS-to-WebSocket fan-out).
-
----
 
 ## 🏏 v2.0.2: Timeline Standardization & Cricket Laws Compliance [2026-06-16]
 * **Standardized Event Timeline**: Harmonized timeline display across both completed scorecards and live scorers. All special events now display as `<Type>` or `<Type>+<runs>` (e.g., `W`, `W+1`, `Wd`, `Wd+1`, `Nb`, `Nb+2`, `B+1`, `Lb+1`).
@@ -67,7 +78,7 @@ This document tracks the complete evolutionary history of the CricScore platform
 * **AWS SQS Reliability Buffer**: Implemented an asynchronous message queue to protect Aiven PostgreSQL from match-day ingestion spikes.
 * **Storage Worker**: Provisioned a dedicated serverless worker to handle all ACID-compliant persistence and event scheduling.
 * **Universal Broadcaster Hub**: Refactored the WebSocket broadcaster to instantly trigger directly from SNS payloads, bypassing traditional data indexing latency.
-* **Infrastructure Integrity Fixes**: Resolved strict Node v18 Aiven TLS rejections (`SELF_SIGNED_CERT_IN_CHAIN`), fully automated deployment hydration boundaries, and structurally debounced React `useRef` race conditions during high-impact rapid scoring bursts.
+* **Infrastructure Integrity Fixes**: Resolved strict Node v24 Aiven TLS rejections (`SELF_SIGNED_CERT_IN_CHAIN`), fully automated deployment hydration boundaries, and structurally debounced React `useRef` race conditions during high-impact rapid scoring bursts.
 
 ---
 
