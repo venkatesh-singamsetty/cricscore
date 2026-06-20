@@ -2,6 +2,19 @@
 
 This document tracks the complete evolutionary history of the CricScore platform.
 
+## 🌍 v2.5.0: Open Source Release Readiness [2026-06-20]
+
+### Public Anonymization & Security
+* **Environment Parameterization**: Completely eradicated personal domain names, emails, and AWS infrastructure details from the version-controlled codebase. Replaced hardcoded values with dynamic `.env` injection at both the Frontend and Terraform layers.
+* **Open Source Templates**: Introduced mirror `.env.local.example` and `frontend/.env.example` to provide clear, zero-secret setup guidance for external contributors.
+* **Documentation Scrubbing**: Cleared `cost_management.md`, `troubleshooting.md`, and `deployment.md` of personal identifiers, replacing them with generic `example.com` placeholders while maintaining instructional integrity.
+
+### Infrastructure Agility
+* **Dynamic Pipeline Routing**: Upgraded `deploy.sh` to seamlessly map local `ADMIN_EMAIL` into Terraform's pipeline, ensuring backward compatibility without exposing secrets.
+* **Namespace Standardization**: Unified the entire application under the clean `cricscore` namespace, including migrating legacy cache keys.
+
+---
+
 ## 🚀 v2.4.0: Developer Experience & Infrastructure Unification [2026-06-20]
 
 ### Automated Environment Bootstrapping
