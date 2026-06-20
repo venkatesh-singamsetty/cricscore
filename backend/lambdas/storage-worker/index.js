@@ -1,7 +1,5 @@
 const { Client } = require('pg');
 
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
 exports.handler = async (event) => {
     // SQS batch source check
     const records = event.Records || [];
@@ -10,7 +8,7 @@ exports.handler = async (event) => {
     const cleanDbUrl = (process.env.DATABASE_URL || '').split('?')[0];
     const client = new Client({
         connectionString: cleanDbUrl,
-        ssl: { rejectUnauthorized: false }
+        ssl: { rejectUnauthorized: true }
     });
 
     try {
