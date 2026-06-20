@@ -1,0 +1,22 @@
+name: DAST (OWASP ZAP)
+
+on:
+  workflow_run:
+    workflows: ["Frontend CI/CD"]
+    types:
+      - completed
+  schedule:
+    - cron: '0 0 * * *' # Runs daily at midnight UTC
+  workflow_dispatch:
+
+jobs:
+  zap_scan:
+    name: ZAP Baseline Scan
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Run OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: 'https://cricscore.venkateshsingamsetty.site'
+          fail_action: false # We only want reporting for DAST right now, not to block pipelines outright
