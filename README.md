@@ -93,13 +93,17 @@ To run the full stack locally, use the deployment script (this will automaticall
 To prevent failing the strict GitHub Actions pipelines, validate your code locally before pushing:
 ```bash
 # Frontend Validation (from /frontend directory)
-npm run lint && npm run test && npm run build
+npm run lint    # Catches unused variables and TS errors
+npm run test    # Executes component unit tests
+npm run build   # Validates the production bundle compiles
 
 # Infrastructure Validation (from /terraform directory)
-terraform fmt -check -recursive && terraform validate && checkov -d .
+terraform fmt -check -recursive  # Validates HCL formatting
+terraform validate               # Validates infrastructure logic
+checkov -d .                     # (Optional) Run local IaC security scans
 
 # Secrets Detection
-gitleaks detect --source . -v
+gitleaks detect --source . -v    # Detects accidental AWS keys or passwords
 ```
 
 ---
