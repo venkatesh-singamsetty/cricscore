@@ -1,0 +1,4 @@
+80b2800560b63575431deb01fd497e62a311e5d6:backend/lambdas/kafka-consumer/key.pem:private-key:1
+80b2800560b63575431deb01fd497e62a311e5d6:backend/lambdas/score-update/key.pem:private-key:1
+a1873a75fe6ff73e71c57d5cc4a12514a884ddad:terraform/current_state.json:generic-api-key:1175
+a1873a75fe6ff73e71c57d5cc4a12514a884ddad:terraform/current_state.json:generic-api-key:2048
