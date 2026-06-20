@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { InningsState, MatchStatus, TeamData, Player, Bowler, BallEvent } from './types';
 import MatchSetup from './components/MatchSetup';
 import MatchView from './components/MatchView';
@@ -65,6 +65,8 @@ const App: React.FC = () => {
     const [matchId, setMatchId] = useState<string | null>(null);
     const [showResetConfirm, setShowResetConfirm] = useState(false);
     const [hasSentAutoEmail, setHasSentAutoEmail] = useState<boolean>(false);
+    const hasSentAutoEmailRef = useRef(false);
+    const [alertMessage, setAlertMessage] = useState<string | null>(null);
 
     // Helper to load match state based on email
     const applyLoadedState = (saved: any) => {
@@ -472,7 +474,7 @@ const App: React.FC = () => {
             console.log("Match Resumed ✅");
         } catch (err) {
             console.error("Failed to resume match:", err);
-            alert("Resuming match failed. Please try again.");
+            setAlertMessage("Resuming match failed. Please try again.");
         }
     };
 
@@ -559,7 +561,7 @@ const App: React.FC = () => {
                 // Allow Effect to save again on next change
                 setTimeout(() => { isRestoringRef.current = false; }, 100);
             } else {
-                alert("❌ PLEASE ENTER A VALID EMAIL TO CONTINUE.");
+                setAlertMessage("❌ PLEASE ENTER A VALID EMAIL TO CONTINUE.");
             }
         } else {
             // ADMIN PIN logic
@@ -571,7 +573,7 @@ const App: React.FC = () => {
                 setHubKey(k => k + 1);
                 setAuthModal({ isOpen: false, targetView: null });
             } else {
-                alert("❌ INCORRECT PIN. ACCESS DENIED.");
+                setAlertMessage("❌ INCORRECT PIN. ACCESS DENIED.");
             }
         }
     };
@@ -672,7 +674,7 @@ const App: React.FC = () => {
         setTimeout(() => setCopyFeedback(false), 2000);
     };
 
-    const handleSendEmail = async (silent = false) => {
+    const handleSendEmail = async (silent = false, sendToAdmin = false) => {
         if (!currentInnings || !matchId) return;
 
         setSendingEmail(true);
@@ -692,7 +694,8 @@ const App: React.FC = () => {
                 body: JSON.stringify({
                     emailTo,
                     origin: window.location.origin,
-                    reportState
+                    reportState,
+                    sendToAdmin
                 })
             });
 
@@ -702,9 +705,9 @@ const App: React.FC = () => {
 
             if (!silent) {
                 if (data.scorerSent) {
-                    alert("✨ FANCY REPORT SENT!\nCheck your inbox for the official scorecard.");
+                    setAlertMessage("✨ FANCY REPORT SENT!\nCheck your inbox for the official scorecard.");
                 } else if (data.adminSent) {
-                    alert("📡 ADMIN COPY SENT!\nYour automated report is pending AWS approval. A copy was sent to the tournament master for verification.");
+                    setAlertMessage("📡 ADMIN COPY SENT!\nYour automated report is pending AWS approval. A copy was sent to the tournament master for verification.");
                 }
             } else {
                 console.log(`Email Sync - Admin: ${data.adminSent}, Scorer: ${data.scorerSent}`);
@@ -723,17 +726,21 @@ const App: React.FC = () => {
 
     // Auto-trigger email on match completion
     useEffect(() => {
-        if (matchStatus === MatchStatus.COMPLETED && !hasSentAutoEmail) {
-            setHasSentAutoEmail(true);
-            handleSendEmail(true); // Silent send
+        if (matchStatus === MatchStatus.COMPLETED) {
+            if (!hasSentAutoEmail && !hasSentAutoEmailRef.current) {
+                hasSentAutoEmailRef.current = true;
+                setHasSentAutoEmail(true);
+                handleSendEmail(true, true); // Silent send with admin copy
+            }
         }
         if (matchStatus === MatchStatus.SETUP) {
+            hasSentAutoEmailRef.current = false;
             setHasSentAutoEmail(false); // Reset for next match
         }
     }, [matchStatus, matchId, hasSentAutoEmail]);
 
     return (
-        <div className="h-[100dvh] bg-slate-50 font-sans text-slate-900 flex flex-col overflow-hidden relative">
+        <div className="h-[100dvh] bg-slate-950 font-sans text-slate-100 flex flex-col overflow-hidden relative">
             {/* Global Header Switcher */}
             <div className="bg-slate-950 px-3 py-2 flex justify-between items-center shrink-0 border-b border-white/10 z-50 shadow-md">
                 <div className="flex items-center gap-4">
@@ -1011,7 +1018,7 @@ const App: React.FC = () => {
                                             </button>
                                             <button
                                                 onClick={() => setShowResetConfirm(true)}
-                                                className="flex-1 h-20 bg-white text-slate-900 rounded-[1.5rem] font-black text-xl uppercase tracking-widest italic hover:bg-slate-100 active:scale-[0.98] transition-all shadow-2xl flex items-center justify-center gap-3"
+                                                className="flex-1 h-20 bg-slate-800 text-white rounded-[1.5rem] font-black text-xl uppercase tracking-widest italic hover:bg-slate-700 active:scale-[0.98] transition-all border border-white/10 shadow-2xl flex items-center justify-center gap-3"
                                             >
                                                 {view === 'SCORER' ? 'START FRESH MATCH 🏏' : 'RESET HUB 🔄'}
                                             </button>
@@ -1028,6 +1035,27 @@ const App: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            {alertMessage && (
+                <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[400] p-4 backdrop-blur-md">
+                    <div className="bg-slate-900 border border-slate-700/50 rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden p-6 text-center text-slate-100 animate-in zoom-in-95 duration-200">
+                        <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20">
+                            <span className="text-3xl">⚠️</span>
+                        </div>
+                        <h3 className="text-xl font-black uppercase tracking-widest text-white mb-2 italic">Notification</h3>
+                        <p className="text-slate-300 text-sm font-medium mb-8 leading-relaxed whitespace-pre-line">
+                            {alertMessage}
+                        </p>
+                        <button
+                            type="button"
+                            onClick={() => setAlertMessage(null)}
+                            className="w-full py-4 bg-indigo-600 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] text-white hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-600/20 active:scale-95"
+                        >
+                            Acknowledge
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
