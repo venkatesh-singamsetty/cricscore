@@ -2,13 +2,6 @@
 
 This engineering trace documents the real-world resolutions for the CricScore backend integration.
 
----
-
-## ✅ Verified State (2026-06-20 - Infrastructure Standardization)
-- **Environment Unification**: 100% ALL CAPS variable names natively bridged to strict Terraform requirements.
-- **Resilient Config**: Safe, non-destructive frontend environment injection.
-- **Pipeline Dynamics**: GitHub Actions dynamically hydrated from repository UI variables.
-
 ### 32. **Local Deployment Failures (Missing Dependencies)**
 - **Symptom**: New developers failed to run `./deploy.sh` locally because fundamental CLI utilities were missing.
 - **Cause**: Lack of an automated bootstrap procedure across Mac and Linux systems.
@@ -28,12 +21,6 @@ This engineering trace documents the real-world resolutions for the CricScore ba
 - **Symptom**: Terraform `apply` failed to pick up variables from the local environment or GitHub Actions, throwing "Missing required variable" errors.
 - **Cause**: Standard environment variable names in `.env.local` were all uppercase (`DOMAIN_NAME`), which broke Terraform's strict lowercase prefix requirement (`TF_VAR_domain_name`).
 - **Fix**: Re-engineered `deploy.sh` to automatically convert and export standard ALL CAPS variables into the required Terraform format (`export TF_VAR_domain_name=$DOMAIN_NAME`) prior to execution, protecting the developer experience and keeping `.env.local` clean.
----
-
-## ✅ Verified State (2026-03-30 - Sharing Milestone)
-- **v1.5.2**: Instant Match Sharing links live.
-- **SES Bypass**: Friction-free user experience without AWS verification requirements.
-- **Identity Sync**: Scoped session persistence verified across SCORER and ADMIN views.
 
 ### 28. **Rapid-Fire Score Date Loss / Desync (Phase 7)**
 - **Symptom**: Scorer taps "1" six times rapidly; the UI says `6/0` locally, but spectators only see `3/0`. DB aggregated only 3 balls.
@@ -44,13 +31,6 @@ This engineering trace documents the real-world resolutions for the CricScore ba
 - **Symptom**: SQS Queue messages were stuck `NotVisible`; Worker triggered `SELF_SIGNED_CERT_IN_CHAIN` on Aiven PG connection.
 - **Cause**: Node v24's strict native TLS validation rejects Aiven's intermediate self-signed certificates, ignoring generic driver `rejectUnauthorized: false` flags.
 - **Fix**: Injected `process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'` at the extreme top of the `storage-worker` bootloader sequence.
----
-
-## ✅ Verified State (2026-03-26 - Isolation Milestone)
-- **Multi-Tenant Isolation**: 100% data separation between unique scorer emails.
-- **Match-Specific Cache**: No data leakage between concurrent or historical sessions.
-- **Auto-Sync Security**: Real-time cleanup for deleted cloud records.
-- **State Integrity**: URL sanitation prevents stale state injections.
 
 ### 26. **SES Sandbox Friction / Email Delivery Rejection**
 - **Symptom**: User-facing email reports were consistently rejected by AWS SES unless both sender and recipient were manually verified. AWS rejected the limit increase request (Sandbox Exit).
@@ -60,13 +40,6 @@ This engineering trace documents the real-world resolutions for the CricScore ba
     - Integrated a "SHARE SCORECARD 🔗" button in the Match Completion UI.
     - Redirected SES solely for **Admin-Backend Logging**, where the recipient is already verified.
     - Resulted in **Zero-Friction Sharing** and viral match-day growth potential.
----
-
-## ✅ Verified State (2026-03-24 - Resilience Milestone)
-- **RBAC**: 3-Tab secure UI (Viewer/Scorer/Admin) fully operational.
-- **Email Reporting**: Enterprise-grade delivery with DKIM/SPF from your verified domain.
-- **Persistence**: 100% session recovery for scorers (Tab-switch & Refresh proof).
-- **Match Lifecycle**: New **STALED** badge (>24h) for unfinished games with Resume support.
 
 ### 24. **Match Deletion Desync (Scorer vs Admin)**
 - **Symptom**: An Admin deletes a match from the Hub, but the Scorer is still recording balls on their screen, leading to failed syncs and confusion.
@@ -87,9 +60,6 @@ This engineering trace documents the real-world resolutions for the CricScore ba
 - **Symptom**: After starting a new match or logging out, refreshing the page would pull the user back into an old match context or a broken state.
 - **Cause**: The `?matchId=...` parameter in the address bar was persisting across sessions and being prioritized by the auto-resume logic.
 - **Fix**: Implemented **URL Sanitation**. The application now scrubs the address bar using `window.history.replaceState` immediately after a match ID is read, on logout, and when a fresh match starts.
----
-
-## 🚦 Resolved Issues Summary
 
 ### 21. **SES Gmail Phishing Rejection (DMARC)**
 - **Symptom**: Lambda logs show `SES Send Success` with a `MessageId`, but the email never arrives in the Inbox or Spam.
