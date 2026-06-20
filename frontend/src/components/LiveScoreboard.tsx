@@ -126,7 +126,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({ isAdmin, onResumeMatch,
         // Only accept updates for the match we are following
         if (['LIVE_SCORE_UPDATE', 'STATE_SYNC'].includes(lastMessage?.type || '')) {
             const data = lastMessage.data;
-            console.log(`📥 WS Message ${lastMessage.type} -> target:`, targetMatchId, "incoming:", data?.matchId, data);
+            console.log(`📥 WS Message -> target:`, targetMatchId);
             
             if (data && (!targetMatchId || data.matchId === targetMatchId)) {
                 // Safely unwrap the nested v2.0 Fan-Out envelope
@@ -233,8 +233,6 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({ isAdmin, onResumeMatch,
                         const currentInnings = matchDetails.innings[matchDetails.innings.length - 1];
                         
                         // Fallback strikers/bowlers from DB if no live sync update yet
-                        const displayStrikerName = liveData?.batterName || currentInnings.players[currentInnings.strikerId]?.name || 'Waiting...';
-                        const displayNonStrikerName = currentInnings.players[currentInnings.nonStrikerId]?.name || 'Waiting...';
                         const displayBowlerName = liveData?.bowlerName || currentInnings.bowlers[currentInnings.currentBowlerId]?.name || 'Waiting...';
 
                         // Find active batters (strictly current striker and non-striker)
