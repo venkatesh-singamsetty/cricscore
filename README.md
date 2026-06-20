@@ -4,7 +4,7 @@
 [![AWS](https://img.shields.io/badge/AWS-Serverless-orange)](https://aws.amazon.com)
 [![Event-Driven](https://img.shields.io/badge/SNS%2FSQS-Fan--Out-black)](https://aws.amazon.com/sns/)
 [![Aiven](https://img.shields.io/badge/Aiven-Managed%20Services-blue)](https://aiven.io)
-[![Version](https://img.shields.io/badge/CricScore-v2.4.0-indigo)](./docs/changelog.md)
+[![Version](https://img.shields.io/badge/CricScore-v2.6.0-indigo)](./docs/changelog.md)
 
 CricScore is a highly performant, serverless cricket engine designed for sub-100ms match updates. It leverages a decoupled, serverless event-driven stack (AWS SNS/SQS) for global real-time broadcasting.
 

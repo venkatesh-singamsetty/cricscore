@@ -209,12 +209,11 @@ const sendMatchReportEmail = async (matchId, emailTo, origin, reportState, clien
 };
 
 exports.handler = async (event) => {
-    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
     const cleanDbUrl = (process.env.DATABASE_URL || '').split('?')[0];
     const client = new Client({
         connectionString: cleanDbUrl,
         ssl: {
-            rejectUnauthorized: false
+            rejectUnauthorized: true
         }
     });
 
