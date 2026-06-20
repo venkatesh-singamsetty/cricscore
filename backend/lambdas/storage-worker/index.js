@@ -7,8 +7,9 @@ exports.handler = async (event) => {
     const records = event.Records || [];
     console.log(`Processing batch of ${records.length} events from SQS`);
 
+    const cleanDbUrl = (process.env.DATABASE_URL || '').split('?')[0];
     const client = new Client({
-        connectionString: process.env.DATABASE_URL,
+        connectionString: cleanDbUrl,
         ssl: { rejectUnauthorized: false }
     });
 
@@ -16,9 +17,9 @@ exports.handler = async (event) => {
         await client.connect();
 
         for (const record of records) {
-            // SNS message within SQS message
-            const snsBody = JSON.parse(record.body);
-            const matchEvent = JSON.parse(snsBody.Message);
+            // Since raw_message_delivery is true on the SQS subscription, 
+            // record.body is the actual message payload, not wrapped in SNS metadata
+            const matchEvent = JSON.parse(record.body);
 
             const { 
                 matchId, 

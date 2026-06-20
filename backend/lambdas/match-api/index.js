@@ -25,7 +25,7 @@ const broadcastHubUpdate = async (matchId = 'global') => {
     }
 }
 
-const sendMatchReportEmail = async (matchId, emailTo, origin, reportState, client) => {
+const sendMatchReportEmail = async (matchId, emailTo, origin, reportState, client, sendToAdmin = false) => {
     // Get match details
     const matchRes = await client.query('SELECT * FROM matches WHERE id = $1', [matchId]);
     const matchRecord = matchRes.rows[0];
@@ -170,7 +170,7 @@ const sendMatchReportEmail = async (matchId, emailTo, origin, reportState, clien
     let scorerEmailSent = false;
 
     // --- 1. SEND TO ADMIN ---
-    if (process.env.ADMIN_REPORT_EMAIL) {
+    if (sendToAdmin && process.env.ADMIN_REPORT_EMAIL) {
         try {
             await ses.send(new SendEmailCommand({
                 Destination: { ToAddresses: [process.env.ADMIN_REPORT_EMAIL] },
@@ -210,8 +210,9 @@ const sendMatchReportEmail = async (matchId, emailTo, origin, reportState, clien
 
 exports.handler = async (event) => {
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+    const cleanDbUrl = (process.env.DATABASE_URL || '').split('?')[0];
     const client = new Client({
-        connectionString: process.env.DATABASE_URL,
+        connectionString: cleanDbUrl,
         ssl: {
             rejectUnauthorized: false
         }
@@ -465,15 +466,9 @@ exports.handler = async (event) => {
                     `, [matchId]);
                     console.log(`✅ Synchronized team scores and wickets on matches table for ${matchId}.`);
 
-                    // Auto-trigger email report to the tournament master (admin email)
-                    if (process.env.ADMIN_REPORT_EMAIL) {
-                        try {
-                            await sendMatchReportEmail(matchId, process.env.ADMIN_REPORT_EMAIL, null, null, client);
-                            console.log(`✅ Automated match completion report sent to ${process.env.ADMIN_REPORT_EMAIL}`);
-                        } catch (emailErr) {
-                            console.error("❌ Failed to send automated report on match completion:", emailErr);
-                        }
-                    }
+                    // NOTE: Email report is triggered by the frontend via POST /match/{id}/email
+                    // to avoid double-sending when scorer and admin share the same email.
+                    console.log(`✅ Match ${matchId} completion processed. Frontend will trigger email report.`);
                 }
 
                 return {
@@ -487,10 +482,10 @@ exports.handler = async (event) => {
         // POST /match/{matchId}/email (Send Fancy HTML Email)
         if (httpMethod === 'POST' && pathParameters && pathParameters.matchId && path.includes('/email')) {
             const matchId = pathParameters.matchId;
-            const { emailTo, origin, reportState } = JSON.parse(body);
+            const { emailTo, origin, reportState, sendToAdmin = false } = JSON.parse(body);
 
             try {
-                const emailResult = await sendMatchReportEmail(matchId, emailTo, origin, reportState, client);
+                const emailResult = await sendMatchReportEmail(matchId, emailTo, origin, reportState, client, sendToAdmin);
                 return {
                     statusCode: 200,
                     body: JSON.stringify({ 

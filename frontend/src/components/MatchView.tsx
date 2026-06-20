@@ -23,6 +23,70 @@ interface MatchViewProps {
 
 type ModalType = 'NONE' | 'WICKET_TYPE' | 'BATTER_SELECT' | 'BOWLER_SELECT' | 'FIELDER_SELECT' | 'EXTRA_RUNS' | 'RUN_OUT_MODAL' | 'RETIRE_MODAL';
 
+interface PromptModalProps {
+    title: string;
+    placeholder: string;
+    defaultValue?: string;
+    onClose: () => void;
+    onConfirm: (val: string) => void;
+}
+
+const PromptModal: React.FC<PromptModalProps> = ({ title, placeholder, defaultValue = '', onClose, onConfirm }) => {
+    const [value, setValue] = useState(defaultValue);
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (value.trim()) {
+            onConfirm(value);
+            onClose();
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-slate-950/90 flex items-center justify-center z-[300] p-4 backdrop-blur-xl animate-in fade-in duration-300">
+            <form onSubmit={handleSubmit} className="bg-slate-900 border border-indigo-500/20 rounded-[2.5rem] w-full max-w-sm shadow-2xl shadow-indigo-500/10 overflow-hidden p-8 text-slate-100 animate-in zoom-in-95 duration-500 relative">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl rounded-full pointer-events-none"></div>
+                <div className="absolute bottom-0 left-0 w-32 h-32 bg-purple-500/10 blur-3xl rounded-full pointer-events-none"></div>
+                
+                <div className="w-16 h-16 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-indigo-500/30 rotate-3 shadow-inner">
+                    <span className="text-2xl -rotate-3">✍️</span>
+                </div>
+                
+                <h3 className="text-2xl font-black uppercase tracking-tighter text-white mb-2 italic text-center drop-shadow-sm">{title}</h3>
+                <p className="text-indigo-300/80 text-[11px] font-black uppercase tracking-widest mb-6 text-center">{placeholder}</p>
+                
+                <div className="mb-8 relative group">
+                    <input
+                        type="text"
+                        autoFocus
+                        value={value}
+                        onChange={(e) => setValue(e.target.value)}
+                        className="w-full bg-slate-950/50 border-2 border-slate-800 rounded-2xl px-5 py-4 text-lg text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-all uppercase text-center font-black tracking-wider shadow-inner group-hover:border-slate-700"
+                        placeholder="TYPE NAME HERE..."
+                    />
+                </div>
+                
+                <div className="flex gap-4 relative z-10">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="flex-1 py-4 bg-slate-800/50 hover:bg-slate-800 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] text-slate-400 hover:text-white transition-all border border-slate-700/50 active:scale-95"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="submit"
+                        disabled={!value.trim()}
+                        className="flex-1 py-4 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 disabled:opacity-50 disabled:grayscale rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] text-white transition-all shadow-xl shadow-indigo-600/20 active:scale-95 border border-indigo-400/30"
+                    >
+                        Confirm
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
+};
+
 const MatchView: React.FC<MatchViewProps> = ({
     initialState,
     previousInnings,
@@ -68,6 +132,13 @@ const MatchView: React.FC<MatchViewProps> = ({
     const [modalView, setModalView] = useState<ModalType>('NONE');
     const [pendingWicketInfo, setPendingWicketInfo] = useState<{ runs: number, wicketType: WicketType, outBatterId?: string } | null>(null);
     const [runOutRuns, setRunOutRuns] = useState<number | null>(null);
+    const [promptAction, setPromptAction] = useState<{
+        title: string;
+        placeholder: string;
+        defaultValue?: string;
+        onConfirm: (val: string) => void;
+    } | null>(null);
+    const [alertMessage, setAlertMessage] = useState<string | null>(null);
 
     const commentaryEndRef = useRef<HTMLDivElement>(null);
 
@@ -183,63 +254,79 @@ const MatchView: React.FC<MatchViewProps> = ({
 
     const handleRenamePlayer = (playerId: string) => {
         const player = innings.players[playerId];
-        const newName = prompt(`Rename ${player.name} to:`, player.name);
-        if (newName && newName.trim()) {
-            setInnings(prev => {
-                const next = { ...prev };
-                next.players[playerId] = { ...player, name: newName.trim().toUpperCase() };
-                return next;
-            });
-            setLastCommentary(`Renamed player to ${newName.trim().toUpperCase()}`);
-        }
+        setPromptAction({
+            title: "Rename Player",
+            placeholder: `Enter new name for ${player.name}:`,
+            defaultValue: player.name,
+            onConfirm: (newName) => {
+                setInnings(prev => {
+                    const next = { ...prev };
+                    next.players[playerId] = { ...player, name: newName.trim().toUpperCase() };
+                    return next;
+                });
+                setLastCommentary(`Renamed player to ${newName.trim().toUpperCase()}`);
+            }
+        });
     };
 
     const handleRenameBowler = (bowlerId: string) => {
         const b = innings.bowlers[bowlerId];
-        const newName = prompt(`Rename ${b.name} to:`, b.name);
-        if (newName && newName.trim()) {
-            setInnings(prev => {
-                const next = { ...prev };
-                next.bowlers[bowlerId] = { ...b, name: newName.trim().toUpperCase() };
-                return next;
-            });
-            setLastCommentary(`Renamed bowler to ${newName.trim().toUpperCase()}`);
-        }
+        setPromptAction({
+            title: "Rename Bowler",
+            placeholder: `Enter new name for ${b.name}:`,
+            defaultValue: b.name,
+            onConfirm: (newName) => {
+                setInnings(prev => {
+                    const next = { ...prev };
+                    next.bowlers[bowlerId] = { ...b, name: newName.trim().toUpperCase() };
+                    return next;
+                });
+                setLastCommentary(`Renamed bowler to ${newName.trim().toUpperCase()}`);
+            }
+        });
     };
 
     const handleRenameTeam = (isBattingTeam: boolean) => {
         const curName = isBattingTeam ? innings.battingTeamName : innings.bowlingTeamName;
-        const newName = prompt(`Rename ${curName} to:`, curName);
-        if (newName && newName.trim()) {
-            setInnings(prev => {
-                const next = { ...prev };
-                if (isBattingTeam) next.battingTeamName = newName.trim().toUpperCase();
-                else next.bowlingTeamName = newName.trim().toUpperCase();
-                return next;
-            });
-        }
+        setPromptAction({
+            title: "Rename Team",
+            placeholder: `Enter new name for ${curName}:`,
+            defaultValue: curName,
+            onConfirm: (newName) => {
+                setInnings(prev => {
+                    const next = { ...prev };
+                    if (isBattingTeam) next.battingTeamName = newName.trim().toUpperCase();
+                    else next.bowlingTeamName = newName.trim().toUpperCase();
+                    return next;
+                });
+            }
+        });
     };
 
     const handleQuickAddPlayer = (isBatter: boolean) => {
-        const name = prompt(`Enter new ${isBatter ? 'Batter' : 'Bowler'} name:`);
-        if (name && name.trim()) {
-            const upName = name.trim().toUpperCase();
-            const id = `${isBatter ? 'bat' : 'bowl'}_${Date.now()}`;
-            setInnings(prev => {
-                const next = { ...prev };
-                if (isBatter) {
-                    next.players[id] = { id, name: upName, runs: 0, ballsFaced: 0, fours: 0, sixes: 0, isOut: false };
-                    next.battingOrder = [...next.battingOrder, id];
-                } else {
-                    next.bowlers[id] = { id, name: upName, overs: 0, balls: 0, maidens: 0, runsConceded: 0, wickets: 0 };
-                    next.bowlingOrder = [...next.bowlingOrder, id];
-                }
-                return next;
-            });
-        }
+        setPromptAction({
+            title: `Add ${isBatter ? 'Batter' : 'Bowler'}`,
+            placeholder: `Enter new name:`,
+            defaultValue: '',
+            onConfirm: (name) => {
+                const upName = name.trim().toUpperCase();
+                const id = `${isBatter ? 'bat' : 'bowl'}_${Date.now()}`;
+                setInnings(prev => {
+                    const next = { ...prev };
+                    if (isBatter) {
+                        next.players[id] = { id, name: upName, runs: 0, ballsFaced: 0, fours: 0, sixes: 0, isOut: false };
+                        next.battingOrder = [...next.battingOrder, id];
+                    } else {
+                        next.bowlers[id] = { id, name: upName, overs: 0, balls: 0, maidens: 0, runsConceded: 0, wickets: 0 };
+                        next.bowlingOrder = [...next.bowlingOrder, id];
+                    }
+                    return next;
+                });
+            }
+        });
     };
 
-    const API_URL = import.meta.env.VITE_API_URL || "https://mmiwp8rgrf.execute-api.us-east-1.amazonaws.com";
+    const API_URL = import.meta.env.VITE_API_URL || "https://ispht71fh0.execute-api.us-east-1.amazonaws.com";
     
     const syncMatchState = async () => {
         if (!innings.strikerId || !innings.nonStrikerId || !innings.currentBowlerId) return;
@@ -269,7 +356,7 @@ const MatchView: React.FC<MatchViewProps> = ({
             });
 
             if (response.status === 404) {
-                alert("🚨 MATCH NOT FOUND!\nIt may have been deleted by an Administrator. Scoreboard will be reset.");
+                setAlertMessage("🚨 MATCH NOT FOUND!\nIt may have been deleted by an Administrator. Scoreboard will be reset.");
                 if (onForceReset) onForceReset();
                 else onResetMatch();
                 return;
@@ -319,7 +406,7 @@ const MatchView: React.FC<MatchViewProps> = ({
             });
 
             if (response.status === 404) {
-                alert("🚨 ACTION FAILED: MATCH DELETED!\nThis match is no longer in the system.");
+                setAlertMessage("🚨 ACTION FAILED: MATCH DELETED!\nThis match is no longer in the system.");
                 if (onForceReset) onForceReset();
                 else onResetMatch();
                 return;
@@ -967,6 +1054,37 @@ const MatchView: React.FC<MatchViewProps> = ({
                     </div>
                 </div>
             </div>
+
+            {promptAction && (
+                <PromptModal
+                    title={promptAction.title}
+                    placeholder={promptAction.placeholder}
+                    defaultValue={promptAction.defaultValue}
+                    onClose={() => setPromptAction(null)}
+                    onConfirm={promptAction.onConfirm}
+                />
+            )}
+
+            {alertMessage && (
+                <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[400] p-4 backdrop-blur-md">
+                    <div className="bg-slate-900 border border-slate-700/50 rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden p-6 text-center text-slate-100 animate-in zoom-in-95 duration-200">
+                        <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20">
+                            <span className="text-3xl">⚠️</span>
+                        </div>
+                        <h3 className="text-xl font-black uppercase tracking-widest text-white mb-2 italic">Notification</h3>
+                        <p className="text-slate-300 text-sm font-medium mb-8 leading-relaxed whitespace-pre-line">
+                            {alertMessage}
+                        </p>
+                        <button
+                            type="button"
+                            onClick={() => setAlertMessage(null)}
+                            className="w-full py-4 bg-indigo-600 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] text-white hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-600/20 active:scale-95"
+                        >
+                            Acknowledge
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

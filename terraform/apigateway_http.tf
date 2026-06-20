@@ -13,6 +13,17 @@ resource "aws_apigatewayv2_stage" "default" {
   api_id      = aws_apigatewayv2_api.http_api.id
   name        = "$default"
   auto_deploy = true
+  access_log_settings {
+    destination_arn = aws_cloudwatch_log_group.http_api_access_logs.arn
+    format          = "$context.requestId $context.identity.sourceIp $context.requestTime $context.routeKey $context.status"
+  }
+  depends_on = [aws_api_gateway_account.apigateway_account]
+}
+
+# CloudWatch Log Group for API Gateway HTTP access logs
+resource "aws_cloudwatch_log_group" "http_api_access_logs" {
+  name              = "/aws/apigateway/${var.project_name}-http"
+  retention_in_days = 30
 }
 
 # Integration for Match API
@@ -28,57 +39,66 @@ resource "aws_apigatewayv2_integration" "match_api" {
 
 # Routes for Match API
 resource "aws_apigatewayv2_route" "post_match" {
-  api_id    = aws_apigatewayv2_api.http_api.id
-  route_key = "POST /match"
-  target    = "integrations/${aws_apigatewayv2_integration.match_api.id}"
+  api_id             = aws_apigatewayv2_api.http_api.id
+  route_key          = "POST /match"
+  target             = "integrations/${aws_apigatewayv2_integration.match_api.id}"
+  authorization_type = "NONE"
 }
 
 resource "aws_apigatewayv2_route" "get_match" {
-  api_id    = aws_apigatewayv2_api.http_api.id
-  route_key = "GET /match/{matchId}"
-  target    = "integrations/${aws_apigatewayv2_integration.match_api.id}"
+  api_id             = aws_apigatewayv2_api.http_api.id
+  route_key          = "GET /match/{matchId}"
+  target             = "integrations/${aws_apigatewayv2_integration.match_api.id}"
+  authorization_type = "NONE"
 }
 
 resource "aws_apigatewayv2_route" "get_match_details" {
-  api_id    = aws_apigatewayv2_api.http_api.id
-  route_key = "GET /match/{matchId}/details"
-  target    = "integrations/${aws_apigatewayv2_integration.match_api.id}"
+  api_id             = aws_apigatewayv2_api.http_api.id
+  route_key          = "GET /match/{matchId}/details"
+  target             = "integrations/${aws_apigatewayv2_integration.match_api.id}"
+  authorization_type = "NONE"
 }
 
 resource "aws_apigatewayv2_route" "get_matches" {
-  api_id    = aws_apigatewayv2_api.http_api.id
-  route_key = "GET /matches"
-  target    = "integrations/${aws_apigatewayv2_integration.match_api.id}"
+  api_id             = aws_apigatewayv2_api.http_api.id
+  route_key          = "GET /matches"
+  target             = "integrations/${aws_apigatewayv2_integration.match_api.id}"
+  authorization_type = "NONE"
 }
 
 resource "aws_apigatewayv2_route" "patch_match" {
-  api_id    = aws_apigatewayv2_api.http_api.id
-  route_key = "PATCH /match/{matchId}"
-  target    = "integrations/${aws_apigatewayv2_integration.match_api.id}"
+  api_id             = aws_apigatewayv2_api.http_api.id
+  route_key          = "PATCH /match/{matchId}"
+  target             = "integrations/${aws_apigatewayv2_integration.match_api.id}"
+  authorization_type = "NONE"
 }
 
 resource "aws_apigatewayv2_route" "post_innings" {
-  api_id    = aws_apigatewayv2_api.http_api.id
-  route_key = "POST /match/{matchId}/innings"
-  target    = "integrations/${aws_apigatewayv2_integration.match_api.id}"
+  api_id             = aws_apigatewayv2_api.http_api.id
+  route_key          = "POST /match/{matchId}/innings"
+  target             = "integrations/${aws_apigatewayv2_integration.match_api.id}"
+  authorization_type = "NONE"
 }
 
 resource "aws_apigatewayv2_route" "delete_matches" {
-  api_id    = aws_apigatewayv2_api.http_api.id
-  route_key = "DELETE /matches"
-  target    = "integrations/${aws_apigatewayv2_integration.match_api.id}"
+  api_id             = aws_apigatewayv2_api.http_api.id
+  route_key          = "DELETE /matches"
+  target             = "integrations/${aws_apigatewayv2_integration.match_api.id}"
+  authorization_type = "NONE"
 }
 
 resource "aws_apigatewayv2_route" "delete_match" {
-  api_id    = aws_apigatewayv2_api.http_api.id
-  route_key = "DELETE /match/{matchId}"
-  target    = "integrations/${aws_apigatewayv2_integration.match_api.id}"
+  api_id             = aws_apigatewayv2_api.http_api.id
+  route_key          = "DELETE /match/{matchId}"
+  target             = "integrations/${aws_apigatewayv2_integration.match_api.id}"
+  authorization_type = "NONE"
 }
 
 resource "aws_apigatewayv2_route" "post_match_email" {
-  api_id    = aws_apigatewayv2_api.http_api.id
-  route_key = "POST /match/{matchId}/email"
-  target    = "integrations/${aws_apigatewayv2_integration.match_api.id}"
+  api_id             = aws_apigatewayv2_api.http_api.id
+  route_key          = "POST /match/{matchId}/email"
+  target             = "integrations/${aws_apigatewayv2_integration.match_api.id}"
+  authorization_type = "NONE"
 }
 
 resource "aws_lambda_permission" "api_gw" {
@@ -101,9 +121,10 @@ resource "aws_apigatewayv2_integration" "score_update" {
 }
 
 resource "aws_apigatewayv2_route" "post_score_update" {
-  api_id    = aws_apigatewayv2_api.http_api.id
-  route_key = "POST /update-score"
-  target    = "integrations/${aws_apigatewayv2_integration.score_update.id}"
+  api_id             = aws_apigatewayv2_api.http_api.id
+  route_key          = "POST /update-score"
+  target             = "integrations/${aws_apigatewayv2_integration.score_update.id}"
+  authorization_type = "NONE"
 }
 
 resource "aws_lambda_permission" "api_gw_score" {
