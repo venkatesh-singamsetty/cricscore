@@ -124,15 +124,16 @@ Execute the master deployment script from the root. It will provision Terraform,
 
 ## ⚙️ Phase 3: CI/CD — GitHub Actions Workflows
 
-All deployments are fully automated via GitHub Actions. The five workflow files are:
+All deployments are fully automated via GitHub Actions. The core automation configurations are:
 
-| Workflow | Trigger | What it does |
+| Configuration | Trigger | What it does |
 |---|---|---|
 | `secrets.yml` | PR → `main`, push to `main` | GitLeaks deep historical scan to block hardcoded API keys and AWS tokens |
 | `codeql.yml` | PR → `main`, push to `main`, weekly schedule | CodeQL SAST analysis (results in Security tab) |
 | `frontend.yml` | PR → `main` (validate only) / push to `main` (+ deploy) | Lint, Trivy scan, unit test, build → S3 sync + CloudFront invalidation |
 | `backend-infra.yml` | PR → `main` (validate only) / push to `main` (+ deploy) | Lambda checks, Trivy, Terraform validate, Checkov → Terraform apply |
 | `dast.yml` | Post-Frontend deploy, Daily | OWASP ZAP black-box dynamic runtime security scanning against live endpoints |
+| `dependabot.yml` | Daily schedule | Automated PR generation for outdated npm packages and Terraform providers |
 
 ### Branch Protection (main)
 The `main` branch is protected. All PRs must pass all 4 CI status checks before merging:
