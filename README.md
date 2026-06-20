@@ -70,7 +70,14 @@ graph TD
 
 ## ⚡ Local Environment & Testing
 
-### 1. Configuration & Deployment
+### 1. Prerequisite Installation
+To run or deploy CricScore locally, you need Node.js, Terraform, AWS CLI, Checkov, and GitLeaks.
+💡 **Pro-Tip:** You can automatically install all required tools on macOS or Linux by simply running:
+```bash
+./scripts/setup.sh
+```
+
+### 2. Configuration & Deployment
 Create a `.env.local` file at the root of the project to manage your local infrastructure deployment. *(These variables map exactly to the GitHub Actions requirements listed in the next section).*
 - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`
 - `TF_DATABASE_URL`, `TF_SES_SOURCE_EMAIL`
@@ -82,7 +89,7 @@ To run the full stack locally, use the deployment script (this will automaticall
 ```
 👉 For comprehensive instructions, see the **[Full Deployment Guide](./docs/deployment.md)**.
 
-### 2. Pre-Commit Validation
+### 3. Pre-Commit Validation
 To prevent failing the strict GitHub Actions pipelines, validate your code locally before pushing:
 ```bash
 # Frontend Validation (from /frontend directory)
@@ -91,7 +98,7 @@ npm run lint && npm run test && npm run build
 # Infrastructure Validation (from /terraform directory)
 terraform fmt -check -recursive && terraform validate && checkov -d .
 
-# Secrets Detection (Requires 'brew install gitleaks')
+# Secrets Detection
 gitleaks detect --source . -v
 ```
 
@@ -107,7 +114,7 @@ To enable the automated deployment pipelines, configure the following in your Gi
 - `VITE_ADMIN_PIN`: The secret PIN to protect the scorer dashboard.
 
 **Repository Variables (Non-Sensitive):**
-- `AWS_REGION`: Deployment region (e.g., `us-east-1`).
+- `AWS_REGION` / `AWS_DEFAULT_REGION`: Deployment region (e.g., `us-east-1`). Both variables are required by Terraform/AWS CLI across workflows.
 - `DOMAIN_NAME`, `ZONE_DOMAIN`, `SUBDOMAIN_PREFIX`, `PROJECT_NAME`: Infrastructure namespacing.
 - `API_GATEWAY_ID`, `WS_API_GATEWAY_ID`, `S3_BUCKET`, `CLOUDFRONT_DISTRIBUTION_ID`: Cloud resource IDs/endpoints.
 
