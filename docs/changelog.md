@@ -2,6 +2,15 @@
 
 This document tracks the complete evolutionary history of the CricScore platform.
 
+## 🚀 v2.7.0: Dynamic Badging & CodeQL Completion [2026-06-20]
+
+### Highlights
+* **Automated Version Badging**: Replaced hardcoded static README version badges with dynamic `shields.io` GitHub `package.json` parsing.
+* **CodeQL Finalization**: Officially resolved and verified all lingering `unused-variable` and `unused-import` CodeQL findings.
+* **Repository Polish**: The project is now 100% clean across all GitHub Security vulnerability scanners.
+
+---
+
 ## 🛡️ v2.6.0: Security & Compliance Release [2026-06-20]
 
 ### CodeQL Security Hardening
