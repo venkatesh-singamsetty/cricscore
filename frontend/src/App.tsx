@@ -589,7 +589,7 @@ const App: React.FC = () => {
         // 🛑 DO NOT WIPE the user's saved match state here anymore!
         // We want them to be able to resume when they log back in.
         // We only clear the shared, legacy key.
-        localStorage.removeItem('cric-scorer-live-innings');
+        localStorage.removeItem('cricscore-live-innings');
 
         // Clear in-memory workspace for the next user on this device
         setMatchStatus(MatchStatus.SETUP);

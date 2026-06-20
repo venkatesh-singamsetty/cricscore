@@ -88,12 +88,12 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      AWS_REGION: ${{ secrets.AWS_REGION }}
-      TF_VAR_aws_region: ${{ secrets.AWS_REGION }}
-      TF_VAR_domain_name: cricscore.venkateshsingamsetty.site
-      TF_VAR_zone_domain: venkateshsingamsetty.site
-      TF_VAR_subdomain_prefix: cricscore
-      TF_VAR_project_name: cricscore
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+      TF_VAR_domain_name: ${{ vars.DOMAIN_NAME }}
+      TF_VAR_zone_domain: ${{ vars.ZONE_DOMAIN }}
+      TF_VAR_subdomain_prefix: ${{ vars.SUBDOMAIN_PREFIX }}
+      TF_VAR_project_name: ${{ vars.PROJECT_NAME }}
       TF_VAR_ses_source_email: ${{ secrets.TF_SES_SOURCE_EMAIL }}
       TF_VAR_database_url: ${{ secrets.TF_DATABASE_URL }}
 
@@ -103,7 +103,7 @@ jobs:
 
       - name: Validate AWS_REGION secret
         run: |
-          if [ -z "$AWS_REGION" ]; then echo "Missing AWS_REGION. Set secrets.AWS_REGION"; exit 1; fi
+          if [ -z "$AWS_REGION" ]; then echo "Missing AWS_REGION. Set vars.AWS_REGION"; exit 1; fi
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6

@@ -9,12 +9,14 @@ This folder contains the core Node.js serverless functions that power the CricSc
 ### 1. **Match API (`match-api/`)**
 Handles RESTful initialization, metadata updates, match reports, and lookup of matches within **Aiven PostgreSQL**.
 - `POST /match`
-- `POST /match/{matchId}/innings`
-- `GET /matches`
 - `GET /match/{matchId}`
-- `GET /match/{matchId}/details`
-- `POST /match/{matchId}/email`
+- `PATCH /match/{matchId}`
 - `DELETE /match/{matchId}`
+- `GET /match/{matchId}/details`
+- `POST /match/{matchId}/innings`
+- `POST /match/{matchId}/email`
+- `GET /matches`
+- `DELETE /matches`
 
 ### 2. **Score Update (`score-update/`)**
 - Receives scoring events from the scorer client.
@@ -35,7 +37,7 @@ Manages the lifecycle of live spectators by updating the **DynamoDB** connection
 ---
 
 ## 🌩️ Deployment Notes
-- **Runtime**: Node.js 18.x
+- **Runtime**: Node.js 24.x
 - **SDK**: AWS SDK v3
 - **Drivers**: `pg` (Postgres)
 - **Archiving**: Terraform automatically bundles these folders into ZIP files during `apply`.

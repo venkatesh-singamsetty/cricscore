@@ -82,7 +82,7 @@ const sendMatchReportEmail = async (matchId, emailTo, origin, reportState, clien
         <div style="background: #1e293b; padding: 20px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.05); margin: 20px 0;">
             <h2 style="margin: 0; color: #fb7185; text-transform: uppercase; font-style: italic;">${resultText}</h2>
             <p style="font-size: 14px; color: #94a3b8;">${new Date(matchRecord.created_at).toLocaleString()}</p>
-            <a href="${origin || 'https://cricscore.venkateshsingamsetty.site'}?matchId=${matchId}" style="display: inline-block; padding: 12px 24px; background: #4f46e5; color: white; text-decoration: none; border-radius: 10px; font-weight: bold; margin-top: 10px;">VIEW INTERACTIVE SCORECARD ⚡</a>
+            <a href="${origin || process.env.FRONTEND_URL || 'https://cricscore.example.com'}?matchId=${matchId}" style="display: inline-block; padding: 12px 24px; background: #4f46e5; color: white; text-decoration: none; border-radius: 10px; font-weight: bold; margin-top: 10px;">VIEW INTERACTIVE SCORECARD ⚡</a>
         </div>`;
 
     for (const inn of innArr) {
@@ -103,7 +103,7 @@ const sendMatchReportEmail = async (matchId, emailTo, origin, reportState, clien
         } else {
             if (!Array.isArray(players)) players = Object.values(players);
             if (!Array.isArray(bowlers)) bowlers = Object.values(bowlers);
-            
+
             players.sort((a, b) => (b.runs || 0) - (a.runs || 0));
             bowlers.sort((a, b) => (b.wickets || (b.runsConceded ? 0 : -1)) - (a.wickets || (a.runsConceded ? 0 : -1)));
         }
@@ -118,7 +118,7 @@ const sendMatchReportEmail = async (matchId, emailTo, origin, reportState, clien
                 </tr>
             </thead>
             <tbody>`;
-    
+
         players.filter(p => (p.balls_faced || p.ballsFaced) > 0 || p.is_out).forEach(p => {
             const r = p.runs || 0;
             const b = p.balls_faced || p.ballsFaced || 0;
@@ -178,7 +178,7 @@ const sendMatchReportEmail = async (matchId, emailTo, origin, reportState, clien
                     Body: { Html: { Charset: "UTF-8", Data: htmlBody } },
                     Subject: { Charset: "UTF-8", Data: `🏏 ADMIN REPORT: ${matchRecord.team_a_name} vs ${matchRecord.team_b_name}` }
                 },
-                Source: process.env.SES_SOURCE || "noreply@venkateshsingamsetty.site"
+                Source: process.env.SES_SOURCE || "noreply@example.com"
             }));
             console.log("✅ Admin Email Sent Successfully 📡");
             adminEmailSent = true;
@@ -196,7 +196,7 @@ const sendMatchReportEmail = async (matchId, emailTo, origin, reportState, clien
                     Body: { Html: { Charset: "UTF-8", Data: htmlBody } },
                     Subject: { Charset: "UTF-8", Data: `🏏 FINAL SCORECARD: ${matchRecord.team_a_name} vs ${matchRecord.team_b_name}` }
                 },
-                Source: process.env.SES_SOURCE || "noreply@venkateshsingamsetty.site"
+                Source: process.env.SES_SOURCE || "noreply@example.com"
             }));
             console.log("✅ Scorer Email Sent Successfully ⚽");
             scorerEmailSent = true;
@@ -229,7 +229,7 @@ exports.handler = async (event) => {
                 // TRUNCATE is faster and cleans identity counters
                 await client.query('TRUNCATE table ball_events, players, bowlers, innings, matches RESTART IDENTITY CASCADE');
                 console.log(`🧨 DATABASE PURGE SIGNAL RECEIVED - FULL CLEANUP COMPLETED.`);
-                
+
                 // 📡 Notify viewers to clear list
                 await broadcastHubUpdate();
                 return {
@@ -253,9 +253,9 @@ exports.handler = async (event) => {
             try {
                 // leveraging ON DELETE CASCADE
                 const res = await client.query('DELETE FROM matches WHERE id = $1', [matchId]);
-                
+
                 console.log(`🗑️ SUCCESS: Match ${matchId} deleted from records. (Cascading cleanup triggered)`);
-                
+
                 // 📡 Notify viewers to refresh list
                 await broadcastHubUpdate(matchId);
 
@@ -322,7 +322,7 @@ exports.handler = async (event) => {
                 }
 
                 await client.query('COMMIT');
-                
+
                 // 📡 Broadcast new match arrival
                 await broadcastHubUpdate(matchId);
 
@@ -424,10 +424,10 @@ exports.handler = async (event) => {
         if (httpMethod === 'PATCH' && pathParameters && pathParameters.matchId) {
             const matchId = pathParameters.matchId;
             const { totalOvers, status, matchWinner } = JSON.parse(body);
-            
+
             const updates = [];
             const params = [matchId];
-            
+
             if (totalOvers !== undefined) {
                 updates.push(`total_overs = $${params.length + 1}`);
                 params.push(totalOvers);
@@ -440,7 +440,7 @@ exports.handler = async (event) => {
                 updates.push(`match_winner = $${params.length + 1}`);
                 params.push(matchWinner);
             }
-            
+
             if (updates.length > 0) {
                 const query = `UPDATE matches SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *`;
                 const res = await client.query(query, params);
@@ -488,10 +488,10 @@ exports.handler = async (event) => {
                 const emailResult = await sendMatchReportEmail(matchId, emailTo, origin, reportState, client, sendToAdmin);
                 return {
                     statusCode: 200,
-                    body: JSON.stringify({ 
-                        message: "Email dispatch completed", 
+                    body: JSON.stringify({
+                        message: "Email dispatch completed",
                         adminSent: emailResult.adminEmailSent,
-                        scorerSent: emailResult.scorerEmailSent 
+                        scorerSent: emailResult.scorerEmailSent
                     }),
                     headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
                 };
@@ -508,14 +508,14 @@ exports.handler = async (event) => {
         // GET /match/{matchId}/details (Full Scorecard Data)
         if (httpMethod === 'GET' && pathParameters && pathParameters.matchId && path.includes('/details')) {
             const matchId = pathParameters.matchId;
-            
+
             // 1. Fetch Match Header
             const matchRes = await client.query('SELECT * FROM matches WHERE id = $1', [matchId]);
             if (matchRes.rows.length === 0) return { statusCode: 404, body: 'Match not found' };
-            
+
             // 2. Fetch Innings
             const inningsRes = await client.query('SELECT * FROM innings WHERE match_id = $1 ORDER BY inning_number', [matchId]);
-            
+
             const fullDetails = {
                 match: matchRes.rows[0],
                 innings: []

@@ -68,9 +68,9 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      AWS_REGION: ${{ secrets.AWS_REGION }}
-      API_GATEWAY_ID: ${{ secrets.API_GATEWAY_ID }}
-      WS_API_GATEWAY_ID: ${{ secrets.WS_API_GATEWAY_ID }}
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      API_GATEWAY_ID: ${{ vars.API_GATEWAY_ID }}
+      WS_API_GATEWAY_ID: ${{ vars.WS_API_GATEWAY_ID }}
       S3_BUCKET: ${{ vars.S3_BUCKET }}
       CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
 
@@ -80,9 +80,9 @@ jobs:
 
       - name: Validate AWS_REGION and API gateway IDs
         run: |
-          if [ -z "$AWS_REGION" ]; then echo "Missing AWS_REGION. Set secrets.AWS_REGION"; exit 1; fi
-          if [ -z "$API_GATEWAY_ID" ]; then echo "Missing API_GATEWAY_ID. Set secrets.API_GATEWAY_ID"; exit 1; fi
-          if [ -z "$WS_API_GATEWAY_ID" ]; then echo "Missing WS_API_GATEWAY_ID. Set secrets.WS_API_GATEWAY_ID"; exit 1; fi
+          if [ -z "$AWS_REGION" ]; then echo "Missing AWS_REGION. Set vars.AWS_REGION"; exit 1; fi
+          if [ -z "$API_GATEWAY_ID" ]; then echo "Missing API_GATEWAY_ID. Set vars.API_GATEWAY_ID"; exit 1; fi
+          if [ -z "$WS_API_GATEWAY_ID" ]; then echo "Missing WS_API_GATEWAY_ID. Set vars.WS_API_GATEWAY_ID"; exit 1; fi
         env:
           AWS_REGION: ${{ env.AWS_REGION }}
           API_GATEWAY_ID: ${{ env.API_GATEWAY_ID }}
