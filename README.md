@@ -79,7 +79,7 @@ To run or deploy CricScore locally, you need Node.js, Terraform, AWS CLI, Checko
 
 ### 2. Configuration & Deployment
 Create a `.env.local` file at the root of the project to manage your local infrastructure deployment. *(These variables map exactly to the GitHub Actions requirements listed in the next section).*
-- `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`
+- `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `AWS_DEFAULT_REGION`
 - `TF_DATABASE_URL`, `TF_SES_SOURCE_EMAIL`
 - `DOMAIN_NAME`, `ZONE_DOMAIN`, `SUBDOMAIN_PREFIX`, `PROJECT_NAME`
 
