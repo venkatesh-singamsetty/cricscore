@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { InningsState, BallEvent, ExtraType, WicketType, Bowler } from '../types';
+import { InningsState, BallEvent, ExtraType, WicketType } from '../types';
 import Scoreboard from './Scoreboard';
 import { FielderSelectModal } from './MatchView/FielderSelectModal';
 import { WicketTypeModal } from './MatchView/WicketTypeModal';

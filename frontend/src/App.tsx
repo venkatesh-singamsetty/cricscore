@@ -18,7 +18,7 @@ const App: React.FC = () => {
 
     const [emailTo, setEmailTo] = useState(sessionStorage.getItem('scorer_email') || '@gmail.com');
     const emailInputRef = React.useRef<HTMLInputElement>(null);
-    const endEmailInputRef = React.useRef<HTMLInputElement>(null);
+
     const isRestoringRef = React.useRef(false);
     const isEndingInningsRef = React.useRef(false);
 
@@ -635,7 +635,7 @@ const App: React.FC = () => {
         }
     };
 
-    const [sendingEmail, setSendingEmail] = useState(false);
+
     const [copyFeedback, setCopyFeedback] = useState(false);
 
     const copyMatchLink = () => {
@@ -649,7 +649,7 @@ const App: React.FC = () => {
     const handleSendEmail = async (silent = false, sendToAdmin = false) => {
         if (!currentInnings || !matchId) return;
 
-        setSendingEmail(true);
+
         const API_URL = import.meta.env.VITE_API_URL || "";
         
         try {
@@ -691,8 +691,6 @@ const App: React.FC = () => {
                 const body = encodeURIComponent(`🏆 VIEW FANCY SCORECARD:\n${window.location.origin}?matchId=${encodeURIComponent(matchId)}\n\n(Cloud email service requires manual verification. Please forward this link!)`);
                 window.location.assign(`mailto:${encodeURIComponent(emailTo)}?subject=${subject}&body=${body}`);
             }
-        } finally {
-            setSendingEmail(false);
         }
     };
 
