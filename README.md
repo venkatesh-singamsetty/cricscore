@@ -132,6 +132,33 @@ If these variables are not set, the workflow will emit a warning during the `Val
 
 ---
 
+## 🧪 Local Pre-Commit Testing
+To prevent failing the strict GitHub Actions security and linting pipelines, it is highly recommended to validate your code locally before pushing or raising a PR.
+
+**1. Frontend & TypeScript**
+```bash
+cd frontend
+npm run lint    # Catches unused variables and TS errors
+npm run test    # Executes component unit tests
+npm run build   # Validates the production bundle compiles
+```
+
+**2. Infrastructure as Code (Terraform)**
+```bash
+cd terraform
+terraform fmt -check -recursive  # Validates HCL formatting
+terraform validate               # Validates infrastructure logic
+checkov -d .                     # (Optional) Run local IaC security scans
+```
+
+**3. Secrets Detection**
+If you have GitLeaks installed locally (e.g., `brew install gitleaks`):
+```bash
+gitleaks detect --source . -v    # Detects accidental AWS keys or passwords
+```
+
+---
+
 ## 🛡️ Hardened CI/CD & Security Stack
 CricScore implements a robust, enterprise-grade CI/CD and security auditing lifecycle powered by GitHub Actions:
 
