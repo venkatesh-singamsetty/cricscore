@@ -27,6 +27,8 @@ install_tool() {
             npm)  echo "npm is installed with node." ;;
             terraform) brew tap hashicorp/tap && brew install hashicorp/tap/terraform ;;
             aws)  brew install awscli ;;
+            checkov) brew install checkov ;;
+            gitleaks) brew install gitleaks ;;
         esac
     elif [ "$MACHINE" == "Linux" ]; then
         echo "Please enter your sudo password to install $tool via apt-get:"
@@ -48,6 +50,13 @@ install_tool() {
                 ;;
             aws) 
                 sudo apt-get install -y awscli 
+                ;;
+            checkov)
+                sudo apt-get install -y python3-pip
+                pip3 install checkov || pip install checkov
+                ;;
+            gitleaks)
+                curl -sSfL https://raw.githubusercontent.com/gitleaks/gitleaks/master/install.sh | sh -s -- -b /usr/local/bin
                 ;;
         esac
     else
@@ -78,6 +87,8 @@ check_cmd node
 check_cmd npm
 check_cmd terraform
 check_cmd aws
+check_cmd checkov
+check_cmd gitleaks
 
 echo ""
 echo "🚀 All tools are installed! You are ready to deploy."

@@ -104,13 +104,13 @@ const SquadInput = ({
 };
 
 const MatchSetup: React.FC<MatchSetupProps> = ({ onStartMatch, onResumeMatch, hideResume, canDelete = true, initialEmail = import.meta.env.VITE_DEFAULT_EMAIL || '' }) => {
-    const [teamAName, setTeamAName] = useState('TEAM A');
-    const [teamBName, setTeamBName] = useState('TEAM B');
-    const [teamASquad, setTeamASquad] = useState('P1\nP2\nP3\nP4\nP5');
-    const [teamBSquad, setTeamBSquad] = useState('P6\nP7\nP8\nP9\nP10');
+    const [teamAName, setTeamAName] = useState('CHICAGO SPARTANS');
+    const [teamBName, setTeamBName] = useState('SHARK BLUE');
+    const [teamASquad, setTeamASquad] = useState('shoban\ndonny\nvenky\nsrinath\nshyam\nganesh\nparth\nkuruva\neega\nsrikanth\nkarthik');
+    const [teamBSquad, setTeamBSquad] = useState('yaswanth\ngopi\navinash\ngabriel\nsagar\namogh\nambarasan\ntejas\nraj\nsakthikumar\nashvin');
 
 
-    const [overs, setOvers] = useState(1);
+    const [overs, setOvers] = useState(20);
     const [batFirst, setBatFirst] = useState('Team A'); // 'Team A' or 'Team B'
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
