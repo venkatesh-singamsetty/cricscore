@@ -57,6 +57,13 @@ As a guiding principle, the CricScore architecture prioritizes **Zero-Cost Opera
 - **`.zip` Artifacts**: `deploy.sh` generates Lambda binaries. We ignore them to prevent Git repository bloat.
 - **`.gitleaksignore`**: We explicitly whitelist specific historical git commits where dummy `.pem` test files or local terraform state keys were temporarily tracked, ensuring the aggressive Gitleaks scanner does not block active deployments.
 
+### 8. Defense in Depth (Local Hooks vs. GitHub Actions)
+**Status:** 🛡️ Strictly Enforced
+**The Strategy:** We deliberately duplicate security scans (like `gitleaks` for secrets and `vitest` for code integrity) across three layers to prevent local bypasses:
+1. **Pre-Commit (First Line of Defense)**: Hooks stop secrets from ever entering your local `.git` history instantly.
+2. **Pre-Push (Safety Net)**: Hooks catch secrets/failing tests locally before network transmission, saving developer time.
+3. **GitHub Actions (Ultimate Gatekeeper)**: Because local hooks can fail (e.g., missing dependencies) or be intentionally bypassed (`--no-verify`), GitHub Actions run in a centralized environment. They serve as an un-bypassable lock protecting the `main` branch from regressions and leaks.
+
 ---
 
 ## Conclusion
