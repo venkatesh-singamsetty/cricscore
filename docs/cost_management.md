@@ -44,7 +44,12 @@ This document provides a breakdown of the estimated operational costs for the Cr
 - **Cost**: First 10 custom alarms per month are **FREE**.
 - **Usage**: The platform uses 2 alarms (Match API and Score Update errors). $0/month.
 
-### 8. **CI/CD Automation: GitHub Actions**
+### 8. **Distributed Tracing: AWS X-Ray**
+
+- **Cost**: First 100,000 traces recorded per month are **FREE**.
+- **Usage**: A strict 5% Sampling Rule is enforced in `terraform/xray.tf`. Even at 1,000,000 API requests, we will only trace ~50,000 requests, guaranteeing $0/month cost.
+
+### 9. **CI/CD Automation: GitHub Actions**
 
 - **Cost**: First 2,000 execution minutes per month are **FREE** for private repositories (Unlimited for public).
 - **Usage**: CI/CD checks, Semantic Releases, Drift Detection, and E2E Tests use a fraction of these minutes. $0/month.
