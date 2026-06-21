@@ -50,6 +50,13 @@ Once the new version number is calculated, the bot automatically:
 1. Parses your commit messages into a beautifully formatted, human-readable markdown **Changelog**.
 2. Creates an official **Git Tag** (e.g., `v2.9.0`) on the `main` branch.
 3. Publishes an official **GitHub Release** on the repository's Releases page, attaching the changelog.
+4. Uses the `@semantic-release/changelog` plugin to generate a physical `CHANGELOG.md` file in the repository.
+
+### Step 6: Bypassing Branch Protection for Changelog Sync
+
+Because the `main` branch has strict Branch Protection enabled (requiring Pull Requests), the automated bot cannot push the `CHANGELOG.md` file directly to `main` using the default `GITHUB_TOKEN`.
+
+To solve this, the `.github/workflows/release.yml` workflow is configured to use a **Personal Access Token (PAT)** stored in the repository secrets as `GH_PAT`. This token belongs to a repository administrator, allowing the Semantic Release bot to bypass the Pull Request requirement and silently commit the `CHANGELOG.md` file directly to the root of the repository without throwing an "Access Denied" error.
 
 ---
 
