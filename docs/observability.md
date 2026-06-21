@@ -6,6 +6,9 @@ CricScore implements a full-stack, enterprise-grade observability suite that spa
 
 Instead of manually digging through dozens of AWS services, the entire application's health is aggregated into a single **CloudWatch Dashboard**.
 
+**Why we configured this:**
+AWS requires you to click through multiple different screens to see API Gateway traffic, Lambda errors, and SQS queue depths independently. By using Terraform to stitch all of these metrics into a single "Mission Control" screen, you can instantly see the health of your entire serverless stack in one glance without wasting time navigating the AWS console.
+
 - **Location**: AWS Console ➔ CloudWatch ➔ Dashboards ➔ `cricscore-mission-control`.
 - **Metrics Tracked**:
   - Live HTTP and WebSocket API Gateway Traffic.
@@ -28,9 +31,12 @@ CloudWatch Alarms actively monitor the `match-api` and `score-upd` Lambdas.
 - If the error rate for either function exceeds `0` for 5 minutes, an **AWS SNS Notification** is immediately fired.
 - This alert sends an emergency email directly to the Administrator's inbox (`SES_SOURCE`).
 
-## 4. 🐛 Frontend Crash Reporting (Sentry)
+### 🐛 4. Frontend Crash Reporting (Sentry)
 
 While AWS monitors the backend, **Sentry** monitors the React UI running on the end-user's phone.
+
+**Why we configured this:**
+AWS CloudWatch has zero visibility into what happens inside the user's browser. If a fan with an older Android device experiences a JavaScript error that causes the scoreboard to go blank, it fails silently on their device. Sentry intercepts these client-side crashes, records the exact sequence of clicks the user made before the crash, and alerts the developer.
 
 ### Setting up Sentry (Free)
 
@@ -48,6 +54,9 @@ If a user experiences a "white screen of death" or a silent JavaScript exception
 ## 5. ⏱️ Uptime Monitoring (BetterStack / UptimeRobot)
 
 To ensure the `cricscore.venkateshsingamsetty.site` URL is always resolving globally, we highly recommend attaching a free external uptime monitor.
+
+**Why we configured this:**
+While AWS Alarms can tell you if your backend code is throwing errors, they cannot tell you if your entire AWS region goes offline, or if your DNS registrar accidentally expires your domain. By using an external 3rd-party pinging service outside of the AWS ecosystem, you guarantee an independent source of truth regarding whether your site is actually online for your fans.
 
 ### Recommended Free Setup:
 
