@@ -10,17 +10,18 @@ By removing human error from versioning, the project adheres to strict Semantic 
 
 While working on your local branches, every commit message must follow the Conventional Commits format. This prefix tells the system what kind of work was done.
 
-| Commit Prefix | Purpose                                                    | Triggers Version Bump?                  | Example                            |
-| :------------ | :--------------------------------------------------------- | :-------------------------------------- | :--------------------------------- |
-| `feat:`       | A new feature.                                             | ✅ **Yes** (MINOR: `v3.0` ➔ `v3.1`)     | `feat: add dark mode to dashboard` |
-| `fix:`        | A bug fix.                                                 | ✅ **Yes** (PATCH: `v3.0.0` ➔ `v3.0.1`) | `fix: resolve CORS issue on API`   |
-| `perf:`       | A code change that improves performance.                   | ❌ **No** (Skips Release)               | `perf: optimize database query`    |
-| `docs:`       | Documentation changes only.                                | ❌ **No** (Skips Release)               | `docs: update cost management`     |
-| `build:`      | Build system or external dependency updates.               | ❌ **No** (Skips Release)               | `build: update semantic release`   |
-| `ci:`         | Changes to CI/CD configuration files and scripts.          | ❌ **No** (Skips Release)               | `ci: fix github action syntax`     |
-| `chore:`      | Routine tasks, maintenance, or dependency updates.         | ❌ **No** (Skips Release)               | `chore: update dependencies`       |
-| `refactor:`   | A code change that neither fixes a bug nor adds a feature. | ❌ **No** (Skips Release)               | `refactor: extract scoring logic`  |
-| `test:`       | Adding missing tests or correcting existing tests.         | ❌ **No** (Skips Release)               | `test: add match-api unit tests`   |
+| Commit Prefix                  | Purpose                                                    | Triggers Version Bump?                  | Example                            |
+| :----------------------------- | :--------------------------------------------------------- | :-------------------------------------- | :--------------------------------- |
+| `feat!:` or `BREAKING CHANGE:` | An incompatible, major change.                             | ✅ **Yes** (MAJOR: `v3.0` ➔ `v4.0`)     | `feat!: redesign database schema`  |
+| `feat:`                        | A new feature.                                             | ✅ **Yes** (MINOR: `v3.0` ➔ `v3.1`)     | `feat: add dark mode to dashboard` |
+| `fix:`                         | A bug fix.                                                 | ✅ **Yes** (PATCH: `v3.0.0` ➔ `v3.0.1`) | `fix: resolve CORS issue on API`   |
+| `perf:`                        | A code change that improves performance.                   | ❌ **No** (Skips Release)               | `perf: optimize database query`    |
+| `docs:`                        | Documentation changes only.                                | ❌ **No** (Skips Release)               | `docs: update cost management`     |
+| `build:`                       | Build system or external dependency updates.               | ❌ **No** (Skips Release)               | `build: update semantic release`   |
+| `ci:`                          | Changes to CI/CD configuration files and scripts.          | ❌ **No** (Skips Release)               | `ci: fix github action syntax`     |
+| `chore:`                       | Routine tasks, maintenance, or dependency updates.         | ❌ **No** (Skips Release)               | `chore: update dependencies`       |
+| `refactor:`                    | A code change that neither fixes a bug nor adds a feature. | ❌ **No** (Skips Release)               | `refactor: extract scoring logic`  |
+| `test:`                        | Adding missing tests or correcting existing tests.         | ❌ **No** (Skips Release)               | `test: add match-api unit tests`   |
 
 _Note: If you add `BREAKING CHANGE:` to the footer of any commit, it will trigger a **MAJOR** version bump (e.g., `v1.0.0` ➔ `v2.0.0`)._
 
