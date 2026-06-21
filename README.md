@@ -106,8 +106,13 @@ terraform validate               # Validates infrastructure logic
 checkov -d .                     # (Optional) Run local IaC security scans
 cd ..
 
-# Secrets Detection
+# Secrets & Dependency Vulnerability Detection
 gitleaks detect --source . -v    # Detects accidental AWS keys or passwords
+
+# (Optional) Run Trivy locally to catch HIGH/CRITICAL CVEs before the pipeline runs
+# Requires: brew install trivy
+trivy fs ./frontend --scanners vuln --severity HIGH,CRITICAL
+trivy fs ./backend/lambdas --scanners vuln --severity HIGH,CRITICAL
 ```
 
 ---
@@ -140,6 +145,7 @@ CricScore implements a robust, enterprise-grade CI/CD and security auditing life
 * **Trivy (Dependency & filesystem scanning)**: Scans package locks and directories for `HIGH` and `CRITICAL` severity vulnerability alerts during frontend validation and backend lambda packing steps.
 * **Checkov (Infrastructure-as-Code auditing)**: Performs static security audits on the Terraform configuration directory to catch AWS misconfigurations before provisioning.
 * **OWASP ZAP (DAST scanning)**: Automated black-box dynamic application security testing executed against the live application endpoints.
+* **Syft (SBOM generation)**: Automatically generates a Software Bill of Materials (SBOM) using the standard SPDX JSON format to provide deep visibility into open-source supply chain dependencies.
 * **Dependabot (Automated updates)**: Performs daily updates for npm packages and Terraform providers, raising automated pull requests for security updates.
 
 ---
