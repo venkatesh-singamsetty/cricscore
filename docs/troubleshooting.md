@@ -2,6 +2,16 @@
 
 This engineering trace documents the real-world resolutions for the CricScore backend integration.
 
+### 37. **DAST Scanner Opening Repetitive Informational Issues**
+- **Symptom**: OWASP ZAP runs daily via cron and opens a new GitHub Issue every night for missing security headers (like COEP/COOP) that were intentionally omitted.
+- **Cause**: ZAP is a strict baseline scanner and flags any relaxed security postures, even if they are required for React/Vite functionality or external API connectivity.
+- **Fix**: Created `.zap/rules.tsv` to explicitly instruct ZAP to `IGNORE` specific rule IDs (e.g., `10055`, `90004`). Hooked the rules file into the `zaproxy/action-baseline` execution to permanently silence intentional configuration warnings.
+
+### 36. **Node 20 / Punycode Deprecation Warnings in GitHub Actions**
+- **Symptom**: DAST and CI pipelines throw `Node 20 is being deprecated` or `[DEP0040] DeprecationWarning: The punycode module is deprecated` warnings.
+- **Cause**: Legacy actions like `actions/checkout@v4` and the internal dependencies of `zaproxy/action-baseline` rely on older Node modules. Forcing Node 24 causes it to complain about these native internal modules.
+- **Fix**: Upgraded `actions/checkout` directly to `v7` to natively support Node 24. For the ZAP plugin, injected `NODE_OPTIONS: "--no-deprecation"` to globally silence Node 24 from printing internal dependency warnings to the pipeline console.
+
 ### 35. **OWASP ZAP Artifact Upload Crash (400 Bad Request)**
 - **Symptom**: DAST pipeline fails at the very end with `Create Artifact Container - Error is not retryable`.
 - **Cause**: The `zaproxy/action-baseline@v0.12.0` relies on legacy `upload-artifact@v3` API, which is blocked by GitHub's strict v4 validation schema.

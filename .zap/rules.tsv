@@ -1,0 +1,7 @@
+10055	IGNORE	(CSP Exceptions)
+90003	IGNORE	(Sub Resource Integrity)
+10017	IGNORE	(Cross-Domain JS)
+90004	IGNORE	(COEP/COOP/CORP isolation)
+10109	IGNORE	(Modern Web Application check)
+10049	IGNORE	(Storable/Cacheable content)
+10050	IGNORE	(Retrieved from Cache)

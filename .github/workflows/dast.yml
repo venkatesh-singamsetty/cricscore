@@ -28,4 +28,5 @@ jobs:
         uses: zaproxy/action-baseline@v0.15.0
         with:
           target: 'https://cricscore.venkateshsingamsetty.site'
+          rules_file_name: '.zap/rules.tsv'
           fail_action: false # We only want reporting for DAST right now, not to block pipelines outright
