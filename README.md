@@ -208,6 +208,7 @@ CricScore implements a robust, enterprise-grade CI/CD and security auditing life
 
 ### 6. ⚙️ Operations & DevOps
 
+- **[GitHub Actions Architecture](./docs/github_actions.md)**: CI/CD Directory structure constraints and pipeline organization.
 - **[Full Deployment & Infrastructure](./docs/deployment.md)**: Local preview, bootstrap foundations, and AWS/Aiven Setup.
 - **[Automated Releases](./docs/release_process.md)**: Semantic release and Conventional Commit specifications.
 - **[Full Project Log](./docs/changelog.md)**: Release records and development timeline.
