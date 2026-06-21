@@ -278,6 +278,40 @@ exports.handler = async (event) => {
 
     const { path, httpMethod, body, pathParameters } = event;
 
+    // GET /health — DB connectivity check
+    if (httpMethod === "GET" && path === "/health") {
+      try {
+        const result = await client.query("SELECT 1 AS ok");
+        return {
+          statusCode: 200,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+          body: JSON.stringify({
+            status: "healthy",
+            database: "connected",
+            timestamp: new Date().toISOString(),
+          }),
+        };
+      } catch (dbErr) {
+        console.error("❌ Health check DB failure:", dbErr.message);
+        return {
+          statusCode: 503,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+          body: JSON.stringify({
+            status: "unhealthy",
+            database: "disconnected",
+            error: dbErr.message,
+            timestamp: new Date().toISOString(),
+          }),
+        };
+      }
+    }
+
     // DELETE /matches (Purge All)
     if (httpMethod === "DELETE" && path === "/matches") {
       try {
