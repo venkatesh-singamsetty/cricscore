@@ -1,1 +1,13 @@
+#!/usr/bin/env sh
+
+echo "🔒 Scanning for secrets before pushing..."
+if command -v gitleaks &> /dev/null; then
+  # Run gitleaks to check for unpushed secrets
+  gitleaks protect -v
+else
+  echo "⚠️  gitleaks is not installed. Skipping secrets scan."
+  echo "Run ./scripts/setup.sh to install it."
+fi
+
+echo "🧪 Running tests before pushing..."
 npm run test:all
