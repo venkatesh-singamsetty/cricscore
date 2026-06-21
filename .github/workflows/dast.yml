@@ -16,13 +16,10 @@ jobs:
     permissions:
       issues: write
       contents: read
-    env:
-      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Fix workspace permissions for ZAP Docker
         run: chmod -R 777 ${{ github.workspace }}
