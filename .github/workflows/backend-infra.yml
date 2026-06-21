@@ -43,12 +43,12 @@ jobs:
         run: |
           set -e
           # Install shared backend dependencies for tests
-          (cd backend && npm ci)
+          (cd backend && npm install)
           # Install individual lambda dependencies
           for d in backend/lambdas/*; do
             if [ -f "$d/package.json" ]; then
               echo "Installing dependencies in $d"
-              (cd "$d" && npm ci)
+              (cd "$d" && npm install)
             fi
           done
 
@@ -134,7 +134,7 @@ jobs:
           for d in backend/lambdas/*; do
             if [ -f "$d/package.json" ]; then
               echo "Installing production dependencies in $d"
-              (cd "$d" && npm ci --production)
+              (cd "$d" && npm install --production)
             fi
           done
 
