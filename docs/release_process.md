@@ -10,14 +10,17 @@ By removing human error from versioning, the project adheres to strict Semantic 
 
 While working on your local branches, every commit message must follow the Conventional Commits format. This prefix tells the system what kind of work was done.
 
-| Commit Prefix | Purpose                                                    | Triggers Version Bump                 | Example                            |
-| :------------ | :--------------------------------------------------------- | :------------------------------------ | :--------------------------------- |
-| `fix:`        | A bug fix.                                                 | **PATCH** (e.g., `v1.0.0` ➔ `v1.0.1`) | `fix: resolve CORS issue on API`   |
-| `feat:`       | A new feature.                                             | **MINOR** (e.g., `v1.0.0` ➔ `v1.1.0`) | `feat: add dark mode to dashboard` |
-| `perf:`       | A code change that improves performance.                   | None                                  | `perf: optimize database query`    |
-| `chore:`      | Routine tasks, maintenance, or dependency updates.         | None                                  | `chore: update dependencies`       |
-| `docs:`       | Documentation changes only.                                | None                                  | `docs: update cost management`     |
-| `refactor:`   | A code change that neither fixes a bug nor adds a feature. | None                                  | `refactor: extract scoring logic`  |
+| Commit Prefix | Purpose                                                    | Triggers Version Bump                    | Example                            |
+| :------------ | :--------------------------------------------------------- | :--------------------------------------- | :--------------------------------- |
+| `feat:`       | A new feature.                                             | **✅ MINOR** (e.g., `v1.0.0` ➔ `v1.1.0`) | `feat: add dark mode to dashboard` |
+| `fix:`        | A bug fix.                                                 | **✅ PATCH** (e.g., `v1.0.0` ➔ `v1.0.1`) | `fix: resolve CORS issue on API`   |
+| `perf:`       | A code change that improves performance.                   | **✅ PATCH** (e.g., `v1.0.0` ➔ `v1.0.1`) | `perf: optimize database query`    |
+| `docs:`       | Documentation changes only.                                | ❌ No Release                            | `docs: update cost management`     |
+| `build:`      | Changes that affect the build system or external deps.     | ❌ No Release                            | `build: update npm packages`       |
+| `ci:`         | Changes to our CI configuration files and scripts.         | ❌ No Release                            | `ci: add new github action`        |
+| `chore:`      | Routine tasks, maintenance, or dependency updates.         | ❌ No Release                            | `chore: clean up old logs`         |
+| `test:`       | Adding missing tests or correcting existing tests.         | ❌ No Release                            | `test: ensure scorecard renders`   |
+| `refactor:`   | A code change that neither fixes a bug nor adds a feature. | ❌ No Release                            | `refactor: extract scoring logic`  |
 
 _Note: If you add `BREAKING CHANGE:` to the footer of any commit, it will trigger a **MAJOR** version bump (e.g., `v1.0.0` ➔ `v2.0.0`)._
 
