@@ -11,9 +11,8 @@ if [ ! -f "$LAMBDA_TF" ]; then
   exit 0
 fi
 
-# Extract lambda suffixes, e.g. "match-api" from "${var.project_name}-match-api"
-# We exclude storage-worker.arn from function_name which might be caught
-LAMBDAS=$(grep -oE '\$\{var\.project_name\}-[a-zA-Z0-9_-]+' $LAMBDA_TF | sed "s/\${var.project_name}-//g" | sort | uniq)
+# Extract lambda suffixes by only looking at `function_name` assignments
+LAMBDAS=$(grep 'function_name[[:space:]]*=' $LAMBDA_TF | grep -oE '\$\{var\.project_name\}-[a-zA-Z0-9_-]+' | sed "s/\${var.project_name}-//g" | sort | uniq)
 
 cat << 'EOF' > $DOC_PATH
 # 🛠️ CricScore AWS & Security Resources Dashboard
