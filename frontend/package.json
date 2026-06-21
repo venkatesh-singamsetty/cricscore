@@ -17,6 +17,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@sentry/react": "^10.59.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "recharts": "^3.5.0"

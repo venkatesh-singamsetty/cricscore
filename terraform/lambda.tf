@@ -13,6 +13,10 @@ resource "aws_lambda_function" "match_api" {
   runtime          = "nodejs18.x"
   source_code_hash = data.archive_file.match_api_zip.output_base64sha256
 
+  tracing_config {
+    mode = "Active"
+  }
+
   environment {
     variables = {
       DATABASE_URL       = var.database_url
@@ -45,6 +49,10 @@ resource "aws_lambda_function" "score_update" {
   source_code_hash = data.archive_file.score_update_zip.output_base64sha256
   timeout          = 30
 
+  tracing_config {
+    mode = "Active"
+  }
+
   environment {
     variables = {
       MATCH_EVENTS_TOPIC = aws_sns_topic.match_events.arn
@@ -71,6 +79,10 @@ resource "aws_lambda_function" "onconnect" {
   runtime          = "nodejs18.x"
   source_code_hash = data.archive_file.onconnect_zip.output_base64sha256
 
+  tracing_config {
+    mode = "Active"
+  }
+
   environment {
     variables = {
       TABLE_NAME = aws_dynamodb_table.connections.name
@@ -93,6 +105,10 @@ resource "aws_lambda_function" "ondisconnect" {
   runtime          = "nodejs18.x"
   source_code_hash = data.archive_file.ondisconnect_zip.output_base64sha256
 
+  tracing_config {
+    mode = "Active"
+  }
+
   environment {
     variables = {
       TABLE_NAME = aws_dynamodb_table.connections.name
@@ -114,6 +130,10 @@ resource "aws_lambda_function" "broadcaster" {
   handler          = "index.handler"
   runtime          = "nodejs18.x"
   source_code_hash = data.archive_file.broadcaster_zip.output_base64sha256
+
+  tracing_config {
+    mode = "Active"
+  }
 
   environment {
     variables = {
@@ -140,6 +160,10 @@ resource "aws_lambda_function" "storage_worker" {
   timeout          = 30
   source_code_hash = data.archive_file.storage_worker_zip.output_base64sha256
 
+  tracing_config {
+    mode = "Active"
+  }
+
   environment {
     variables = {
       DATABASE_URL = var.database_url
@@ -151,4 +175,49 @@ resource "aws_lambda_event_source_mapping" "sqs_trigger" {
   event_source_arn = aws_sqs_queue.storage_buffer.arn
   function_name    = aws_lambda_function.storage_worker.arn
   batch_size       = 1
+}
+
+# --- CloudWatch Alarms & Alerts ---
+resource "aws_sns_topic" "lambda_alerts" {
+  name = "${var.project_name}-lambda-alerts"
+}
+
+resource "aws_sns_topic_subscription" "lambda_alerts_email" {
+  topic_arn = aws_sns_topic.lambda_alerts.arn
+  protocol  = "email"
+  endpoint  = var.admin_email
+}
+
+resource "aws_cloudwatch_metric_alarm" "match_api_errors" {
+  alarm_name          = "${var.project_name}-match-api-errors"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "1"
+  metric_name         = "Errors"
+  namespace           = "AWS/Lambda"
+  period              = "300"
+  statistic           = "Sum"
+  threshold           = "0"
+  alarm_description   = "This metric monitors Lambda errors for the Match API"
+  alarm_actions       = [aws_sns_topic.lambda_alerts.arn]
+
+  dimensions = {
+    FunctionName = aws_lambda_function.match_api.function_name
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "score_update_errors" {
+  alarm_name          = "${var.project_name}-score-update-errors"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "1"
+  metric_name         = "Errors"
+  namespace           = "AWS/Lambda"
+  period              = "300"
+  statistic           = "Sum"
+  threshold           = "0"
+  alarm_description   = "This metric monitors Lambda errors for the Score Update function"
+  alarm_actions       = [aws_sns_topic.lambda_alerts.arn]
+
+  dimensions = {
+    FunctionName = aws_lambda_function.score_update.function_name
+  }
 }
