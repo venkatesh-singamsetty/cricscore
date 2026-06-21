@@ -103,6 +103,7 @@ jobs:
       TF_VAR_project_name: ${{ vars.PROJECT_NAME }}
       TF_VAR_ses_source_email: ${{ secrets.TF_SES_SOURCE_EMAIL }}
       TF_VAR_database_url: ${{ secrets.TF_DATABASE_URL }}
+      TF_VAR_admin_email: ${{ vars.ADMIN_EMAIL }}
 
     steps:
       - name: Checkout code
