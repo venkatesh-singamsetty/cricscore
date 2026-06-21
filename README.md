@@ -106,11 +106,15 @@ terraform validate               # Validates infrastructure logic
 checkov -d .                     # (Optional) Run local IaC security scans
 cd ..
 
-# Secrets & Dependency Vulnerability Detection
+# Secrets Detection
 gitleaks detect --source . -v    # Detects accidental AWS keys or passwords
+```
 
-# (Optional) Run Trivy locally to catch HIGH/CRITICAL CVEs before the pipeline runs
-# ⚠️ Warning: Trivy is not configured as an automatic pre-commit hook because downloading its massive vulnerability database locally on every commit severely degrades developer speed. It is best left to the cloud pipelines unless you are specifically debugging a dependency.
+### 4. Manual Dependency Scanning (Optional)
+**⚠️ Warning:** Trivy is not configured as an automatic pre-commit hook because downloading its massive vulnerability database locally on every commit severely degrades developer speed. It is strictly executed in the cloud pipelines. 
+
+If you are specifically debugging a dependency issue, you can scan locally:
+```bash
 # Requires: brew install trivy
 trivy fs ./frontend --scanners vuln --severity HIGH,CRITICAL
 trivy fs ./backend/lambdas --scanners vuln --severity HIGH,CRITICAL
