@@ -11,12 +11,15 @@ This document provides quick-access UI links to view the live AWS resources, tel
 
 Direct links to view the source code, configurations, and test events for the serverless functions:
 
-- [**Match API** (`cricscore-match-api`)](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-match-api?tab=code)
-- [**Score Update** (`cricscore-score-upd`)](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-score-upd?tab=code)
-- [**Broadcaster** (`cricscore-broadcaster`)](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-broadcaster?tab=code)
-- [**WebSocket OnConnect** (`cricscore-onconnect`)](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-onconnect?tab=code)
-- [**WebSocket OnDisconnect** (`cricscore-ondisconnect`)](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-ondisconnect?tab=code)
-- [**Storage Worker** (`cricscore-storage-worker`)](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-storage-worker?tab=code)
+- [**broadcaster** (`cricscore-broadcaster`)](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-broadcaster?tab=code)
+- [**lambda-alerts** (`cricscore-lambda-alerts`)](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-lambda-alerts?tab=code)
+- [**match-api** (`cricscore-match-api`)](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-match-api?tab=code)
+- [**match-api-errors** (`cricscore-match-api-errors`)](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-match-api-errors?tab=code)
+- [**onconnect** (`cricscore-onconnect`)](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-onconnect?tab=code)
+- [**ondisconnect** (`cricscore-ondisconnect`)](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-ondisconnect?tab=code)
+- [**score-upd** (`cricscore-score-upd`)](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-score-upd?tab=code)
+- [**score-update-errors** (`cricscore-score-update-errors`)](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-score-update-errors?tab=code)
+- [**storage-worker** (`cricscore-storage-worker`)](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-storage-worker?tab=code)
 
 ---
 
@@ -24,10 +27,15 @@ Direct links to view the source code, configurations, and test events for the se
 
 Direct links to the live execution logs (stdout/stderr) and `console.log()` outputs for troubleshooting:
 
-- [**Match API Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-match-api)
-- [**Score Update Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-score-upd)
-- [**Broadcaster Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-broadcaster)
-- [**Storage Worker Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-storage-worker)
+- [**broadcaster Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-broadcaster)
+- [**lambda-alerts Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-lambda-alerts)
+- [**match-api Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-match-api)
+- [**match-api-errors Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-match-api-errors)
+- [**onconnect Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-onconnect)
+- [**ondisconnect Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-ondisconnect)
+- [**score-upd Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-score-upd)
+- [**score-update-errors Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-score-update-errors)
+- [**storage-worker Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-storage-worker)
 
 ---
 
