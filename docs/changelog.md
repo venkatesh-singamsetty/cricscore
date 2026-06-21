@@ -6,6 +6,7 @@ This document tracks the complete evolutionary history of the CricScore platform
 
 ### Highlights
 * **Supply Chain Auditing (SBOM)**: Integrated Syft into a dedicated `.github/workflows/sbom.yml` pipeline to automatically generate an industry-standard `spdx-json` Software Bill of Materials on every PR and weekly schedule, ensuring total dependency transparency.
+* **CI/CD Hardening (Strict Blocking)**: Upgraded GitHub Actions workflows to strictly block AWS deployments if **Trivy** finds fixable HIGH/CRITICAL vulnerabilities (`exit-code: 1`) or if **Checkov** detects undocumented infrastructure misconfigurations (`soft_fail: false`).
 * **Security Posture Documentation**: Created a formal Architectural Decision Record (ADR) at `docs/security_posture.md` to explicitly document intentional Free Tier ($0/month) constraints, specifically explaining the deliberate bypasses for AWS WAF, RASP, Checkov infrastructure rules, and aggressive Gitleaks scans.
 * **Rapid UI Workflow**: Enhanced `README.md` and `docs/deployment.md` with targeted instructions for bypassing Terraform deployments during pure React frontend development.
 
