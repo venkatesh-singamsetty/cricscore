@@ -1,0 +1,26 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "This folder contains the core Node.js serverless functions that power the CricScore real-time match engine.",
+  "main": "index.js",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@aws-sdk/client-apigatewaymanagementapi": "^3.1073.0",
+    "@aws-sdk/client-lambda": "^3.1073.0",
+    "@aws-sdk/client-ses": "^3.1073.0",
+    "@aws-sdk/client-sns": "^3.1073.0",
+    "@aws-sdk/client-sqs": "^3.1073.0",
+    "@vitest/coverage-v8": "^4.1.9",
+    "aws-sdk-client-mock": "^4.1.0",
+    "pg": "^8.22.0",
+    "vitest": "^4.1.9"
+  }
+}

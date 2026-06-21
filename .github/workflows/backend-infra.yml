@@ -42,12 +42,20 @@ jobs:
       - name: Install Lambda dependencies
         run: |
           set -e
+          # Install shared backend dependencies for tests
+          (cd backend && npm ci)
+          # Install individual lambda dependencies
           for d in backend/lambdas/*; do
             if [ -f "$d/package.json" ]; then
               echo "Installing dependencies in $d"
               (cd "$d" && npm ci)
             fi
           done
+
+      - name: Run Backend Unit Tests
+        run: |
+          cd backend
+          npm test
 
       - name: Run Trivy vulnerability scanner (fs) on Lambdas
         uses: aquasecurity/trivy-action@master
