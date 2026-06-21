@@ -87,7 +87,7 @@ To run or deploy CricScore locally, you need Node.js, Terraform, AWS CLI, Checko
 Create a `.env.local` file at the root of the project to manage your local infrastructure deployment. _(These variables map exactly to the GitHub Actions requirements listed in the next section)._
 
 - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `AWS_DEFAULT_REGION`
-- `TF_DATABASE_URL`, `TF_SES_SOURCE_EMAIL`
+- `TF_DATABASE_URL`, `TF_SES_SOURCE_EMAIL`, `ADMIN_EMAIL`
 - `DOMAIN_NAME`, `ZONE_DOMAIN`, `SUBDOMAIN_PREFIX`, `PROJECT_NAME`
 
 To run the full stack locally, use the deployment script (this will automatically provision AWS and generate your required `frontend/.env` URLs):
@@ -119,11 +119,9 @@ npm run build   # Validates the production bundle compiles
 cd ..
 
 # Infrastructure Validation
-cd terraform
-terraform fmt -check -recursive  # Validates HCL formatting
-terraform validate               # Validates infrastructure logic
-checkov -d .                     # (Optional) Run local IaC security scans
-cd ..
+./scripts/terraform.sh fmt -check -recursive  # Validates HCL formatting
+./scripts/terraform.sh validate               # Validates infrastructure logic
+checkov -d terraform/                         # (Optional) Run local IaC security scans
 
 # Secrets Detection
 gitleaks detect --source . -v    # Detects accidental AWS keys or passwords
@@ -157,7 +155,9 @@ To enable the automated deployment pipelines, configure the following in your Gi
 
 - `AWS_REGION` / `AWS_DEFAULT_REGION`: Deployment region (e.g., `us-east-1`). Both variables are required by Terraform/AWS CLI across workflows.
 - `DOMAIN_NAME`, `ZONE_DOMAIN`, `SUBDOMAIN_PREFIX`, `PROJECT_NAME`: Infrastructure namespacing.
+- `ADMIN_EMAIL`: Admin email address for SES match report emails.
 - `API_GATEWAY_ID`, `WS_API_GATEWAY_ID`, `S3_BUCKET`, `CLOUDFRONT_DISTRIBUTION_ID`: Cloud resource IDs/endpoints.
+- `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24`: Forces all GitHub Actions JS steps to use Node.js 24 runtime.
 
 If these variables are not set, the workflow will emit a warning during the `Validate repository Variables` step.
 

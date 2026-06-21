@@ -125,7 +125,7 @@ This engineering trace documents the real-world resolutions for the CricScore ba
 - **Cause**: Using a `@gmail.com` address as the `SES_SOURCE` while sending through AWS servers fails Gmail's DMARC policy. Gmail detects that AWS is not an authorized sender for the `gmail.com` domain and silently drops the message.
 - **Fix**:
   - Verify your custom domain (e.g., `example.com`) in the SES Console.
-  - Set `ses_source_email` in `terraform.tfvars` to an address on that domain (e.g., `noreply@example.com`).
+  - Set `TF_SES_SOURCE_EMAIL` in `.env.local` to an address on that domain (e.g., `noreply@example.com`).
   - This ensures emails carry valid DKIM/SPF signatures for your domain, allowing them to pass Google's security checks.
 
 ### 20. **Cascading Delete & DB Purge**
