@@ -133,6 +133,7 @@ All deployments are fully automated via GitHub Actions. The core automation conf
 | `frontend.yml` | PR → `main` (validate only) / push to `main` (+ deploy) | Lint, Trivy scan, unit test, build → S3 sync + CloudFront invalidation |
 | `backend-infra.yml` | PR → `main` (validate only) / push to `main` (+ deploy) | Lambda checks, Trivy, Terraform validate, Checkov → Terraform apply |
 | `dast.yml` | Post-Frontend deploy, Daily | OWASP ZAP black-box dynamic runtime security scanning against live endpoints |
+| `sbom.yml` | PR → `main`, push to `main`, weekly schedule | Syft SPDX JSON Generation for supply chain SBOM auditing |
 | `dependabot.yml` | Daily schedule | Automated PR generation for outdated npm packages and Terraform providers |
 
 ### Branch Protection (main)

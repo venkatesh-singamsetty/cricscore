@@ -53,7 +53,7 @@ jobs:
           scan-ref: 'backend/lambdas'
           ignore-unfixed: true
           format: 'table'
-          exit-code: '0'
+          exit-code: '1'
           severity: 'HIGH,CRITICAL'
 
       - name: Set up Terraform
@@ -79,7 +79,7 @@ jobs:
           directory: terraform
           framework: terraform
           output_format: cli
-          soft_fail: true
+          soft_fail: false
 
   deploy:
     name: Provision & Deploy Backend + Infra
@@ -134,7 +134,7 @@ jobs:
           scan-ref: 'backend/lambdas'
           ignore-unfixed: true
           format: 'table'
-          exit-code: '0'
+          exit-code: '1'
           severity: 'HIGH,CRITICAL'
 
       - name: Set up Terraform

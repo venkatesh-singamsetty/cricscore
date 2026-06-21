@@ -31,8 +31,9 @@ This document outlines all the tools, frameworks, and security scanners utilized
 | Tool | Type | Purpose |
 |---|---|---|
 | **GitLeaks** | Secrets Detection | Runs locally and via GitHub Actions to scan the commit history. It blocks any code containing accidentally hardcoded API keys, AWS credentials, or database passwords from being merged. |
-| **Checkov** | IaC Security (SAST) | Audits the Terraform codebase before it is applied to ensure AWS best practices (e.g., encryption at rest, least-privilege IAM roles, secure S3 buckets). |
 | **CodeQL** | Code Security (SAST) | GitHub's native semantic analyzer. Scans the TypeScript and JavaScript code for logical vulnerabilities like Cross-Site Scripting (XSS), SQL injection, and path traversal. |
-| **Trivy** | Software Composition (SCA) | Scans the `package-lock.json` and Lambda zip dependencies for known vulnerabilities (CVEs) with `HIGH` or `CRITICAL` severity ratings. |
+| **Trivy** | Software Composition (SCA) | Scans the `package-lock.json` and Lambda zip dependencies for known vulnerabilities (CVEs) with `HIGH` or `CRITICAL` severity ratings, blocking deployments if unfixed issues exist. |
+| **Checkov** | IaC Security (SAST) | Audits the Terraform codebase before it is applied to ensure AWS best practices (e.g., encryption at rest, least-privilege IAM roles, secure S3 buckets) and explicitly blocks provisioning on unknown violations. |
 | **OWASP ZAP** | Runtime Security (DAST) | "Black-box" dynamic security tester. It actively attacks the live, deployed API endpoints (REST & WebSockets) to find runtime vulnerabilities that static analysis might miss. |
+| **Syft** | Supply Chain (SBOM) | Automatically scans the repository to generate a Software Bill of Materials (SBOM) using the SPDX JSON format, providing deep visibility into application dependencies. |
 | **Dependabot** | Dependency Updates | Automatically monitors npm packages and Terraform providers, raising Pull Requests whenever a security patch or minor version update is available. |
