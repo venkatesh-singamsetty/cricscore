@@ -181,15 +181,33 @@ CricScore implements a robust, enterprise-grade CI/CD and security auditing life
 
 ## 📖 Technical Documentation
 
-- **[Toolchain & Security Stack](./docs/tools.md)**: Master list of all development, infrastructure, and AppSec tools.
-- **[Testing Guide](./docs/testing.md)**: Vitest and Playwright test commands and structures.
-- **[Automated Releases](./docs/release_process.md)**: Semantic release and Conventional Commit specifications.
-- **[Full Deployment & Infrastructure](./docs/deployment.md)**: Local preview, bootstrap foundations, and AWS/Aiven Setup.
-- **[Aiven Managed Services](./docs/aiven.md)**: PostgreSQL configuration.
+### 1. 🛡️ Security & Identity
+
+- **[Security Posture](./docs/security_posture.md)**: Defense in depth strategy, multi-tenant isolation, and encryption layers.
+
+### 2. 🔭 Observability & Monitoring
+
+- **[Observability Suite](./docs/observability.md)**: CloudWatch Dashboards, X-Ray Tracing, Sentry Crash Reporting, and Uptime monitors.
+
+### 3. 🏗️ Architecture & Engineering
+
 - **[Detailed Architecture](./docs/architecture.md)**: System design, sequence flows, and EDA logic.
 - **[API Guide](./docs/api.md)**: REST & WebSocket contract specifications.
-- **[Security Posture](./docs/security_posture.md)**: Defense in depth strategy and security layers.
-- **[Cost & Performance](./docs/cost_management.md)**: Aiven & AWS Free-tier monitoring strategy.
+- **[Aiven Managed Services](./docs/aiven.md)**: PostgreSQL database configuration and keep-alive strategy.
 - **[Node.js Guide](./docs/nodejs_guide.md)**: ESM vs CommonJS standardizations.
+
+### 4. 💰 Cost Optimization
+
+- **[Cost & Performance](./docs/cost_management.md)**: Free-tier monitoring strategy and architecture scale limits.
+
+### 5. ✅ Quality & Validation
+
+- **[Testing Guide](./docs/testing.md)**: Vitest and Playwright test commands and E2E structures.
+- **[Toolchain & Security Stack](./docs/tools.md)**: Master list of all CI/CD, IaC, and AppSec tools used in the pipeline.
+
+### 6. ⚙️ Operations & DevOps
+
+- **[Full Deployment & Infrastructure](./docs/deployment.md)**: Local preview, bootstrap foundations, and AWS/Aiven Setup.
+- **[Automated Releases](./docs/release_process.md)**: Semantic release and Conventional Commit specifications.
 - **[Full Project Log](./docs/changelog.md)**: Release records and development timeline.
 - **[Troubleshooting](./docs/troubleshooting.md)**: Setup fixes and identity verification help.
