@@ -89,7 +89,14 @@ To run the full stack locally, use the deployment script (this will automaticall
 ```
 👉 For comprehensive instructions, see the **[Full Deployment Guide](./docs/deployment.md)**.
 
-### 3. Pre-Commit Validation
+### 3. Frontend Local Development
+We provide a convenient root-level `package.json` that acts as a proxy to the `frontend/` directory so you don't have to change folders. Here is the local development lifecycle:
+
+- **`npm run dev`**: The Sandbox. Use this 99% of the time. Starts a hyper-fast local server with Hot Module Replacement (HMR). Changes instantly appear when you save.
+- **`npm run build`**: The Factory. Translates TypeScript, aggressively minifies CSS/JS, and squishes the app into a highly optimized `frontend/dist/` folder for AWS production.
+- **`npm run preview`**: The Rehearsal. Boots a local server pointing directly at the optimized `dist/` folder. Use this specifically to test exact production load speeds or debug minification issues before opening a PR.
+
+### 4. Pre-Commit Validation
 To prevent failing the strict GitHub Actions pipelines, validate your code locally before pushing:
 ```bash
 # Frontend Validation
