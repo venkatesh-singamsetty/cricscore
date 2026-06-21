@@ -115,6 +115,11 @@ Follow this character-perfect handshake to activate the remote backend:
 ### 4. Deploying the Cloud Stack
 Because the frontend requires the **API Gateway Endpoints** to be built into its bundle, we use a unified deployment script that handles the entire pipeline locally:
 
+> [!NOTE]
+> **Dependency Install Architecture (`deploy.sh` handles this automatically):**
+> - **Frontend**: Requires a full `npm install` to download heavy build tools (Vite, TypeScript). We only deploy the final compiled output (`dist/`), *not* the `node_modules`.
+> - **Backend (Lambdas)**: Requires strict `npm install --production`. AWS Lambdas directly upload the raw `node_modules` folder. Passing `--production` ensures massive developer tools aren't uploaded to AWS, which would drastically degrade performance and cause cold-start issues.
+
 Execute the master deployment script from the root. It will provision Terraform, extract the live endpoints automatically, inject them into `frontend/.env`, build the frontend, and push to S3:
 ```bash
 ./deploy.sh --use-local-env
