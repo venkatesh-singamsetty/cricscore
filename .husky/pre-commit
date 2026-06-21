@@ -1,5 +1,8 @@
 #!/usr/bin/env sh
 
+echo "💅 Formatting code..."
+npx lint-staged
+
 echo "🔒 Scanning for secrets in staged files before committing..."
 if command -v gitleaks &> /dev/null; then
   # Run gitleaks to check for secrets in files about to be committed

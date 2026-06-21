@@ -1,0 +1,24 @@
+name: Database Keep-Alive
+
+on:
+  schedule:
+    # Run at 12:00 PM every day to prevent Aiven from sleeping the Free Tier DB
+    - cron: "0 12 * * *"
+  workflow_dispatch: # Allows manual triggering from the GitHub UI
+
+jobs:
+  ping-database:
+    name: Ping Aiven PostgreSQL
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install PostgreSQL Client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Execute Keep-Alive Query
+        env:
+          DATABASE_URL: ${{ secrets.TF_DATABASE_URL }}
+        # The ?sslmode=require ensures the connection succeeds with Aiven's strict TLS requirements
+        run: |
+          echo "Pinging database to prevent inactivity shutdown..."
+          psql "$DATABASE_URL?sslmode=require" -c "SELECT 1 as keep_alive;"
+          echo "Database successfully pinged."

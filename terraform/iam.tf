@@ -130,3 +130,9 @@ resource "aws_iam_role_policy_attachment" "lambda_ses_attach" {
   role       = aws_iam_role.lambda_role.name
   policy_arn = aws_iam_policy.lambda_ses.arn
 }
+
+# --- IAM Policy for X-Ray Distributed Tracing ---
+resource "aws_iam_role_policy_attachment" "lambda_xray_attach" {
+  role       = aws_iam_role.lambda_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess"
+}
