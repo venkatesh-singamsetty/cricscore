@@ -9,10 +9,6 @@ on:
       - '.github/workflows/backend-infra.yml'
   pull_request:
     branches: [main]
-    paths:
-      - 'backend/**'
-      - 'terraform/**'
-      - '.github/workflows/backend-infra.yml'
   workflow_dispatch:
 
 concurrency:
