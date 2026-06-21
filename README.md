@@ -188,6 +188,8 @@ CricScore implements a robust, enterprise-grade CI/CD and security auditing life
 - **[Aiven Managed Services](./docs/aiven.md)**: PostgreSQL configuration.
 - **[Detailed Architecture](./docs/architecture.md)**: System design, sequence flows, and EDA logic.
 - **[API Guide](./docs/api.md)**: REST & WebSocket contract specifications.
+- **[Security Posture](./docs/security_posture.md)**: Defense in depth strategy and security layers.
 - **[Cost & Performance](./docs/cost_management.md)**: Aiven & AWS Free-tier monitoring strategy.
+- **[Node.js Guide](./docs/nodejs_guide.md)**: ESM vs CommonJS standardizations.
 - **[Full Project Log](./docs/changelog.md)**: Release records and development timeline.
 - **[Troubleshooting](./docs/troubleshooting.md)**: Setup fixes and identity verification help.
