@@ -4,6 +4,42 @@ This project uses a comprehensive testing strategy combining **Vitest** for back
 
 ---
 
+## Testing During Local Development
+
+When you are actively making code changes, use these commands to instantly test your work:
+
+### 1. The "Run Everything" Command
+If you want to run all the fast unit tests across the entire project at once (this runs automatically before a `git push`), stay in the root of your project and run:
+```bash
+npm run test:all
+```
+
+### 2. Testing While You Code (Watch Mode)
+If you are actively making changes to files and want the tests to re-run automatically every time you hit "save":
+
+**For Frontend changes:**
+```bash
+cd frontend
+npm run test
+```
+*(Press `q` to quit watch mode when you're done).*
+
+**For Backend changes:**
+```bash
+cd backend
+npm run test:watch
+```
+
+### 3. Testing the Live App in a Real Browser
+If you want to verify that the entire app works properly in a real browser instance:
+```bash
+cd e2e
+npx playwright test --ui
+```
+*This opens a time-travel UI where you can literally see Playwright clicking through your application step-by-step!*
+
+---
+
 ## 1. Backend Unit Tests (Vitest)
 
 The backend uses `vitest` to run extremely fast unit tests for AWS Lambda functions. We use class prototype stubbing and spies via `vi.spyOn()` to mock AWS SDK calls and database interactions, ensuring tests do not hit real infrastructure.
