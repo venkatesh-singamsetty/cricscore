@@ -152,3 +152,48 @@ resource "aws_lambda_event_source_mapping" "sqs_trigger" {
   function_name    = aws_lambda_function.storage_worker.arn
   batch_size       = 1
 }
+
+# --- CloudWatch Alarms & Alerts ---
+resource "aws_sns_topic" "lambda_alerts" {
+  name = "${var.project_name}-lambda-alerts"
+}
+
+resource "aws_sns_topic_subscription" "lambda_alerts_email" {
+  topic_arn = aws_sns_topic.lambda_alerts.arn
+  protocol  = "email"
+  endpoint  = var.admin_email
+}
+
+resource "aws_cloudwatch_metric_alarm" "match_api_errors" {
+  alarm_name          = "${var.project_name}-match-api-errors"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "1"
+  metric_name         = "Errors"
+  namespace           = "AWS/Lambda"
+  period              = "300"
+  statistic           = "Sum"
+  threshold           = "0"
+  alarm_description   = "This metric monitors Lambda errors for the Match API"
+  alarm_actions       = [aws_sns_topic.lambda_alerts.arn]
+
+  dimensions = {
+    FunctionName = aws_lambda_function.match_api.function_name
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "score_update_errors" {
+  alarm_name          = "${var.project_name}-score-update-errors"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "1"
+  metric_name         = "Errors"
+  namespace           = "AWS/Lambda"
+  period              = "300"
+  statistic           = "Sum"
+  threshold           = "0"
+  alarm_description   = "This metric monitors Lambda errors for the Score Update function"
+  alarm_actions       = [aws_sns_topic.lambda_alerts.arn]
+
+  dimensions = {
+    FunctionName = aws_lambda_function.score_update.function_name
+  }
+}
