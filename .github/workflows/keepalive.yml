@@ -20,5 +20,5 @@ jobs:
         # The ?sslmode=require ensures the connection succeeds with Aiven's strict TLS requirements
         run: |
           echo "Pinging database to prevent inactivity shutdown..."
-          psql "$DATABASE_URL?sslmode=require" -c "SELECT 1 as keep_alive;"
+          psql "$DATABASE_URL" -c "SELECT 1 as keep_alive;"
           echo "Database successfully pinged."
