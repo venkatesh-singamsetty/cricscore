@@ -2,6 +2,18 @@
 
 This engineering trace documents the real-world resolutions for the CricScore backend integration.
 
+### 40. **GitHub Actions Trigger Path Ignored**
+
+- **Symptom**: You fix a broken file (like `backend/package-lock.json`), commit, and push it, but the GitHub Actions pipeline completely ignores it and doesn't run, leaving your PR in a permanently failed state.
+- **Cause**: The `.github/workflows/*.yml` file has an overly restrictive `paths:` filter (e.g., `- 'backend/lambdas/**'`) which tells GitHub to only trigger if files deep inside the lambdas folder are changed. Since the `package-lock.json` was in the parent folder, it was ignored.
+- **Fix**: Broadened the pipeline trigger path to `- 'backend/**'` so any code, dependency, or configuration change inside the entire backend ecosystem reliably triggers a validation pipeline.
+
+### 39. **`npm ci` Pipeline Crash (`npm error EUSAGE`)**
+
+- **Symptom**: The backend validation pipeline fails instantly during the `Install Lambda dependencies` step. The logs show a wall of `npm error` help text and `Process completed with exit code 1`.
+- **Cause**: `npm ci` (Clean Install) strictly requires that your `package.json` and `package-lock.json` are perfectly synchronized. If dependencies drift, `npm ci` purposefully crashes to prevent deploying non-deterministic dependencies.
+- **Fix**: Executed `npm install` locally inside every folder containing a `package.json` to force the generation of perfectly synchronized lockfiles. Pushed the new `package-lock.json` files to unblock the pipeline.
+
 ### 38. **Aiven Free Tier Database Auto-Pause (Inactivity Shutdown)**
 
 - **Symptom**: The CricScore backend suddenly stops working after a few days of inactivity. Logs show database connection timeouts.
