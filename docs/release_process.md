@@ -41,7 +41,14 @@ Once the PR is approved and checks pass, you merge the branch into `main`. The e
 
 ### Step 4: Mathematical Version Calculation
 
-The `semantic-release` bot analyzes every commit message merged since the last release tag. It mathematically calculates the next semantic version based strictly on the prefixes (`fix`, `feat`, etc.) found in the commit history.
+The `semantic-release` bot analyzes every commit message merged since the last release tag. It mathematically calculates the next semantic version based strictly on the prefixes (`fix`, `feat`, etc.) found in the commit history:
+
+- **`feat:`** ➔ Triggers a **MINOR** release (e.g., `v3.0.0` ➔ `v3.1.0`)
+- **`fix:`** or **`perf:`** ➔ Triggers a **PATCH** release (e.g., `v3.0.0` ➔ `v3.0.1`)
+- **`BREAKING CHANGE:`** (in footer) ➔ Triggers a **MAJOR** release (e.g., `v3.0.0` ➔ `v4.0.0`)
+
+> [!NOTE]
+> If a Pull Request ONLY contains commits starting with **`docs:`**, **`build:`**, **`chore:`**, **`refactor:`**, **`test:`**, or **`ci:`**, Semantic Release will **intentionally skip** creating a new release tag. This prevents spamming users with empty version bumps for purely internal maintenance.
 
 ### Step 5: Tagging & Changelog Generation
 
