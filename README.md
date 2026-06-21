@@ -184,6 +184,7 @@ CricScore implements a robust, enterprise-grade CI/CD and security auditing life
 ### 1. 🛡️ Security & Identity
 
 - **[Security Posture](./docs/security_posture.md)**: Defense in depth strategy, multi-tenant isolation, and encryption layers.
+- **[Branch Protection & Governance](./docs/branch_protection.md)**: Required status checks, CI/CD pipeline blockers, and administrator enforcement.
 
 ### 2. 🔭 Observability & Monitoring
 
