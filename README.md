@@ -110,8 +110,8 @@ cd ..
 gitleaks detect --source . -v    # Detects accidental AWS keys or passwords
 ```
 
-### 4. Manual Dependency Scanning (Optional)
-**⚠️ Warning:** Trivy is not configured as an automatic pre-commit hook because downloading its massive vulnerability database locally on every commit severely degrades developer speed. It is strictly executed in the cloud pipelines. 
+**⚠️ Optional Manual Dependency Scanning (Trivy)**
+Trivy is not configured as an automatic pre-commit hook because downloading its massive vulnerability database locally on every commit severely degrades developer speed. It is strictly executed in the cloud pipelines. 
 
 If you are specifically debugging a dependency issue, you can scan locally:
 ```bash
