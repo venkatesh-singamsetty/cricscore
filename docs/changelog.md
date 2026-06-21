@@ -16,6 +16,8 @@ This document tracks the complete evolutionary history of the CricScore platform
 * **DAST Pipeline Hardening**: Resolved critical GitHub Actions compatibility issues with OWASP ZAP (Node 20 deprecation, v4 artifact API crash, Docker permission denial, and Issue Creation scope).
 * **CloudFront Security Headers**: Injected `X-Content-Type-Options`, `Permissions-Policy`, and extended Content-Security-Policy (CSP) via Terraform to natively patch HTTP security warnings from the DAST scan.
 * **Server Fingerprint Protection**: Explicitly stripped the AWS `Server` header at the CDN edge to prevent architecture leakage.
+* **Action Plugin Modernization**: Upgraded `actions/checkout` directly to `v7` across all workflows to natively support Node 24 runtimes and eliminate legacy deprecation warnings.
+* **DAST False Positive Suppression**: Configured a dedicated `.zap/rules.tsv` ignore list and injected `NODE_OPTIONS: "--no-deprecation"` to permanently silence daily automated issues regarding intentionally relaxed React security postures and native punycode warnings.
 
 ## 🚀 v2.7.0: Dynamic Badging & CodeQL Completion [2026-06-20]
 
