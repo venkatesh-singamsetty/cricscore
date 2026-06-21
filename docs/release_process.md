@@ -23,8 +23,6 @@ While working on your local branches, every commit message must follow the Conve
 | `refactor:`                    | A code change that neither fixes a bug nor adds a feature. | ❌ **No** (Skips Release)               | `refactor: extract scoring logic`  |
 | `test:`                        | Adding missing tests or correcting existing tests.         | ❌ **No** (Skips Release)               | `test: add match-api unit tests`   |
 
-_Note: If you add `BREAKING CHANGE:` to the footer of any commit, it will trigger a **MAJOR** version bump (e.g., `v1.0.0` ➔ `v2.0.0`)._
-
 ---
 
 ## 2. The Release Lifecycle
@@ -45,14 +43,10 @@ Once the PR is approved and checks pass, you merge the branch into `main`. The e
 
 ### Step 4: Mathematical Version Calculation
 
-The `semantic-release` bot analyzes every commit message merged since the last release tag. It mathematically calculates the next semantic version based strictly on the prefixes (`fix`, `feat`, etc.) found in the commit history:
-
-- **`feat:`** ➔ Triggers a **MINOR** release (e.g., `v3.0.0` ➔ `v3.1.0`)
-- **`fix:`** or **`perf:`** ➔ Triggers a **PATCH** release (e.g., `v3.0.0` ➔ `v3.0.1`)
-- **`BREAKING CHANGE:`** (in footer) ➔ Triggers a **MAJOR** release (e.g., `v3.0.0` ➔ `v4.0.0`)
+The `semantic-release` bot analyzes every commit message merged since the last release tag. It mathematically calculates the next semantic version based strictly on the prefix mapping defined in **Section 1 (The Conventional Commit Standard)**.
 
 > [!NOTE]
-> If a Pull Request ONLY contains commits starting with **`docs:`**, **`build:`**, **`chore:`**, **`refactor:`**, **`test:`**, or **`ci:`**, Semantic Release will **intentionally skip** creating a new release tag. This prevents spamming users with empty version bumps for purely internal maintenance.
+> If your Pull Request ONLY contains commits mapped to **❌ No (Skips Release)** (such as `docs:`, `build:`, or `chore:`), Semantic Release will intentionally skip creating a new release tag to prevent empty version bumps.
 
 ### Step 5: Tagging & Changelog Generation
 
