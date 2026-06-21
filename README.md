@@ -147,8 +147,8 @@ CricScore implements a robust, enterprise-grade CI/CD and security auditing life
 * **Concurrency Optimization**: Cancel-in-progress concurrency groups automatically prune older, redundant pipeline runs, saving run minutes.
 * **GitLeaks (Secrets Detection)**: Proactively scans the entire commit history to block accidentally pushed API keys, tokens, and passwords from merging.
 * **CodeQL (SAST scanning)**: Runs native GitHub CodeQL static analysis to check the JavaScript/TypeScript code for coding logic bugs and vulnerabilities.
-* **Trivy (Dependency & filesystem scanning)**: Scans package locks and directories for `HIGH` and `CRITICAL` severity vulnerability alerts during frontend validation and backend lambda packing steps.
-* **Checkov (Infrastructure-as-Code auditing)**: Performs static security audits on the Terraform configuration directory to catch AWS misconfigurations before provisioning.
+* **Trivy (Dependency & filesystem scanning)**: Scans package locks and directories for `HIGH` and `CRITICAL` severity vulnerability alerts, explicitly blocking the deployment if unfixed vulnerable dependencies are found.
+* **Checkov (Infrastructure-as-Code auditing)**: Performs strict static security audits on the Terraform configuration directory, explicitly blocking AWS provisioning if any undocumented infrastructure misconfigurations are detected.
 * **OWASP ZAP (DAST scanning)**: Automated black-box dynamic application security testing executed against the live application endpoints.
 * **Syft (SBOM generation)**: Automatically generates a Software Bill of Materials (SBOM) using the standard SPDX JSON format to provide deep visibility into open-source supply chain dependencies.
 * **Dependabot (Automated updates)**: Performs daily updates for npm packages and Terraform providers, raising automated pull requests for security updates.
