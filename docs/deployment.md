@@ -37,18 +37,7 @@ This single command automatically executes the entire local testing pyramid:
 2. **Backend**: Runs the Lambda unit tests.
 3. **Infrastructure**: Formats and validates Terraform logic.
 4. **End-to-End**: Executes Playwright browser tests against the live environment.
-5. **Security**: Runs Checkov (IaC scanning), GitLeaks (secrets), and Syft (SBOM generation).
-
-**⚠️ Optional Manual Dependency Scanning (Trivy)**
-Trivy is not configured as an automatic pre-commit hook because downloading its massive vulnerability database locally on every commit severely degrades developer speed. It is strictly executed in the cloud pipelines.
-
-If you are specifically debugging a dependency issue, you can scan locally:
-
-```bash
-# Requires: brew install trivy
-trivy fs ./apps/frontend --scanners vuln --severity HIGH,CRITICAL
-trivy fs ./apps/backend/lambdas --scanners vuln --severity HIGH,CRITICAL
-```
+5. **Security**: Runs Checkov (IaC scanning), GitLeaks (secrets), Trivy (CVE vulnerabilities), and Syft (SBOM generation).
 
 ---
 

@@ -77,6 +77,14 @@ else
   echo "⚠️ gitleaks not installed, skipping. Run ./infra/scripts/setup.sh"
 fi
 
+if command -v trivy &> /dev/null; then
+  echo "👉 Running Trivy Vulnerability Scan..."
+  trivy fs ./apps/frontend --scanners vuln --severity HIGH,CRITICAL --quiet
+  trivy fs ./apps/backend/lambdas --scanners vuln --severity HIGH,CRITICAL --quiet
+else
+  echo "⚠️ trivy not installed, skipping. Run ./infra/scripts/setup.sh"
+fi
+
 if command -v syft &> /dev/null; then
   echo "👉 Generating Syft SBOM..."
   syft dir:. -o spdx-json > cricscore-sbom.json
