@@ -10,7 +10,7 @@ resource "aws_lambda_function" "match_api" {
   function_name    = "${var.project_name}-match-api"
   role             = aws_iam_role.lambda_role.arn
   handler          = "index.handler"
-  runtime          = "nodejs18.x"
+  runtime          = "nodejs24.x"
   source_code_hash = data.archive_file.match_api_zip.output_base64sha256
 
   tracing_config {
@@ -44,7 +44,7 @@ resource "aws_lambda_function" "score_update" {
   function_name    = "${var.project_name}-score-upd"
   role             = aws_iam_role.lambda_role.arn
   handler          = "index.handler"
-  runtime          = "nodejs18.x"
+  runtime          = "nodejs24.x"
   memory_size      = 256
   source_code_hash = data.archive_file.score_update_zip.output_base64sha256
   timeout          = 30
@@ -76,7 +76,7 @@ resource "aws_lambda_function" "onconnect" {
   function_name    = "${var.project_name}-onconnect"
   role             = aws_iam_role.lambda_role.arn
   handler          = "index.handler"
-  runtime          = "nodejs18.x"
+  runtime          = "nodejs24.x"
   source_code_hash = data.archive_file.onconnect_zip.output_base64sha256
 
   tracing_config {
@@ -102,7 +102,7 @@ resource "aws_lambda_function" "ondisconnect" {
   function_name    = "${var.project_name}-ondisconnect"
   role             = aws_iam_role.lambda_role.arn
   handler          = "index.handler"
-  runtime          = "nodejs18.x"
+  runtime          = "nodejs24.x"
   source_code_hash = data.archive_file.ondisconnect_zip.output_base64sha256
 
   tracing_config {
@@ -128,7 +128,7 @@ resource "aws_lambda_function" "broadcaster" {
   function_name    = "${var.project_name}-broadcaster"
   role             = aws_iam_role.lambda_role.arn
   handler          = "index.handler"
-  runtime          = "nodejs18.x"
+  runtime          = "nodejs24.x"
   source_code_hash = data.archive_file.broadcaster_zip.output_base64sha256
 
   tracing_config {
@@ -155,7 +155,7 @@ resource "aws_lambda_function" "storage_worker" {
   function_name    = "${var.project_name}-storage-worker"
   role             = aws_iam_role.lambda_role.arn
   handler          = "index.handler"
-  runtime          = "nodejs18.x"
+  runtime          = "nodejs24.x"
   memory_size      = 256
   timeout          = 30
   source_code_hash = data.archive_file.storage_worker_zip.output_base64sha256

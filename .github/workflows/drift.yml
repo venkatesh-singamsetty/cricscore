@@ -4,6 +4,9 @@ on:
   schedule:
     - cron: "0 0 * * *" # Runs every midnight
 
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
+
 jobs:
   drift-check:
     runs-on: ubuntu-latest
