@@ -1,5 +1,8 @@
 # 🏏 CricScore: Real-Time Cricket Match Engine
 
+🚀 **Live Production:** **https://cricscore.venkateshsingamsetty.site**
+👉 **Deployment Details:** **[Full Deployment Guide](./docs/deployment.md)**
+
 ## 🎯 Project Vision
 
 CricScore demonstrates how a production-style real-time sports platform
@@ -68,46 +71,6 @@ graph TD
     Fan((Fan)) -.->|Request| REST_GET
     Fan -.->|Handshake| WS_GW
     Scorer((Scorer)) -.->|Post| REST_POST
-```
-
-------------+-------------+
-| |
-v v
-Lambda Live Updates
-|
-v
-SNS Topic
-|
-v
-SQS Queue
-|
-v
-Lambda Processor
-|
-v
-Aiven PostgreSQL Database
-
-CI/CD Pipeline
-
-Developer
-|
-v
-GitHub
-|
-v
-GitHub Actions
-|
-+---- Tests
-|
-+---- Security Scans
-|
-+---- Terraform Validation
-|
-+---- Deployment
-|
-v
-AWS Production Environment
-
 ```
 
 ---
@@ -226,101 +189,6 @@ Implemented:
 
 ---
 
-# 🤖 AI Assisted Development
-
-AI tools were used as productivity accelerators for:
-
-- Code suggestions
-- Documentation generation
-- Test creation assistance
-- Troubleshooting
-- Architecture brainstorming
-
-Engineering decisions were reviewed manually including:
-
-- Cloud architecture
-- Security controls
-- Infrastructure design
-- Deployment strategy
-- Reliability patterns
-
----
-
-# 🧠 Key Engineering Decisions
-
-## Event Driven Architecture
-
-Decision: Use AWS SNS and SQS for asynchronous processing.
-
-Reason: - Cricket traffic is burst based - Match popularity creates
-unpredictable spikes - Viewer traffic should not directly impact scoring
-operations
-
-Benefits: - Loose coupling - Scalability - Fault isolation - Retry
-capability
-
-Trade-off: Additional messaging components increase complexity.
-
-Future: Kafka / Amazon MSK for large-scale streaming workloads.
-
----
-
-## Serverless Compute
-
-Decision: Use AWS Lambda instead of always-running containers.
-
-Benefits: - Pay-per-use execution - Automatic scaling - Reduced
-operational overhead
-
-Trade-off: - Cold starts - Execution limits
-
-Future: Move heavy workloads to ECS/EKS.
-
----
-
-## PostgreSQL Database
-
-Decision: Use managed PostgreSQL through Aiven.
-
-Reason: Cricket data is relational:
-
-- Matches
-- Teams
-- Players
-- Innings
-- Overs
-- Deliveries
-- Scorecards
-
-Benefits: - Strong consistency - Transactions - Reporting capability
-
----
-
-## Infrastructure as Code
-
-Decision: Manage cloud infrastructure using Terraform.
-
-Benefits: - Repeatable deployments - Version controlled infrastructure -
-Reduced manual errors - Environment consistency
-
----
-
-# 📈 Resume Highlights
-
-- Architected a real-time cricket scoring platform using AWS
-  serverless and event-driven architecture.
-- Designed CI/CD automation with security gates, infrastructure
-  validation, and automated deployments.
-- Implemented DevSecOps practices using Terraform, Checkov, GitLeaks,
-  Trivy, and OWASP ZAP.
-- Built scalable asynchronous processing using SNS/SQS messaging
-  patterns.
-- Applied enterprise cloud engineering practices to a production-style
-  application.
-
-
----
-
 ## 📖 Technical Documentation
 
 ### 1. 🛡️ Security & Identity
@@ -355,4 +223,26 @@ Reduced manual errors - Environment consistency
 - **[Automated Releases](./docs/release_process.md)**: Semantic release and Conventional Commit specifications.
 - **[Full Project Log](./docs/changelog.md)**: Release records and development timeline.
 - **[Troubleshooting](./docs/troubleshooting.md)**: Setup fixes and identity verification help.
+
+```
+
+---
+
+# 🤖 AI Assisted Development
+
+AI tools were used as productivity accelerators for:
+
+- Code suggestions
+- Documentation generation
+- Test creation assistance
+- Troubleshooting
+- Architecture brainstorming
+
+Engineering decisions were reviewed manually including:
+
+- Cloud architecture
+- Security controls
+- Infrastructure design
+- Deployment strategy
+- Reliability patterns
 ```
