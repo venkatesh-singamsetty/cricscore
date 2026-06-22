@@ -163,19 +163,32 @@ If these variables are not set, the workflow will emit a warning during the `Val
 
 ---
 
-## 🛡️ Hardened CI/CD & Security Stack
+## 🏢 Enterprise-Grade Architecture
 
-CricScore implements a robust, enterprise-grade CI/CD and security auditing lifecycle powered by GitHub Actions:
+CricScore implements a robust, Fortune 500-grade architectural posture across four key pillars:
 
-- **Branch Isolation & Safety**: Deployment workflows to AWS only trigger automatically on pushes/merges to the `main` branch, ensuring development branches never overwrite the live production environment.
-- **Concurrency Optimization**: Cancel-in-progress concurrency groups automatically prune older, redundant pipeline runs, saving run minutes.
-- **GitLeaks (Secrets Detection)**: Proactively scans the entire commit history to block accidentally pushed API keys, tokens, and passwords from merging.
-- **CodeQL (SAST scanning)**: Runs native GitHub CodeQL static analysis to check the JavaScript/TypeScript code for coding logic bugs and vulnerabilities.
-- **Trivy (Dependency & filesystem scanning)**: Scans package locks and directories for `HIGH` and `CRITICAL` severity vulnerability alerts, explicitly blocking the deployment if unfixed vulnerable dependencies are found.
-- **Checkov (Infrastructure-as-Code auditing)**: Performs strict static security audits on the Terraform configuration directory, explicitly blocking AWS provisioning if any undocumented infrastructure misconfigurations are detected.
-- **OWASP ZAP (DAST scanning)**: Automated black-box dynamic application security testing executed against the live application endpoints.
-- **Syft (SBOM generation)**: Automatically generates a Software Bill of Materials (SBOM) using the standard SPDX JSON format to provide deep visibility into open-source supply chain dependencies.
-- **Dependabot (Automated updates)**: Performs daily updates for npm packages and Terraform providers, raising automated pull requests for security updates.
+### 1. 🛡️ DevSecOps & Security
+
+- **SAST & IaC Auditing**: Enforced **Checkov** static security scans for Terraform configurations, uploading SARIF reports directly to GitHub Security.
+- **Secrets & Identity**: **GitLeaks** mathematically guarantees no AWS keys or database passwords are ever committed.
+- **DAST (Dynamic Scanning)**: Automated **OWASP ZAP** pipelines actively attack the live API to detect runtime vulnerabilities (e.g., XSS, SQLi).
+- **Supply Chain Security**: Automated **SBOM** (Software Bill of Materials) generation and **Dependabot** tracking ensure Node.js and GitHub Action dependencies are monitored for CVEs, while **Trivy** scans container filesystems.
+
+### 2. 🧪 Quality Assurance (Testing Pyramid)
+
+- **Unit & Integration**: Unified **Vitest** architecture across the stack, utilizing `aws-sdk-client-mock` for isolated backend lambda testing, and **React Testing Library** for frontend component validation.
+- **End-to-End (E2E)**: Automated **Playwright** flows spin up headless Chromium browsers to visually navigate the live application, ensuring critical user journeys never regress.
+
+### 3. 📈 Observability & Resilience
+
+- **Proactive Alarms**: AWS CloudWatch actively monitors API latencies and Lambda failure rates, triggering **SNS Topics** that instantly email administrators upon detection of anomalies.
+- **Event-Driven Durability**: Live scoreboard broadcasts are decoupled from heavy database writes using **AWS SQS**. Dead Letter Queues (DLQs) guarantee zero data loss during high traffic spikes or Aiven database downtime.
+- **Drift Detection**: Automated GitHub Actions run daily checks to ensure the live AWS environment has not drifted from the declared Terraform state, enforcing strict Infrastructure-as-Code compliance.
+
+### 4. ⚙️ CI/CD & Release Management
+
+- **Automated Deployments**: Infrastructure and application deployments to AWS only trigger on automated merges to the `main` branch.
+- **Semantic Release**: The repository analyzes commit messages to automatically calculate semantic versions (e.g., `v3.1.2`), publish GitHub Releases, and generate changelogs entirely hands-free.
 
 ---
 
