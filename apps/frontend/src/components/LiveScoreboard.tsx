@@ -196,7 +196,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
               className={`w-2 h-2 rounded-full ${isConnected ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`}
             ></div>
             <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 italic">
-              {isConnected ? "LIVE BROACASTING" : "CONNECTING..."}
+              {isConnected ? "LIVE BROADCASTING" : "CONNECTING..."}
             </span>
           </div>
         </div>
