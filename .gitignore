@@ -31,8 +31,8 @@ crash.*.log
 # Ignore variables file containing secrets (terraform.tfvars MUST be ignored for security)
 terraform.tfvars
 *.auto.tfvars
-terraform/*.zip
-backend/**/node_modules/
+infra/terraform/*.zip
+apps/backend/**/node_modules/
 
 # Ignore terraform plan files
 *.tfplan
@@ -112,6 +112,6 @@ coverage/
 setup-secrets.sh
 
 # Playwright Test Reports
-e2e/playwright-report/
-e2e/test-results/
-e2e/playwright/.cache/
+apps/e2e/playwright-report/
+apps/e2e/test-results/
+apps/e2e/playwright/.cache/

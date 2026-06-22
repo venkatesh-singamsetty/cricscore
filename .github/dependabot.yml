@@ -1,7 +1,7 @@
 version: 2
 updates:
   - package-ecosystem: "npm"
-    directory: "/frontend"
+    directory: "/apps/frontend"
     schedule:
       interval: "weekly"
     groups:
@@ -10,7 +10,7 @@ updates:
           - "*"
 
   - package-ecosystem: "npm"
-    directory: "/backend"
+    directory: "/apps/backend"
     schedule:
       interval: "weekly"
     groups:
@@ -19,22 +19,22 @@ updates:
           - "*"
 
   - package-ecosystem: "npm"
-    directory: "/backend/lambdas/match-api"
+    directory: "/apps/backend/lambdas/match-api"
     schedule:
       interval: "weekly"
 
   - package-ecosystem: "npm"
-    directory: "/backend/lambdas/score-update"
+    directory: "/apps/backend/lambdas/score-update"
     schedule:
       interval: "weekly"
 
   - package-ecosystem: "npm"
-    directory: "/backend/lambdas/storage-worker"
+    directory: "/apps/backend/lambdas/storage-worker"
     schedule:
       interval: "weekly"
 
   - package-ecosystem: "npm"
-    directory: "/e2e"
+    directory: "/apps/e2e"
     schedule:
       interval: "weekly"
     groups:
@@ -43,7 +43,7 @@ updates:
           - "*"
 
   - package-ecosystem: "terraform"
-    directory: "/terraform"
+    directory: "/infra/terraform"
     schedule:
       interval: "weekly"
 

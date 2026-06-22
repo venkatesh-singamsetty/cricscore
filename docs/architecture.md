@@ -110,9 +110,9 @@ CricScore implements a high-performance **Event-Driven Architecture (EDA)** usin
 
 ### **5. Infrastructure Automation & CI/CD**
 
-- **Automated Bootstrapping**: `scripts/setup.sh` provides intelligent OS-aware dependency installation (`node`, `terraform`, `jq`, `aws-cli`) across Mac and Linux.
-- **Dynamic Variable Hydration**: `deploy.sh` bridges standard uppercase environment variables (`DOMAIN_NAME`) into strict Terraform formats (`TF_VAR_domain_name`), keeping `.env.local` clean.
-- **Non-Destructive Configuration**: Local deployment cleanly _appends_ live API Gateway and WebSocket URLs into `frontend/.env` without wiping out manual configuration like `VITE_ADMIN_PIN`.
+- **Automated Bootstrapping**: `infra/scripts/setup.sh` provides intelligent OS-aware dependency installation (`node`, `terraform`, `jq`, `aws-cli`) across Mac and Linux.
+- **Dynamic Variable Hydration**: `infra/scripts/deploy.sh` bridges standard uppercase environment variables (`DOMAIN_NAME`) into strict Terraform formats (`TF_VAR_domain_name`), keeping `.env.local` clean.
+- **Non-Destructive Configuration**: Local deployment cleanly _appends_ live API Gateway and WebSocket URLs into `apps/frontend/.env` without wiping out manual configuration like `VITE_ADMIN_PIN`.
 - **Pipeline Dynamics**: The `.github/workflows/backend-infra.yml` utilizes GitHub Repository Variables (`${{ vars.DOMAIN_NAME }}`) rather than hardcoded URLs, ensuring perfectly portable CI/CD workflows across environments.
 
 ---

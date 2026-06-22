@@ -41,7 +41,7 @@ This engineering trace documents the real-world resolutions for the CricScore ba
 ### 40. **GitHub Actions Trigger Path Ignored**
 
 - **Symptom**: You fix a broken file (like `backend/package-lock.json`), commit, and push it, but the GitHub Actions pipeline completely ignores it and doesn't run, leaving your PR in a permanently failed state.
-- **Cause**: The `.github/workflows/*.yml` file has an overly restrictive `paths:` filter (e.g., `- 'backend/lambdas/**'`) which tells GitHub to only trigger if files deep inside the lambdas folder are changed. Since the `package-lock.json` was in the parent folder, it was ignored.
+- **Cause**: The `.github/workflows/*.yml` file has an overly restrictive `paths:` filter (e.g., `- 'apps/backend/lambdas/**'`) which tells GitHub to only trigger if files deep inside the lambdas folder are changed. Since the `package-lock.json` was in the parent folder, it was ignored.
 - **Fix**: Broadened the pipeline trigger path to `- 'backend/**'` so any code, dependency, or configuration change inside the entire backend ecosystem reliably triggers a validation pipeline.
 
 ### 39. **`npm ci` Pipeline Crash (`npm error EUSAGE`)**
@@ -88,9 +88,9 @@ This engineering trace documents the real-world resolutions for the CricScore ba
 
 ### 32. **Local Deployment Failures (Missing Dependencies)**
 
-- **Symptom**: New developers failed to run `./deploy.sh` locally because fundamental CLI utilities were missing.
+- **Symptom**: New developers failed to run `./infra/scripts/deploy.sh` locally because fundamental CLI utilities were missing.
 - **Cause**: Lack of an automated bootstrap procedure across Mac and Linux systems.
-- **Fix**: Completely rebuilt `scripts/setup.sh` into an intelligent, OS-aware installer that automatically detects missing tools (`node@24`, `terraform`, `aws-cli`, `jq`) and provisions them natively via `brew` or `apt`.
+- **Fix**: Completely rebuilt `infra/scripts/setup.sh` into an intelligent, OS-aware installer that automatically detects missing tools (`node@24`, `terraform`, `aws-cli`, `jq`) and provisions them natively via `brew` or `apt`.
 
 ### 31. **CI/CD Hardcoded Infrastructure Drift**
 
@@ -100,15 +100,15 @@ This engineering trace documents the real-world resolutions for the CricScore ba
 
 ### 30. **Frontend `.env` Overwrite Data Loss**
 
-- **Symptom**: Running local deployment scripts wiped out manual environment variables (like `VITE_ADMIN_PIN`) from `frontend/.env`.
-- **Cause**: `deploy.sh` and `sync-env.sh` were destructively regenerating the file from scratch instead of updating it.
-- **Fix**: Deleted legacy scripts. Refactored `deploy.sh` to safely _append_ live AWS API Gateway endpoints to the `frontend/.env` file non-destructively, permanently preserving manual configuration.
+- **Symptom**: Running local deployment scripts wiped out manual environment variables (like `VITE_ADMIN_PIN`) from `apps/frontend/.env`.
+- **Cause**: `infra/scripts/deploy.sh` and `sync-env.sh` were destructively regenerating the file from scratch instead of updating it.
+- **Fix**: Deleted legacy scripts. Refactored `infra/scripts/deploy.sh` to safely _append_ live AWS API Gateway endpoints to the `apps/frontend/.env` file non-destructively, permanently preserving manual configuration.
 
 ### 29. **Terraform Variable Hydration Failure (`TF_VAR_`)**
 
 - **Symptom**: Terraform `apply` failed to pick up variables from the local environment or GitHub Actions, throwing "Missing required variable" errors.
 - **Cause**: Standard environment variable names in `.env.local` were all uppercase (`DOMAIN_NAME`), which broke Terraform's strict lowercase prefix requirement (`TF_VAR_domain_name`).
-- **Fix**: Re-engineered `deploy.sh` to automatically convert and export standard ALL CAPS variables into the required Terraform format (`export TF_VAR_domain_name=$DOMAIN_NAME`) prior to execution, protecting the developer experience and keeping `.env.local` clean.
+- **Fix**: Re-engineered `infra/scripts/deploy.sh` to automatically convert and export standard ALL CAPS variables into the required Terraform format (`export TF_VAR_domain_name=$DOMAIN_NAME`) prior to execution, protecting the developer experience and keeping `.env.local` clean.
 
 ### 28. **Rapid-Fire Score Date Loss / Desync (Phase 7)**
 
@@ -196,7 +196,7 @@ This engineering trace documents the real-world resolutions for the CricScore ba
 
 - **Symptom**: "Cloud Connection Failed" alert in the UI; Lambda logs showed `Error: Cannot find module 'pg'`.
 - **Cause**: Updating the Lambda code via Terraform `zip` lacked the `node_modules` directory required for database connectivity.
-- **Fix**: Added dynamic traversal to `deploy.sh`. The pipeline now automatically runs `npm install --production` inside every Lambda directory prior to packaging the root modules.
+- **Fix**: Added dynamic traversal to `infra/scripts/deploy.sh`. The pipeline now automatically runs `npm install --production` inside every Lambda directory prior to packaging the root modules.
 
 ### 14. **Intrusive Browser Prompts**
 

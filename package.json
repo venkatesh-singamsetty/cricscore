@@ -5,13 +5,16 @@
   "engines": {
     "node": ">=24"
   },
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
-    "dev": "npm run dev --prefix frontend",
-    "build": "npm run build --prefix frontend",
-    "preview": "npm run preview --prefix frontend",
-    "lint": "npm run lint --prefix frontend",
-    "test": "npm run test --prefix frontend",
-    "test:all": "npm run test --prefix frontend && npm test --prefix backend",
+    "dev": "npm run dev --prefix apps/frontend",
+    "build": "npm run build --prefix apps/frontend",
+    "preview": "npm run preview --prefix apps/frontend",
+    "lint": "npm run lint --prefix apps/frontend",
+    "test": "npm run test --prefix apps/frontend",
+    "test:all": "npm run test --prefix apps/frontend && npm test --prefix apps/backend",
     "prepare": "husky"
   },
   "devDependencies": {
