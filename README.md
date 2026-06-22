@@ -146,46 +146,44 @@ graph TD
 
 ---
 
-# 🏢 Enterprise-Inspired Engineering Practices
+# 🏢 Enterprise-Grade Standards
 
-## DevOps & CI/CD
+CricScore is engineered to demonstrate production-readiness across 6 core pillars of enterprise architecture.
 
-Implemented:
+### 1. 🛡️ DevSecOps & Security
 
-- Git-based development workflow
-- Automated CI/CD pipelines
-- Automated build and deployment processes
-- Infrastructure provisioning using Terraform
-- Environment-based deployment strategy
-- Deployment automation and release workflows
+**Zero-Trust Identity & Automated Scanning**
+We enforce a strict security posture using AWS IAM least-privilege policies, API Gateway WAF protections, and multi-tenant data isolation. The CI/CD pipeline acts as an automated gatekeeper, blocking PRs that fail **GitLeaks** (secrets detection), **Trivy** (dependency CVE scanning), **Checkov** (IaC static analysis), **CodeQL** (SAST), or **OWASP ZAP** (DAST). We automatically generate Software Bill of Materials (**SBOM**) for supply-chain auditing.
+👉 **[Read the Security Posture Document](./docs/security_posture.md)**
 
-## DevSecOps
+### 2. 🔭 Observability & Logging
 
-Implemented:
+**Total System Visibility**
+All Lambda executions stream structured JSON logs to CloudWatch. We employ **AWS X-Ray** for distributed tracing across API Gateway, SNS, SQS, and Lambda, allowing us to pinpoint latency bottlenecks. Critical failure metrics trigger automated SNS alerts.
+👉 **[Read the Observability Strategy](./docs/observability.md)**
 
-- Terraform security scanning
-- Secret detection
-- Dependency scanning
-- DAST testing
-- SBOM generation
+### 3. ✅ Rigorous Testing
 
-## Reliability Engineering
+**Multi-Layer Test Pyramid**
+Code is validated at every tier. **Unit tests** evaluate isolated Lambda functions. **Integration tests** mount React components with simulated user interactions. **API tests** validate the REST HTTP contract. **Smoke tests** perform live production availability checks. Finally, Playwright executes **End-to-End (E2E)** User Journey tests against the staging environment.
+👉 **[Read the Testing Strategy](./docs/testing.md)**
 
-Implemented:
+### 4. ♾️ High Availability & Reliability
 
-- SNS/SQS event decoupling
-- Dead Letter Queue handling
-- CloudWatch monitoring
-- Automated alerts
+**Fault-Tolerant Event-Driven Design**
+The architecture decouples the frontend from backend persistence using SNS fan-out and SQS queuing. If the Aiven PostgreSQL database experiences downtime or throttling, SQS retains the messages and retries automatically via dead-letter queues (DLQs), ensuring zero data loss during high-concurrency match events.
 
-## Software Engineering
+### 5. 🏗️ Infrastructure as Code (IaC)
 
-Implemented:
+**Immutable & Reproducible Environments**
+100% of the AWS infrastructure—from CloudFront distributions to DynamoDB tables—is codified in **Terraform**. Changes are planned, validated for security drift by Checkov, and applied automatically via GitHub Actions, eliminating manual click-ops errors.
+👉 **[Read the Deployment Architecture](./docs/deployment.md)**
 
-- Unit testing
-- End-to-end testing
-- Semantic releases
-- Automated deployments
+### 6. 🚀 CI/CD Automation
+
+**Aggressive Pipeline Governance**
+Merge requests to `main` require 8 passing status checks before they can be merged. The deployment pipeline automatically builds the Vite frontend, synchronizes S3 buckets, invalidates CloudFront caches, packages Lambdas with production-only dependencies, and executes semantic version releases entirely hands-free.
+👉 **[Read the Branch Protection Guide](./docs/branch_protection.md)**
 
 ---
 

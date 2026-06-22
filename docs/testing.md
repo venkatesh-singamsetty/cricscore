@@ -124,6 +124,16 @@ Because E2E tests require specific browser binaries, you must run them directly 
 
 ---
 
+## 6. Availability & Reliability Testing
+
+At an enterprise scale, it is crucial to validate that the system survives severe infrastructure degradation and high-concurrency traffic without data loss.
+
+- **Chaos Testing & Fault Injection**: We periodically perform manual fault injection (e.g., forcing the `storage-worker` Lambda to fail or simulating Aiven database throttling) to verify that AWS SQS automatically captures the failed events into a Dead Letter Queue (DLQ).
+- **Dead-Letter Queue (DLQ) Recovery**: We test the DLQ redrive mechanisms to guarantee that dropped events (like boundary updates or wickets) can be seamlessly re-processed once the downstream database recovers.
+- **Multi-AZ Resilience**: AWS API Gateway, Lambda, and DynamoDB automatically distribute across 3 Availability Zones. We test failovers by monitoring CloudWatch latency when regional loads spike.
+
+---
+
 ## Continuous Integration (CI)
 
 Our GitHub Actions pipelines automatically enforce this entire testing pyramid on all Pull Requests and merges to the `main` branch.

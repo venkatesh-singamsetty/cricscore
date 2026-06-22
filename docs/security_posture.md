@@ -1,8 +1,32 @@
-# 🛡️ Application Security & Posture Tradeoffs
+# 🛡️ Enterprise Security Posture & Tradeoffs
 
-This document explicitly records the intentional architectural compromises and accepted security risks made in the CricScore platform.
+This document explicitly records the intentional architectural compromises and accepted security risks made in the CricScore platform, balanced against our enterprise security foundations.
 
 As a guiding principle, the CricScore architecture prioritizes **Zero-Cost Operation ($0/month)** and **Application Functionality (React/SPA viability)**. When enterprise-grade security tools conflict with these two pillars, they are intentionally omitted or relaxed.
+
+---
+
+## 🏗️ Enterprise Security Foundations
+
+While we make specific cost-saving tradeoffs at the edge, the core architecture enforces strict enterprise-grade security constraints:
+
+### 1. Identity & Access Management (IAM) Least-Privilege
+
+All AWS Lambda functions are strictly bound by Terraform-provisioned IAM roles. A Lambda function can only execute the exact DynamoDB or SQS actions it requires. We explicitly forbid wildcard (`*`) IAM permissions, isolating blast radiuses in the event of code vulnerabilities.
+
+### 2. Branch Protection & GitHub Governance
+
+The `main` branch is entirely locked down. Administrators cannot force-push, and no developer can merge code without passing **8 strict status checks**, ensuring the CI/CD pipeline acts as an un-bypassable gatekeeper.
+
+### 3. Automated DevSecOps CI/CD Scanners
+
+Our GitHub Actions pipelines automatically enforce 5 layers of security scanning on every Pull Request:
+
+- **GitLeaks**: Deep historical scanning blocks hardcoded API keys and AWS tokens.
+- **Trivy**: Scans NPM and OS dependencies for known CVEs.
+- **Checkov**: Statically analyzes Terraform logic to prevent IaC misconfigurations (e.g., public S3 buckets).
+- **CodeQL**: Deep SAST analysis to detect logical vulnerabilities in our TypeScript code.
+- **Syft**: Automatically generates a Software Bill of Materials (SBOM) on every release for supply-chain transparency.
 
 ---
 

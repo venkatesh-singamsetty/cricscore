@@ -16,6 +16,7 @@ AWS requires you to click through multiple different screens to see API Gateway 
   - Error Rates for all Lambda functions.
   - SQS Storage Buffer queue depths (Messages Available vs. Delayed).
 - **Automation**: This dashboard is automatically generated and kept up-to-date by the `infra/terraform/dashboard.tf` IaC file.
+- **Structured JSON Logging**: All Lambda functions are configured to output strictly structured JSON logs. This enables CloudWatch Log Insights to perform complex SQL-like queries against production errors across all microservices instantly.
 
 ## 2. ⚡ AWS X-Ray Distributed Tracing
 
