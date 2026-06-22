@@ -281,7 +281,7 @@ exports.handler = async (event) => {
     // GET /health — DB connectivity check
     if (httpMethod === "GET" && path === "/health") {
       try {
-        const result = await client.query("SELECT 1 AS ok");
+        await client.query("SELECT 1 AS ok");
         return {
           statusCode: 200,
           headers: {
