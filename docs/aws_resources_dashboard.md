@@ -58,7 +58,7 @@ CricScore utilizes a strict DevSecOps pipeline. To view the results of the autom
 
 ### GitHub Native Dashboards
 
-- [**CodeQL SAST Alerts**](https://github.com/venkatesh-singamsetty/cricscore/security/code-scanning): View static application security testing results (e.g., detected SQL injection, XSS).
+- [**CodeQL & Checkov Alerts**](https://github.com/venkatesh-singamsetty/cricscore/security/code-scanning): View static application security testing results (e.g., detected SQL injection, XSS) and Terraform misconfigurations (Checkov issues).
 - [**Dependabot SCA Alerts**](https://github.com/venkatesh-singamsetty/cricscore/security/dependabot): View known vulnerabilities in third-party NPM dependencies.
 
 ### CI/CD Pipeline Scanners (View in GitHub Actions Logs)
@@ -67,6 +67,12 @@ The following tools block Pull Requests automatically. You can view their output
 
 - **GitLeaks**: Detects hardcoded secrets or AWS keys before code is pushed.
 - **Trivy**: Scans infrastructure and dependencies for CRITICAL/HIGH vulnerabilities.
-- **Checkov**: Analyzes Terraform (`.tf`) files for missing encryption, open security groups, and misconfigurations against industry standards.
+- **Checkov**: Analyzes Terraform (`.tf`) files. (Note: The pipeline output is logged here, but the actual security issues are automatically uploaded to the **GitHub Native Dashboards -> Code Scanning** tab for easier tracking and remediation).
 - **Syft (SBOM)**: Generates a Software Bill of Materials (available as a downloadable artifact `spdx-json` on the CI pipeline summary page).
 - **OWASP ZAP (DAST)**: Runs an active baseline scan against the deployed API Gateway URLs during E2E testing to detect live misconfigurations like missing HTTP headers.
+
+---
+
+## 📋 Project Management & Issue Tracking
+
+- [**Open GitHub Issues**](https://github.com/venkatesh-singamsetty/cricscore/issues?q=is%3Aissue+is%3Aopen): View the active queue of pending bugs, requested features, and ongoing tasks. Tracking open issues helps developers understand current system limitations, prioritize upcoming architecture changes, and manage active security remediation efforts.
