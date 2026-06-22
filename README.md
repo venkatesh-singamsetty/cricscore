@@ -165,6 +165,7 @@ All Lambda executions stream structured JSON logs to CloudWatch. We employ AWS X
 
 - 📖 **[Observability Suite](./docs/observability.md)**: CloudWatch Dashboards, X-Ray Tracing, Sentry Crash Reporting, and Uptime monitors.
 - 📖 **[Cost & Performance](./docs/cost_management.md)**: Free-tier monitoring strategy and architecture scale limits.
+- 📖 **[AWS Resources Dashboard](./docs/aws_resources_dashboard.md)**: Automatically generated, real-time index of every single deployed AWS resource with deep-links to the console.
 
 ### 3. ✅ Rigorous Testing
 
@@ -220,7 +221,3 @@ Engineering decisions were reviewed manually including:
 - Infrastructure design
 - Deployment strategy
 - Reliability patterns
-
-```
-
-```
