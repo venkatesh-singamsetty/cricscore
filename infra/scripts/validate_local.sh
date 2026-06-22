@@ -25,7 +25,17 @@ echo "-----------------------------------"
 
 echo ""
 echo "-----------------------------------"
-echo "🛠️ 2. Infrastructure Validation..."
+echo "🛠️ 2. Backend Validation..."
+echo "-----------------------------------"
+(
+  cd apps/backend
+  echo "👉 Running Backend Unit Tests..."
+  npm test
+)
+
+echo ""
+echo "-----------------------------------"
+echo "🛠️ 3. Infrastructure Validation..."
 echo "-----------------------------------"
 echo "👉 Checking Terraform Formatting..."
 ./infra/scripts/terraform.sh fmt -check -recursive
@@ -35,7 +45,22 @@ echo "👉 Validating Terraform Logic..."
 
 echo ""
 echo "-----------------------------------"
-echo "🔒 3. Security & Dependency Scans..."
+echo "🌐 4. End-to-End Testing (Playwright)..."
+echo "-----------------------------------"
+(
+  cd apps/e2e
+  if [ ! -d "node_modules" ]; then
+    echo "👉 Installing E2E dependencies..."
+    npm install
+    npx playwright install chromium
+  fi
+  echo "👉 Running Playwright Tests against live environment..."
+  npx playwright test
+)
+
+echo ""
+echo "-----------------------------------"
+echo "🔒 5. Security & Dependency Scans..."
 echo "-----------------------------------"
 
 if command -v checkov &> /dev/null; then
