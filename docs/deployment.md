@@ -189,12 +189,16 @@ All deployments are fully automated via GitHub Actions. The core automation conf
 
 ### Branch Protection (main)
 
-The `main` branch is protected. All PRs must pass all 4 CI status checks before merging:
+The `main` branch is protected. All PRs must pass all 8 CI status checks before merging:
 
 - `GitLeaks Scan` (Secrets Detection)
 - `Analyze Code (javascript-typescript)` (CodeQL Analysis)
 - `Lint & Test` (Frontend CI/CD)
 - `Backend & Terraform Validation` (Backend & Infrastructure CI/CD)
+- `playwright-tests` (End-to-End Browser Testing)
+- `Syft SBOM Generation` (Supply Chain Auditing)
+- `ZAP Baseline Scan` (Dynamic Application Security Testing)
+- `Terraform Drift Detection` (Infrastructure State Validation)
 
 ### Required Secrets & Variables
 
