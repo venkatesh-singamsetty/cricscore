@@ -15,21 +15,7 @@ To run or deploy CricScore locally, you need Node.js, Terraform, AWS CLI, Checko
 ./infra/scripts/setup.sh
 ```
 
-### 2. Configuration & Deployment
-
-Create a `.env.local` file at the root of the project to manage your local infrastructure deployment. _(These variables map exactly to the GitHub Actions requirements listed in the next section)._
-
-- `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `AWS_DEFAULT_REGION`
-- `TF_DATABASE_URL`, `TF_SES_SOURCE_EMAIL`, `ADMIN_EMAIL`
-- `DOMAIN_NAME`, `ZONE_DOMAIN`, `SUBDOMAIN_PREFIX`, `PROJECT_NAME`
-
-To run the full stack locally, use the deployment script (this will automatically provision AWS and generate your required `apps/frontend/.env` URLs):
-
-```bash
-./infra/scripts/deploy.sh --use-local-env
-```
-
-### 3. Frontend Local Development
+### 2. Frontend Local Development
 
 We provide a convenient root-level `package.json` that acts as a proxy to the `frontend/` directory so you don't have to change folders. Here is the local development lifecycle:
 
@@ -37,7 +23,7 @@ We provide a convenient root-level `package.json` that acts as a proxy to the `f
 - **`npm run build`**: The Factory. Translates TypeScript, aggressively minifies CSS/JS, and squishes the app into a highly optimized `apps/frontend/dist/` folder for AWS production.
 - **`npm run preview`**: The Rehearsal. Boots a local server pointing directly at the optimized `dist/` folder. Use this specifically to test exact production load speeds or debug minification issues before opening a PR.
 
-### 4. Pre-Commit Validation
+### 3. Pre-Commit Validation
 
 To prevent failing the strict GitHub Actions pipelines, validate your code locally before pushing:
 
@@ -68,8 +54,6 @@ If you are specifically debugging a dependency issue, you can scan locally:
 trivy fs ./apps/frontend --scanners vuln --severity HIGH,CRITICAL
 trivy fs ./apps/backend/lambdas --scanners vuln --severity HIGH,CRITICAL
 ```
-
----
 
 ---
 
