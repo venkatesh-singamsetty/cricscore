@@ -4,33 +4,72 @@ This guide covers the 3-phase journey from **Local Development** to **Profession
 
 ---
 
-## 🏗️ Phase 0: Local Lifecycle Preview
+## ⚡ Local Environment & Testing
 
-Test the **Fan-Out** frontend engine locally against the production cloud backend.
+### 1. Prerequisite Installation
 
-### **Prerequisites**
-
-- **Node.js**: Version **24.x or higher**.
-- **npm**: Included with Node.js.
-- **Git**: To clone the repository.
-- **Terraform**: 1.5+
-- **AWS CLI**: 2.0+
-
-💡 **Pro-Tip**: You can automatically install all required tools on macOS or Ubuntu by simply running:
+To run or deploy CricScore locally, you need Node.js, Terraform, AWS CLI, Checkov, and GitLeaks.
+💡 **Pro-Tip:** You can automatically install all required tools on macOS or Linux by simply running:
 
 ```bash
 ./infra/scripts/setup.sh
 ```
 
-1.  **Clone & Install**:
-    ```bash
-    git clone https://github.com/venkatesh-singamsetty/cricscore.git
-    cd cricscore && npm install --prefix apps/frontend
-    ```
-2.  **Initialize Environment**:
-    ```bash
-    npm run dev --prefix apps/frontend
-    ```
+### 2. Configuration & Deployment
+
+Create a `.env.local` file at the root of the project to manage your local infrastructure deployment. _(These variables map exactly to the GitHub Actions requirements listed in the next section)._
+
+- `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `AWS_DEFAULT_REGION`
+- `TF_DATABASE_URL`, `TF_SES_SOURCE_EMAIL`, `ADMIN_EMAIL`
+- `DOMAIN_NAME`, `ZONE_DOMAIN`, `SUBDOMAIN_PREFIX`, `PROJECT_NAME`
+
+To run the full stack locally, use the deployment script (this will automatically provision AWS and generate your required `apps/frontend/.env` URLs):
+
+```bash
+./infra/scripts/deploy.sh --use-local-env
+```
+
+### 3. Frontend Local Development
+
+We provide a convenient root-level `package.json` that acts as a proxy to the `frontend/` directory so you don't have to change folders. Here is the local development lifecycle:
+
+- **`npm run dev`**: The Sandbox. Use this 99% of the time. Starts a hyper-fast local server with Hot Module Replacement (HMR). Changes instantly appear when you save.
+- **`npm run build`**: The Factory. Translates TypeScript, aggressively minifies CSS/JS, and squishes the app into a highly optimized `apps/frontend/dist/` folder for AWS production.
+- **`npm run preview`**: The Rehearsal. Boots a local server pointing directly at the optimized `dist/` folder. Use this specifically to test exact production load speeds or debug minification issues before opening a PR.
+
+### 4. Pre-Commit Validation
+
+To prevent failing the strict GitHub Actions pipelines, validate your code locally before pushing:
+
+```bash
+# Frontend Validation
+cd apps/frontend
+npm run lint    # Catches unused variables and TS errors
+npm run test    # Executes component unit tests
+npm run build   # Validates the production bundle compiles
+cd ..
+
+# Infrastructure Validation
+./infra/scripts/terraform.sh fmt -check -recursive  # Validates HCL formatting
+./infra/scripts/terraform.sh validate               # Validates infrastructure logic
+checkov -d infra/terraform/                         # (Optional) Run local IaC security scans
+
+# Secrets Detection
+gitleaks detect --source . -v    # Detects accidental AWS keys or passwords
+```
+
+**⚠️ Optional Manual Dependency Scanning (Trivy)**
+Trivy is not configured as an automatic pre-commit hook because downloading its massive vulnerability database locally on every commit severely degrades developer speed. It is strictly executed in the cloud pipelines.
+
+If you are specifically debugging a dependency issue, you can scan locally:
+
+```bash
+# Requires: brew install trivy
+trivy fs ./apps/frontend --scanners vuln --severity HIGH,CRITICAL
+trivy fs ./apps/backend/lambdas --scanners vuln --severity HIGH,CRITICAL
+```
+
+---
 
 ---
 
