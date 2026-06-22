@@ -127,7 +127,27 @@ S3_BUCKET=your-s3-bucket-name
 CLOUDFRONT_DISTRIBUTION_ID=YOURCLOUDFRONT
 ```
 
-### 3. Synchronize Bootstrap Metadata
+### 3. Local Frontend Configuration (`apps/frontend/.env`)
+
+The frontend React application requires a separate `.env` file to configure the scorer dashboard access and crash reporting.
+
+Create a file at `apps/frontend/.env` (use `apps/frontend/.env.example` as a template):
+
+```bash
+# The secret PIN required for the scorer/admin dashboard
+VITE_ADMIN_PIN=123456
+
+# The default email address to pre-fill in the scorer login
+VITE_DEFAULT_EMAIL=admin@example.com
+
+# (Optional) Sentry Crash Reporting Data Source Name
+VITE_SENTRY_DSN=
+```
+
+> [!NOTE]
+> You do **not** need to manually define `VITE_API_URL` or `VITE_WS_URL`. The local deployment script will automatically extract these from Terraform and inject them into this file.
+
+### 4. Synchronize Bootstrap Metadata
 
 Follow this character-perfect handshake to activate the remote backend:
 
