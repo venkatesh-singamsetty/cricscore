@@ -9,40 +9,58 @@ This project uses a comprehensive testing strategy combining **Vitest** for back
 When you are actively making code changes, use these commands to instantly test your work:
 
 ### 1. The "Run Everything" Command
+
 If you want to run all the fast unit tests across the entire project at once (this runs automatically before a `git push`), stay in the root of your project and run:
+
 ```bash
 npm run test:all
 ```
 
 ### 2. Testing While You Code (Watch Mode)
+
 If you are actively making changes to files and want the tests to re-run automatically every time you hit "save":
 
 **For Frontend changes:**
+
 ```bash
 cd frontend
 npm run test
 ```
-*(Press `q` to quit watch mode when you're done).*
+
+_(Press `q` to quit watch mode when you're done)._
 
 **For Backend changes:**
+
 ```bash
 cd backend
 npm run test:watch
 ```
 
 ### 3. Testing the Live App in a Real Browser
+
 If you want to verify that the entire app works properly in a real browser instance:
+
 ```bash
 cd e2e
 npx playwright test --ui
 ```
-*This opens a time-travel UI where you can literally see Playwright clicking through your application step-by-step!*
+
+_This opens a time-travel UI where you can literally see Playwright clicking through your application step-by-step!_
 
 ---
 
 ## 1. Backend Unit Tests (Vitest)
 
 The backend uses `vitest` to run extremely fast unit tests for AWS Lambda functions. We use class prototype stubbing and spies via `vi.spyOn()` to mock AWS SDK calls and database interactions, ensuring tests do not hit real infrastructure.
+
+### API Test Coverage
+
+Our automated backend tests explicitly cover the `match-api` routing to guarantee that API Gateway endpoints respond properly before any infrastructure is deployed. These API test cases verify:
+
+- **`GET /health`**: Validates proper handling of active database connections vs connection timeouts/failures.
+- **`GET /matches`**: Verifies retrieval of historical database records.
+- **`POST /match` & `DELETE /match/{id}`**: Simulates transactional writes and cascading database deletions.
+- **`PATCH /match/{id}`**: Validates correct handling of match metadata updates and subsequent triggers.
 
 ### Running Backend Tests
 
@@ -72,6 +90,7 @@ The backend uses `vitest` to run extremely fast unit tests for AWS Lambda functi
 ## 2. End-to-End Tests (Playwright)
 
 The `e2e/` folder contains Playwright scripts that test the entire system as a real user would. This includes:
+
 - **Smoke Tests**: Verifies that the frontend loads, rendering key UI elements and modals.
 - **API Integration Tests**: Verifies that the backend API responds correctly to valid requests and handles CORS preflight correctly.
 
