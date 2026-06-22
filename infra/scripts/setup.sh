@@ -30,6 +30,7 @@ install_tool() {
             checkov) brew install checkov ;;
             gitleaks) brew install gitleaks ;;
             trivy) brew install trivy ;;
+            syft) brew install syft ;;
         esac
     elif [ "$MACHINE" == "Linux" ]; then
         echo "Please enter your sudo password to install $tool via apt-get:"
@@ -61,6 +62,9 @@ install_tool() {
                 ;;
             trivy)
                 curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
+                ;;
+            syft)
+                curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sudo sh -s -- -b /usr/local/bin
                 ;;
         esac
     else
@@ -94,6 +98,7 @@ check_cmd aws
 check_cmd checkov
 check_cmd gitleaks
 check_cmd trivy
+check_cmd syft
 
 echo ""
 echo "🚀 All tools are installed! You are ready to deploy."

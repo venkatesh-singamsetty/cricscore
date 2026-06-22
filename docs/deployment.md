@@ -8,7 +8,7 @@ This guide covers the 3-phase journey from **Local Development** to **Profession
 
 ### 1. Prerequisite Installation
 
-To run or deploy CricScore locally, you need Node.js, Terraform, AWS CLI, Checkov, and GitLeaks.
+To run or deploy CricScore locally, you need Node.js, Terraform, AWS CLI, Checkov, GitLeaks, and Syft.
 💡 **Pro-Tip:** You can automatically install all required tools on macOS or Linux by simply running:
 
 ```bash
@@ -42,6 +42,9 @@ checkov -d infra/terraform/                         # (Optional) Run local IaC s
 
 # Secrets Detection
 gitleaks detect --source . -v    # Detects accidental AWS keys or passwords
+
+# Supply Chain Auditing (SBOM)
+syft dir:. -o spdx-json > cricscore-sbom.json    # Generates a Software Bill of Materials
 ```
 
 **⚠️ Optional Manual Dependency Scanning (Trivy)**
