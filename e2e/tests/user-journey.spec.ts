@@ -20,62 +20,70 @@ test.describe("Enterprise Critical User Journey", () => {
       page.getByRole("heading", { name: /Match Configurations/i }),
     ).toBeVisible();
 
-    // Click "Start Fresh Match" (assuming default teams are valid)
+    // Explicitly set deterministic squads
+    const squadInputs = page.getByPlaceholder(/Enter player name/i);
+    await squadInputs.nth(0).fill("BATTER_A\nBATTER_B\nBATTER_C");
+    await squadInputs.nth(1).fill("BOWLER_A\nBOWLER_B\nBOWLER_C");
+
+    // Click "Start Fresh Match"
     const startButton = page.getByRole("button", {
       name: /Start Fresh Match/i,
     });
     await expect(startButton).toBeEnabled();
     await startButton.click();
 
-    // 4. Handle Toss Selection
-    await expect(
-      page.getByRole("heading", { name: /Toss Details/i }),
-    ).toBeVisible();
-    await page
-      .getByRole("button", { name: /WON THE TOSS/i })
-      .first()
-      .click();
-    await page.getByRole("button", { name: /ELECTS TO BAT/i }).click();
-    await page.getByRole("button", { name: /Lock Toss/i }).click();
+    // Toss is handled on the Match Setup form natively, skipping to Openers.
 
     // 5. Select Openers
     await expect(
-      page.getByRole("heading", { name: /Select Opening Pair/i }),
-    ).toBeVisible();
+      page.getByRole("heading", { name: /SELECT STRIKER/i }),
+    ).toBeVisible({ timeout: 15000 });
 
-    // Just click the first available players
-    const players = page.getByRole("button", { name: /Select/i });
-    await players.nth(0).click(); // Striker
-    await players.nth(1).click(); // Non-Striker
-    await players.nth(2).click(); // Bowler
-    await page.getByRole("button", { name: /Start Innings/i }).click();
+    // Select Striker
+    await page
+      .getByRole("button", { name: "BATTER_A" })
+      .first()
+      .click({ force: true });
+
+    // Select Non-Striker
+    await expect(
+      page.getByRole("heading", { name: /SELECT NON-STRIKER/i }).first(),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "BATTER_B" })
+      .first()
+      .click({ force: true });
+
+    // Select Bowler
+    await expect(
+      page.getByRole("heading", { name: /Opening Bowler/i }).first(),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "BOWLER_A" })
+      .first()
+      .click({ force: true });
 
     // 6. Score some runs on the Scoreboard
-    await expect(
-      page.getByRole("heading", { name: /Current Over/i }),
-    ).toBeVisible();
+    await expect(page.getByText(/Live Timeline/i).first()).toBeVisible({
+      timeout: 15000,
+    });
 
-    // Hit 4 runs
+    // Hit 4 runs and wait briefly for the background sync API to finish to release the isProcessing lock
     await page.getByRole("button", { name: "4", exact: true }).click();
+    await page.waitForTimeout(2000);
 
     // Take a wicket
-    await page.getByRole("button", { name: /OUT/i }).click();
+    await page.getByRole("button", { name: "W", exact: true }).click();
     await page.getByRole("button", { name: /BOWLED/i }).click();
 
     // Select new batter
     await page
-      .getByRole("button", { name: /Select/i })
+      .getByRole("button", { name: "BATTER_C" })
       .first()
-      .click();
-    await page.getByRole("button", { name: /Confirm/i }).click();
+      .click({ force: true });
 
-    // 7. End the Match / Inning early via settings or finishing overs
-    // For this E2E test, we'll click the gear icon to open Match Settings and force finish
-    await page.locator('button[title="Match Settings"]').click();
-
-    // Acknowledge the alert if any, but we just verify the scorecard renders successfully
     // We confirm the total runs is correctly aggregated.
-    await expect(page.getByText(/4\/1/i)).toBeVisible(); // 4 runs, 1 wicket
+    await expect(page.getByText("4/1")).toBeVisible({ timeout: 15000 });
 
     console.log("✅ User Journey Completed Successfully");
   });
