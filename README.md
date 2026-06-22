@@ -146,83 +146,60 @@ graph TD
 
 ---
 
-# 🏢 Enterprise-Grade Standards
+# 🏢 Enterprise-Grade Standards & Technical Documentation
 
-CricScore is engineered to demonstrate production-readiness across 6 core pillars of enterprise architecture.
+CricScore is engineered to demonstrate production-readiness across 6 core pillars of enterprise architecture. All technical decisions, tradeoffs, and deep-dives are documented in their respective guides below.
 
 ### 1. 🛡️ DevSecOps & Security
 
 **Zero-Trust Identity & Automated Scanning**
-We enforce a strict security posture using AWS IAM least-privilege policies, API Gateway WAF protections, and multi-tenant data isolation. The CI/CD pipeline acts as an automated gatekeeper, blocking PRs that fail **GitLeaks** (secrets detection), **Trivy** (dependency CVE scanning), **Checkov** (IaC static analysis), **CodeQL** (SAST), or **OWASP ZAP** (DAST). We automatically generate Software Bill of Materials (**SBOM**) for supply-chain auditing.
-👉 **[Read the Security Posture Document](./docs/security_posture.md)**
+We enforce a strict security posture using AWS IAM least-privilege policies, API Gateway WAF protections, and multi-tenant data isolation. The CI/CD pipeline acts as an automated gatekeeper, blocking PRs that fail GitLeaks, Trivy, Checkov, CodeQL, or OWASP ZAP.
+
+- 📖 **[Security Posture & Tradeoffs](./docs/security_posture.md)**: Defense in depth strategy, multi-tenant isolation, and encryption layers.
+- 📖 **[Branch Protection & Governance](./docs/branch_protection.md)**: Required status checks, CI/CD pipeline blockers, and administrator enforcement.
 
 ### 2. 🔭 Observability & Logging
 
 **Total System Visibility**
-All Lambda executions stream structured JSON logs to CloudWatch. We employ **AWS X-Ray** for distributed tracing across API Gateway, SNS, SQS, and Lambda, allowing us to pinpoint latency bottlenecks. Critical failure metrics trigger automated SNS alerts.
-👉 **[Read the Observability Strategy](./docs/observability.md)**
+All Lambda executions stream structured JSON logs to CloudWatch. We employ AWS X-Ray for distributed tracing across API Gateway, SNS, SQS, and Lambda, allowing us to pinpoint latency bottlenecks. Critical failure metrics trigger automated SNS alerts.
+
+- 📖 **[Observability Suite](./docs/observability.md)**: CloudWatch Dashboards, X-Ray Tracing, Sentry Crash Reporting, and Uptime monitors.
+- 📖 **[Cost & Performance](./docs/cost_management.md)**: Free-tier monitoring strategy and architecture scale limits.
 
 ### 3. ✅ Rigorous Testing
 
 **Multi-Layer Test Pyramid**
-Code is validated at every tier. **Unit tests** evaluate isolated Lambda functions. **Integration tests** mount React components with simulated user interactions. **API tests** validate the REST HTTP contract. **Smoke tests** perform live production availability checks. Finally, Playwright executes **End-to-End (E2E)** User Journey tests against the staging environment.
-👉 **[Read the Testing Strategy](./docs/testing.md)**
+Code is validated at every tier: Unit tests evaluate isolated Lambda functions, API tests validate REST contracts, and Playwright executes E2E User Journey tests against the staging environment.
+
+- 📖 **[Testing Guide](./docs/testing.md)**: Vitest and Playwright test commands, Availability Testing (Chaos/DR), and E2E structures.
+- 📖 **[Toolchain & Security Stack](./docs/tools.md)**: Master list of all CI/CD, IaC, and AppSec tools used in the pipeline.
 
 ### 4. ♾️ High Availability & Reliability
 
 **Fault-Tolerant Event-Driven Design**
-The architecture decouples the frontend from backend persistence using SNS fan-out and SQS queuing. If the Aiven PostgreSQL database experiences downtime or throttling, SQS retains the messages and retries automatically via dead-letter queues (DLQs), ensuring zero data loss during high-concurrency match events.
+The architecture decouples the frontend from backend persistence using SNS fan-out and SQS queuing. If the database experiences downtime, SQS retains messages and retries automatically via dead-letter queues (DLQs).
+
+- 📖 **[Detailed Architecture](./docs/architecture.md)**: System design, sequence flows, and EDA logic.
+- 📖 **[API Guide](./docs/api.md)**: REST & WebSocket contract specifications.
+- 📖 **[Aiven Managed Services](./docs/aiven.md)**: PostgreSQL database configuration and keep-alive strategy.
+- 📖 **[Node.js Guide](./docs/nodejs_guide.md)**: ESM vs CommonJS standardizations.
 
 ### 5. 🏗️ Infrastructure as Code (IaC)
 
 **Immutable & Reproducible Environments**
-100% of the AWS infrastructure—from CloudFront distributions to DynamoDB tables—is codified in **Terraform**. Changes are planned, validated for security drift by Checkov, and applied automatically via GitHub Actions, eliminating manual click-ops errors.
-👉 **[Read the Deployment Architecture](./docs/deployment.md)**
+100% of the AWS infrastructure is codified in Terraform. Changes are planned, validated for security drift by Checkov, and applied automatically via GitHub Actions, eliminating manual click-ops errors.
+
+- 📖 **[Full Deployment & Infrastructure](./docs/deployment.md)**: Local preview, bootstrap foundations, and AWS/Aiven Setup.
+- 📖 **[Troubleshooting](./docs/troubleshooting.md)**: Setup fixes and identity verification help.
 
 ### 6. 🚀 CI/CD Automation
 
 **Aggressive Pipeline Governance**
-Merge requests to `main` require 8 passing status checks before they can be merged. The deployment pipeline automatically builds the Vite frontend, synchronizes S3 buckets, invalidates CloudFront caches, packages Lambdas with production-only dependencies, and executes semantic version releases entirely hands-free.
-👉 **[Read the Branch Protection Guide](./docs/branch_protection.md)**
+Merge requests to `main` require 8 passing status checks. The deployment pipeline automatically builds the Vite frontend, synchronizes S3 buckets, invalidates CloudFront caches, packages Lambdas, and executes semantic version releases entirely hands-free.
 
----
-
-## 📖 Technical Documentation
-
-### 1. 🛡️ Security & Identity
-
-- **[Security Posture](./docs/security_posture.md)**: Defense in depth strategy, multi-tenant isolation, and encryption layers.
-- **[Branch Protection & Governance](./docs/branch_protection.md)**: Required status checks, CI/CD pipeline blockers, and administrator enforcement.
-
-### 2. 🔭 Observability & Monitoring
-
-- **[Observability Suite](./docs/observability.md)**: CloudWatch Dashboards, X-Ray Tracing, Sentry Crash Reporting, and Uptime monitors.
-
-### 3. 🏗️ Architecture & Engineering
-
-- **[Detailed Architecture](./docs/architecture.md)**: System design, sequence flows, and EDA logic.
-- **[API Guide](./docs/api.md)**: REST & WebSocket contract specifications.
-- **[Aiven Managed Services](./docs/aiven.md)**: PostgreSQL database configuration and keep-alive strategy.
-- **[Node.js Guide](./docs/nodejs_guide.md)**: ESM vs CommonJS standardizations.
-
-### 4. 💰 Cost Optimization
-
-- **[Cost & Performance](./docs/cost_management.md)**: Free-tier monitoring strategy and architecture scale limits.
-
-### 5. ✅ Quality & Validation
-
-- **[Testing Guide](./docs/testing.md)**: Vitest and Playwright test commands and E2E structures.
-- **[Toolchain & Security Stack](./docs/tools.md)**: Master list of all CI/CD, IaC, and AppSec tools used in the pipeline.
-
-### 6. ⚙️ Operations & DevOps
-
-- **[GitHub Actions Architecture](./docs/github_actions.md)**: CI/CD Directory structure constraints and pipeline organization.
-- **[Full Deployment & Infrastructure](./docs/deployment.md)**: Local preview, bootstrap foundations, and AWS/Aiven Setup.
-- **[Automated Releases](./docs/release_process.md)**: Semantic release and Conventional Commit specifications.
-- **[Full Project Log](./docs/changelog.md)**: Release records and development timeline.
-- **[Troubleshooting](./docs/troubleshooting.md)**: Setup fixes and identity verification help.
-
-```
+- 📖 **[GitHub Actions Architecture](./docs/github_actions.md)**: CI/CD Directory structure constraints and pipeline organization.
+- 📖 **[Automated Releases](./docs/release_process.md)**: Semantic release and Conventional Commit specifications.
+- 📖 **[Full Project Log](./docs/changelog.md)**: Release records and development timeline.
 
 ---
 
@@ -243,4 +220,7 @@ Engineering decisions were reviewed manually including:
 - Infrastructure design
 - Deployment strategy
 - Reliability patterns
+
+```
+
 ```
