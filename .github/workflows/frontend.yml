@@ -105,7 +105,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: apps/frontend
-        run: npm install --legacy-peer-deps --no-audit --no-fund
+        run: npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
 
       - name: Type-check & Lint
         working-directory: apps/frontend
