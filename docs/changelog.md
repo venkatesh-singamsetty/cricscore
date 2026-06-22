@@ -2,6 +2,56 @@
 
 This document tracks the complete evolutionary history of the CricScore platform.
 
+## 🚀 v3.1.2: Enterprise Test Coverage & E2E Fortification [2026-06-21]
+
+### ✨ Features & Fixes
+
+- **Playwright E2E Resilience**: Dramatically fortified the end-to-end testing pipeline to properly handle optimistic UI locks. Replaced flawed UI synchronization checks with robust `waitForResponse` network interceptors to guarantee the `/api/live/ball` backend synchronization completes and the frontend lock is released before proceeding with wickets.
+- **Deterministic Match State**: Purged hallucinated Playwright steps that were trying to interact with non-existent modals (Toss, Match Settings). The test suite now explicitly and deterministically selects `BATTER_A`, `BATTER_B`, and `BOWLER_A` to ensure test stability regardless of deployment defaults.
+- **Comprehensive API Tests**: Integrated comprehensive Vitest backend API testing for the `match-api` module.
+
+---
+
+## 🚀 v3.1.1: Security & Dependency Patch [2026-06-21]
+
+### 🐛 Bug Fixes
+
+- **CodeQL SAST Optimizations**: Stopped tracking generated Playwright test reports in git to prevent CodeQL static analysis scanners from flagging false-positive XSS vulnerabilities in generated HTML artifacts.
+- **Supply Chain Management**: Appended the root `package.json` into the `dependabot.yml` configuration to ensure automated pull requests for root workspace dependencies.
+
+---
+
+## ⚡ v3.1.0: Infrastructure Upgrades & Security Dashboards [2026-06-21]
+
+### ✨ Features & Upgrades
+
+- **Node.js 24 LTS Migration**: Completely upgraded the AWS Lambda runtimes (`match-api`, `broadcaster`, `score-update`, `storage-worker`) from Node.js 20 to Node.js 24 LTS for enhanced performance and security.
+- **Workflow Runtimes**: Bumped all remaining GitHub Action workflow runners to explicitly enforce Node.js 24.
+- **Checkov SARIF Integration**: Integrated Checkov's infrastructure-as-code security scans with GitHub Security, automatically uploading `results.sarif` to the Code Scanning dashboard for unified vulnerability tracking.
+
+---
+
+## 🛠️ v3.0.2: Dashboard Hotfix [2026-06-21]
+
+### 🐛 Bug Fixes
+
+- **Regex Extraction**: Corrected the Lambda extraction regex within the automated AWS Resources Dashboard generator script to accurately identify and list deployed AWS Lambda endpoints.
+
+---
+
+## 📊 v3.0.1: AWS Dashboard & State Integrity [2026-06-21]
+
+### ✨ Features
+
+- **Automated AWS Dashboard**: Created an automated documentation script that parses the `terraform state` to generate a live `aws_dashboard.md` documenting all active S3 buckets, API Gateways, Lambda ARNs, and CloudFront distributions.
+- **Semantic Release Clarity**: Updated semantic release documentation to clarify version triggers.
+
+### 🐛 Bug Fixes
+
+- **State Integrity**: Fixed a critical Terraform drift issue where the `ADMIN_EMAIL` repository variable was being silently dropped during CI deployments. Enforced `TF_VAR_ADMIN_EMAIL` passing within the `.github/workflows/backend-infra.yml` pipeline.
+
+---
+
 ## 🚀 v3.0.0: The Automation & Security Release [2026-06-21]
 
 This release represents a massive leap forward in the platform's infrastructure, automating the entire CI/CD lifecycle, drastically hardening our security posture, and upgrading our core web frameworks.

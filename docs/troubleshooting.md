@@ -2,6 +2,42 @@
 
 This engineering trace documents the real-world resolutions for the CricScore backend integration.
 
+### 46. **CodeQL Flagging Playwright HTML Reports (XSS)**
+
+- **Symptom**: CodeQL static analysis failed the CI/CD pipeline, citing Cross-Site Scripting (XSS) vulnerabilities inside the `playwright-report/index.html` file.
+- **Cause**: Playwright generates a local HTML report of test results which got accidentally tracked by Git. CodeQL aggressively scans all HTML files in the repo and flags the generated UI templates.
+- **Fix**: Added `playwright-report/` and `test-results/` to the `.gitignore` and removed the tracked files from the repository to prevent SAST scanners from parsing generated test artifacts.
+
+### 45. **Checkov SARIF Upload Permission Denied**
+
+- **Symptom**: The `upload-sarif` step in the Checkov GitHub Action failed with `Resource not accessible by integration`.
+- **Cause**: The GitHub Action was missing the `security-events: write` permission required to publish vulnerabilities to the GitHub Code Scanning dashboard.
+- **Fix**: Injected `permissions: security-events: write` explicitly into the `backend-infra.yml` job.
+
+### 44. **Playwright Polluting Production Database**
+
+- **Symptom**: Dozens of duplicate "CHICAGO SPARTANS vs SHARK BLUE" matches appeared on the live `cricscore.venkateshsingamsetty.site` viewer dashboard with broken scores (like `4/1` after 0.2 overs).
+- **Cause**: The Playwright configuration defaults to testing against the live production URL. Running `npx playwright test` locally was creating authentic database entries without cleaning them up upon failure or timeout.
+- **Fix**: Connected directly to the Aiven PostgreSQL production database via `psql` and executed a targeted cleanup: `DELETE FROM matches WHERE team_a_name = 'CHICAGO SPARTANS' AND team_b_name = 'SHARK BLUE';`.
+
+### 43. **Optimistic UI Lock Race Condition in E2E Tests**
+
+- **Symptom**: Playwright E2E tests intermittently dropped actions (e.g., failed to register a Wicket) and timed out waiting for the next step.
+- **Cause**: The React frontend uses an optimistic `isProcessingRef` lock during the `/api/live/ball` fetch. Playwright clicked buttons faster than the network could respond, causing subsequent clicks to hit the `return` guard inside the locked function.
+- **Fix**: Added an explicit `waitForTimeout(2000)` to forcefully synchronize Playwright with the backend latency and UI unlock sequence.
+
+### 42. **E2E Playwright Tests Hallucinating UI Elements**
+
+- **Symptom**: End-to-End tests failed with `locator.click: Target closed` when trying to click `"Match Settings"`, `"Toss Details"`, or `"Confirm"` buttons.
+- **Cause**: The test scripts were hallucinating or using legacy UI flows that did not exist in the current application state.
+- **Fix**: Rewrote `user-journey.spec.ts` to strictly follow the true DOM structure, relying on deterministic inputs (`BATTER_A`, `BATTER_B`) and exact `.first()` and `{ force: true }` click targets to bypass React fading animations.
+
+### 41. **React 19 `act(...)` Unmounting Warnings**
+
+- **Symptom**: Vitest logs flooded with `An update to MatchSetup inside a test was not wrapped in act(...)`.
+- **Cause**: React 19 strictly enforces state update wrapping. Asynchronous state changes (like timeouts or promises) resolving after a test completed were triggering state mutations on unmounted components.
+- **Fix**: Ensured all asynchronous test interactions are strictly wrapped inside `await act(async () => { ... })`.
+
 ### 40. **GitHub Actions Trigger Path Ignored**
 
 - **Symptom**: You fix a broken file (like `backend/package-lock.json`), commit, and push it, but the GitHub Actions pipeline completely ignores it and doesn't run, leaving your PR in a permanently failed state.
