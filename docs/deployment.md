@@ -25,27 +25,17 @@ We provide a convenient root-level `package.json` that acts as a proxy to the `f
 
 ### 3. Pre-Commit Validation
 
-To prevent failing the strict GitHub Actions pipelines, validate your code locally before pushing:
+To prevent failing the strict GitHub Actions pipelines, run the bundled validation script locally before pushing:
 
 ```bash
-# Frontend Validation
-cd apps/frontend
-npm run lint    # Catches unused variables and TS errors
-npm run test    # Executes component unit tests
-npm run build   # Validates the production bundle compiles
-cd ..
-
-# Infrastructure Validation
-./infra/scripts/terraform.sh fmt -check -recursive  # Validates HCL formatting
-./infra/scripts/terraform.sh validate               # Validates infrastructure logic
-checkov -d infra/terraform/                         # (Optional) Run local IaC security scans
-
-# Secrets Detection
-gitleaks detect --source . -v    # Detects accidental AWS keys or passwords
-
-# Supply Chain Auditing (SBOM)
-syft dir:. -o spdx-json > cricscore-sbom.json    # Generates a Software Bill of Materials
+./infra/scripts/validate_local.sh
 ```
+
+This single command automatically executes the entire local testing pyramid:
+
+1. **Frontend**: Lints, runs unit tests, and verifies the production build compiles.
+2. **Infrastructure**: Formats and validates Terraform logic.
+3. **Security**: Runs Checkov (IaC scanning), GitLeaks (secrets), and Syft (SBOM generation).
 
 **⚠️ Optional Manual Dependency Scanning (Trivy)**
 Trivy is not configured as an automatic pre-commit hook because downloading its massive vulnerability database locally on every commit severely degrades developer speed. It is strictly executed in the cloud pipelines.
