@@ -4,33 +4,40 @@ This guide covers the 3-phase journey from **Local Development** to **Profession
 
 ---
 
-## 🏗️ Phase 0: Local Lifecycle Preview
+## ⚡ Local Environment & Testing
 
-Test the **Fan-Out** frontend engine locally against the production cloud backend.
+### 1. Prerequisite Installation
 
-### **Prerequisites**
-
-- **Node.js**: Version **24.x or higher**.
-- **npm**: Included with Node.js.
-- **Git**: To clone the repository.
-- **Terraform**: 1.5+
-- **AWS CLI**: 2.0+
-
-💡 **Pro-Tip**: You can automatically install all required tools on macOS or Ubuntu by simply running:
+To run or deploy CricScore locally, you need Node.js, Terraform, AWS CLI, Checkov, GitLeaks, and Syft.
+💡 **Pro-Tip:** You can automatically install all required tools on macOS or Linux by simply running:
 
 ```bash
-./scripts/setup.sh
+./infra/scripts/setup.sh
 ```
 
-1.  **Clone & Install**:
-    ```bash
-    git clone https://github.com/venkatesh-singamsetty/cricscore.git
-    cd cricscore && npm install --prefix frontend
-    ```
-2.  **Initialize Environment**:
-    ```bash
-    npm run dev --prefix frontend
-    ```
+### 2. Frontend Local Development
+
+We provide a convenient root-level `package.json` that acts as a proxy to the `frontend/` directory so you don't have to change folders. Here is the local development lifecycle:
+
+- **`npm run dev`**: The Sandbox. Use this 99% of the time. Starts a hyper-fast local server with Hot Module Replacement (HMR). Changes instantly appear when you save.
+- **`npm run build`**: The Factory. Translates TypeScript, aggressively minifies CSS/JS, and squishes the app into a highly optimized `apps/frontend/dist/` folder for AWS production.
+- **`npm run preview`**: The Rehearsal. Boots a local server pointing directly at the optimized `dist/` folder. Use this specifically to test exact production load speeds or debug minification issues before opening a PR.
+
+### 3. Pre-Commit Validation
+
+To prevent failing the strict GitHub Actions pipelines, run the bundled validation script locally before pushing:
+
+```bash
+./infra/scripts/validate_local.sh
+```
+
+This single command automatically executes the entire local testing pyramid:
+
+1. **Frontend**: Lints, runs unit tests, and verifies the production build compiles.
+2. **Backend**: Runs the Lambda unit tests.
+3. **Infrastructure**: Formats and validates Terraform logic.
+4. **End-to-End**: Executes Playwright browser tests against the live environment.
+5. **Security**: Runs Checkov (IaC scanning), GitLeaks (secrets), Trivy (CVE vulnerabilities), and Syft (SBOM generation).
 
 ---
 
@@ -115,37 +122,57 @@ ZONE_DOMAIN='yourdomain.com'
 SUBDOMAIN_PREFIX='cricscore'
 PROJECT_NAME='cricscore'
 
-# Frontend & Deploy Outputs (auto-populated by deploy.sh after first apply)
+# Frontend & Deploy Outputs (auto-populated by infra/scripts/deploy.sh after first apply)
 S3_BUCKET=your-s3-bucket-name
 CLOUDFRONT_DISTRIBUTION_ID=YOURCLOUDFRONT
 ```
 
-### 3. Synchronize Bootstrap Metadata
+### 3. Local Frontend Configuration (`apps/frontend/.env`)
+
+The frontend React application requires a separate `.env` file to configure the scorer dashboard access and crash reporting.
+
+Create a file at `apps/frontend/.env` (use `apps/frontend/.env.example` as a template):
+
+```bash
+# The secret PIN required for the scorer/admin dashboard
+VITE_ADMIN_PIN=123456
+
+# The default email address to pre-fill in the scorer login
+VITE_DEFAULT_EMAIL=admin@example.com
+
+# (Optional) Sentry Crash Reporting Data Source Name
+VITE_SENTRY_DSN=
+```
+
+> [!NOTE]
+> You do **not** need to manually define `VITE_API_URL` or `VITE_WS_URL`. The local deployment script will automatically extract these from Terraform and inject them into this file.
+
+### 4. Synchronize Bootstrap Metadata
 
 Follow this character-perfect handshake to activate the remote backend:
 
 1.  **Capture Metadata**: Note your **S3 Bucket Name**, **DynamoDB Lock Table**, and **Route 53 Zone ID**.
 2.  **Update Backend**: Insert your bucket and table IDs into **`terraform/providers.tf`**.
     - _Note: Terraform **requires** these to be hard-coded strings (no variables) because the backend initializes before variables are loaded._
-3.  **Initialize**: Run `./scripts/terraform.sh init` in the project root to migrate state to S3.
+3.  **Initialize**: Run `./infra/scripts/terraform.sh init` in the project root to migrate state to S3.
 
 > [!TIP]
-> Use `./scripts/terraform.sh` for all Terraform commands locally. It automatically reads `.env.local` and maps variables — identical to how CI injects `TF_VAR_*` from GitHub Secrets/Variables. No separate `terraform.tfvars` file is needed.
+> Use `./infra/scripts/terraform.sh` for all Terraform commands locally. It automatically reads `.env.local` and maps variables — identical to how CI injects `TF_VAR_*` from GitHub Secrets/Variables. No separate `terraform.tfvars` file is needed.
 
 ### 4. Deploying the Cloud Stack
 
 Because the frontend requires the **API Gateway Endpoints** to be built into its bundle, we use a unified deployment script that handles the entire pipeline locally:
 
 > [!NOTE]
-> **Dependency Install Architecture (`deploy.sh` handles this automatically):**
+> **Dependency Install Architecture (`infra/scripts/deploy.sh` handles this automatically):**
 >
 > - **Frontend**: Requires a full `npm install` to download heavy build tools (Vite, TypeScript). We only deploy the final compiled output (`dist/`), _not_ the `node_modules`.
 > - **Backend (Lambdas)**: Requires strict `npm install --production`. AWS Lambdas directly upload the raw `node_modules` folder. Passing `--production` ensures massive developer tools aren't uploaded to AWS, which would drastically degrade performance and cause cold-start issues.
 
-Execute the master deployment script from the root. It will provision Terraform, extract the live endpoints automatically, inject them into `frontend/.env`, build the frontend, and push to S3:
+Execute the master deployment script from the root. It will provision Terraform, extract the live endpoints automatically, inject them into `apps/frontend/.env`, build the frontend, and push to S3:
 
 ```bash
-./deploy.sh --use-local-env
+./infra/scripts/deploy.sh --use-local-env
 ```
 
 ---
@@ -160,41 +187,50 @@ All deployments are fully automated via GitHub Actions. The core automation conf
 | `codeql.yml`        | PR → `main`, push to `main`, weekly schedule            | CodeQL SAST analysis (results in Security tab)                               |
 | `frontend.yml`      | PR → `main` (validate only) / push to `main` (+ deploy) | Lint, Trivy scan, unit test, build → S3 sync + CloudFront invalidation       |
 | `backend-infra.yml` | PR → `main` (validate only) / push to `main` (+ deploy) | Lambda checks, Trivy, Terraform validate, Checkov → Terraform apply          |
+| `e2e.yml`           | PR → `main`, push to `main`                             | Executes End-to-End Playwright UI tests against the staging environment      |
 | `dast.yml`          | Post-Frontend deploy, Daily                             | OWASP ZAP black-box dynamic runtime security scanning against live endpoints |
 | `sbom.yml`          | PR → `main`, push to `main`, weekly schedule            | Syft SPDX JSON Generation for supply chain SBOM auditing                     |
+| `drift.yml`         | Daily schedule                                          | Detects and reports infrastructure drift from the declared Terraform state   |
+| `keepalive.yml`     | Daily schedule, workflow_dispatch                       | Pings the Aiven PostgreSQL database to prevent it from spinning down         |
+| `release.yml`       | Push to `main`                                          | Analyzes commits, calculates semantic version, and publishes GitHub Releases |
 | `dependabot.yml`    | Daily schedule                                          | Automated PR generation for outdated npm packages and Terraform providers    |
 
 ### Branch Protection (main)
 
-The `main` branch is protected. All PRs must pass all 4 CI status checks before merging:
+The `main` branch is protected. All PRs must pass all 8 CI status checks before merging:
 
 - `GitLeaks Scan` (Secrets Detection)
 - `Analyze Code (javascript-typescript)` (CodeQL Analysis)
 - `Lint & Test` (Frontend CI/CD)
 - `Backend & Terraform Validation` (Backend & Infrastructure CI/CD)
+- `playwright-tests` (End-to-End Browser Testing)
+- `Syft SBOM Generation` (Supply Chain Auditing)
+- `ZAP Baseline Scan` (Dynamic Application Security Testing)
+- `Terraform Drift Detection` (Infrastructure State Validation)
 
 ### Required Secrets & Variables
 
 Configure in **Settings → Secrets → Actions** and **Settings → Variables → Actions**:
 
-| Name                                 | Type     | Used By                                   |
-| ------------------------------------ | -------- | ----------------------------------------- |
-| `AWS_ACCESS_KEY_ID`                  | Secret   | Deploy workflows                          |
-| `AWS_SECRET_ACCESS_KEY`              | Secret   | Deploy workflows                          |
-| `TF_DATABASE_URL`                    | Secret   | Backend deploy                            |
-| `TF_SES_SOURCE_EMAIL`                | Secret   | Backend deploy                            |
-| `VITE_ADMIN_PIN`                     | Secret   | Frontend deploy                           |
-| `AWS_REGION`                         | Variable | All workflows                             |
-| `AWS_DEFAULT_REGION`                 | Variable | All workflows                             |
-| `DOMAIN_NAME`                        | Variable | Backend deploy                            |
-| `ZONE_DOMAIN`                        | Variable | Backend deploy                            |
-| `SUBDOMAIN_PREFIX`                   | Variable | Backend deploy                            |
-| `PROJECT_NAME`                       | Variable | Backend deploy                            |
-| `ADMIN_EMAIL`                        | Variable | Backend deploy (SES admin reports)        |
-| `API_GATEWAY_ID`                     | Variable | Frontend deploy                           |
-| `WS_API_GATEWAY_ID`                  | Variable | Frontend deploy                           |
-| `S3_BUCKET`                          | Variable | Frontend deploy                           |
-| `CLOUDFRONT_DISTRIBUTION_ID`         | Variable | Frontend deploy                           |
-| `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` | Variable | All workflows (forces Node.js 24 runtime) |
+| Name                                 | Type     | Used By                                     |
+| ------------------------------------ | -------- | ------------------------------------------- |
+| `AWS_ACCESS_KEY_ID`                  | Secret   | Deploy workflows                            |
+| `AWS_SECRET_ACCESS_KEY`              | Secret   | Deploy workflows                            |
+| `TF_DATABASE_URL`                    | Secret   | Backend deploy                              |
+| `TF_SES_SOURCE_EMAIL`                | Secret   | Backend deploy                              |
+| `VITE_ADMIN_PIN`                     | Secret   | Frontend deploy                             |
+| `GH_PAT`                             | Secret   | Semantic Release (to trigger other actions) |
+| `AWS_REGION`                         | Variable | All workflows                               |
+| `AWS_DEFAULT_REGION`                 | Variable | All workflows                               |
+| `DOMAIN_NAME`                        | Variable | Backend deploy                              |
+| `ZONE_DOMAIN`                        | Variable | Backend deploy                              |
+| `SUBDOMAIN_PREFIX`                   | Variable | Backend deploy                              |
+| `PROJECT_NAME`                       | Variable | Backend deploy                              |
+| `ADMIN_EMAIL`                        | Variable | Backend deploy (SES admin reports)          |
+| `API_GATEWAY_ID`                     | Variable | Frontend deploy                             |
+| `WS_API_GATEWAY_ID`                  | Variable | Frontend deploy                             |
+| `S3_BUCKET`                          | Variable | Frontend deploy                             |
+| `CLOUDFRONT_DISTRIBUTION_ID`         | Variable | Frontend deploy                             |
+| `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` | Variable | All workflows (forces Node.js 24 runtime)   |
 
 © 2026 CricScore Documentation. 🏎️🏁🚀

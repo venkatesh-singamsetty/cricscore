@@ -6,7 +6,7 @@ These rules are enforced at the repository level via GitHub.
 
 ## 1. Required Status Checks
 
-Before any Pull Request can be merged into `main`, it must successfully pass the following **7 automated CI/CD checks**. These checks cannot be bypassed.
+Before any Pull Request can be merged into `main`, it must successfully pass the following **8 automated CI/CD checks**. These checks cannot be bypassed.
 
 | Check Name                           | Purpose                                                                                                                                      | Workflow Source                       |
 | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
@@ -16,6 +16,8 @@ Before any Pull Request can be merged into `main`, it must successfully pass the
 | **`playwright-tests`**               | Executes the End-to-End UI browser testing suite against the staging environment.                                                            | `.github/workflows/e2e.yml`           |
 | **`CodeQL`** / **`Analyze Code`**    | Runs GitHub CodeQL Static Application Security Testing (SAST) to detect logical vulnerabilities like XSS or Path Traversal.                  | `.github/workflows/codeql.yml`        |
 | **`Syft SBOM Generation`**           | Automatically generates an SPDX Software Bill of Materials (SBOM) for the entire repository to track supply-chain vulnerabilities.           | `.github/workflows/sbom.yml`          |
+| **`ZAP Baseline Scan`**              | Executes OWASP ZAP dynamic application security testing (DAST) to verify runtime endpoints are not vulnerable to XSS/SQLi.                   | `.github/workflows/dast.yml`          |
+| **`Terraform Drift Detection`**      | Validates that the live AWS environment matches the infrastructure-as-code state declared in Terraform.                                      | `.github/workflows/drift.yml`         |
 
 ## 2. Administrator Enforcement
 

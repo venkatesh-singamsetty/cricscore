@@ -41,7 +41,7 @@ We chose Aiven because it perfectly aligns with CricScore's **Zero-Cost Architec
      ```
 
 5. **Deploy**:
-   - The database is now ready to use! When you run `./deploy.sh`, Terraform will automatically deploy the tables and configure the AWS Lambda functions to securely communicate with this database.
+   - The database is now ready to use! When you run `./infra/scripts/deploy.sh`, Terraform will automatically deploy the tables and configure the AWS Lambda functions to securely communicate with this database.
 
 ---
 

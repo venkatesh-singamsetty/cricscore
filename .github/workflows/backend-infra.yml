@@ -4,8 +4,8 @@ on:
   push:
     branches: [main]
     paths:
-      - 'backend/**'
-      - 'terraform/**'
+      - 'apps/backend/**'
+      - 'infra/terraform/**'
       - '.github/workflows/backend-infra.yml'
   pull_request:
     branches: [main]
@@ -40,25 +40,25 @@ jobs:
         run: |
           set -e
           # Install shared backend dependencies for tests
-          (cd backend && npm install)
+          (cd apps/backend && npm install --ignore-scripts)
           # Install individual lambda dependencies
-          for d in backend/lambdas/*; do
+          for d in apps/backend/lambdas/*; do
             if [ -f "$d/package.json" ]; then
               echo "Installing dependencies in $d"
-              (cd "$d" && npm install)
+              (cd "$d" && npm install --ignore-scripts)
             fi
           done
 
       - name: Run Backend Unit Tests
         run: |
-          cd backend
+          cd apps/backend
           npm test
 
       - name: Run Trivy vulnerability scanner (fs) on Lambdas
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
-          scan-ref: 'backend/lambdas'
+          scan-ref: 'apps/backend/lambdas'
           ignore-unfixed: true
           format: 'table'
           exit-code: '1'
@@ -71,20 +71,20 @@ jobs:
 
       - name: Terraform Format Check
         run: terraform fmt -check -recursive
-        working-directory: terraform
+        working-directory: infra/terraform
 
       - name: Terraform Init (no backend)
         run: terraform init -backend=false
-        working-directory: terraform
+        working-directory: infra/terraform
 
       - name: Terraform Validate
         run: terraform validate
-        working-directory: terraform
+        working-directory: infra/terraform
 
       - name: Run Checkov static analysis on Terraform
         uses: bridgecrewio/checkov-action@master
         with:
-          directory: terraform
+          directory: infra/terraform
           framework: terraform
           output_format: cli,sarif
           output_file_path: console,results.sarif
@@ -137,7 +137,7 @@ jobs:
       - name: Install Lambda dependencies (production only)
         run: |
           set -e
-          for d in backend/lambdas/*; do
+          for d in apps/backend/lambdas/*; do
             if [ -f "$d/package.json" ]; then
               echo "Installing production dependencies in $d"
               (cd "$d" && npm install --production)
@@ -148,7 +148,7 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
-          scan-ref: 'backend/lambdas'
+          scan-ref: 'apps/backend/lambdas'
           ignore-unfixed: true
           format: 'table'
           exit-code: '1'
@@ -160,17 +160,17 @@ jobs:
           terraform_version: '~1.9'
 
       - name: Terraform Init
-        working-directory: terraform
+        working-directory: infra/terraform
         run: terraform init
 
       - name: Terraform Validate
-        working-directory: terraform
+        working-directory: infra/terraform
         run: terraform validate
 
       - name: Terraform Plan
-        working-directory: terraform
+        working-directory: infra/terraform
         run: terraform plan -out=tfplan
 
       - name: Terraform Apply
-        working-directory: terraform
+        working-directory: infra/terraform
         run: terraform apply -auto-approve tfplan
