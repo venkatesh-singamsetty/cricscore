@@ -17,6 +17,7 @@ concurrency:
 
 permissions:
   contents: read
+  security-events: write
 
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
