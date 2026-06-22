@@ -2,7 +2,7 @@
 set -e
 
 DOC_PATH="docs/aws_resources_dashboard.md"
-LAMBDA_TF="terraform/lambda.tf"
+LAMBDA_TF="infra/terraform/lambda.tf"
 REGION="us-east-1"
 PROJECT="cricscore"
 

@@ -1,7 +1,7 @@
 #!/bin/bash
-# scripts/terraform.sh
+# infra/scripts/terraform.sh
 # Wrapper that sources .env.local and runs Terraform with TF_VAR_* env vars.
-# Usage: ./scripts/terraform.sh [plan|apply|destroy|...]
+# Usage: ./infra/scripts/terraform.sh [plan|apply|destroy|...]
 # This mirrors exactly what CI does — no need for a terraform.tfvars file.
 
 set -e
