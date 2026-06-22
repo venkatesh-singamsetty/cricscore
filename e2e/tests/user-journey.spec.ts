@@ -6,7 +6,13 @@ test.describe("Enterprise Critical User Journey", () => {
     await page.goto("/");
 
     // 2. Click Scorer mode
-    await page.getByRole("link", { name: /SCORER/i }).click();
+    await page.getByRole("button", { name: /SCORER/i }).click();
+
+    // Handle Authentication Modal
+    const emailInput = page.getByPlaceholder(/YOUR\.NAME@GMAIL\.COM/i);
+    await expect(emailInput).toBeVisible();
+    await emailInput.fill("e2e.test@gmail.com");
+    await page.getByRole("button", { name: /ENTER WORKSPACE/i }).click();
 
     // 3. Fill Match Setup
     // Ensure the page loads MatchSetup component
