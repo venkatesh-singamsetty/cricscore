@@ -95,4 +95,64 @@ describe("match-api Lambda handler", () => {
     expect(JSON.parse(response.body).matchId).toBe("match_123");
     expect(mockQuery).toHaveBeenCalledWith("COMMIT");
   });
+
+  it("should return healthy status for GET /health if DB is connected", async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ ok: 1 }] });
+
+    const event = { httpMethod: "GET", path: "/health" };
+    const response = await handler(event);
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body.status).toBe("healthy");
+    expect(body.database).toBe("connected");
+  });
+
+  it("should return unhealthy status for GET /health if DB fails", async () => {
+    mockQuery.mockRejectedValueOnce(new Error("Connection refused"));
+
+    const event = { httpMethod: "GET", path: "/health" };
+    const response = await handler(event);
+
+    expect(response.statusCode).toBe(503);
+    const body = JSON.parse(response.body);
+    expect(body.status).toBe("unhealthy");
+    expect(body.database).toBe("disconnected");
+  });
+
+  it("should fetch all matches for GET /matches", async () => {
+    mockQuery
+      .mockResolvedValueOnce() // Mock the proactive cleanup UPDATE
+      .mockResolvedValueOnce({
+        rows: [
+          { id: "match_1", team_a_name: "India", team_b_name: "Australia" },
+        ],
+      }); // Mock the SELECT
+
+    const event = { httpMethod: "GET", path: "/matches" };
+    const response = await handler(event);
+
+    expect(response.statusCode).toBe(200);
+    expect(JSON.parse(response.body).length).toBe(1);
+    expect(JSON.parse(response.body)[0].id).toBe("match_1");
+  });
+
+  it("should update match metadata for PATCH /match/{matchId}", async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ id: "match_123", status: "COMPLETED" }],
+    }); // UPDATE
+    // Since status is COMPLETED, it will also trigger two more queries
+    mockQuery.mockResolvedValueOnce(); // UPDATE innings
+    mockQuery.mockResolvedValueOnce(); // Sync scores
+
+    const event = {
+      httpMethod: "PATCH",
+      pathParameters: { matchId: "match_123" },
+      body: JSON.stringify({ status: "COMPLETED" }),
+    };
+
+    const response = await handler(event);
+    expect(response.statusCode).toBe(200);
+    expect(JSON.parse(response.body).status).toBe("COMPLETED");
+  });
 });
