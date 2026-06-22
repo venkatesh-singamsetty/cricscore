@@ -212,24 +212,25 @@ The `main` branch is protected. All PRs must pass all 8 CI status checks before 
 
 Configure in **Settings → Secrets → Actions** and **Settings → Variables → Actions**:
 
-| Name                                 | Type     | Used By                                   |
-| ------------------------------------ | -------- | ----------------------------------------- |
-| `AWS_ACCESS_KEY_ID`                  | Secret   | Deploy workflows                          |
-| `AWS_SECRET_ACCESS_KEY`              | Secret   | Deploy workflows                          |
-| `TF_DATABASE_URL`                    | Secret   | Backend deploy                            |
-| `TF_SES_SOURCE_EMAIL`                | Secret   | Backend deploy                            |
-| `VITE_ADMIN_PIN`                     | Secret   | Frontend deploy                           |
-| `AWS_REGION`                         | Variable | All workflows                             |
-| `AWS_DEFAULT_REGION`                 | Variable | All workflows                             |
-| `DOMAIN_NAME`                        | Variable | Backend deploy                            |
-| `ZONE_DOMAIN`                        | Variable | Backend deploy                            |
-| `SUBDOMAIN_PREFIX`                   | Variable | Backend deploy                            |
-| `PROJECT_NAME`                       | Variable | Backend deploy                            |
-| `ADMIN_EMAIL`                        | Variable | Backend deploy (SES admin reports)        |
-| `API_GATEWAY_ID`                     | Variable | Frontend deploy                           |
-| `WS_API_GATEWAY_ID`                  | Variable | Frontend deploy                           |
-| `S3_BUCKET`                          | Variable | Frontend deploy                           |
-| `CLOUDFRONT_DISTRIBUTION_ID`         | Variable | Frontend deploy                           |
-| `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` | Variable | All workflows (forces Node.js 24 runtime) |
+| Name                                 | Type     | Used By                                     |
+| ------------------------------------ | -------- | ------------------------------------------- |
+| `AWS_ACCESS_KEY_ID`                  | Secret   | Deploy workflows                            |
+| `AWS_SECRET_ACCESS_KEY`              | Secret   | Deploy workflows                            |
+| `TF_DATABASE_URL`                    | Secret   | Backend deploy                              |
+| `TF_SES_SOURCE_EMAIL`                | Secret   | Backend deploy                              |
+| `VITE_ADMIN_PIN`                     | Secret   | Frontend deploy                             |
+| `GH_PAT`                             | Secret   | Semantic Release (to trigger other actions) |
+| `AWS_REGION`                         | Variable | All workflows                               |
+| `AWS_DEFAULT_REGION`                 | Variable | All workflows                               |
+| `DOMAIN_NAME`                        | Variable | Backend deploy                              |
+| `ZONE_DOMAIN`                        | Variable | Backend deploy                              |
+| `SUBDOMAIN_PREFIX`                   | Variable | Backend deploy                              |
+| `PROJECT_NAME`                       | Variable | Backend deploy                              |
+| `ADMIN_EMAIL`                        | Variable | Backend deploy (SES admin reports)          |
+| `API_GATEWAY_ID`                     | Variable | Frontend deploy                             |
+| `WS_API_GATEWAY_ID`                  | Variable | Frontend deploy                             |
+| `S3_BUCKET`                          | Variable | Frontend deploy                             |
+| `CLOUDFRONT_DISTRIBUTION_ID`         | Variable | Frontend deploy                             |
+| `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` | Variable | All workflows (forces Node.js 24 runtime)   |
 
 © 2026 CricScore Documentation. 🏎️🏁🚀
