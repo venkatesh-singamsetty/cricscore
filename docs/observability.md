@@ -15,14 +15,14 @@ AWS requires you to click through multiple different screens to see API Gateway 
   - Invocations for all 6 Lambda functions.
   - Error Rates for all Lambda functions.
   - SQS Storage Buffer queue depths (Messages Available vs. Delayed).
-- **Automation**: This dashboard is automatically generated and kept up-to-date by the `terraform/dashboard.tf` IaC file.
+- **Automation**: This dashboard is automatically generated and kept up-to-date by the `infra/terraform/dashboard.tf` IaC file.
 
 ## 2. ⚡ AWS X-Ray Distributed Tracing
 
 Because CricScore uses an asynchronous "Fan-Out" architecture, a single user request can trigger multiple AWS services. **AWS X-Ray** visually traces the exact path and latency of these requests.
 
 - **The Free Tier Problem**: AWS only allows 100,000 free traces per month. A busy cricket match would exceed this in a single day.
-- **The Sampling Solution**: We enforce a strict **5% Sampling Rule** defined in `terraform/xray.tf`. The system guarantees a maximum of 1 trace per second, and then randomly samples 5% of all traffic after that. This provides excellent statistical visibility into cold starts without ever triggering billing alarms.
+- **The Sampling Solution**: We enforce a strict **5% Sampling Rule** defined in `infra/terraform/xray.tf`. The system guarantees a maximum of 1 trace per second, and then randomly samples 5% of all traffic after that. This provides excellent statistical visibility into cold starts without ever triggering billing alarms.
 
 ## 3. 🛡️ Active Alerting (SNS)
 

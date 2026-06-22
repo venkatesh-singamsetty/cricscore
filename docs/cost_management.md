@@ -47,7 +47,7 @@ This document provides a breakdown of the estimated operational costs for the Cr
 ### 8. **Distributed Tracing: AWS X-Ray**
 
 - **Cost**: First 100,000 traces recorded per month are **FREE**.
-- **Usage**: A strict 5% Sampling Rule is enforced in `terraform/xray.tf`. Even at 1,000,000 API requests, we will only trace ~50,000 requests, guaranteeing $0/month cost.
+- **Usage**: A strict 5% Sampling Rule is enforced in `infra/terraform/xray.tf`. Even at 1,000,000 API requests, we will only trace ~50,000 requests, guaranteeing $0/month cost.
 
 ### 9. **CI/CD Automation: GitHub Actions**
 

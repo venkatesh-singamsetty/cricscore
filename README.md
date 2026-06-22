@@ -79,7 +79,7 @@ To run or deploy CricScore locally, you need Node.js, Terraform, AWS CLI, Checko
 💡 **Pro-Tip:** You can automatically install all required tools on macOS or Linux by simply running:
 
 ```bash
-./scripts/setup.sh
+./infra/scripts/setup.sh
 ```
 
 ### 2. Configuration & Deployment
@@ -90,10 +90,10 @@ Create a `.env.local` file at the root of the project to manage your local infra
 - `TF_DATABASE_URL`, `TF_SES_SOURCE_EMAIL`, `ADMIN_EMAIL`
 - `DOMAIN_NAME`, `ZONE_DOMAIN`, `SUBDOMAIN_PREFIX`, `PROJECT_NAME`
 
-To run the full stack locally, use the deployment script (this will automatically provision AWS and generate your required `frontend/.env` URLs):
+To run the full stack locally, use the deployment script (this will automatically provision AWS and generate your required `apps/frontend/.env` URLs):
 
 ```bash
-./deploy.sh --use-local-env
+./infra/scripts/deploy.sh --use-local-env
 ```
 
 👉 For comprehensive instructions, see the **[Full Deployment Guide](./docs/deployment.md)**.
@@ -103,7 +103,7 @@ To run the full stack locally, use the deployment script (this will automaticall
 We provide a convenient root-level `package.json` that acts as a proxy to the `frontend/` directory so you don't have to change folders. Here is the local development lifecycle:
 
 - **`npm run dev`**: The Sandbox. Use this 99% of the time. Starts a hyper-fast local server with Hot Module Replacement (HMR). Changes instantly appear when you save.
-- **`npm run build`**: The Factory. Translates TypeScript, aggressively minifies CSS/JS, and squishes the app into a highly optimized `frontend/dist/` folder for AWS production.
+- **`npm run build`**: The Factory. Translates TypeScript, aggressively minifies CSS/JS, and squishes the app into a highly optimized `apps/frontend/dist/` folder for AWS production.
 - **`npm run preview`**: The Rehearsal. Boots a local server pointing directly at the optimized `dist/` folder. Use this specifically to test exact production load speeds or debug minification issues before opening a PR.
 
 ### 4. Pre-Commit Validation
@@ -112,15 +112,15 @@ To prevent failing the strict GitHub Actions pipelines, validate your code local
 
 ```bash
 # Frontend Validation
-cd frontend
+cd apps/frontend
 npm run lint    # Catches unused variables and TS errors
 npm run test    # Executes component unit tests
 npm run build   # Validates the production bundle compiles
 cd ..
 
 # Infrastructure Validation
-./scripts/terraform.sh fmt -check -recursive  # Validates HCL formatting
-./scripts/terraform.sh validate               # Validates infrastructure logic
+./infra/scripts/terraform.sh fmt -check -recursive  # Validates HCL formatting
+./infra/scripts/terraform.sh validate               # Validates infrastructure logic
 checkov -d terraform/                         # (Optional) Run local IaC security scans
 
 # Secrets Detection
@@ -135,7 +135,7 @@ If you are specifically debugging a dependency issue, you can scan locally:
 ```bash
 # Requires: brew install trivy
 trivy fs ./frontend --scanners vuln --severity HIGH,CRITICAL
-trivy fs ./backend/lambdas --scanners vuln --severity HIGH,CRITICAL
+trivy fs ./apps/backend/lambdas --scanners vuln --severity HIGH,CRITICAL
 ```
 
 ---

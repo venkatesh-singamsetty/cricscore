@@ -19,17 +19,17 @@ Test the **Fan-Out** frontend engine locally against the production cloud backen
 💡 **Pro-Tip**: You can automatically install all required tools on macOS or Ubuntu by simply running:
 
 ```bash
-./scripts/setup.sh
+./infra/scripts/setup.sh
 ```
 
 1.  **Clone & Install**:
     ```bash
     git clone https://github.com/venkatesh-singamsetty/cricscore.git
-    cd cricscore && npm install --prefix frontend
+    cd cricscore && npm install --prefix apps/frontend
     ```
 2.  **Initialize Environment**:
     ```bash
-    npm run dev --prefix frontend
+    npm run dev --prefix apps/frontend
     ```
 
 ---
@@ -115,7 +115,7 @@ ZONE_DOMAIN='yourdomain.com'
 SUBDOMAIN_PREFIX='cricscore'
 PROJECT_NAME='cricscore'
 
-# Frontend & Deploy Outputs (auto-populated by deploy.sh after first apply)
+# Frontend & Deploy Outputs (auto-populated by infra/scripts/deploy.sh after first apply)
 S3_BUCKET=your-s3-bucket-name
 CLOUDFRONT_DISTRIBUTION_ID=YOURCLOUDFRONT
 ```
@@ -127,25 +127,25 @@ Follow this character-perfect handshake to activate the remote backend:
 1.  **Capture Metadata**: Note your **S3 Bucket Name**, **DynamoDB Lock Table**, and **Route 53 Zone ID**.
 2.  **Update Backend**: Insert your bucket and table IDs into **`terraform/providers.tf`**.
     - _Note: Terraform **requires** these to be hard-coded strings (no variables) because the backend initializes before variables are loaded._
-3.  **Initialize**: Run `./scripts/terraform.sh init` in the project root to migrate state to S3.
+3.  **Initialize**: Run `./infra/scripts/terraform.sh init` in the project root to migrate state to S3.
 
 > [!TIP]
-> Use `./scripts/terraform.sh` for all Terraform commands locally. It automatically reads `.env.local` and maps variables — identical to how CI injects `TF_VAR_*` from GitHub Secrets/Variables. No separate `terraform.tfvars` file is needed.
+> Use `./infra/scripts/terraform.sh` for all Terraform commands locally. It automatically reads `.env.local` and maps variables — identical to how CI injects `TF_VAR_*` from GitHub Secrets/Variables. No separate `terraform.tfvars` file is needed.
 
 ### 4. Deploying the Cloud Stack
 
 Because the frontend requires the **API Gateway Endpoints** to be built into its bundle, we use a unified deployment script that handles the entire pipeline locally:
 
 > [!NOTE]
-> **Dependency Install Architecture (`deploy.sh` handles this automatically):**
+> **Dependency Install Architecture (`infra/scripts/deploy.sh` handles this automatically):**
 >
 > - **Frontend**: Requires a full `npm install` to download heavy build tools (Vite, TypeScript). We only deploy the final compiled output (`dist/`), _not_ the `node_modules`.
 > - **Backend (Lambdas)**: Requires strict `npm install --production`. AWS Lambdas directly upload the raw `node_modules` folder. Passing `--production` ensures massive developer tools aren't uploaded to AWS, which would drastically degrade performance and cause cold-start issues.
 
-Execute the master deployment script from the root. It will provision Terraform, extract the live endpoints automatically, inject them into `frontend/.env`, build the frontend, and push to S3:
+Execute the master deployment script from the root. It will provision Terraform, extract the live endpoints automatically, inject them into `apps/frontend/.env`, build the frontend, and push to S3:
 
 ```bash
-./deploy.sh --use-local-env
+./infra/scripts/deploy.sh --use-local-env
 ```
 
 ---

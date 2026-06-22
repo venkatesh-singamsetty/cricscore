@@ -115,12 +115,12 @@ This release represents a massive leap forward in the platform's infrastructure,
 ### Public Anonymization & Security
 
 - **Environment Parameterization**: Completely eradicated personal domain names, emails, and AWS infrastructure details from the version-controlled codebase. Replaced hardcoded values with dynamic `.env` injection at both the Frontend and Terraform layers.
-- **Open Source Templates**: Introduced mirror `.env.local.example` and `frontend/.env.example` to provide clear, zero-secret setup guidance for external contributors.
+- **Open Source Templates**: Introduced mirror `.env.local.example` and `apps/frontend/.env.example` to provide clear, zero-secret setup guidance for external contributors.
 - **Documentation Scrubbing**: Cleared `cost_management.md`, `troubleshooting.md`, and `deployment.md` of personal identifiers, replacing them with generic `example.com` placeholders while maintaining instructional integrity.
 
 ### Infrastructure Agility
 
-- **Dynamic Pipeline Routing**: Upgraded `deploy.sh` to seamlessly map local `ADMIN_EMAIL` into Terraform's pipeline, ensuring backward compatibility without exposing secrets.
+- **Dynamic Pipeline Routing**: Upgraded `infra/scripts/deploy.sh` to seamlessly map local `ADMIN_EMAIL` into Terraform's pipeline, ensuring backward compatibility without exposing secrets.
 - **Namespace Standardization**: Unified the entire application under the clean `cricscore` namespace, including migrating legacy cache keys.
 
 ---
@@ -129,14 +129,14 @@ This release represents a massive leap forward in the platform's infrastructure,
 
 ### Automated Environment Bootstrapping
 
-- **Intelligent Setup Pipeline**: Completely rebuilt `scripts/setup.sh` into an OS-aware (macOS/Linux) installer. It now automatically detects and installs missing mission-critical tools (`node@24`, `terraform`, `aws-cli`, `jq`) using native package managers (`brew`/`apt`).
+- **Intelligent Setup Pipeline**: Completely rebuilt `infra/scripts/setup.sh` into an OS-aware (macOS/Linux) installer. It now automatically detects and installs missing mission-critical tools (`node@24`, `terraform`, `aws-cli`, `jq`) using native package managers (`brew`/`apt`).
 - **Deprecation Cleanup**: Deleted obsolete scripts (`setup.ps1`, `sync-env.sh`) to reduce maintenance surface area.
 
 ### Configuration & Deployment Resilience
 
 - **ALL CAPS Unification**: Enforced a strict, universal ALL CAPS variable convention (e.g., `DOMAIN_NAME`, `TF_DATABASE_URL`) that perfectly aligns local `.env.local` files with GitHub Repository UI standards.
-- **Terraform Under-the-Hood**: Upgraded `deploy.sh` to automatically translate and map these beautiful uppercase variables into the messy lowercase `TF_VAR_` syntax Terraform secretly requires, protecting the developer experience.
-- **Non-Destructive Frontend Syncing**: `deploy.sh` now intelligently _appends_ live AWS API Gateway URLs to `frontend/.env` instead of overwriting the file. This perfectly preserves manual local variables like `VITE_ADMIN_PIN` without requiring redundant entries in `.env.local`.
+- **Terraform Under-the-Hood**: Upgraded `infra/scripts/deploy.sh` to automatically translate and map these beautiful uppercase variables into the messy lowercase `TF_VAR_` syntax Terraform secretly requires, protecting the developer experience.
+- **Non-Destructive Frontend Syncing**: `infra/scripts/deploy.sh` now intelligently _appends_ live AWS API Gateway URLs to `apps/frontend/.env` instead of overwriting the file. This perfectly preserves manual local variables like `VITE_ADMIN_PIN` without requiring redundant entries in `.env.local`.
 
 ### CI/CD & Documentation Modernization
 
@@ -163,7 +163,7 @@ This release represents a massive leap forward in the platform's infrastructure,
 - **Checkov**: Terraform IaC static analysis in `backend-infra.yml` with `soft_fail: true` — flags misconfigurations without blocking pipelines.
 - **Trivy**: Filesystem vulnerability scanning (`HIGH,CRITICAL` severity, `ignore-unfixed: true`) in both frontend and backend pipelines.
 - **CodeQL**: Native SAST code scanning for JavaScript/TypeScript. Configured to upload results directly to GitHub Code Scanning tab (public repo — no GHAS license required). Runs on push, PRs, and weekly Thursday schedule.
-- **Dependabot**: Daily automated dependency updates across `/frontend`, `/backend/lambdas/*`, and `/terraform`.
+- **Dependabot**: Daily automated dependency updates across `/frontend`, `/apps/backend/lambdas/*`, and `/terraform`.
 
 ### Branch Protection Rules (main)
 
