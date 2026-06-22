@@ -23,7 +23,7 @@ jobs:
         
     - name: Install dependencies
       working-directory: ./apps/e2e
-      run: npm install --ignore-scripts
+      run: npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
       
     - name: Install Playwright Browsers
       working-directory: ./apps/e2e
