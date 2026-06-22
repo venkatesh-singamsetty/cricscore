@@ -19,23 +19,23 @@ jobs:
       with:
         node-version: '24'
         cache: 'npm'
-        cache-dependency-path: 'e2e/package-lock.json'
+        cache-dependency-path: 'apps/e2e/package-lock.json'
         
     - name: Install dependencies
-      working-directory: ./e2e
+      working-directory: ./apps/e2e
       run: npm ci || npm install
       
     - name: Install Playwright Browsers
-      working-directory: ./e2e
+      working-directory: ./apps/e2e
       run: npx playwright install --with-deps
       
     - name: Run Playwright tests
-      working-directory: ./e2e
+      working-directory: ./apps/e2e
       run: npx playwright test
       
     - uses: actions/upload-artifact@v7
       if: always()
       with:
         name: playwright-report
-        path: e2e/playwright-report/
+        path: apps/e2e/playwright-report/
         retention-days: 14

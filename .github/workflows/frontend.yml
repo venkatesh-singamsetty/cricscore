@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'frontend/**'
+      - 'apps/frontend/**'
       - '.github/workflows/frontend.yml'
   pull_request:
     branches: [main]
@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: frontend
+        working-directory: apps/frontend
 
     steps:
       - name: Checkout code
@@ -37,7 +37,7 @@ jobs:
         with:
           node-version: '24'
           cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: apps/frontend/package-lock.json
 
       - name: Install dependencies
         run: npm install --legacy-peer-deps --no-audit --no-fund
@@ -46,7 +46,7 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
-          scan-ref: 'frontend'
+          scan-ref: 'apps/frontend'
           ignore-unfixed: true
           format: 'table'
           exit-code: '1'
@@ -101,22 +101,22 @@ jobs:
         with:
           node-version: '24'
           cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: apps/frontend/package-lock.json
 
       - name: Install dependencies
-        working-directory: frontend
+        working-directory: apps/frontend
         run: npm install --legacy-peer-deps --no-audit --no-fund
 
       - name: Type-check & Lint
-        working-directory: frontend
+        working-directory: apps/frontend
         run: npm run lint
 
       - name: Run unit tests
-        working-directory: frontend
+        working-directory: apps/frontend
         run: npm run test
 
       - name: Build production bundle
-        working-directory: frontend
+        working-directory: apps/frontend
         env:
           VITE_API_URL: https://${{ env.API_GATEWAY_ID }}.execute-api.${{ env.AWS_REGION }}.amazonaws.com
           VITE_WS_URL: wss://${{ env.WS_API_GATEWAY_ID }}.execute-api.${{ env.AWS_REGION }}.amazonaws.com/prod
@@ -132,13 +132,13 @@ jobs:
 
       - name: Upload build to S3
         run: |
-          aws s3 sync frontend/dist/ s3://${{ env.S3_BUCKET }}/ \
+          aws s3 sync apps/frontend/dist/ s3://${{ env.S3_BUCKET }}/ \
             --delete \
             --cache-control "public,max-age=31536000,immutable" \
             --exclude "index.html"
 
           # index.html should never be cached — always serve fresh
-          aws s3 cp frontend/dist/index.html s3://${{ env.S3_BUCKET }}/index.html \
+          aws s3 cp apps/frontend/dist/index.html s3://${{ env.S3_BUCKET }}/index.html \
             --cache-control "no-cache,no-store,must-revalidate" \
             --content-type "text/html"
 
