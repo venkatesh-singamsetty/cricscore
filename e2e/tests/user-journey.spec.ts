@@ -12,7 +12,7 @@ test.describe("Enterprise Critical User Journey", () => {
     const emailInput = page.getByPlaceholder(/EMAIL ADDRESS\.\.\./i);
     await expect(emailInput).toBeVisible();
     await emailInput.fill("e2e.test@gmail.com");
-    await page.getByRole("button", { name: /ENTER WORKSPACE/i }).click();
+    await page.getByRole("button", { name: /CONTINUE/i }).click();
 
     // 3. Fill Match Setup
     // Ensure the page loads MatchSetup component
