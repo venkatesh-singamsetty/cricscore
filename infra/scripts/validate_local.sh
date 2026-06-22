@@ -55,7 +55,7 @@ echo "-----------------------------------"
     npx playwright install chromium
   fi
   echo "👉 Running Playwright Tests against live environment..."
-  npx playwright test
+  npm exec playwright test
 )
 
 echo ""
