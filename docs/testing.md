@@ -1,136 +1,133 @@
-# Testing Guide for CricScore
+# Enterprise Testing Strategy for CricScore
 
-This project uses a comprehensive testing strategy combining **Vitest** for backend unit testing and **Playwright** for End-to-End (E2E) browser and API integration testing.
+This repository follows a rigorous **Enterprise Standard Testing Pyramid**. Tests are structured from the fastest and most isolated to the most comprehensive and integrated.
 
 ---
 
-## Testing During Local Development
+## 🚀 Quick Start: Running Local Tests
 
-When you are actively making code changes, use these commands to instantly test your work:
+We have provided a unified script in the root folder to run all fast Unit, Integration, and API tests at once.
 
-### 1. The "Run Everything" Command
-
-If you want to run all the fast unit tests across the entire project at once (this runs automatically before a `git push`), stay in the root of your project and run:
+Run this command from the **root** of the repository:
 
 ```bash
 npm run test:all
 ```
 
-### 2. Testing While You Code (Watch Mode)
+_(This command automatically runs `npm run test --prefix frontend` and `npm test --prefix backend` sequentially.)_
 
-If you are actively making changes to files and want the tests to re-run automatically every time you hit "save":
+---
 
-**For Frontend changes:**
+## 1. Unit Tests
+
+Unit tests are isolated tests that verify individual functions, utilities, or background cloud logic without spinning up external dependencies.
+
+- **Frontend Unit Tests**: Validate React Types and state handlers.
+  - _Location:_ `frontend/src/test/types.test.ts`
+- **Backend Event-Driven Unit Tests**: Validate AWS Lambda workers (e.g., `storage-worker`, `broadcaster`) using `aws-sdk-client-mock`.
+  - _Location:_ `backend/lambdas/storage-worker/index.test.js`, `backend/lambdas/broadcaster/index.test.js`
+
+### Running Unit Tests
+
+- **Frontend:** `npm run test --prefix frontend`
+- **Backend:** `npm test --prefix backend` (Use `npm run test:watch --prefix backend` for active development).
+
+---
+
+## 2. Integration Tests
+
+Integration tests verify that different components and services work together correctly, simulating interactions without rendering in a real browser.
+
+- **Frontend Component Integration**: We use **React Testing Library** to mount React components in a virtual DOM, simulate user clicks, input typing, and verify that the components properly validate payloads before firing network calls.
+  - _Location:_ `frontend/src/test/MatchSetup.test.tsx`
+
+### Running Integration Tests
+
+Since these share the same Vitest runner as Frontend Unit Tests, they are executed together:
 
 ```bash
-cd frontend
-npm run test
+npm run test --prefix frontend
 ```
 
-_(Press `q` to quit watch mode when you're done)._
+---
 
-**For Backend changes:**
+## 3. API Tests
+
+API tests explicitly validate the HTTP contract and REST endpoints of the backend architecture. They mock the database but execute the full API request lifecycle.
+
+- **REST API Validation**: We test the API Gateway proxy paths (e.g., `/health`, `GET /matches`, `POST /match`) to guarantee proper status codes (200, 201, 404, 500) and data structures.
+  - _Location:_ `backend/lambdas/match-api/index.test.js`
+
+### Running API Tests
+
+Since these share the same Vitest runner as Backend Unit Tests, they are executed together:
 
 ```bash
-cd backend
-npm run test:watch
+npm test --prefix backend
 ```
 
-### 3. Testing the Live App in a Real Browser
+---
 
-If you want to verify that the entire app works properly in a real browser instance:
+## 4. Smoke Tests
+
+Smoke tests are the fastest End-to-End checks. They ping the live production application using a real Chromium browser just to verify that the app is online, the DNS is resolving, and critical UI shells are visible.
+
+- **Live Availability Checks**: Validates that the Viewer Dashboard and Match Setup modes successfully render without crashing.
+  - _Location:_ `e2e/tests/smoke.spec.ts`
+
+### Running Smoke Tests
+
+Run these via Playwright inside the `e2e/` folder:
 
 ```bash
 cd e2e
-npx playwright test --ui
+npx playwright test tests/smoke.spec.ts
 ```
 
-_This opens a time-travel UI where you can literally see Playwright clicking through your application step-by-step!_
-
 ---
 
-## 1. Backend Unit Tests (Vitest)
+## 5. End-to-End (E2E) User Journey Tests
 
-The backend uses `vitest` to run extremely fast unit tests for AWS Lambda functions. We use class prototype stubbing and spies via `vi.spyOn()` to mock AWS SDK calls and database interactions, ensuring tests do not hit real infrastructure.
+E2E tests sit at the very top of the testing pyramid. They utilize **Playwright** to spin up an actual browser instance, navigate to the application, and simulate a real human being performing complex, multi-step actions.
 
-### API Test Coverage
-
-Our automated backend tests explicitly cover the `match-api` routing to guarantee that API Gateway endpoints respond properly before any infrastructure is deployed. These API test cases verify:
-
-- **`GET /health`**: Validates proper handling of active database connections vs connection timeouts/failures.
-- **`GET /matches`**: Verifies retrieval of historical database records.
-- **`POST /match` & `DELETE /match/{id}`**: Simulates transactional writes and cascading database deletions.
-- **`PATCH /match/{id}`**: Validates correct handling of match metadata updates and subsequent triggers.
-
-### Running Backend Tests
-
-1. Navigate to the backend directory:
-   ```bash
-   cd backend
-   ```
-2. Install dependencies (if you haven't already):
-   ```bash
-   npm install
-   ```
-3. Run the test suite:
-   ```bash
-   npm test
-   ```
-4. Run tests in watch mode (for active development):
-   ```bash
-   npm run test:watch
-   ```
-5. Generate coverage report:
-   ```bash
-   npm run test:coverage
-   ```
-
----
-
-## 2. End-to-End Tests (Playwright)
-
-The `e2e/` folder contains Playwright scripts that test the entire system as a real user would. This includes:
-
-- **Smoke Tests**: Verifies that the frontend loads, rendering key UI elements and modals.
-- **API Integration Tests**: Verifies that the backend API responds correctly to valid requests and handles CORS preflight correctly.
+- **Critical User Journeys**: Automates the entire match lifecycle—navigating the UI, entering authentication credentials, creating a match, selecting squads, winning a toss, scoring an over on the live scoreboard, and gracefully ending the inning.
+  - _Location:_ `e2e/tests/user-journey.spec.ts`
 
 ### Running E2E Tests
+
+Because E2E tests require specific browser binaries, you must run them directly from the `e2e` folder.
 
 1. Navigate to the E2E directory:
    ```bash
    cd e2e
    ```
-2. Install Playwright and its dependencies (first time only):
+2. Install dependencies (First time only):
    ```bash
    npm install
    npx playwright install --with-deps
    ```
-3. Run the tests in headless mode:
+3. Run all E2E tests in headless mode (Invisible):
    ```bash
    npx playwright test
    ```
-4. View the HTML test report:
-   ```bash
-   npx playwright show-report
-   ```
-5. Run tests in UI mode (interactive debugging):
+4. Run tests in UI mode (Interactive visual debugger):
    ```bash
    npx playwright test --ui
    ```
 
-### Overriding the Target Environment
-
-By default, Playwright targets the live production environment. If you want to test against a local deployment or a staging environment, use the `BASE_URL` environment variable:
-
-```bash
-BASE_URL=http://localhost:5173 npx playwright test
-```
+> [!WARNING]
+> By default, `npx playwright test` targets the live production URL. Do not run this command locally unless you intend to create test records in your production database! To test against a local server, specify the `BASE_URL`:
+>
+> ```bash
+> BASE_URL=http://localhost:5173 npx playwright test
+> ```
 
 ---
 
-## 3. Continuous Integration (CI)
+## Continuous Integration (CI)
 
-Our GitHub Actions pipelines automatically enforce testing on all pushes and pull requests to the `main` branch.
+Our GitHub Actions pipelines automatically enforce this entire testing pyramid on all Pull Requests and merges to the `main` branch.
 
-- **Backend CI**: `.github/workflows/backend-infra.yml` runs `vitest` unit tests on the `backend/` folder before any Terraform infrastructure is applied.
-- **E2E CI**: `.github/workflows/e2e.yml` provisions a fresh Chrome instance and runs the entire Playwright test suite against production to detect regressions. Test reports are available as build artifacts for 14 days.
+- **Frontend CI**: `.github/workflows/frontend.yml` automatically executes the frontend Unit and Integration tests.
+- **Backend CI**: `.github/workflows/backend-infra.yml` automatically executes the backend Unit and API tests before any Terraform infrastructure is applied.
+- **E2E CI**: `.github/workflows/e2e.yml` runs the complete Smoke and E2E User Journey test suite against the deployed environment to prevent production regressions.
