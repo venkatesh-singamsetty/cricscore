@@ -183,8 +183,12 @@ All deployments are fully automated via GitHub Actions. The core automation conf
 | `codeql.yml`        | PR → `main`, push to `main`, weekly schedule            | CodeQL SAST analysis (results in Security tab)                               |
 | `frontend.yml`      | PR → `main` (validate only) / push to `main` (+ deploy) | Lint, Trivy scan, unit test, build → S3 sync + CloudFront invalidation       |
 | `backend-infra.yml` | PR → `main` (validate only) / push to `main` (+ deploy) | Lambda checks, Trivy, Terraform validate, Checkov → Terraform apply          |
+| `e2e.yml`           | PR → `main`, push to `main`                             | Executes End-to-End Playwright UI tests against the staging environment      |
 | `dast.yml`          | Post-Frontend deploy, Daily                             | OWASP ZAP black-box dynamic runtime security scanning against live endpoints |
 | `sbom.yml`          | PR → `main`, push to `main`, weekly schedule            | Syft SPDX JSON Generation for supply chain SBOM auditing                     |
+| `drift.yml`         | Daily schedule                                          | Detects and reports infrastructure drift from the declared Terraform state   |
+| `keepalive.yml`     | Daily schedule, workflow_dispatch                       | Pings the Aiven PostgreSQL database to prevent it from spinning down         |
+| `release.yml`       | Push to `main`                                          | Analyzes commits, calculates semantic version, and publishes GitHub Releases |
 | `dependabot.yml`    | Daily schedule                                          | Automated PR generation for outdated npm packages and Terraform providers    |
 
 ### Branch Protection (main)
