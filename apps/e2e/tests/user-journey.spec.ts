@@ -26,7 +26,7 @@ test.describe("Enterprise Critical User Journey", () => {
     await squadInputs
       .nth(0)
       .fill(
-        "suri\nsunil\nvenky\nraju\nsandy\nsrinath\ndonny\nparth\nsrini\nsrikanth\neega",
+        "suri\nvenky\nsunil\nraju\nsandy\nsrinath\ndonny\nparth\nsrini\nsrikanth\neega",
       );
     await squadInputs
       .nth(1)
@@ -57,7 +57,7 @@ test.describe("Enterprise Critical User Journey", () => {
       page.getByRole("heading", { name: /SELECT NON-STRIKER/i }).first(),
     ).toBeVisible();
     await page
-      .getByRole("button", { name: /sunil/i })
+      .getByRole("button", { name: /venky/i })
       .first()
       .click({ force: true });
 
@@ -106,11 +106,11 @@ test.describe("Enterprise Critical User Journey", () => {
     await page.getByRole("button", { name: "1", exact: true }).first().click();
     await page.waitForTimeout(1000);
 
-    // Ball 2: 2 Runs (Sunil)
+    // Ball 2: 2 Runs (Venky)
     await page.getByRole("button", { name: "2", exact: true }).first().click();
     await page.waitForTimeout(1000);
 
-    // Ball 3: Wicket (Sunil is CAUGHT)
+    // Ball 3: Wicket (Venky is CAUGHT)
     await page.getByRole("button", { name: "W", exact: true }).first().click();
     await page.getByRole("button", { name: /CAUGHT/i }).click();
     // Select Fielder (SHARK BLUE)
@@ -124,16 +124,16 @@ test.describe("Enterprise Critical User Journey", () => {
     // Select New Batter (CHICAGO SPARTANS)
     await expect(page.getByText(/Select New Batter/i)).toBeVisible();
     await page
-      .getByRole("button", { name: /venky/i })
+      .getByRole("button", { name: /sunil/i })
       .first()
       .click({ force: true });
     await page.waitForTimeout(1000);
 
-    // Ball 4: 4 Runs (Venky)
+    // Ball 4: 4 Runs (Sunil)
     await page.getByRole("button", { name: "4", exact: true }).first().click();
     await page.waitForTimeout(1000);
 
-    // Ball 5: 1 Run (Venky) - Strike rotates
+    // Ball 5: 1 Run (Sunil) - Strike rotates
     await page.getByRole("button", { name: "1", exact: true }).first().click();
     await page.waitForTimeout(1000);
 

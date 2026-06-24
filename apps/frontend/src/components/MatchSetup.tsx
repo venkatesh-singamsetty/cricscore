@@ -139,7 +139,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
   const [teamAName, setTeamAName] = useState("CHICAGO SPARTANS");
   const [teamBName, setTeamBName] = useState("SHARK BLUE");
   const [teamASquad, setTeamASquad] = useState(
-    "shoban\ndonny\nvenky\nsrinath\nshyam\nganesh\nparth\nkuruva\neega\nsrikanth\nkarthik",
+    "suri\nvenky\nsunil\nraju\nsandy\nsrinath\ndonny\nparth\nsrini\nsrikanth\neega",
   );
   const [teamBSquad, setTeamBSquad] = useState(
     "yaswanth\ngopi\navinash\ngabriel\nsagar\namogh\nambarasan\ntejas\nraj\nsakthikumar\nashvin",
