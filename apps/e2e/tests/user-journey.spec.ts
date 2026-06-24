@@ -177,7 +177,11 @@ test.describe("Enterprise Critical User Journey", () => {
       timeout: 15000,
     });
 
-    // Ball 1: Wicket (BOWLED)
+    // Ball 1: 6 Runs
+    await page.getByRole("button", { name: "6", exact: true }).first().click();
+    await page.waitForTimeout(1000);
+
+    // Ball 2: Wicket (BOWLED)
     await page.getByRole("button", { name: "W", exact: true }).first().click();
     await page.getByRole("button", { name: /BOWLED/i }).click();
     await page
@@ -186,7 +190,11 @@ test.describe("Enterprise Critical User Journey", () => {
       .click({ force: true });
     await page.waitForTimeout(1000);
 
-    // Ball 2: Wicket (CAUGHT)
+    // Ball 3: 4 Runs
+    await page.getByRole("button", { name: "4", exact: true }).first().click();
+    await page.waitForTimeout(1000);
+
+    // Ball 4: Wicket (CAUGHT)
     await page.getByRole("button", { name: "W", exact: true }).first().click();
     await page.getByRole("button", { name: /CAUGHT/i }).click();
     // Select Fielder (CHICAGO SPARTANS)
@@ -207,7 +215,11 @@ test.describe("Enterprise Critical User Journey", () => {
       .click({ force: true });
     await page.waitForTimeout(1000);
 
-    // Ball 3: Wicket (RUN OUT)
+    // Ball 5: 1 Run
+    await page.getByRole("button", { name: "1", exact: true }).first().click();
+    await page.waitForTimeout(1000);
+
+    // Ball 6: Wicket (RUN OUT)
     await page.getByRole("button", { name: "W", exact: true }).first().click();
     await page.getByRole("button", { name: /RUN OUT/i }).click();
     // Run Out Modal -> Runs scored before run out
@@ -241,18 +253,6 @@ test.describe("Enterprise Critical User Journey", () => {
       .getByRole("button", { name: /sagar/i })
       .first()
       .click({ force: true });
-    await page.waitForTimeout(1000);
-
-    // Ball 4: 6 Runs
-    await page.getByRole("button", { name: "6", exact: true }).first().click();
-    await page.waitForTimeout(1000);
-
-    // Ball 5: 4 Runs
-    await page.getByRole("button", { name: "4", exact: true }).first().click();
-    await page.waitForTimeout(1000);
-
-    // Ball 6: 1 Run (Match ends, SHARK BLUE loses)
-    await page.getByRole("button", { name: "1", exact: true }).first().click();
     await page.waitForTimeout(2000);
 
     // 9. Verify Match Completed

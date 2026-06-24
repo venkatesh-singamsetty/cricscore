@@ -260,6 +260,29 @@ const sendMatchReportEmail = async (
     }
   }
 
+  // After sending emails, we log them into the DB
+  if (adminEmailSent && process.env.ADMIN_REPORT_EMAIL) {
+    try {
+      await client.query(
+        "INSERT INTO sent_emails (match_id, email_address, recipient_type) VALUES ($1, $2, $3)",
+        [matchId, process.env.ADMIN_REPORT_EMAIL, "ADMIN"],
+      );
+    } catch (e) {
+      console.error("Failed to log admin email to DB:", e.message);
+    }
+  }
+
+  if (scorerEmailSent && emailTo) {
+    try {
+      await client.query(
+        "INSERT INTO sent_emails (match_id, email_address, recipient_type) VALUES ($1, $2, $3)",
+        [matchId, emailTo, "SCORER"],
+      );
+    } catch (e) {
+      console.error("Failed to log scorer email to DB:", e.message);
+    }
+  }
+
   return { adminEmailSent, scorerEmailSent };
 };
 
