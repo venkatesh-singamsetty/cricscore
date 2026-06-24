@@ -14,7 +14,7 @@ Run this command from the **root** of the repository:
 npm run test:all
 ```
 
-_(This command automatically runs `npm run test --prefix apps/frontend` and `npm test --prefix apps/backend` sequentially.)_
+_(This command automatically runs `npm run test --prefix apps/frontend` and `npm run test --prefix apps/backend` sequentially.)_
 
 ---
 
@@ -24,13 +24,13 @@ Unit tests are isolated tests that verify individual functions, utilities, or ba
 
 - **Frontend Unit Tests**: Validate React Types and state handlers.
   - _Location:_ `apps/frontend/src/test/types.test.ts`
-- **Backend Event-Driven Unit Tests**: Validate AWS Lambda workers (e.g., `storage-worker`, `broadcaster`) using `aws-sdk-client-mock`.
-  - _Location:_ `apps/backend/lambdas/storage-worker/index.test.js`, `apps/backend/lambdas/broadcaster/index.test.js`
+- **Backend Event-Driven Unit Tests**: Validate AWS Lambda workers (e.g., `storage-worker`, `broadcaster`, `score-update`) using `aws-sdk-client-mock`.
+  - _Location:_ `apps/backend/lambdas/storage-worker/index.test.js`, `apps/backend/lambdas/broadcaster/index.test.js`, `apps/backend/lambdas/score-update/index.test.js`, `apps/backend/lambdas/onconnect/index.test.js`, `apps/backend/lambdas/ondisconnect/index.test.js`
 
 ### Running Unit Tests
 
-- **Frontend:** `npm run test --prefix apps/frontend`
-- **Backend:** `npm test --prefix apps/backend` (Use `npm run test:watch --prefix apps/backend` for active development).
+- **Frontend:** `npm run test --prefix apps/frontend` (Note: This executes both Unit and Integration tests).
+- **Backend:** `npm run test --prefix apps/backend` (Use `npm run test:watch --prefix apps/backend` for active development).
 
 ---
 
@@ -43,7 +43,7 @@ Integration tests verify that different components and services work together co
 
 ### Running Integration Tests
 
-Since these share the same Vitest runner as Frontend Unit Tests, they are executed together:
+Since these share the same Vitest runner as Frontend Unit Tests, running the command below will execute both Unit and Integration tests together:
 
 ```bash
 npm run test --prefix apps/frontend
@@ -63,7 +63,7 @@ API tests explicitly validate the HTTP contract and REST endpoints of the backen
 Since these share the same Vitest runner as Backend Unit Tests, they are executed together:
 
 ```bash
-npm test --prefix apps/backend
+npm run test --prefix apps/backend
 ```
 
 ---
@@ -106,11 +106,15 @@ Because E2E tests require specific browser binaries, you must run them directly 
    npm install
    npx playwright install --with-deps
    ```
-3. Run all E2E tests in headless mode (Invisible):
+3. Run **both** Smoke and E2E User Journey tests in headless mode (Invisible):
    ```bash
    npx playwright test
    ```
-4. Run tests in UI mode (Interactive visual debugger):
+4. Run **only** the E2E User Journey test:
+   ```bash
+   npx playwright test tests/user-journey.spec.ts
+   ```
+5. Run tests in UI mode (Interactive visual debugger):
    ```bash
    npx playwright test --ui
    ```
@@ -131,6 +135,27 @@ At an enterprise scale, it is crucial to validate that the system survives sever
 - **Chaos Testing & Fault Injection**: We periodically perform manual fault injection (e.g., forcing the `storage-worker` Lambda to fail or simulating Aiven database throttling) to verify that AWS SQS automatically captures the failed events into a Dead Letter Queue (DLQ).
 - **Dead-Letter Queue (DLQ) Recovery**: We test the DLQ redrive mechanisms to guarantee that dropped events (like boundary updates or wickets) can be seamlessly re-processed once the downstream database recovers.
 - **Multi-AZ Resilience**: AWS API Gateway, Lambda, and DynamoDB automatically distribute across 3 Availability Zones. We test failovers by monitoring CloudWatch latency when regional loads spike.
+
+---
+
+## 7. Environment Testing Strategy (Staging vs. Production)
+
+When operating with multiple environments, we strictly divide our testing responsibilities to prevent "noisy" or destructive test data from polluting the live system:
+
+### 🔬 Staging Environment
+
+All heavy, automated, and potentially destructive tests are run against the Staging environment. This prevents dummy data (e.g., "CHICAGO SPARTANS") from appearing to real users.
+
+- **Full E2E Playwright Suite**: Executes the complete User Journey, creates matches, and interacts with the database.
+- **OWASP ZAP (DAST)**: Actively attacks the API Gateway endpoints and fuzzes the inputs.
+
+### 🌐 Direct Production Environment
+
+Production testing is strictly limited to passive observability and lightweight, non-destructive validation.
+
+- **Smoke Tests**: A lightweight Playwright test that only verifies the homepage loads and returns `200 OK`, without creating any data.
+- **Synthetic Monitoring**: Tools like our `keepalive.yml` workflow and CloudWatch that ping the `/health` endpoint every 5 minutes to ensure uptime.
+- **Passive Observability**: Using AWS CloudWatch Logs and Sentry to monitor real-user traffic for unexpected crashes.
 
 ---
 

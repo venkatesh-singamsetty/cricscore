@@ -4,15 +4,19 @@ This document outlines all the tools, frameworks, and security scanners utilized
 
 ---
 
-## 1. Core Development (Frontend)
+## 1. Core Development & Testing
 
-| Tool              | Purpose                                                                                                  |
-| ----------------- | -------------------------------------------------------------------------------------------------------- |
-| **Node.js / npm** | The core runtime environment and package manager used for frontend dependencies and local scripts.       |
-| **Vite**          | The ultra-fast frontend build tool and local development server, providing Hot Module Replacement (HMR). |
-| **React**         | The declarative UI library used to build the single-page application (SPA).                              |
-| **TypeScript**    | Adds strong static typing to JavaScript, preventing runtime errors and improving IDE autocomplete.       |
-| **Vitest**        | The testing framework used for frontend unit tests, deeply integrated with the Vite build system.        |
+| Tool                      | Purpose                                                                                                   |
+| ------------------------- | --------------------------------------------------------------------------------------------------------- |
+| **Node.js / npm**         | The core runtime environment and package manager used for project dependencies and local scripts.         |
+| **Vite**                  | The ultra-fast frontend build tool and local development server, providing Hot Module Replacement (HMR).  |
+| **React**                 | The declarative UI library used to build the single-page application (SPA).                               |
+| **TypeScript**            | Adds strong static typing to JavaScript, preventing runtime errors and improving IDE autocomplete.        |
+| **ESLint**                | Static code analysis tool used alongside Prettier to identify problematic patterns in JS/TS code.         |
+| **Vitest**                | The core testing framework used for both frontend (Unit/Integration) and backend (Unit/API) testing.      |
+| **React Testing Library** | Used to mount React components in a virtual DOM to simulate user clicks and inputs for Integration tests. |
+| **Playwright**            | End-to-End (E2E) testing framework used to spin up a real browser and simulate complex user journeys.     |
+| **aws-sdk-client-mock**   | Used for mocking AWS services (like DynamoDB and SNS) during backend event-driven unit testing.           |
 
 ---
 

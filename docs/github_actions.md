@@ -20,6 +20,7 @@ GitHub enforces extremely strict directory constraints for its automated service
     ├── backend-infra.yml
     ├── codeql.yml
     ├── dast.yml
+    ├── drift.yml
     ├── e2e.yml
     ├── frontend.yml
     ├── keepalive.yml
@@ -54,4 +55,5 @@ These pipelines run asynchronously on schedules or specific deployment events.
 
 - `keepalive.yml`: Scheduled CRON job that pings the Aiven Database to prevent inactivity pauses.
 - `dast.yml`: Nightly scheduled Dynamic Application Security Testing (OWASP ZAP) against the live API.
+- `drift.yml`: Nightly scheduled Terraform Drift Detection to alert if live AWS resources deviate from the IaC state.
 - `release.yml`: Triggered automatically on merge to `main` to generate Semantic Versions and changelogs.

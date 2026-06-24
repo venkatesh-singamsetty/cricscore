@@ -14,7 +14,7 @@
     "preview": "npm run preview --prefix apps/frontend",
     "lint": "npm run lint --prefix apps/frontend",
     "test": "npm run test --prefix apps/frontend",
-    "test:all": "npm run test --prefix apps/frontend && npm test --prefix apps/backend",
+    "test:all": "npm run test --prefix apps/frontend && npm run test --prefix apps/backend",
     "prepare": "husky"
   },
   "devDependencies": {

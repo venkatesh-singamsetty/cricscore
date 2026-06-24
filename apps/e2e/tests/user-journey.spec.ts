@@ -243,12 +243,12 @@ test.describe("Enterprise Critical User Journey", () => {
       .click({ force: true });
     await page.waitForTimeout(1000);
 
-    // Ball 4: 0 Runs
-    await page.getByRole("button", { name: "0", exact: true }).first().click();
+    // Ball 4: 6 Runs
+    await page.getByRole("button", { name: "6", exact: true }).first().click();
     await page.waitForTimeout(1000);
 
-    // Ball 5: 0 Runs
-    await page.getByRole("button", { name: "0", exact: true }).first().click();
+    // Ball 5: 4 Runs
+    await page.getByRole("button", { name: "4", exact: true }).first().click();
     await page.waitForTimeout(1000);
 
     // Ball 6: 1 Run (Match ends, SHARK BLUE loses)
