@@ -779,7 +779,7 @@ exports.handler = async (event) => {
       for (const inn of inningsRes.rows) {
         // Fetch Players for this inning
         const playersRes = await client.query(
-          "SELECT * FROM players WHERE inning_id = $1",
+          "SELECT * FROM players WHERE inning_id = $1 ORDER BY batting_position ASC NULLS LAST, runs DESC",
           [inn.id],
         );
         // Fetch Bowlers for this inning

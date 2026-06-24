@@ -187,6 +187,22 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
     }
   }, [targetMatchId, fetchMatchDetails]);
 
+  // Polling fallback: refresh every 5s while watching a live match,
+  // in case WebSocket messages are missed or the connection briefly drops.
+  useEffect(() => {
+    if (!targetMatchId) return;
+    const interval = setInterval(() => {
+      if (
+        matchMeta?.status === "LIVE" ||
+        matchMeta?.status === "INNINGS_BREAK" ||
+        !matchMeta
+      ) {
+        fetchMatchDetails(targetMatchId, true);
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [targetMatchId, matchMeta?.status, fetchMatchDetails]);
+
   return (
     <div className="p-6 bg-slate-900 text-white rounded-[2rem] border border-white/5 shadow-2xl max-w-md mx-auto">
       <div className="flex flex-col gap-4 mb-6">
