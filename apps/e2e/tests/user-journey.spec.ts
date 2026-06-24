@@ -215,18 +215,14 @@ test.describe("Enterprise Critical User Journey", () => {
       .click({ force: true });
     await page.waitForTimeout(1000);
 
-    // Ball 5: 1 Run
-    await page.getByRole("button", { name: "1", exact: true }).first().click();
-    await page.waitForTimeout(1000);
-
-    // Ball 6: Wicket (RUN OUT)
+    // Ball 5: Wicket (RUN OUT)
     await page.getByRole("button", { name: "W", exact: true }).first().click();
     await page.getByRole("button", { name: /RUN OUT/i }).click();
     // Run Out Modal -> Runs scored before run out
     await expect(page.getByText(/Runs completed before/i)).toBeVisible();
     await page
       .locator(".fixed")
-      .getByRole("button", { name: "1", exact: true })
+      .getByRole("button", { name: "0", exact: true })
       .click();
 
     // Select who is out (Striker or Non-Striker) -> click gabriel
@@ -253,6 +249,10 @@ test.describe("Enterprise Critical User Journey", () => {
       .getByRole("button", { name: /sagar/i })
       .first()
       .click({ force: true });
+    await page.waitForTimeout(1000);
+
+    // Ball 6: 1 Run - Over ends, Innings ends (total < target)
+    await page.getByRole("button", { name: "1", exact: true }).first().click();
     await page.waitForTimeout(2000);
 
     // 9. Verify Match Completed

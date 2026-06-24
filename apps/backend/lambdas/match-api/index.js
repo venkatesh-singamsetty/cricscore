@@ -54,7 +54,7 @@ const sendMatchReportEmail = async (
     );
     for (const inn of inningsRes.rows) {
       const pRes = await client.query(
-        "SELECT * FROM players WHERE inning_id = $1 ORDER BY runs DESC",
+        "SELECT * FROM players WHERE inning_id = $1 ORDER BY batting_position ASC NULLS LAST, runs DESC",
         [inn.id],
       );
       const bRes = await client.query(
@@ -125,7 +125,7 @@ const sendMatchReportEmail = async (
 
     if (!inn.players || !inn.bowlers) {
       const pR = await client.query(
-        "SELECT * FROM players WHERE inning_id = $1 ORDER BY runs DESC",
+        "SELECT * FROM players WHERE inning_id = $1 ORDER BY batting_position ASC NULLS LAST, runs DESC",
         [inn.id],
       );
       const bR = await client.query(

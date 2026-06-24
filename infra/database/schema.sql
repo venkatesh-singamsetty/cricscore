@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS players (
     wicket_by VARCHAR(100),
     wicket_type VARCHAR(50),
     fielder_name VARCHAR(100),
+    batting_position INT,
     UNIQUE(inning_id, name)
 );
 
