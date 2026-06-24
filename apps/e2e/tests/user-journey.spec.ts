@@ -74,28 +74,71 @@ test.describe("Enterprise Critical User Journey", () => {
       timeout: 15000,
     });
 
-    // Ball 1: 6 Runs
-    await page.getByRole("button", { name: "6", exact: true }).first().click();
+    // Extras: WIDE
+    await page
+      .getByRole("button", { name: "WIDE", exact: true })
+      .first()
+      .click();
+    await expect(
+      page.getByRole("heading", { name: /Additional Runs/i }),
+    ).toBeVisible();
+    await page
+      .locator(".fixed")
+      .getByRole("button", { name: "0", exact: true })
+      .click();
     await page.waitForTimeout(1000);
 
-    // Ball 2: 6 Runs
-    await page.getByRole("button", { name: "6", exact: true }).first().click();
+    // Extras: NO BALL
+    await page
+      .getByRole("button", { name: "NO BALL", exact: true })
+      .first()
+      .click();
+    await expect(
+      page.getByRole("heading", { name: /Additional Runs/i }),
+    ).toBeVisible();
+    await page
+      .locator(".fixed")
+      .getByRole("button", { name: "0", exact: true })
+      .click();
     await page.waitForTimeout(1000);
 
-    // Ball 3: 4 Runs
-    await page.getByRole("button", { name: "4", exact: true }).first().click();
+    // Ball 1: 1 Run (Suri) - Strike rotates
+    await page.getByRole("button", { name: "1", exact: true }).first().click();
     await page.waitForTimeout(1000);
 
-    // Ball 4: 2 Runs
+    // Ball 2: 2 Runs (Sunil)
     await page.getByRole("button", { name: "2", exact: true }).first().click();
     await page.waitForTimeout(1000);
 
-    // Ball 5: 0 Runs
-    await page.getByRole("button", { name: "0", exact: true }).first().click();
+    // Ball 3: Wicket (Sunil is CAUGHT)
+    await page.getByRole("button", { name: "W", exact: true }).first().click();
+    await page.getByRole("button", { name: /CAUGHT/i }).click();
+    // Select Fielder (SHARK BLUE)
+    await expect(
+      page.getByRole("heading", { name: /Who took the catch\?/i }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: /gopi/i })
+      .first()
+      .click({ force: true });
+    // Select New Batter (CHICAGO SPARTANS)
+    await expect(page.getByText(/Select New Batter/i)).toBeVisible();
+    await page
+      .getByRole("button", { name: /venky/i })
+      .first()
+      .click({ force: true });
     await page.waitForTimeout(1000);
 
-    // Ball 6: 1 Run (Innings ends, Total 19, Target 20)
+    // Ball 4: 4 Runs (Venky)
+    await page.getByRole("button", { name: "4", exact: true }).first().click();
+    await page.waitForTimeout(1000);
+
+    // Ball 5: 1 Run (Venky) - Strike rotates
     await page.getByRole("button", { name: "1", exact: true }).first().click();
+    await page.waitForTimeout(1000);
+
+    // Ball 6: 6 Runs (Suri) - Innings ends, Total 16, Target 17
+    await page.getByRole("button", { name: "6", exact: true }).first().click();
     await page.waitForTimeout(2000);
 
     // 7. Transition to Inning 2
@@ -125,11 +168,11 @@ test.describe("Enterprise Critical User Journey", () => {
       page.getByRole("heading", { name: /Opening Bowler/i }).first(),
     ).toBeVisible();
     await page
-      .getByRole("button", { name: /venky/i })
+      .getByRole("button", { name: /eega/i })
       .first()
       .click({ force: true });
 
-    // 8. Chase Target (Target: 20)
+    // 8. Chase Target (Target: 17)
     await expect(page.getByText(/Live Timeline/i).first()).toBeVisible({
       timeout: 15000,
     });
