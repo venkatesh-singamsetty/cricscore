@@ -29,11 +29,11 @@ However, in order to _create_ those squished files, the frontend desperately nee
 
 - **Action**: We must run a full `npm install` to download everything required to build the code.
 
-### ☁️ The Backend Rule: Production Install (`npm install --production`)
+### ☁️ The Backend Rule: Production Install (`npm install --omit=dev`)
 
 For your AWS Lambdas (Backend), there is no "build" step. The AWS Lambda actually takes your raw JavaScript files **and** your entire `node_modules` folder, zips them up, and runs them natively in the cloud.
 
-- **Action**: We must strictly run `npm install --production`. This tells NPM to completely ignore heavy testing tools and only download the bare essentials. If we uploaded massive testing libraries to AWS, our Lambdas would be slow, bloated, and hit AWS size limits.
+- **Action**: We must strictly run `npm install --omit=dev` (formerly `--production`). This tells NPM to completely ignore heavy testing tools and only download the bare essentials. If we uploaded massive testing libraries to AWS, our Lambdas would be slow, bloated, and hit AWS size limits.
 
 **In Short:**
 

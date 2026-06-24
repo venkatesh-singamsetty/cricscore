@@ -62,10 +62,8 @@ const MatchList: React.FC<MatchListProps> = ({
     try {
       const response = await fetch(`${API_URL}/matches`);
       const data = await response.json();
-      // Sort matches so LIVE matches are on top, and then sort by most recently updated
+      // Sort matches by most recently updated first, regardless of status
       const sorted = [...data].sort((a, b) => {
-        if (a.status === "LIVE" && b.status !== "LIVE") return -1;
-        if (b.status === "LIVE" && a.status !== "LIVE") return 1;
         return (
           new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
         );
@@ -308,24 +306,33 @@ const MatchList: React.FC<MatchListProps> = ({
                   <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-center">
                     {(() => {
                       // Match each team's innings by batting_team_name (not by index position)
-                      const teamAInnings = match.innings?.find(
-                        (i) => i.batting_team_name === match.team_a_name,
+                      const leftTeamName =
+                        match.innings?.[0]?.batting_team_name ||
+                        match.team_a_name;
+                      const rightTeamName =
+                        leftTeamName === match.team_a_name
+                          ? match.team_b_name
+                          : match.team_a_name;
+
+                      const leftTeamInnings = match.innings?.find(
+                        (i) => i.batting_team_name === leftTeamName,
                       );
-                      const teamBInnings = match.innings?.find(
-                        (i) => i.batting_team_name === match.team_b_name,
+                      const rightTeamInnings = match.innings?.find(
+                        (i) => i.batting_team_name === rightTeamName,
                       );
                       return (
                         <>
                           <div className="flex flex-col">
                             <h4 className="text-base font-black text-white uppercase tracking-tight italic group-hover:text-indigo-400 transition-colors">
-                              {match.team_a_name}
+                              {leftTeamName}
                             </h4>
-                            {teamAInnings ? (
+                            {leftTeamInnings ? (
                               <span className="text-xs font-black text-slate-400 tabular-nums">
-                                {teamAInnings.total_runs}/
-                                {teamAInnings.total_wickets}
+                                {leftTeamInnings.total_runs}/
+                                {leftTeamInnings.total_wickets}
                                 <span className="text-[10px] text-slate-600 lowercase ml-1">
-                                  ({teamAInnings.overs}.{teamAInnings.balls})
+                                  ({leftTeamInnings.overs}.
+                                  {leftTeamInnings.balls})
                                 </span>
                               </span>
                             ) : (
@@ -341,14 +348,15 @@ const MatchList: React.FC<MatchListProps> = ({
 
                           <div className="flex flex-col text-right">
                             <h4 className="text-base font-black text-white uppercase tracking-tight italic group-hover:text-indigo-400 transition-colors">
-                              {match.team_b_name}
+                              {rightTeamName}
                             </h4>
-                            {teamBInnings ? (
+                            {rightTeamInnings ? (
                               <span className="text-xs font-black text-slate-400 tabular-nums">
-                                {teamBInnings.total_runs}/
-                                {teamBInnings.total_wickets}
+                                {rightTeamInnings.total_runs}/
+                                {rightTeamInnings.total_wickets}
                                 <span className="text-[10px] text-slate-600 lowercase ml-1">
-                                  ({teamBInnings.overs}.{teamBInnings.balls})
+                                  ({rightTeamInnings.overs}.
+                                  {rightTeamInnings.balls})
                                 </span>
                               </span>
                             ) : (

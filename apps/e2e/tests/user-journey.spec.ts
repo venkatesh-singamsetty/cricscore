@@ -2,6 +2,8 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Enterprise Critical User Journey", () => {
   test("should complete a full match lifecycle", async ({ page }) => {
+    test.setTimeout(180000); // 180s for 12 balls
+
     // 1. Visit the home page
     await page.goto("/");
 
@@ -15,76 +17,248 @@ test.describe("Enterprise Critical User Journey", () => {
     await page.getByRole("button", { name: /CONTINUE/i }).click();
 
     // 3. Fill Match Setup
-    // Ensure the page loads MatchSetup component
     await expect(
       page.getByRole("heading", { name: /Match Configurations/i }),
     ).toBeVisible();
 
-    // Explicitly set deterministic squads
+    // Explicitly set deterministic squads so it works on production before deployment
     const squadInputs = page.getByPlaceholder(/Enter player name/i);
-    await squadInputs.nth(0).fill("BATTER_A\nBATTER_B\nBATTER_C");
-    await squadInputs.nth(1).fill("BOWLER_A\nBOWLER_B\nBOWLER_C");
+    await squadInputs
+      .nth(0)
+      .fill(
+        "suri\nvenky\nsunil\nraju\nsandy\nsrinath\ndonny\nparth\nsrini\nsrikanth\neega",
+      );
+    await squadInputs
+      .nth(1)
+      .fill(
+        "yaswanth\ngopi\navinash\ngabriel\nsagar\namogh\nambarasan\ntejas\nraj\nsakthikumar\nashvin",
+      );
 
-    // Click "Start Fresh Match"
+    // Set 1 Over match
+    await page.locator('input[type="number"]').first().fill("1");
+
+    // Click "Start Fresh Match" (Leave CHICAGO SPARTANS to bat first)
     const startButton = page.getByRole("button", {
       name: /Start Fresh Match/i,
     });
     await expect(startButton).toBeEnabled();
     await startButton.click();
 
-    // Toss is handled on the Match Setup form natively, skipping to Openers.
-
-    // 5. Select Openers
+    // 5. Select Openers (Innings 1 - CHICAGO SPARTANS Batting)
     await expect(
       page.getByRole("heading", { name: /SELECT STRIKER/i }),
     ).toBeVisible({ timeout: 15000 });
-
-    // Select Striker
     await page
-      .getByRole("button", { name: "BATTER_A" })
+      .getByRole("button", { name: /suri/i })
       .first()
       .click({ force: true });
 
-    // Select Non-Striker
     await expect(
       page.getByRole("heading", { name: /SELECT NON-STRIKER/i }).first(),
     ).toBeVisible();
     await page
-      .getByRole("button", { name: "BATTER_B" })
+      .getByRole("button", { name: /venky/i })
       .first()
       .click({ force: true });
 
-    // Select Bowler
     await expect(
       page.getByRole("heading", { name: /Opening Bowler/i }).first(),
     ).toBeVisible();
     await page
-      .getByRole("button", { name: "BOWLER_A" })
+      .getByRole("button", { name: /yaswanth/i })
       .first()
       .click({ force: true });
 
-    // 6. Score some runs on the Scoreboard
+    // 6. Score Inning 1 (CHICAGO SPARTANS Batting)
     await expect(page.getByText(/Live Timeline/i).first()).toBeVisible({
       timeout: 15000,
     });
 
-    // Hit 4 runs and wait briefly for the background sync API to finish to release the isProcessing lock
-    await page.getByRole("button", { name: "4", exact: true }).click();
+    // Extras: WIDE
+    await page
+      .getByRole("button", { name: "WIDE", exact: true })
+      .first()
+      .click();
+    await expect(
+      page.getByRole("heading", { name: /Additional Runs/i }),
+    ).toBeVisible();
+    await page
+      .locator(".fixed")
+      .getByRole("button", { name: "0", exact: true })
+      .click();
+    await page.waitForTimeout(1000);
+
+    // Extras: NO BALL
+    await page
+      .getByRole("button", { name: "NO BALL", exact: true })
+      .first()
+      .click();
+    await expect(
+      page.getByRole("heading", { name: /Additional Runs/i }),
+    ).toBeVisible();
+    await page
+      .locator(".fixed")
+      .getByRole("button", { name: "0", exact: true })
+      .click();
+    await page.waitForTimeout(1000);
+
+    // Ball 1: 1 Run (Suri) - Strike rotates
+    await page.getByRole("button", { name: "1", exact: true }).first().click();
+    await page.waitForTimeout(1000);
+
+    // Ball 2: 2 Runs (Venky)
+    await page.getByRole("button", { name: "2", exact: true }).first().click();
+    await page.waitForTimeout(1000);
+
+    // Ball 3: Wicket (Venky is CAUGHT)
+    await page.getByRole("button", { name: "W", exact: true }).first().click();
+    await page.getByRole("button", { name: /CAUGHT/i }).click();
+    // Select Fielder (SHARK BLUE)
+    await expect(
+      page.getByRole("heading", { name: /Who took the catch\?/i }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: /gopi/i })
+      .first()
+      .click({ force: true });
+    // Select New Batter (CHICAGO SPARTANS)
+    await expect(page.getByText(/Select New Batter/i)).toBeVisible();
+    await page
+      .getByRole("button", { name: /sunil/i })
+      .first()
+      .click({ force: true });
+    await page.waitForTimeout(1000);
+
+    // Ball 4: 4 Runs (Sunil)
+    await page.getByRole("button", { name: "4", exact: true }).first().click();
+    await page.waitForTimeout(1000);
+
+    // Ball 5: 1 Run (Sunil) - Strike rotates
+    await page.getByRole("button", { name: "1", exact: true }).first().click();
+    await page.waitForTimeout(1000);
+
+    // Ball 6: 6 Runs (Suri) - Innings ends, Total 16, Target 17
+    await page.getByRole("button", { name: "6", exact: true }).first().click();
     await page.waitForTimeout(2000);
 
-    // Take a wicket
-    await page.getByRole("button", { name: "W", exact: true }).click();
-    await page.getByRole("button", { name: /BOWLED/i }).click();
+    // 7. Transition to Inning 2
+    await expect(page.getByText(/Innings Break/i)).toBeVisible({
+      timeout: 15000,
+    });
+    await page.getByRole("button", { name: /START 2ND INNINGS/i }).click();
 
-    // Select new batter
+    // Innings 2 Openers (SHARK BLUE Batting)
+    await expect(
+      page.getByRole("heading", { name: /SELECT STRIKER/i }),
+    ).toBeVisible();
     await page
-      .getByRole("button", { name: "BATTER_C" })
+      .getByRole("button", { name: /yaswanth/i })
       .first()
       .click({ force: true });
 
-    // We confirm the total runs is correctly aggregated.
-    await expect(page.getByText("4/1")).toBeVisible({ timeout: 15000 });
+    await expect(
+      page.getByRole("heading", { name: /SELECT NON-STRIKER/i }).first(),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: /gopi/i })
+      .first()
+      .click({ force: true });
 
-    console.log("✅ User Journey Completed Successfully");
+    await expect(
+      page.getByRole("heading", { name: /Opening Bowler/i }).first(),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: /eega/i })
+      .first()
+      .click({ force: true });
+
+    // 8. Chase Target (Target: 17)
+    await expect(page.getByText(/Live Timeline/i).first()).toBeVisible({
+      timeout: 15000,
+    });
+
+    // Ball 1: 6 Runs
+    await page.getByRole("button", { name: "6", exact: true }).first().click();
+    await page.waitForTimeout(1000);
+
+    // Ball 2: Wicket (BOWLED)
+    await page.getByRole("button", { name: "W", exact: true }).first().click();
+    await page.getByRole("button", { name: /BOWLED/i }).click();
+    await page
+      .getByRole("button", { name: /avinash/i })
+      .first()
+      .click({ force: true });
+    await page.waitForTimeout(1000);
+
+    // Ball 3: 4 Runs
+    await page.getByRole("button", { name: "4", exact: true }).first().click();
+    await page.waitForTimeout(1000);
+
+    // Ball 4: Wicket (CAUGHT)
+    await page.getByRole("button", { name: "W", exact: true }).first().click();
+    await page.getByRole("button", { name: /CAUGHT/i }).click();
+    // Select Fielder (CHICAGO SPARTANS)
+    await expect(
+      page.getByRole("heading", { name: /Who took the catch\?/i }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: /suri/i })
+      .first()
+      .click({ force: true });
+    // Select New Batter (SHARK BLUE)
+    await expect(
+      page.getByRole("heading", { name: /Select New Batter/i }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: /gabriel/i })
+      .first()
+      .click({ force: true });
+    await page.waitForTimeout(1000);
+
+    // Ball 5: Wicket (RUN OUT)
+    await page.getByRole("button", { name: "W", exact: true }).first().click();
+    await page.getByRole("button", { name: /RUN OUT/i }).click();
+    // Run Out Modal -> Runs scored before run out
+    await expect(page.getByText(/Runs completed before/i)).toBeVisible();
+    await page
+      .locator(".fixed")
+      .getByRole("button", { name: "0", exact: true })
+      .click();
+
+    // Select who is out (Striker or Non-Striker) -> click gabriel
+    await expect(page.getByText(/Who was Run Out/i)).toBeVisible();
+    await page
+      .getByRole("button", { name: /gabriel/i })
+      .first()
+      .click();
+
+    // Select Fielder
+    await expect(
+      page.getByRole("heading", { name: /Who performed the run out\?/i }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: /sandy/i })
+      .first()
+      .click({ force: true });
+
+    // Select New Batter (SHARK BLUE)
+    await expect(
+      page.getByRole("heading", { name: /Select New Batter/i }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: /sagar/i })
+      .first()
+      .click({ force: true });
+    await page.waitForTimeout(1000);
+
+    // Ball 6: 1 Run - Over ends, Innings ends (total < target)
+    await page.getByRole("button", { name: "1", exact: true }).first().click();
+    await page.waitForTimeout(2000);
+
+    // 9. Verify Match Completed
+    await expect(page.getByText(/Official Result/i)).toBeVisible({
+      timeout: 15000,
+    });
+    console.log("✅ Full 1-Over Match Journey Completed Successfully");
   });
 });

@@ -54,7 +54,7 @@ const sendMatchReportEmail = async (
     );
     for (const inn of inningsRes.rows) {
       const pRes = await client.query(
-        "SELECT * FROM players WHERE inning_id = $1 ORDER BY runs DESC",
+        "SELECT * FROM players WHERE inning_id = $1 ORDER BY batting_position ASC NULLS LAST, runs DESC",
         [inn.id],
       );
       const bRes = await client.query(
@@ -125,7 +125,7 @@ const sendMatchReportEmail = async (
 
     if (!inn.players || !inn.bowlers) {
       const pR = await client.query(
-        "SELECT * FROM players WHERE inning_id = $1 ORDER BY runs DESC",
+        "SELECT * FROM players WHERE inning_id = $1 ORDER BY batting_position ASC NULLS LAST, runs DESC",
         [inn.id],
       );
       const bR = await client.query(
@@ -257,6 +257,29 @@ const sendMatchReportEmail = async (
         "⚠️ Scorer Email Rejected (Likely Sandbox mode):",
         err.message,
       );
+    }
+  }
+
+  // After sending emails, we log them into the DB
+  if (adminEmailSent && process.env.ADMIN_REPORT_EMAIL) {
+    try {
+      await client.query(
+        "INSERT INTO sent_emails (match_id, email_address, recipient_type) VALUES ($1, $2, $3)",
+        [matchId, process.env.ADMIN_REPORT_EMAIL, "ADMIN"],
+      );
+    } catch (e) {
+      console.error("Failed to log admin email to DB:", e.message);
+    }
+  }
+
+  if (scorerEmailSent && emailTo) {
+    try {
+      await client.query(
+        "INSERT INTO sent_emails (match_id, email_address, recipient_type) VALUES ($1, $2, $3)",
+        [matchId, emailTo, "SCORER"],
+      );
+    } catch (e) {
+      console.error("Failed to log scorer email to DB:", e.message);
     }
   }
 
@@ -756,7 +779,7 @@ exports.handler = async (event) => {
       for (const inn of inningsRes.rows) {
         // Fetch Players for this inning
         const playersRes = await client.query(
-          "SELECT * FROM players WHERE inning_id = $1",
+          "SELECT * FROM players WHERE inning_id = $1 ORDER BY batting_position ASC NULLS LAST, runs DESC",
           [inn.id],
         );
         // Fetch Bowlers for this inning
