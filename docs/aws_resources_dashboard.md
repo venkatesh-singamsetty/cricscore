@@ -47,6 +47,9 @@ AWS X-Ray visualizes the request path between API Gateway, Lambda, and SNS, help
 
 - [**API Gateways (REST & WebSocket)**](https://us-east-1.console.aws.amazon.com/apigateway/main/apis?region=us-east-1): Manage custom domains and throttling.
 - [**SNS Topics (Pub/Sub)**](https://us-east-1.console.aws.amazon.com/sns/v3/home?region=us-east-1#/topics): View the event buses that decouple your microservices.
+- [**SQS Queues (DLQ)**](https://us-east-1.console.aws.amazon.com/sqs/v3/home?region=us-east-1#/queues): View the Dead-Letter Queues capturing failed events.
+- [**DynamoDB Tables**](https://us-east-1.console.aws.amazon.com/dynamodbv2/home?region=us-east-1#tables): View NoSQL state and live caching data.
+- [**Aiven PostgreSQL Console**](https://console.aiven.io/): Access the managed relational database.
 - [**S3 Buckets**](https://s3.console.aws.amazon.com/s3/buckets?region=us-east-1): Frontend static hosting assets.
 - [**CloudFront Distributions**](https://us-east-1.console.aws.amazon.com/cloudfront/v4/home?region=us-east-1#/distributions): Global CDN caching configurations.
 
@@ -63,13 +66,13 @@ CricScore utilizes a strict DevSecOps pipeline. To view the results of the autom
 
 ### CI/CD Pipeline Scanners (View in GitHub Actions Logs)
 
-The following tools block Pull Requests automatically. You can view their output in the [GitHub Actions UI](https://github.com/venkatesh-singamsetty/cricscore/actions) on any running PR:
+The following tools block Pull Requests automatically. You can click these direct links to view the specific workflows running these tools:
 
-- **GitLeaks**: Detects hardcoded secrets or AWS keys before code is pushed.
-- **Trivy**: Scans infrastructure and dependencies for CRITICAL/HIGH vulnerabilities.
-- **Checkov**: Analyzes Terraform (`.tf`) files. (Note: The pipeline output is logged here, but the actual security issues are automatically uploaded to the **GitHub Native Dashboards -> Code Scanning** tab for easier tracking and remediation).
-- **Syft (SBOM)**: Generates a Software Bill of Materials (available as a downloadable artifact `spdx-json` on the CI pipeline summary page).
-- **OWASP ZAP (DAST)**: Runs an active baseline scan against the deployed API Gateway URLs during E2E testing to detect live misconfigurations like missing HTTP headers.
+- [**GitLeaks**](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/secrets.yml): Detects hardcoded secrets or AWS keys before code is pushed.
+- [**CodeQL SAST**](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/codeql.yml): Native static application security testing to detect vulnerabilities like XSS and SQL injection.
+- [**Trivy & Checkov**](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/backend-infra.yml): Runs inside the Backend infrastructure pipeline to scan dependencies for CRITICAL/HIGH CVEs (Trivy) and audit Terraform misconfigurations (Checkov).
+- [**Syft (SBOM)**](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/sbom.yml): Automatically generates a Software Bill of Materials (available as a downloadable artifact `spdx-json` on the pipeline run page).
+- [**OWASP ZAP (DAST)**](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/dast.yml): Runs an active baseline scan against the live deployed API Gateway URLs to detect runtime misconfigurations like missing HTTP headers.
 
 ---
 

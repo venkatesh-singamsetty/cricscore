@@ -431,6 +431,9 @@ const MatchView: React.FC<MatchViewProps> = ({
           totalWickets: innings.totalWickets,
           bowlerOvers: bOvers,
           bowlerBalls: bBalls,
+          battingOrderNames: innings.battingOrder
+            .map((id) => innings.players[id]?.name)
+            .filter(Boolean),
           syncOnly: true,
         }),
       });
@@ -486,6 +489,9 @@ const MatchView: React.FC<MatchViewProps> = ({
           totalWickets: finalInnings.totalWickets,
           bowlerOvers: b?.overs || 0,
           bowlerBalls: b?.balls || 0,
+          battingOrderNames: finalInnings.battingOrder
+            .map((id) => finalInnings.players[id]?.name)
+            .filter(Boolean),
           // Absolute stats snapshots to correct any database drift
           runs: finalInnings.players[ball.batterName]
             ? finalInnings.players[ball.batterName].runs

@@ -53,7 +53,7 @@ echo "📦 Installing required Lambda dependencies..."
 for dir in apps/backend/lambdas/*/; do
   if [ -f "$dir/package.json" ]; then
     echo "Hydrating $dir..."
-    (cd "$dir" && npm install --production)
+    (cd "$dir" && npm install --omit=dev)
   fi
 done
 

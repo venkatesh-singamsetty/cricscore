@@ -140,7 +140,7 @@ jobs:
           for d in apps/backend/lambdas/*; do
             if [ -f "$d/package.json" ]; then
               echo "Installing production dependencies in $d"
-              (cd "$d" && npm install --production --ignore-scripts)
+              (cd "$d" && npm install --omit=dev --ignore-scripts)
             fi
           done
 

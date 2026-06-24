@@ -2,6 +2,40 @@
 
 This engineering trace documents the real-world resolutions for the CricScore backend integration.
 
+### 49. **Viewer Scoreboard Not Refreshing (Stale Data on Live Matches)**
+
+- **Symptom**: The viewer page showed a frozen/stale scoreboard during a live match. Even after the scorer entered new balls, the viewer's scores and active batters didn't update.
+- **Cause (1 — Missing polling fallback)**: The viewer's `LiveScoreboard.tsx` relied exclusively on WebSocket pushes to trigger a `fetchMatchDetails` re-fetch. If the WebSocket connection briefly dropped and reconnected (which can happen on mobile networks), no refresh was triggered — leaving the scoreboard frozen until the next ball was scored.
+- **Cause (2 — Missing ORDER BY in `/details` endpoint)**: The `GET /match/{matchId}/details` Lambda handler in `match-api/index.js` queried players with a bare `SELECT * FROM players WHERE inning_id = $1` (no `ORDER BY`). Players were returned in unpredictable DB heap order, also breaking the batting-order display on the full scoreboard.
+- **Fix**: Two changes deployed:
+  1. Added `ORDER BY batting_position ASC NULLS LAST, runs DESC` to the player query in the `/details` endpoint (`match-api/index.js` line ~782).
+  2. Added a 5-second polling `setInterval` in `LiveScoreboard.tsx` that background-refreshes match data whenever the status is `LIVE` or `INNINGS_BREAK`, acting as a guaranteed fallback when WebSocket events are missed.
+
+---
+
+### 48. **E2E Test Failing — "Select New Batter" Modal Not Appearing After RUN OUT**
+
+- **Symptom**: The CI `playwright-tests` check on PR #99 failed. The `should complete a full match lifecycle` test timed out at `expect(page.getByRole("heading", { name: /Select New Batter/i })).toBeVisible()` during the second innings RUN OUT on ball 6.
+- **Cause**: Ball 6 of a 1-over match is simultaneously the last valid delivery (over ends) AND a wicket. In `MatchView.tsx`, the `isMatchEnding` flag evaluates `isOversDone = finalInnings.overs >= totalOvers` — which is `true` after ball 6. When `isMatchEnding` is true, the code calls `onInningsEnd()` and skips `setModalView("BATTER_SELECT")` entirely, so the batter-select modal never renders.
+- **Fix**: Restructured the second innings ball sequence. Moved the RUN OUT from ball 6 → **ball 5** (0 runs, gabriel run-out), then added ball 6 as a regular scoring delivery (1 run). This way:
+  - Ball 5 (RUN OUT): `isMatchEnding = false`, batter-select modal opens correctly ✓
+  - Ball 6 (1 run): Over ends → innings ends → match ends → "Official Result" appears ✓
+  - Wickets are now distributed across **balls 2 (BOWLED), 4 (CAUGHT), 5 (RUN OUT)** per the user's requirement.
+
+---
+
+### 47. **Full Scoreboard Showing Batters in Wrong Order (Sorted by Runs Instead of Batting Order)**
+
+- **Symptom**: The full scorecard on both the scorer and viewer pages displayed batters sorted by runs scored (highest first) rather than in the order they came to the crease. Players who batted later but scored more appeared above openers.
+- **Cause**: The `match-api` Lambda was querying players with `ORDER BY runs DESC`. There was no concept of batting order persisted in the database — the frontend maintained a `battingOrder` array in React state, but this was never written to the DB.
+- **Fix**: Full end-to-end solution deployed across all layers:
+  1. **Database**: Added `batting_position INT` column to the `players` table via migration (`infra/database/migrations/add_batting_position.sql`). Migration applied to the live Aiven PostgreSQL instance.
+  2. **Frontend** (`MatchView.tsx`): Both `syncMatchState` and `postScoreUpdate` now include `battingOrderNames` (ordered array of player names) in their API payloads.
+  3. **Storage Worker** (`storage-worker/index.js`): Extracts `battingOrderNames` from each score-update event and upserts `batting_position` for each player: `UPDATE players SET batting_position = $1 WHERE inning_id = $2 AND name = $3`.
+  4. **Match API** (`match-api/index.js`): All three player queries now use `ORDER BY batting_position ASC NULLS LAST, runs DESC`.
+
+---
+
 ### 46. **CodeQL Flagging Playwright HTML Reports (XSS)**
 
 - **Symptom**: CodeQL static analysis failed the CI/CD pipeline, citing Cross-Site Scripting (XSS) vulnerabilities inside the `playwright-report/index.html` file.

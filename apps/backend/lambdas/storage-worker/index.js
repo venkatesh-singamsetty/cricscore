@@ -35,6 +35,7 @@ exports.handler = async (event) => {
         bowlerBalls: explicitBowlerBalls,
         totalRuns: explicitTotalRuns,
         totalWickets: explicitTotalWickets,
+        battingOrderNames,
         undo,
       } = matchEvent;
 
@@ -150,6 +151,15 @@ exports.handler = async (event) => {
             `,
         [matchId, matchTotalOvers],
       );
+
+      if (battingOrderNames && Array.isArray(battingOrderNames)) {
+        for (let i = 0; i < battingOrderNames.length; i++) {
+          await client.query(
+            "UPDATE players SET batting_position = $1 WHERE inning_id = $2 AND name = $3",
+            [i + 1, inningId, battingOrderNames[i]],
+          );
+        }
+      }
 
       if (!syncOnly && ballData && !undo) {
         // 3. Log Ball Event
