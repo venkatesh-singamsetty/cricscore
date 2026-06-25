@@ -138,7 +138,22 @@ const sendMatchReportEmail = async (
       if (!Array.isArray(players)) players = Object.values(players);
       if (!Array.isArray(bowlers)) bowlers = Object.values(bowlers);
 
-      players.sort((a, b) => (b.runs || 0) - (a.runs || 0));
+      players.sort((a, b) => {
+        const posA =
+          a.battingPosition !== undefined
+            ? a.battingPosition
+            : a.batting_position !== undefined
+              ? a.batting_position
+              : 999;
+        const posB =
+          b.battingPosition !== undefined
+            ? b.battingPosition
+            : b.batting_position !== undefined
+              ? b.batting_position
+              : 999;
+        if (posA !== posB) return posA - posB;
+        return (b.runs || 0) - (a.runs || 0);
+      });
       bowlers.sort(
         (a, b) =>
           (b.wickets || (b.runsConceded ? 0 : -1)) -
