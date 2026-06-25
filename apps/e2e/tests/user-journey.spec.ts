@@ -440,14 +440,24 @@ test.describe("User Journey - Full Match Scoring", () => {
       .getByRole("button", { name: /srinath/i })
       .first()
       .click({ force: true });
-    await page.waitForTimeout(1000);
+    // Wait for modal overlay to fully dismiss (CSS animate-in fade-in 300ms)
+    await page
+      .waitForSelector(".fixed.inset-0", { state: "hidden", timeout: 5000 })
+      .catch(() => {});
+    await page.waitForTimeout(500);
 
     // Ball 1.5: 6 runs (Score: 11)
-    await page.getByRole("button", { name: "6", exact: true }).first().click();
+    await page
+      .getByRole("button", { name: "6", exact: true })
+      .first()
+      .click({ force: true });
     await page.waitForTimeout(1000);
 
     // Ball 1.6: 0 runs
-    await page.getByRole("button", { name: "0", exact: true }).first().click();
+    await page
+      .getByRole("button", { name: "0", exact: true })
+      .first()
+      .click({ force: true });
     await page.waitForTimeout(1000);
 
     // End of Over 1. Select New Bowler.
@@ -476,7 +486,11 @@ test.describe("User Journey - Full Match Scoring", () => {
       .getByRole("button", { name: /srinath/i })
       .first()
       .click({ force: true });
-    await page.waitForTimeout(1000);
+    // Wait for modal overlay to fully dismiss
+    await page
+      .waitForSelector(".fixed.inset-0", { state: "hidden", timeout: 5000 })
+      .catch(() => {});
+    await page.waitForTimeout(500);
 
     // Ball 2.1: 2 runs (added to adjust target due to 2 runs in 1st innings)
     await page

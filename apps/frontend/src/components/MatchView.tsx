@@ -244,6 +244,7 @@ const MatchView: React.FC<MatchViewProps> = ({
     if (history.length === 0) return;
     const previousState = history[history.length - 1];
     setHistory((prev) => prev.slice(0, -1));
+    isProcessingRef.current = false;
     setIsProcessing(false);
     setInnings(previousState);
     setModalView("NONE");
@@ -747,11 +748,27 @@ const MatchView: React.FC<MatchViewProps> = ({
     setModalView("NONE"); // Close wicket type modal if open
 
     if (!isMatchEnding) {
-      if (isWicket) {
+      if (
+        isWicket &&
+        wicketType !== WicketType.RETIRED_HURT &&
+        wicketType !== WicketType.RETIRED_OUT
+      ) {
+        // For RETIRED_HURT/OUT, strikerId is set to "" which triggers the
+        // hardcoded BatterSelectModal at render time — no need to also set
+        // modalView to avoid showing two overlapping identical modals.
         setModalView("BATTER_SELECT");
       } else if (overCompleted) {
         setModalView("BOWLER_SELECT");
       }
+    }
+
+    // Release the processing lock immediately after all state is committed
+    // synchronously. The API call (postScoreUpdate) runs in the background
+    // and should NOT block the user from scoring the next ball.
+    // Only match-ending scenarios keep the UI locked permanently.
+    if (!isMatchEnding) {
+      isProcessingRef.current = false;
+      setIsProcessing(false);
     }
 
     await postScoreUpdate(newBallEvent, finalInnings);
@@ -770,64 +787,65 @@ const MatchView: React.FC<MatchViewProps> = ({
       setTimeout(() => onInningsEnd(finalInnings), 500);
       return; // Lock the UI permanently until the parent unmounts this view
     }
-
-    isProcessingRef.current = false;
-    setIsProcessing(false);
   };
 
   const handleBatterSelected = (newBatterId: string) => {
-    setInnings((prev) => {
-      const updated = { ...prev };
+    // Compute updated state directly from current innings (safe since React
+    // re-renders before any user click, so innings is always current here).
+    const updated = { ...innings, players: { ...innings.players } };
 
-      if (updated.players[newBatterId]) {
-        const player = { ...updated.players[newBatterId] };
-        if (player.wicketType === WicketType.RETIRED_HURT) {
-          player.wicketType = undefined;
-          player.wicketBy = undefined;
-          player.fielderName = undefined;
-          updated.players[newBatterId] = player;
-        }
+    if (updated.players[newBatterId]) {
+      const player = { ...updated.players[newBatterId] };
+      if (player.wicketType === WicketType.RETIRED_HURT) {
+        player.wicketType = undefined;
+        player.wicketBy = undefined;
+        player.fielderName = undefined;
+        updated.players[newBatterId] = player;
       }
+    }
 
-      if (newBatterId === updated.nonStrikerId) {
-        // Swap striker and non-striker
-        [updated.strikerId, updated.nonStrikerId] = [
-          updated.nonStrikerId,
-          updated.strikerId,
-        ];
-      } else if (newBatterId === updated.strikerId) {
-        // Do nothing if same striker is selected
-      } else if (
-        updated.strikerId === "" ||
-        updated.players[updated.strikerId]?.isOut
-      ) {
-        updated.strikerId = newBatterId;
-      } else if (
-        updated.nonStrikerId === "" ||
-        updated.players[updated.nonStrikerId]?.isOut
-      ) {
-        updated.nonStrikerId = newBatterId;
-      } else {
-        updated.strikerId = newBatterId;
-      }
+    if (newBatterId === updated.nonStrikerId) {
+      [updated.strikerId, updated.nonStrikerId] = [
+        updated.nonStrikerId,
+        updated.strikerId,
+      ];
+    } else if (newBatterId === updated.strikerId) {
+      // Do nothing if same striker is selected
+    } else if (
+      updated.strikerId === "" ||
+      updated.players[updated.strikerId]?.isOut
+    ) {
+      updated.strikerId = newBatterId;
+    } else if (
+      updated.nonStrikerId === "" ||
+      updated.players[updated.nonStrikerId]?.isOut
+    ) {
+      updated.nonStrikerId = newBatterId;
+    } else {
+      updated.strikerId = newBatterId;
+    }
 
-      // Decide what modal to show next
-      if (updated.nonStrikerId === "") {
-        // Keep BATTER_SELECT open to choose the second opener
-      } else if (updated.currentBowlerId === "") {
-        setModalView("BOWLER_SELECT");
-      } else if (
-        updated.balls === 0 &&
-        updated.overs > 0 &&
-        updated.overs < totalOvers
-      ) {
-        setModalView("BOWLER_SELECT");
-      } else {
-        setModalView("NONE");
-      }
+    // Determine next modal from the fully-computed updated state.
+    // This is evaluated synchronously before any setState call so the value
+    // is correct when setModalView is called below.
+    let nextModal: ModalType;
+    if (updated.nonStrikerId === "") {
+      nextModal = "BATTER_SELECT";
+    } else if (updated.currentBowlerId === "") {
+      nextModal = "BOWLER_SELECT";
+    } else if (
+      updated.balls === 0 &&
+      updated.overs > 0 &&
+      updated.overs < totalOvers
+    ) {
+      nextModal = "BOWLER_SELECT";
+    } else {
+      nextModal = "NONE";
+    }
 
-      return updated;
-    });
+    // Both setters called in the same synchronous block — React batches them.
+    setInnings(updated);
+    setModalView(nextModal);
   };
 
   const handleBowlerSelected = (newBowlerId: string) => {
