@@ -1,3 +1,10 @@
+## [3.2.2](https://github.com/venkatesh-singamsetty/cricscore/compare/v3.2.1...v3.2.2) (2026-06-25)
+
+
+### Bug Fixes
+
+* consolidated security updates, dependency bumps, and email tracking ([#99](https://github.com/venkatesh-singamsetty/cricscore/issues/99)) ([4a3c580](https://github.com/venkatesh-singamsetty/cricscore/commit/4a3c58068387b38a1e3044e70a40755c876e68bf))
+
 # 📅 CricScore: Full Project Timeline & Release Log
 
 This document tracks the complete evolutionary history of the CricScore platform.
