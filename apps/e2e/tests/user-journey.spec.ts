@@ -337,7 +337,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       page.getByRole("heading", { name: /SELECT STRIKER/i }),
     ).toBeVisible();
     await page
-      .getByRole("button", { name: /raju/i })
+      .getByRole("button", { name: /suri/i })
       .first()
       .click({ force: true });
 
@@ -345,7 +345,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       page.getByRole("heading", { name: /SELECT NON-STRIKER/i }).first(),
     ).toBeVisible();
     await page
-      .getByRole("button", { name: /eega/i })
+      .getByRole("button", { name: /venky/i })
       .first()
       .click({ force: true });
 
@@ -378,7 +378,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       page.getByText(/Select (New Batter|Striker|Non-Striker)/i),
     ).toBeVisible();
     await page
-      .getByRole("button", { name: /venkat/i })
+      .getByRole("button", { name: /sunil/i })
       .first()
       .click({ force: true });
     await page.waitForTimeout(1000);
@@ -403,7 +403,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       .click();
     await expect(page.getByText(/Who was Run Out/i)).toBeVisible();
     await page
-      .getByRole("button", { name: /venkat/i })
+      .getByRole("button", { name: /sunil/i })
       .first()
       .click({ force: true });
     await expect(
@@ -419,7 +419,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       }),
     ).toBeVisible();
     await page
-      .getByRole("button", { name: /raju/i })
+      .getByRole("button", { name: /sandy/i })
       .first()
       .click({ force: true });
     await page.waitForTimeout(1000);
@@ -437,7 +437,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       }),
     ).toBeVisible();
     await page
-      .getByRole("button", { name: /sandy/i })
+      .getByRole("button", { name: /srinath/i })
       .first()
       .click({ force: true });
     await page.waitForTimeout(1000);
