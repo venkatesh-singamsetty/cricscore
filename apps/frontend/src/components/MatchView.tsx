@@ -613,7 +613,11 @@ const MatchView: React.FC<MatchViewProps> = ({
     }
 
     // Valid Ball Calculation
-    const isValidBall = !isWide && !isNoBall;
+    const isValidBall =
+      !isWide &&
+      !isNoBall &&
+      wicketType !== WicketType.RETIRED_HURT &&
+      wicketType !== WicketType.RETIRED_OUT;
     let overCompleted = false;
 
     if (isValidBall) {
