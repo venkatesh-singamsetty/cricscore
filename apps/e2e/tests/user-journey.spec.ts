@@ -28,7 +28,7 @@ test.describe("User Journey - Full Match Scoring", () => {
     await squadInputs
       .nth(0)
       .fill(
-        "suri\nvenky\nsunil\nraju\nsandy\nsrinath\ndonny\nparth\nsrini\nsrikanth\neega",
+        "eega\nraju\nsunil\nraju\nsandy\nsrinath\ndonny\nparth\nsrini\nsrikanth\neega",
       );
     // SHARK BLUE Squad
     await squadInputs
@@ -337,7 +337,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       page.getByRole("heading", { name: /SELECT STRIKER/i }),
     ).toBeVisible();
     await page
-      .getByRole("button", { name: /suri/i })
+      .getByRole("button", { name: /eega/i })
       .first()
       .click({ force: true });
 
@@ -345,7 +345,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       page.getByRole("heading", { name: /SELECT NON-STRIKER/i }).first(),
     ).toBeVisible();
     await page
-      .getByRole("button", { name: /venky/i })
+      .getByRole("button", { name: /raju/i })
       .first()
       .click({ force: true });
 
@@ -443,17 +443,11 @@ test.describe("User Journey - Full Match Scoring", () => {
     await page.waitForTimeout(1000);
 
     // Ball 1.5: 6 runs (Score: 11)
-    await page
-      .getByRole("button", { name: "6", exact: true })
-      .first()
-      .click({ force: true });
+    await page.getByRole("button", { name: "6", exact: true }).first().click();
     await page.waitForTimeout(1000);
 
     // Ball 1.6: 0 runs
-    await page
-      .getByRole("button", { name: "0", exact: true })
-      .first()
-      .click({ force: true });
+    await page.getByRole("button", { name: "0", exact: true }).first().click();
     await page.waitForTimeout(1000);
 
     // End of Over 1. Select New Bowler.

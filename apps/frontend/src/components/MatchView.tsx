@@ -733,11 +733,6 @@ const MatchView: React.FC<MatchViewProps> = ({
     }
 
     setInnings(finalInnings);
-    await postScoreUpdate(newBallEvent, finalInnings);
-    setPendingExtra(ExtraType.NONE);
-    setPendingWicketInfo(null);
-
-    // Check Match/Innings End Conditions
     // Innings ends if 10 wickets fall OR if fewer than 2 batters are left not out (handles teams < 11 players)
     const validBattersCount = finalInnings.battingOrder.filter(
       (id) => !finalInnings.players[id].isOut,
@@ -758,6 +753,10 @@ const MatchView: React.FC<MatchViewProps> = ({
         setModalView("BOWLER_SELECT");
       }
     }
+
+    await postScoreUpdate(newBallEvent, finalInnings);
+    setPendingExtra(ExtraType.NONE);
+    setPendingWicketInfo(null);
 
     // Commentary
     let commentary = generateSimpleCommentary(newBallEvent);
@@ -967,7 +966,6 @@ const MatchView: React.FC<MatchViewProps> = ({
           strikerName={innings.players[innings.strikerId]?.name || "Striker"}
           onRetire={(type) => {
             handleRetire(type);
-            setModalView("NONE");
           }}
           onClose={() => setModalView("NONE")}
         />
