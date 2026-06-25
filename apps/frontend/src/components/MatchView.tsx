@@ -750,12 +750,11 @@ const MatchView: React.FC<MatchViewProps> = ({
     if (!isMatchEnding) {
       if (
         isWicket &&
-        wicketType !== WicketType.RETIRED_HURT &&
-        wicketType !== WicketType.RETIRED_OUT
+        wicketType !== WicketType.RETIRED_HURT
+        // Note: RETIRED_OUT still needs modalView="BATTER_SELECT" since it does
+        // NOT set strikerId="" — the hardcoded modal only fires for strikerId="".
+        // RETIRED_HURT sets strikerId="" so it uses the hardcoded modal instead.
       ) {
-        // For RETIRED_HURT/OUT, strikerId is set to "" which triggers the
-        // hardcoded BatterSelectModal at render time — no need to also set
-        // modalView to avoid showing two overlapping identical modals.
         setModalView("BATTER_SELECT");
       } else if (overCompleted) {
         setModalView("BOWLER_SELECT");
@@ -836,7 +835,16 @@ const MatchView: React.FC<MatchViewProps> = ({
     } else if (
       updated.balls === 0 &&
       updated.overs > 0 &&
-      updated.overs < totalOvers
+      updated.overs < totalOvers &&
+      // Only trigger bowler select if a real over just completed (currentOver has
+      // non-retirement balls). If the replacement is for a RETIRED_HURT/OUT that
+      // happened between overs, the bowler was already selected and currentOver
+      // will only contain retirement events — so we skip the BOWLER_SELECT.
+      updated.currentOver.some(
+        (b) =>
+          b.wicketType !== WicketType.RETIRED_HURT &&
+          b.wicketType !== WicketType.RETIRED_OUT,
+      )
     ) {
       nextModal = "BOWLER_SELECT";
     } else {

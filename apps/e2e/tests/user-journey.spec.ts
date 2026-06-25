@@ -483,7 +483,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       }),
     ).toBeVisible();
     await page
-      .getByRole("button", { name: /srinath/i })
+      .getByRole("button", { name: /raju/i })
       .first()
       .click({ force: true });
     // Wait for modal overlay to fully dismiss
