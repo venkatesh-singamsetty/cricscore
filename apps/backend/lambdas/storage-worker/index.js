@@ -111,6 +111,36 @@ exports.handler = async (event) => {
         }
       }
 
+      // 0. Auto-register dynamically added players/bowlers
+      if (strikerName) {
+        await client.query(
+          "INSERT INTO players (inning_id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+          [inningId, strikerName],
+        );
+      }
+      if (nonStrikerName) {
+        await client.query(
+          "INSERT INTO players (inning_id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+          [inningId, nonStrikerName],
+        );
+      }
+      if (bowlerName) {
+        await client.query(
+          "INSERT INTO bowlers (inning_id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+          [inningId, bowlerName],
+        );
+      }
+      if (!undo && !syncOnly && ballData) {
+        await client.query(
+          "INSERT INTO players (inning_id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+          [inningId, ballData.batterName],
+        );
+        await client.query(
+          "INSERT INTO bowlers (inning_id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+          [inningId, ballData.bowlerName],
+        );
+      }
+
       // 1. Update Inning Current State
       await client.query(
         `UPDATE innings SET 
@@ -155,10 +185,26 @@ exports.handler = async (event) => {
       if (battingOrderNames && Array.isArray(battingOrderNames)) {
         for (let i = 0; i < battingOrderNames.length; i++) {
           await client.query(
-            "UPDATE players SET batting_position = $1 WHERE inning_id = $2 AND name = $3",
-            [i + 1, inningId, battingOrderNames[i]],
+            "INSERT INTO players (inning_id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+            [inningId, battingOrderNames[i]],
           );
         }
+      }
+
+      const assignBattingPosition = async (name) => {
+        if (!name) return;
+        await client.query(
+          `UPDATE players 
+           SET batting_position = (SELECT COALESCE(MAX(batting_position), 0) + 1 FROM players WHERE inning_id = $1)
+           WHERE inning_id = $1 AND name = $2 AND batting_position IS NULL`,
+          [inningId, name],
+        );
+      };
+
+      await assignBattingPosition(strikerName);
+      await assignBattingPosition(nonStrikerName);
+      if (ballData && ballData.batterName) {
+        await assignBattingPosition(ballData.batterName);
       }
 
       if (!syncOnly && ballData && !undo) {

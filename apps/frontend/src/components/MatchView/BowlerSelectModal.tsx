@@ -50,7 +50,9 @@ export const BowlerSelectModal: React.FC<BowlerSelectModalProps> = ({
           {innings.bowlingOrder.map((id) => {
             const bowler = innings.bowlers[id];
             const isCurrent = id === innings.currentBowlerId;
-            const hasReachedQuota = bowler.overs >= maxBowlerOvers;
+            const hasReachedQuota = bowler
+              ? bowler.overs >= maxBowlerOvers
+              : false;
             const isDisabled = isCurrent || hasReachedQuota;
             return (
               <button
@@ -67,10 +69,11 @@ export const BowlerSelectModal: React.FC<BowlerSelectModalProps> = ({
                     <span
                       className={`font-black uppercase tracking-tight text-sm italic truncate ${isDisabled ? "text-slate-500" : "text-slate-200 group-hover:text-white"}`}
                     >
-                      {bowler.name}
+                      {bowler?.name || id}
                     </span>
                     <div className="text-[10px] font-bold text-slate-500 group-hover:text-purple-200">
-                      {bowler.overs}.{bowler.balls} OVS • {bowler.wickets} WKT
+                      {bowler?.overs || 0}.{bowler?.balls || 0} OVS •{" "}
+                      {bowler?.wickets || 0} WKT
                       {hasReachedQuota ? (
                         <span className="ml-1 text-red-400 font-black">
                           {" "}

@@ -872,14 +872,24 @@ const App: React.FC = () => {
           )}
         </div>
 
-        {matchStatus !== MatchStatus.SETUP && view !== "VIEWER" && (
-          <button
-            onClick={() => setShowResetConfirm(true)}
-            className="px-4 py-1.5 bg-red-900/30 border border-red-500/20 rounded font-black text-[10px] uppercase tracking-wider text-red-500 hover:text-white transition-all hover:bg-red-600"
+        <div className="flex items-center gap-3">
+          <a
+            href="https://github.com/venkatesh-singamsetty/cricscore/issues/new"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-1.5 bg-slate-800/50 border border-white/5 rounded-lg text-slate-400 hover:text-emerald-400 text-[9px] font-black uppercase tracking-widest transition-all hover:bg-emerald-400/10 flex items-center gap-1"
           >
-            RESET MATCH
-          </button>
-        )}
+            Feedback 💬
+          </a>
+          {matchStatus !== MatchStatus.SETUP && view !== "VIEWER" && (
+            <button
+              onClick={() => setShowResetConfirm(true)}
+              className="px-4 py-1.5 bg-red-900/30 border border-red-500/20 rounded font-black text-[10px] uppercase tracking-wider text-red-500 hover:text-white transition-all hover:bg-red-600"
+            >
+              RESET MATCH
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex-1 overflow-hidden relative">
