@@ -40,11 +40,11 @@ describe("Storage Worker Lambda", () => {
 
     expect(res.statusCode).toBe(200);
     expect(mockConnect).toHaveBeenCalled();
-    expect(mockQuery).toHaveBeenCalledTimes(2); // Updates innings, updates matches
+    expect(mockQuery).toHaveBeenCalledTimes(7); // 3 Inserts, 2 assigns, Updates innings, updates matches
 
     // Assert the match update query contains matchId
     expect(mockQuery).toHaveBeenNthCalledWith(
-      2,
+      5,
       expect.stringContaining("UPDATE matches m"),
       expect.arrayContaining(["match_123"]),
     );
@@ -75,7 +75,7 @@ describe("Storage Worker Lambda", () => {
     const res = await handler(event);
 
     expect(res.statusCode).toBe(200);
-    expect(mockQuery).toHaveBeenCalledTimes(5); // Inning update, match update, ball_events insert, player update, bowler update
+    expect(mockQuery).toHaveBeenCalledTimes(8); // 2 Inserts, 1 assign, Inning update, match update, ball_events insert, player update, bowler update
   });
 
   it("should process undo events by deleting the last ball", async () => {
