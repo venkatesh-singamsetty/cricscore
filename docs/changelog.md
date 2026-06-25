@@ -1,13 +1,48 @@
-## [3.2.2](https://github.com/venkatesh-singamsetty/cricscore/compare/v3.2.1...v3.2.2) (2026-06-25)
-
-
-### Bug Fixes
-
-* consolidated security updates, dependency bumps, and email tracking ([#99](https://github.com/venkatesh-singamsetty/cricscore/issues/99)) ([4a3c580](https://github.com/venkatesh-singamsetty/cricscore/commit/4a3c58068387b38a1e3044e70a40755c876e68bf))
-
 # 📅 CricScore: Full Project Timeline & Release Log
 
 This document tracks the complete evolutionary history of the CricScore platform.
+
+---
+
+## 🚀 v3.3.0: Feedback Integration & E2E Stabilization [2026-06-26]
+
+### ✨ Features
+
+- **Feedback & Email Sort**: Added feedback link and fixed batsman sort order in emails.
+- **Batting Order Tracking**: Added comprehensive batting order tracking to ensure precise player records.
+
+### 🐛 Bug Fixes
+
+- **Modal Race Conditions**: Resolved `BowlerSelectModal` crashes on uninitialized bowlers and fixed retired batter flow.
+- **Retired Batter Logic**: Fixed issue where "retired hurt/out" was incorrectly counted as a legal ball.
+- **State Sync**: Resolved hanging issues and state sync race conditions in E2E tests.
+
+### ✅ Testing
+
+- **E2E Improvements**: Merged E2E tests into a single user-journey file.
+- **Test Integrity**: Updated Chicago Spartans bowlers to Raju and Eega, and fixed innings 2 batters to use valid players.
+
+---
+
+## 🛠️ v3.2.2: Viewer Sync & Email Persistence [2026-06-25]
+
+### ✨ Features
+
+- **Email Persistence**: Added capability to persist sent emails to the database.
+
+### 🐛 Bug Fixes
+
+- **Viewer Sync**: Fixed viewer scoreboard not refreshing on live matches.
+- **Match Sorting**: Sorted matches strictly by `updated_at` descending.
+- **CI/CD Pipeline**: Fixed semantic-release branch protection error by utilizing `GH_PAT`.
+- **E2E Patches**: Distributed E2E wickets to specific balls (2/4/5), fixed RUN OUT, WIDE, and NO_BALL button interaction orders, and established Opening Bowler logic.
+- **Dependency & Security**: Consolidated security updates, bumped dependencies, and removed tracked `playwright-report` to resolve CodeQL alerts.
+
+### 📚 Documentation
+
+- **Troubleshooting**: Added troubleshooting entries 47-49 for 2026-06-24 session.
+
+---
 
 ## 🚀 v3.1.2: Enterprise Test Coverage & E2E Fortification [2026-06-21]
 

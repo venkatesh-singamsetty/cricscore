@@ -1,6 +1,24 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("User Journey - Full Match Scoring", () => {
+  test.afterEach(async ({ request }) => {
+    const API_URL = "https://ispht71fh0.execute-api.us-east-1.amazonaws.com";
+    const res = await request.get(`${API_URL}/matches`);
+    if (res.ok()) {
+      const matches = await res.json();
+      const testMatches = matches.filter(
+        (m: any) =>
+          (m.team_a_name === "CHICAGO SPARTANS" &&
+            m.team_b_name === "SHARK BLUE") ||
+          (m.team_a_name === "SHARK BLUE" &&
+            m.team_b_name === "CHICAGO SPARTANS"),
+      );
+      for (const m of testMatches) {
+        await request.delete(`${API_URL}/match/${m.id}`);
+      }
+    }
+  });
+
   test("should complete a full 2-over match with all possible scoring and wicket events", async ({
     page,
   }) => {
