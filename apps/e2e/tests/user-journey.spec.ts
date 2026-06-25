@@ -28,7 +28,7 @@ test.describe("User Journey - Full Match Scoring", () => {
     await squadInputs
       .nth(0)
       .fill(
-        "suri\nvenky\nvenkat\nraju\nsandy\nsrinath\ndonny\nparth\nsrini\nsrikanth\neega",
+        "suri\nvenky\nsunil\nraju\nsandy\nsrinath\ndonny\nparth\nsrini\nsrikanth\neega",
       );
     // SHARK BLUE Squad
     await squadInputs
@@ -73,7 +73,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       page.getByRole("heading", { name: /Opening Bowler/i }).first(),
     ).toBeVisible();
     await page
-      .getByRole("button", { name: /suri/i })
+      .getByRole("button", { name: /raju/i })
       .first()
       .click({ force: true });
 
@@ -89,9 +89,9 @@ test.describe("User Journey - Full Match Scoring", () => {
         name: /Select (New Batter|Striker|Non-Striker)/i,
       }),
     ).toBeVisible();
-    console.log("Clicking venkat...");
+    console.log("Clicking gopi...");
     await page
-      .getByRole("button", { name: /venkat/i })
+      .getByRole("button", { name: /gopi/i })
       .first()
       .click({ force: true });
     await page.waitForTimeout(1000);
@@ -115,9 +115,9 @@ test.describe("User Journey - Full Match Scoring", () => {
     await expect(
       page.getByRole("heading", { name: /(Next|Opening) Bowler/i }),
     ).toBeVisible();
-    console.log("Clicking venky...");
+    console.log("Clicking eega...");
     await page
-      .getByRole("button", { name: /venky/i })
+      .getByRole("button", { name: /eega/i })
       .first()
       .click({ force: true });
     await page.waitForTimeout(1000);
@@ -126,9 +126,9 @@ test.describe("User Journey - Full Match Scoring", () => {
     await expect(
       page.getByRole("heading", { name: /(Next|Opening) Bowler/i }),
     ).toBeVisible();
-    console.log("Clicking suri...");
+    console.log("Clicking raju...");
     await page
-      .getByRole("button", { name: /suri/i })
+      .getByRole("button", { name: /raju/i })
       .first()
       .click({ force: true });
     await page.waitForTimeout(1000);
@@ -235,7 +235,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       page.getByRole("heading", { name: /Next Bowler/i }),
     ).toBeVisible();
     await page
-      .getByRole("button", { name: /venky/i })
+      .getByRole("button", { name: /eega/i })
       .first()
       .click({ force: true });
 
@@ -337,7 +337,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       page.getByRole("heading", { name: /SELECT STRIKER/i }),
     ).toBeVisible();
     await page
-      .getByRole("button", { name: /suri/i })
+      .getByRole("button", { name: /raju/i })
       .first()
       .click({ force: true });
 
@@ -345,7 +345,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       page.getByRole("heading", { name: /SELECT NON-STRIKER/i }).first(),
     ).toBeVisible();
     await page
-      .getByRole("button", { name: /venky/i })
+      .getByRole("button", { name: /eega/i })
       .first()
       .click({ force: true });
 
