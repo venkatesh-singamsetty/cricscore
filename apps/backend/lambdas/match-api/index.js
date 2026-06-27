@@ -313,6 +313,10 @@ exports.handler = async (event) => {
 
   try {
     await client.connect();
+    const dbSchema = process.env.DB_SCHEMA || "public";
+    if (process.env.NODE_ENV !== "test") {
+      await client.query(`SET search_path TO ${dbSchema}`);
+    }
 
     const { path, httpMethod, body, pathParameters } = event;
 

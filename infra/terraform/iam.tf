@@ -1,6 +1,6 @@
 # --- 7. IAM Role for Lambda Functions ---
 resource "aws_iam_role" "lambda_role" {
-  name = "${var.project_name}-lambda-role"
+  name = "${var.project_name}-${var.environment}-lambda-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -21,7 +21,7 @@ resource "aws_iam_role_policy_attachment" "lambda_basic" {
 
 # Add policy for DynamoDB access
 resource "aws_iam_policy" "lambda_dynamo" {
-  name        = "${var.project_name}-lambda-dynamo"
+  name        = "${var.project_name}-${var.environment}-lambda-dynamo"
   description = "Allows Lambda to manage connections in DynamoDB"
 
   policy = jsonencode({
@@ -43,7 +43,7 @@ resource "aws_iam_role_policy_attachment" "lambda_dynamo_attach" {
 
 # Add policy for SNS & SQS access (v2.0)
 resource "aws_iam_policy" "lambda_messaging" {
-  name        = "${var.project_name}-lambda-messaging"
+  name        = "${var.project_name}-${var.environment}-lambda-messaging"
   description = "Allows Lambda to use SNS & SQS for Fan-Out"
 
   policy = jsonencode({
@@ -84,7 +84,7 @@ resource "aws_iam_role_policy_attachment" "lambda_messaging_attach" {
 
 # IAM Policy for WebSocket Broadcasting
 resource "aws_iam_policy" "lambda_websocket" {
-  name        = "${var.project_name}-lambda-websocket"
+  name        = "${var.project_name}-${var.environment}-lambda-websocket"
   description = "Allow Lambda to post to WebSocket connections"
 
   policy = jsonencode({
@@ -108,7 +108,7 @@ resource "aws_iam_role_policy_attachment" "lambda_websocket_attach" {
 
 # --- IAM Policy for SES Email Dispatch ---
 resource "aws_iam_policy" "lambda_ses" {
-  name        = "${var.project_name}-lambda-ses"
+  name        = "${var.project_name}-${var.environment}-lambda-ses"
   description = "Allow Lambda to send emails via AWS SES"
 
   policy = jsonencode({

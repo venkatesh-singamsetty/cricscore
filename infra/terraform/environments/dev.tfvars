@@ -1,0 +1,5 @@
+environment = "dev"
+project_name = "cricscore"
+domain_name = "dev.cricscore.example.com"
+zone_domain = "example.com"
+subdomain_prefix = "dev.cricscore"

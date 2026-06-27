@@ -1,5 +1,5 @@
 resource "aws_xray_sampling_rule" "cricscore_sampling" {
-  rule_name      = "${var.project_name}-sampling-rule"
+  rule_name      = "${var.project_name}-${var.environment}-sampling-rule"
   priority       = 1
   version        = 1
   reservoir_size = 1    # Trace 1 request per second guaranteed

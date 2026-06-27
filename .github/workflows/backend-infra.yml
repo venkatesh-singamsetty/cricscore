@@ -100,11 +100,13 @@ jobs:
   deploy:
     name: Provision & Deploy Backend + Infra
     needs: validate
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}
 
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
+      TF_VAR_environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}
       TF_VAR_aws_region: ${{ vars.AWS_REGION }}
       TF_VAR_domain_name: ${{ vars.DOMAIN_NAME }}
       TF_VAR_zone_domain: ${{ vars.ZONE_DOMAIN }}

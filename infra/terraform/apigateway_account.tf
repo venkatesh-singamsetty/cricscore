@@ -1,6 +1,6 @@
 // API Gateway account-level CloudWatch role
 resource "aws_iam_role" "apigateway_cloudwatch_role" {
-  name = "${var.project_name}-apigw-cloudwatch-role"
+  name = "${var.project_name}-${var.environment}-apigw-cloudwatch-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17",

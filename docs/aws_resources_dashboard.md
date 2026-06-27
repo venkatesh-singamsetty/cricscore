@@ -11,25 +11,11 @@ This document provides quick-access UI links to view the live AWS resources, tel
 
 Direct links to view the source code, configurations, and test events for the serverless functions:
 
-- [**broadcaster** (`cricscore-broadcaster`)](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-broadcaster?tab=code)
-- [**match-api** (`cricscore-match-api`)](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-match-api?tab=code)
-- [**onconnect** (`cricscore-onconnect`)](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-onconnect?tab=code)
-- [**ondisconnect** (`cricscore-ondisconnect`)](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-ondisconnect?tab=code)
-- [**score-upd** (`cricscore-score-upd`)](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-score-upd?tab=code)
-- [**storage-worker** (`cricscore-storage-worker`)](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-storage-worker?tab=code)
-
 ---
 
 ## 📝 Application Logs (CloudWatch Logs)
 
 Direct links to the live execution logs (stdout/stderr) and `console.log()` outputs for troubleshooting:
-
-- [**broadcaster Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-broadcaster)
-- [**match-api Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-match-api)
-- [**onconnect Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-onconnect)
-- [**ondisconnect Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-ondisconnect)
-- [**score-upd Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-score-upd)
-- [**storage-worker Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-storage-worker)
 
 ---
 

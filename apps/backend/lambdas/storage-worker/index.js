@@ -14,6 +14,10 @@ exports.handler = async (event) => {
 
   try {
     await client.connect();
+    const dbSchema = process.env.DB_SCHEMA || "public";
+    if (process.env.NODE_ENV !== "test") {
+      await client.query(`SET search_path TO ${dbSchema}`);
+    }
 
     for (const record of records) {
       // Since raw_message_delivery is true on the SQS subscription,

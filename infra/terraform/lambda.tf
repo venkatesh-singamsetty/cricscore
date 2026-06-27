@@ -7,7 +7,7 @@ data "archive_file" "match_api_zip" {
 
 resource "aws_lambda_function" "match_api" {
   filename         = data.archive_file.match_api_zip.output_path
-  function_name    = "${var.project_name}-match-api"
+  function_name    = "${var.project_name}-${var.environment}-match-api"
   role             = aws_iam_role.lambda_role.arn
   handler          = "index.handler"
   runtime          = "nodejs24.x"
@@ -20,6 +20,7 @@ resource "aws_lambda_function" "match_api" {
   environment {
     variables = {
       DATABASE_URL       = var.database_url
+      DB_SCHEMA          = var.environment
       SES_SOURCE         = var.ses_source_email
       ADMIN_REPORT_EMAIL = var.admin_email
       BROADCASTER_LAMBDA = aws_lambda_function.score_update.function_name
@@ -41,7 +42,7 @@ data "archive_file" "score_update_zip" {
 
 resource "aws_lambda_function" "score_update" {
   filename         = data.archive_file.score_update_zip.output_path
-  function_name    = "${var.project_name}-score-upd"
+  function_name    = "${var.project_name}-${var.environment}-score-upd"
   role             = aws_iam_role.lambda_role.arn
   handler          = "index.handler"
   runtime          = "nodejs24.x"
@@ -73,7 +74,7 @@ data "archive_file" "onconnect_zip" {
 
 resource "aws_lambda_function" "onconnect" {
   filename         = data.archive_file.onconnect_zip.output_path
-  function_name    = "${var.project_name}-onconnect"
+  function_name    = "${var.project_name}-${var.environment}-onconnect"
   role             = aws_iam_role.lambda_role.arn
   handler          = "index.handler"
   runtime          = "nodejs24.x"
@@ -99,7 +100,7 @@ data "archive_file" "ondisconnect_zip" {
 
 resource "aws_lambda_function" "ondisconnect" {
   filename         = data.archive_file.ondisconnect_zip.output_path
-  function_name    = "${var.project_name}-ondisconnect"
+  function_name    = "${var.project_name}-${var.environment}-ondisconnect"
   role             = aws_iam_role.lambda_role.arn
   handler          = "index.handler"
   runtime          = "nodejs24.x"
@@ -125,7 +126,7 @@ data "archive_file" "broadcaster_zip" {
 
 resource "aws_lambda_function" "broadcaster" {
   filename         = data.archive_file.broadcaster_zip.output_path
-  function_name    = "${var.project_name}-broadcaster"
+  function_name    = "${var.project_name}-${var.environment}-broadcaster"
   role             = aws_iam_role.lambda_role.arn
   handler          = "index.handler"
   runtime          = "nodejs24.x"
@@ -152,7 +153,7 @@ data "archive_file" "storage_worker_zip" {
 
 resource "aws_lambda_function" "storage_worker" {
   filename         = data.archive_file.storage_worker_zip.output_path
-  function_name    = "${var.project_name}-storage-worker"
+  function_name    = "${var.project_name}-${var.environment}-storage-worker"
   role             = aws_iam_role.lambda_role.arn
   handler          = "index.handler"
   runtime          = "nodejs24.x"
@@ -167,6 +168,7 @@ resource "aws_lambda_function" "storage_worker" {
   environment {
     variables = {
       DATABASE_URL = var.database_url
+      DB_SCHEMA    = var.environment
     }
   }
 }
@@ -179,7 +181,7 @@ resource "aws_lambda_event_source_mapping" "sqs_trigger" {
 
 # --- CloudWatch Alarms & Alerts ---
 resource "aws_sns_topic" "lambda_alerts" {
-  name = "${var.project_name}-lambda-alerts"
+  name = "${var.project_name}-${var.environment}-lambda-alerts"
 }
 
 resource "aws_sns_topic_subscription" "lambda_alerts_email" {
@@ -189,7 +191,7 @@ resource "aws_sns_topic_subscription" "lambda_alerts_email" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "match_api_errors" {
-  alarm_name          = "${var.project_name}-match-api-errors"
+  alarm_name          = "${var.project_name}-${var.environment}-match-api-errors"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = "1"
   metric_name         = "Errors"
@@ -206,7 +208,7 @@ resource "aws_cloudwatch_metric_alarm" "match_api_errors" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "score_update_errors" {
-  alarm_name          = "${var.project_name}-score-update-errors"
+  alarm_name          = "${var.project_name}-${var.environment}-score-update-errors"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = "1"
   metric_name         = "Errors"

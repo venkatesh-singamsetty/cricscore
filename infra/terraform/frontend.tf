@@ -6,7 +6,7 @@ data "aws_route53_zone" "selected" {
 
 # --- 1. S3 Bucket for Static Website ---
 resource "aws_s3_bucket" "static_app" {
-  bucket_prefix = "${var.project_name}-app-"
+  bucket_prefix = "${var.project_name}-${var.environment}-app-"
   force_destroy = true
 
   tags = {
@@ -102,8 +102,8 @@ resource "aws_acm_certificate_validation" "cert" {
 
 # --- 3. CloudFront Origin Access Control (OAC) ---
 resource "aws_cloudfront_origin_access_control" "default" {
-  name                              = "${var.project_name}-oac"
-  description                       = "OAC for ${var.project_name} S3 bucket"
+  name                              = "${var.project_name}-${var.environment}-oac"
+  description                       = "OAC for ${var.project_name}-${var.environment} S3 bucket"
   origin_access_control_origin_type = "s3"
   signing_behavior                  = "always"
   signing_protocol                  = "sigv4"
@@ -196,7 +196,7 @@ resource "aws_s3_bucket_policy" "allow_cloudfront" {
 
 // Optional: Response headers policy for CloudFront to improve security
 resource "aws_cloudfront_response_headers_policy" "security_headers" {
-  name = "${var.project_name}-security-headers"
+  name = "${var.project_name}-${var.environment}-security-headers"
 
   security_headers_config {
     content_security_policy {

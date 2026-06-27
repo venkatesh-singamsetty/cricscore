@@ -2,13 +2,13 @@
 
 # SNS Topic: The Event Hub
 resource "aws_sns_topic" "match_events" {
-  name              = "${var.project_name}-match-events"
+  name              = "${var.project_name}-${var.environment}-match-events"
   kms_master_key_id = aws_kms_key.cric_key.arn
 }
 
 # SQS Queue: The Reliability Buffer
 resource "aws_sqs_queue" "storage_buffer" {
-  name                      = "${var.project_name}-storage-buffer"
+  name                      = "${var.project_name}-${var.environment}-storage-buffer"
   message_retention_seconds = 86400 # 1 day
   receive_wait_time_seconds = 20    # Long polling
   kms_master_key_id         = aws_kms_key.cric_key.arn

@@ -1,6 +1,6 @@
 # --- 9. API Gateway (HTTP) ---
 resource "aws_apigatewayv2_api" "http_api" {
-  name          = "${var.project_name}-api"
+  name          = "${var.project_name}-${var.environment}-api"
   protocol_type = "HTTP"
   cors_configuration {
     allow_origins = ["*"]
@@ -22,7 +22,7 @@ resource "aws_apigatewayv2_stage" "default" {
 
 # CloudWatch Log Group for API Gateway HTTP access logs
 resource "aws_cloudwatch_log_group" "http_api_access_logs" {
-  name              = "/aws/apigateway/${var.project_name}-http"
+  name              = "/aws/apigateway/${var.project_name}-${var.environment}-http"
   retention_in_days = 30
 }
 

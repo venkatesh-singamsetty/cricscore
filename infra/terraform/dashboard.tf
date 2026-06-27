@@ -1,5 +1,5 @@
 resource "aws_cloudwatch_dashboard" "main" {
-  dashboard_name = "${var.project_name}-mission-control"
+  dashboard_name = "${var.project_name}-${var.environment}-mission-control"
 
   dashboard_body = jsonencode({
     widgets = [
@@ -11,8 +11,8 @@ resource "aws_cloudwatch_dashboard" "main" {
         height = 6
         properties = {
           metrics = [
-            ["AWS/ApiGateway", "Count", "ApiName", "${var.project_name}-api"],
-            ["AWS/ApiGateway", "Count", "ApiName", "${var.project_name}-websocket-api"]
+            ["AWS/ApiGateway", "Count", "ApiName", "${var.project_name}-${var.environment}-api"],
+            ["AWS/ApiGateway", "Count", "ApiName", "${var.project_name}-${var.environment}-websocket-api"]
           ]
           view    = "timeSeries"
           stacked = false
@@ -29,10 +29,10 @@ resource "aws_cloudwatch_dashboard" "main" {
         height = 6
         properties = {
           metrics = [
-            ["AWS/Lambda", "Errors", "FunctionName", "${var.project_name}-match-api"],
-            ["AWS/Lambda", "Errors", "FunctionName", "${var.project_name}-score-upd"],
-            ["AWS/Lambda", "Errors", "FunctionName", "${var.project_name}-broadcaster"],
-            ["AWS/Lambda", "Errors", "FunctionName", "${var.project_name}-storage-worker"]
+            ["AWS/Lambda", "Errors", "FunctionName", "${var.project_name}-${var.environment}-match-api"],
+            ["AWS/Lambda", "Errors", "FunctionName", "${var.project_name}-${var.environment}-score-upd"],
+            ["AWS/Lambda", "Errors", "FunctionName", "${var.project_name}-${var.environment}-broadcaster"],
+            ["AWS/Lambda", "Errors", "FunctionName", "${var.project_name}-${var.environment}-storage-worker"]
           ]
           view    = "timeSeries"
           stacked = false
@@ -49,10 +49,10 @@ resource "aws_cloudwatch_dashboard" "main" {
         height = 6
         properties = {
           metrics = [
-            ["AWS/Lambda", "Invocations", "FunctionName", "${var.project_name}-match-api"],
-            ["AWS/Lambda", "Invocations", "FunctionName", "${var.project_name}-score-upd"],
-            ["AWS/Lambda", "Invocations", "FunctionName", "${var.project_name}-broadcaster"],
-            ["AWS/Lambda", "Invocations", "FunctionName", "${var.project_name}-storage-worker"]
+            ["AWS/Lambda", "Invocations", "FunctionName", "${var.project_name}-${var.environment}-match-api"],
+            ["AWS/Lambda", "Invocations", "FunctionName", "${var.project_name}-${var.environment}-score-upd"],
+            ["AWS/Lambda", "Invocations", "FunctionName", "${var.project_name}-${var.environment}-broadcaster"],
+            ["AWS/Lambda", "Invocations", "FunctionName", "${var.project_name}-${var.environment}-storage-worker"]
           ]
           view    = "timeSeries"
           stacked = false
@@ -69,8 +69,8 @@ resource "aws_cloudwatch_dashboard" "main" {
         height = 6
         properties = {
           metrics = [
-            ["AWS/SQS", "ApproximateNumberOfMessagesVisible", "QueueName", "${var.project_name}-storage-buffer"],
-            ["AWS/SQS", "ApproximateNumberOfMessagesDelayed", "QueueName", "${var.project_name}-storage-buffer"]
+            ["AWS/SQS", "ApproximateNumberOfMessagesVisible", "QueueName", "${var.project_name}-${var.environment}-storage-buffer"],
+            ["AWS/SQS", "ApproximateNumberOfMessagesDelayed", "QueueName", "${var.project_name}-${var.environment}-storage-buffer"]
           ]
           view    = "timeSeries"
           stacked = false

@@ -2,7 +2,7 @@
 data "aws_caller_identity" "current" {}
 
 resource "aws_kms_key" "cric_key" {
-  description             = "KMS key for ${var.project_name} resources"
+  description             = "KMS key for ${var.project_name}-${var.environment} resources"
   deletion_window_in_days = 30
   enable_key_rotation     = true
 
@@ -38,13 +38,13 @@ resource "aws_kms_key" "cric_key" {
 }
 
 resource "aws_kms_alias" "cric_key_alias" {
-  name          = "alias/${var.project_name}-kms"
+  name          = "alias/${var.project_name}-${var.environment}-kms"
   target_key_id = aws_kms_key.cric_key.key_id
 }
 
 // Logging bucket for S3 access logs
 resource "aws_s3_bucket" "static_app_logs" {
-  bucket_prefix = "${var.project_name}-app-logs-"
+  bucket_prefix = "${var.project_name}-${var.environment}-app-logs-"
   force_destroy = true
 
   tags = {

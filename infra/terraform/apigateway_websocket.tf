@@ -1,6 +1,6 @@
 # WebSocket API Gateway
 resource "aws_apigatewayv2_api" "websocket_api" {
-  name                       = "${var.project_name}-websocket-api"
+  name                       = "${var.project_name}-${var.environment}-websocket-api"
   protocol_type              = "WEBSOCKET"
   route_selection_expression = "$request.body.action"
 }
@@ -63,7 +63,7 @@ resource "aws_apigatewayv2_stage" "websocket_stage" {
 
 # CloudWatch Log Group for WebSocket API access logs
 resource "aws_cloudwatch_log_group" "ws_api_access_logs" {
-  name              = "/aws/apigateway/${var.project_name}-ws"
+  name              = "/aws/apigateway/${var.project_name}-${var.environment}-ws"
   retention_in_days = 30
 }
 
