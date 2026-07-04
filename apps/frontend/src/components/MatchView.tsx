@@ -761,16 +761,15 @@ const MatchView: React.FC<MatchViewProps> = ({
       }
     }
 
-    // Release the processing lock immediately after all state is committed
-    // synchronously. The API call (postScoreUpdate) runs in the background
-    // and should NOT block the user from scoring the next ball.
-    // Only match-ending scenarios keep the UI locked permanently.
+    await postScoreUpdate(newBallEvent, finalInnings);
+
+    // Release the processing lock after the API call completes.
+    // This prevents race conditions and state corruption from rapid clicking.
     if (!isMatchEnding) {
       isProcessingRef.current = false;
       setIsProcessing(false);
     }
 
-    await postScoreUpdate(newBallEvent, finalInnings);
     setPendingExtra(ExtraType.NONE);
     setPendingWicketInfo(null);
 
