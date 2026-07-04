@@ -32,13 +32,13 @@ test.describe("User Journey - Full Match Scoring", () => {
     await squadInputs
       .nth(0)
       .fill(
-        "Player A1\nraju\nsunil\nraju\nsandy\nsrinath\ndonny\nparth\nsrini\nsrikanth\neega",
+        "Player A1\nPlayer A2\nPlayer A3\nPlayer A4\nPlayer A5\nPlayer A6\nPlayer A7\nPlayer A8\nPlayer A9\nPlayer A10\nPlayer A11",
       );
     // TEAM B Squad
     await squadInputs
       .nth(1)
       .fill(
-        "Player B1\ngopi\navinash\ngabriel\nsagar\namogh\nambarasan\ntejas\nraj\nsakthikumar\nashvin",
+        "Player B1\nPlayer B2\nPlayer B3\nPlayer B4\nPlayer B5\nPlayer B6\nPlayer B7\nPlayer B8\nPlayer B9\nPlayer B10\nPlayer B11",
       );
 
     // Set 2 Over match
