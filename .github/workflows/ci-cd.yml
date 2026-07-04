@@ -102,6 +102,7 @@ jobs:
     needs: validate_backend
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    environment: dev
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
       TF_VAR_environment: dev
@@ -152,6 +153,7 @@ jobs:
     needs: [validate_frontend, deploy_backend_dev]
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    environment: dev
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
       API_GATEWAY_ID: ${{ vars.API_GATEWAY_ID }}
@@ -196,6 +198,7 @@ jobs:
     name: E2E Tests DEV
     needs: deploy_frontend_dev
     runs-on: ubuntu-latest
+    environment: dev
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
@@ -274,6 +277,7 @@ jobs:
     needs: deploy_backend_prod
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    environment: prod
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
       API_GATEWAY_ID: ${{ vars.API_GATEWAY_ID }}
@@ -318,6 +322,7 @@ jobs:
     name: E2E Tests PROD
     needs: deploy_frontend_prod
     runs-on: ubuntu-latest
+    environment: prod
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
@@ -347,6 +352,7 @@ jobs:
     name: DAST Scan DEV
     needs: deploy_frontend_dev
     runs-on: ubuntu-latest
+    environment: dev
     permissions:
       issues: write
       contents: read
@@ -366,6 +372,7 @@ jobs:
     name: DAST Scan PROD
     needs: deploy_frontend_prod
     runs-on: ubuntu-latest
+    environment: prod
     permissions:
       issues: write
       contents: read
