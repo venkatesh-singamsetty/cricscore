@@ -1,5 +1,17 @@
 # [3.4.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v3.3.0...v3.4.0) (2026-07-04)
 
+
+### Bug Fixes
+
+* **e2e:** replace remaining old player names with fully generic Player A1-A11/B1-B11 ([46344d2](https://github.com/venkatesh-singamsetty/cricscore/commit/46344d232cb3dc1094516b3d874cf0822a89618c))
+
+
+### Features
+
+* CI/CD pipeline hardening, dev/prod environment isolation, and E2E test improvements ([a9d1e86](https://github.com/venkatesh-singamsetty/cricscore/commit/a9d1e86bda0fd73795abdd035539bbc5f6a275e9))
+
+# [3.4.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v3.3.0...v3.4.0) (2026-07-04)
+
 ### Features
 
 - Complete dev/prod environment isolation, workflow fixes, and dependency upgrades ([#106](https://github.com/venkatesh-singamsetty/cricscore/issues/106)) ([8adc278](https://github.com/venkatesh-singamsetty/cricscore/commit/8adc278445ddeb0c557ba0ce140048934faaf570))
