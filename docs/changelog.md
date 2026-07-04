@@ -1,21 +1,11 @@
-# [3.4.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v3.3.0...v3.4.0) (2026-07-04)
+# [3.5.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v3.3.0...v3.5.0) (2026-07-04)
 
+### Features & Fixes
 
-### Bug Fixes
-
-* **e2e:** replace remaining old player names with fully generic Player A1-A11/B1-B11 ([46344d2](https://github.com/venkatesh-singamsetty/cricscore/commit/46344d232cb3dc1094516b3d874cf0822a89618c))
-
-
-### Features
-
-* CI/CD pipeline hardening, dev/prod environment isolation, and E2E test improvements ([a9d1e86](https://github.com/venkatesh-singamsetty/cricscore/commit/a9d1e86bda0fd73795abdd035539bbc5f6a275e9))
-
-# [3.4.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v3.3.0...v3.4.0) (2026-07-04)
-
-### Features
-
-- Complete dev/prod environment isolation, workflow fixes, and dependency upgrades ([#106](https://github.com/venkatesh-singamsetty/cricscore/issues/106)) ([8adc278](https://github.com/venkatesh-singamsetty/cricscore/commit/8adc278445ddeb0c557ba0ce140048934faaf570))
-- **e2e:** Use generic team and player names (`TEAM A`/`TEAM B`, `Player A1`–`Player B11`) and preserve test matches in DEV for manual validation; auto-clean only in PROD ([#107](https://github.com/venkatesh-singamsetty/cricscore/issues/107)) ([317c2af](https://github.com/venkatesh-singamsetty/cricscore/commit/317c2af0e124df66a38efc329e1d67cffa0dbf99))
+- **CI/CD Pipeline Integration**: Integrated E2E testing fully into the deployment pipeline — E2E tests run sequentially against DEV, block PROD deployment on failure, and require manual approval before PROD promotion.
+- **Environment Isolation**: Complete dev/prod environment separation with per-environment API Gateway variables.
+- **E2E Improvements**: Replaced old real player names with generic `Player A1`–`A11` and `Player B1`–`B11`. E2E test matches are now preserved in both DEV and PROD environments for manual visual verification.
+- **Infrastructure**: Terraform formatting fixes, Checkov SARIF upload fixes, backend dependency upgrades, and updated GitHub Actions architecture documentation.
 
 # [3.3.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v3.2.2...v3.3.0) (2026-07-04)
 
