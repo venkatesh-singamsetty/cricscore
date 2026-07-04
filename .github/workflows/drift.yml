@@ -12,7 +12,6 @@ jobs:
   drift-check:
     name: Drift Check (${{ matrix.environment }})
     runs-on: ubuntu-latest
-    environment: ${{ matrix.environment }}
     strategy:
       fail-fast: false
       matrix:
