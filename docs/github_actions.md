@@ -33,13 +33,48 @@ GitHub enforces extremely strict directory constraints for its automated service
 
 Because we are forced to keep all workflow files completely flat inside the `.github/workflows/` directory, we use strict naming conventions to logically group them by their trigger and purpose:
 
-### Core CI/CD (Triggered on Push/Pull Request)
+### Core CI/CD (Triggered on Push to `main`)
 
-These pipelines validate that the application builds, tests pass, and infrastructure is secure before deployment.
+These pipelines validate, deploy, and verify the application end-to-end. On every push to `main`, the **Backend & Infrastructure CI/CD** pipeline runs as the authoritative deployment gate:
 
-- `frontend.yml`: Runs React UI checks (Vitest/ESLint) on PRs. On merge/push to `main`, it automatically compiles and deploys the frontend bundle sequentially to `dev` S3, then `prod` S3.
-- `backend-infra.yml`: Runs serverless Lambdas unit tests and Terraform format/validation checks on PRs. On merge/push to `main`, it automatically provisions and deploys backend Lambdas/infrastructure sequentially to the `dev`, then `prod` AWS environments.
-- `e2e.yml`: Runs Playwright End-to-End browser tests. Dynamically runs against the `dev` URL context during PRs and the `prod` URL context during `main` branch push triggers.
+```
+push to main
+  │
+  ▼
+[1] validate          — Backend unit tests + Terraform format/validate + Checkov
+  │
+  ▼
+[2] deploy_dev        — Terraform apply to DEV AWS environment (backend + lambdas)
+  │ (parallel)
+  └──▶ Frontend deploy_dev — Build React bundle → upload to DEV S3 + CloudFront
+  │
+  ▼
+[3] e2e_dev           — Playwright E2E against DEV site (TEAM A vs TEAM B match)
+                        ✅ Match is preserved in DEV DB for manual visual verification
+  │
+  │  (blocked if e2e_dev fails — PROD will NOT be deployed)
+  ▼
+[4] deploy_prod       — Requires manual approval in GitHub (environment: prod)
+                        Once approved: Terraform apply to PROD AWS environment
+  │ (parallel)
+  └──▶ Frontend deploy_prod — Build React bundle → upload to PROD S3 + CloudFront
+  │
+  ▼
+[5] e2e_prod          — Playwright E2E against PROD site (TEAM A vs TEAM B match)
+                        ✅ Match is preserved in PROD DB for manual visual verification
+```
+
+**Key gates:**
+
+- **DEV E2E must pass** before PROD deployment is even attempted
+- **Manual approval is required** before any PROD deployment runs (GitHub environment protection)
+- **E2E matches are preserved** in both DEV and PROD after each run so you can visually verify the scoreboard, live scoring, and UI before signing off
+
+**Workflows:**
+
+- `backend-infra.yml`: Runs the full pipeline above (validate → deploy_dev → e2e_dev → deploy_prod → e2e_prod). Also runs validation-only on PRs.
+- `frontend.yml`: Handles frontend build and S3 deploys (dev → prod) in parallel with the backend pipeline. Also runs lint/test/build-check on PRs.
+- `e2e.yml`: Runs Playwright E2E on **pull requests only** against the DEV environment for pre-merge validation.
 
 ### Security & Governance (Triggered on Pull Request)
 

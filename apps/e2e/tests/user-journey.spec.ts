@@ -1,27 +1,9 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("User Journey - Full Match Scoring", () => {
-  test.afterEach(async ({ request }) => {
-    const API_URL =
-      process.env.API_URL ||
-      "https://ispht71fh0.execute-api.us-east-1.amazonaws.com";
-    // Only clean up/delete test matches in PROD environment to keep it clean.
-    // In DEV/Staging, we keep them so the user can verify them.
-    if (API_URL.includes("ispht71fh0")) {
-      const res = await request.get(`${API_URL}/matches`);
-      if (res.ok()) {
-        const matches = await res.json();
-        const testMatches = matches.filter(
-          (m: any) =>
-            (m.team_a_name === "TEAM A" && m.team_b_name === "TEAM B") ||
-            (m.team_a_name === "TEAM B" && m.team_b_name === "TEAM A"),
-        );
-        for (const m of testMatches) {
-          await request.delete(`${API_URL}/match/${m.id}`);
-        }
-      }
-    }
-  });
+  // NOTE: E2E test matches (TEAM A vs TEAM B) are intentionally preserved after each run
+  // in both DEV and PROD environments so the team can visually verify the match UI,
+  // scoreboard, and live updates before signing off on a release.
 
   test("should complete a full 2-over match with all possible scoring and wicket events", async ({
     page,
