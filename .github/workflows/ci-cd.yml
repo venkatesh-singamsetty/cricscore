@@ -97,12 +97,16 @@ jobs:
         run: terraform validate
         working-directory: infra/terraform
 
-  deploy_backend_dev:
-    name: Deploy Backend DEV
-    needs: validate_backend
+
+  deploy_and_test_dev:
+    name: Deploy & Test DEV
+    needs: [validate_frontend, validate_backend]
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: dev
+    permissions:
+      issues: write
+      contents: read
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
       TF_VAR_environment: dev
@@ -110,52 +114,6 @@ jobs:
       TF_VAR_ses_source_email: ${{ secrets.TF_SES_SOURCE_EMAIL }}
       TF_VAR_database_url: ${{ secrets.TF_DATABASE_URL }}
       TF_VAR_admin_email: ${{ vars.ADMIN_EMAIL }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-      - name: Validate AWS_REGION secret
-        run: |
-          if [ -z "$AWS_REGION" ]; then echo "Missing AWS_REGION. Set vars.AWS_REGION"; exit 1; fi
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-      - name: Install Lambda dependencies (prod only)
-        run: |
-          set -e
-          for d in apps/backend/lambdas/*; do
-            if [ -f "$d/package.json" ]; then
-              (cd "$d" && npm install --omit=dev --ignore-scripts)
-            fi
-          done
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v4
-        with:
-          terraform_version: '~1.9'
-      - name: Terraform Init
-        working-directory: infra/terraform
-        run: terraform init -backend-config="key=cricscore/dev/terraform.tfstate"
-      - name: Terraform Plan
-        working-directory: infra/terraform
-        run: terraform plan -var-file="environments/dev.tfvars" -out=tfplan
-      - name: Terraform Apply
-        working-directory: infra/terraform
-        run: terraform apply -auto-approve tfplan
-
-  deploy_frontend_dev:
-    name: Deploy Frontend DEV
-    needs: [validate_frontend, deploy_backend_dev]
-    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    environment: dev
-    env:
-      AWS_REGION: ${{ vars.AWS_REGION }}
       API_GATEWAY_ID: ${{ vars.API_GATEWAY_ID }}
       WS_API_GATEWAY_ID: ${{ vars.WS_API_GATEWAY_ID }}
       S3_BUCKET: ${{ vars.S3_BUCKET }}
@@ -163,15 +121,57 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
+      
+      - name: Validate AWS_REGION secret
+        run: |
+          if [ -z "$AWS_REGION" ]; then echo "Missing AWS_REGION. Set vars.AWS_REGION"; exit 1; fi
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: '24'
           cache: 'npm'
           cache-dependency-path: apps/frontend/package-lock.json
-      - name: Install dependencies
+
+      # --- BACKEND DEPLOYMENT ---
+      - name: Install Lambda dependencies
+        run: |
+          set -e
+          for d in apps/backend/lambdas/*; do
+            if [ -f "$d/package.json" ]; then
+              (cd "$d" && npm install --omit=dev --ignore-scripts)
+            fi
+          done
+      
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: '~1.9'
+      
+      - name: Terraform Init
+        working-directory: infra/terraform
+        run: terraform init -backend-config="key=cricscore/dev/terraform.tfstate"
+      
+      - name: Terraform Plan
+        working-directory: infra/terraform
+        run: terraform plan -var-file="environments/dev.tfvars" -out=tfplan
+      
+      - name: Terraform Apply
+        working-directory: infra/terraform
+        run: terraform apply -auto-approve tfplan
+
+      # --- FRONTEND DEPLOYMENT ---
+      - name: Install Frontend dependencies
         working-directory: apps/frontend
         run: npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
+      
       - name: Build production bundle
         working-directory: apps/frontend
         env:
@@ -180,56 +180,59 @@ jobs:
           VITE_WS_URL: wss://${{ env.WS_API_GATEWAY_ID }}.execute-api.${{ env.AWS_REGION }}.amazonaws.com/prod
           VITE_ADMIN_PIN: ${{ secrets.VITE_ADMIN_PIN }}
         run: npm run build
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+      
       - name: Upload build to S3
         run: |
           aws s3 sync apps/frontend/dist/ s3://${{ env.S3_BUCKET }}/ --delete --cache-control "public,max-age=31536000,immutable" --exclude "index.html"
           aws s3 cp apps/frontend/dist/index.html s3://${{ env.S3_BUCKET }}/index.html --cache-control "no-cache,no-store,must-revalidate" --content-type "text/html"
+      
       - name: Invalidate CloudFront cache
         run: |
           aws cloudfront create-invalidation --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
 
-  e2e_dev:
-    name: E2E Tests DEV
-    needs: deploy_frontend_dev
-    runs-on: ubuntu-latest
-    environment: dev
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: 'package-lock.json'
+      # --- E2E TESTS ---
       - name: Install E2E dependencies
         working-directory: ./apps/e2e
         run: npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
+      
       - name: Install Playwright Browsers
         working-directory: ./apps/e2e
         run: npx playwright install --with-deps
+      
       - name: Run Playwright tests against DEV
         working-directory: ./apps/e2e
         env:
           BASE_URL: https://${{ vars.DOMAIN_NAME }}
-          API_URL: https://${{ vars.API_GATEWAY_ID }}.execute-api.${{ vars.AWS_REGION }}.amazonaws.com
+          API_URL: https://${{ env.API_GATEWAY_ID }}.execute-api.${{ env.AWS_REGION }}.amazonaws.com
         run: npx playwright test
-      - uses: actions/upload-artifact@v7
+      
+      - name: Upload Playwright Report
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: playwright-report-dev
           path: apps/e2e/playwright-report/
 
-  deploy_backend_prod:
-    name: Deploy Backend PROD
-    needs: e2e_dev
+      # --- DAST SCAN ---
+      - name: Fix workspace permissions for ZAP Docker
+        run: chmod -R 777 ${{ github.workspace }}
+      
+      - name: Run OWASP ZAP Baseline Scan against DEV
+        uses: zaproxy/action-baseline@v0.15.0
+        with:
+          target: 'https://${{ vars.DOMAIN_NAME }}'
+          rules_file_name: '.zap/rules.tsv'
+          fail_action: false
+
+  deploy_and_test_prod:
+    name: Deploy & Test PROD
+    needs: deploy_and_test_dev
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: prod
+    permissions:
+      issues: write
+      contents: read
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
       TF_VAR_environment: prod
@@ -237,49 +240,6 @@ jobs:
       TF_VAR_ses_source_email: ${{ secrets.TF_SES_SOURCE_EMAIL }}
       TF_VAR_database_url: ${{ secrets.TF_DATABASE_URL }}
       TF_VAR_admin_email: ${{ vars.ADMIN_EMAIL }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-      - name: Install Lambda dependencies (prod only)
-        run: |
-          set -e
-          for d in apps/backend/lambdas/*; do
-            if [ -f "$d/package.json" ]; then
-              (cd "$d" && npm install --omit=dev --ignore-scripts)
-            fi
-          done
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v4
-        with:
-          terraform_version: '~1.9'
-      - name: Terraform Init
-        working-directory: infra/terraform
-        run: terraform init -backend-config="key=cricscore/prod/terraform.tfstate"
-      - name: Terraform Plan
-        working-directory: infra/terraform
-        run: terraform plan -var-file="environments/prod.tfvars" -out=tfplan
-      - name: Terraform Apply
-        working-directory: infra/terraform
-        run: terraform apply -auto-approve tfplan
-
-  deploy_frontend_prod:
-    name: Deploy Frontend PROD
-    needs: deploy_backend_prod
-    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    environment: prod
-    env:
-      AWS_REGION: ${{ vars.AWS_REGION }}
       API_GATEWAY_ID: ${{ vars.API_GATEWAY_ID }}
       WS_API_GATEWAY_ID: ${{ vars.WS_API_GATEWAY_ID }}
       S3_BUCKET: ${{ vars.S3_BUCKET }}
@@ -287,15 +247,57 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
+      
+      - name: Validate AWS_REGION secret
+        run: |
+          if [ -z "$AWS_REGION" ]; then echo "Missing AWS_REGION. Set vars.AWS_REGION"; exit 1; fi
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: '24'
           cache: 'npm'
           cache-dependency-path: apps/frontend/package-lock.json
-      - name: Install dependencies
+
+      # --- BACKEND DEPLOYMENT ---
+      - name: Install Lambda dependencies
+        run: |
+          set -e
+          for d in apps/backend/lambdas/*; do
+            if [ -f "$d/package.json" ]; then
+              (cd "$d" && npm install --omit=dev --ignore-scripts)
+            fi
+          done
+      
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: '~1.9'
+      
+      - name: Terraform Init
+        working-directory: infra/terraform
+        run: terraform init -backend-config="key=cricscore/prod/terraform.tfstate"
+      
+      - name: Terraform Plan
+        working-directory: infra/terraform
+        run: terraform plan -var-file="environments/prod.tfvars" -out=tfplan
+      
+      - name: Terraform Apply
+        working-directory: infra/terraform
+        run: terraform apply -auto-approve tfplan
+
+      # --- FRONTEND DEPLOYMENT ---
+      - name: Install Frontend dependencies
         working-directory: apps/frontend
         run: npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
+      
       - name: Build production bundle
         working-directory: apps/frontend
         env:
@@ -304,86 +306,46 @@ jobs:
           VITE_WS_URL: wss://${{ env.WS_API_GATEWAY_ID }}.execute-api.${{ env.AWS_REGION }}.amazonaws.com/prod
           VITE_ADMIN_PIN: ${{ secrets.VITE_ADMIN_PIN }}
         run: npm run build
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+      
       - name: Upload build to S3
         run: |
           aws s3 sync apps/frontend/dist/ s3://${{ env.S3_BUCKET }}/ --delete --cache-control "public,max-age=31536000,immutable" --exclude "index.html"
           aws s3 cp apps/frontend/dist/index.html s3://${{ env.S3_BUCKET }}/index.html --cache-control "no-cache,no-store,must-revalidate" --content-type "text/html"
+      
       - name: Invalidate CloudFront cache
         run: |
           aws cloudfront create-invalidation --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
 
-  e2e_prod:
-    name: E2E Tests PROD
-    needs: deploy_frontend_prod
-    runs-on: ubuntu-latest
-    environment: prod
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: 'package-lock.json'
+      # --- E2E TESTS ---
       - name: Install E2E dependencies
         working-directory: ./apps/e2e
         run: npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
+      
       - name: Install Playwright Browsers
         working-directory: ./apps/e2e
         run: npx playwright install --with-deps
+      
       - name: Run Playwright tests against PROD
         working-directory: ./apps/e2e
         env:
           BASE_URL: https://${{ vars.DOMAIN_NAME }}
-          API_URL: https://${{ vars.API_GATEWAY_ID }}.execute-api.${{ vars.AWS_REGION }}.amazonaws.com
+          API_URL: https://${{ env.API_GATEWAY_ID }}.execute-api.${{ env.AWS_REGION }}.amazonaws.com
         run: npx playwright test
-      - uses: actions/upload-artifact@v7
+      
+      - name: Upload Playwright Report
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: playwright-report-prod
           path: apps/e2e/playwright-report/
 
-  dast_dev:
-    name: DAST Scan DEV
-    needs: deploy_frontend_dev
-    runs-on: ubuntu-latest
-    environment: dev
-    permissions:
-      issues: write
-      contents: read
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v7
+      # --- DAST SCAN ---
       - name: Fix workspace permissions for ZAP Docker
         run: chmod -R 777 ${{ github.workspace }}
-      - name: Run OWASP ZAP Baseline Scan against DEV
-        uses: zaproxy/action-baseline@v0.15.0
-        with:
-          target: 'https://cricscoredev.venkateshsingamsetty.site'
-          rules_file_name: '.zap/rules.tsv'
-          fail_action: false
-
-  dast_prod:
-    name: DAST Scan PROD
-    needs: deploy_frontend_prod
-    runs-on: ubuntu-latest
-    environment: prod
-    permissions:
-      issues: write
-      contents: read
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v7
-      - name: Fix workspace permissions for ZAP Docker
-        run: chmod -R 777 ${{ github.workspace }}
+      
       - name: Run OWASP ZAP Baseline Scan against PROD
         uses: zaproxy/action-baseline@v0.15.0
         with:
-          target: 'https://cricscore.venkateshsingamsetty.site'
+          target: 'https://${{ vars.DOMAIN_NAME }}'
           rules_file_name: '.zap/rules.tsv'
           fail_action: false

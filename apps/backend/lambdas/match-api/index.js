@@ -42,6 +42,14 @@ const sendMatchReportEmail = async (
   const matchRecord = matchRes.rows[0];
   if (!matchRecord) return { success: false, error: "Match not found" };
 
+  if (
+    matchRecord.team_a_name === "TEAM A" &&
+    matchRecord.team_b_name === "TEAM B"
+  ) {
+    console.log("🛑 E2E Match detected. Skipping SES email to avoid spam.");
+    return { success: true, message: "E2E Email Skipped" };
+  }
+
   let inningsToReport = [];
 
   if (reportState && reportState.innings) {
@@ -167,7 +175,7 @@ const sendMatchReportEmail = async (
         <table style="width: 100%; border-collapse: collapse; text-align: left; background: rgba(255,255,255,0.02); border-radius: 10px; overflow: hidden;">
             <thead>
                 <tr style="background: rgba(255,255,255,0.05); color: #94a3b8; font-size: 12px; text-transform: uppercase;">
-                    <th style="padding: 12px;">Batter</th><th style="padding: 12px;">R</th><th style="padding: 12px;">B</th><th style="padding: 12px;">4s/6s</th>
+                    <th style="padding: 12px;">Batter</th><th style="padding: 12px;">Dismissal</th><th style="padding: 12px;">R</th><th style="padding: 12px;">B</th><th style="padding: 12px;">4s/6s</th>
                 </tr>
             </thead>
             <tbody>`;
@@ -179,10 +187,28 @@ const sendMatchReportEmail = async (
         const b = p.balls_faced || p.ballsFaced || 0;
         const f = p.fours || 0;
         const s = p.sixes || 0;
+
+        let dismissalText = "not out";
+        if (p.is_out) {
+          const wType = p.wicket_type || "";
+          const wBy = p.wicket_by || "unknown bowler";
+          const fName = p.fielder_name || "unknown fielder";
+
+          if (wType === "BOWLED") dismissalText = `b ${wBy}`;
+          else if (wType === "CAUGHT") dismissalText = `c ${fName} b ${wBy}`;
+          else if (wType === "RUN_OUT") dismissalText = `run out (${fName})`;
+          else if (wType === "LBW") dismissalText = `lbw b ${wBy}`;
+          else if (wType === "STUMPED") dismissalText = `st ${fName} b ${wBy}`;
+          else if (wType === "HIT_WICKET")
+            dismissalText = `hit wicket b ${wBy}`;
+          else dismissalText = "out";
+        }
+
         htmlBody += `
                 <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
                     <td style="padding: 12px; font-weight: bold;">${p.name} ${p.is_out ? "" : "*"}</td>
-                    <td style="padding: 12px;">${r}</td>
+                    <td style="padding: 12px; color: #94a3b8; font-size: 12px; font-style: italic;">${dismissalText}</td>
+                    <td style="padding: 12px; font-weight: bold;">${r}</td>
                     <td style="padding: 12px; color: #64748b;">${b}</td>
                     <td style="padding: 12px; color: #64748b;">${f}/${s}</td>
                 </tr>`;
