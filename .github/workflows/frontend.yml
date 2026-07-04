@@ -59,7 +59,6 @@ jobs:
     needs: validate
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    environment: dev
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
       API_GATEWAY_ID: ${{ vars.API_GATEWAY_ID }}
@@ -124,7 +123,6 @@ jobs:
     needs: deploy_dev
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    environment: prod
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
       API_GATEWAY_ID: ${{ vars.API_GATEWAY_ID }}
