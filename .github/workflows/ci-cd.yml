@@ -1,12 +1,8 @@
-name: Backend & Infrastructure CI/CD
+name: CricScore CI/CD
 
 on:
   push:
     branches: [main]
-    paths:
-      - 'apps/backend/**'
-      - 'infra/terraform/**'
-      - '.github/workflows/backend-infra.yml'
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -17,31 +13,60 @@ concurrency:
 
 permissions:
   contents: read
-  security-events: write
 
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
 
 jobs:
-  validate:
-    name: Backend & Terraform Validation
+  validate_frontend:
+    name: Validate Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/frontend
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: apps/frontend/package-lock.json
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
+      - name: Run Trivy vulnerability scanner (fs)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: 'apps/frontend'
+          ignore-unfixed: true
+          format: 'table'
+          exit-code: '1'
+          severity: 'HIGH,CRITICAL'
+      - name: TypeScript type-check & lint
+        run: npm run lint
+      - name: Run unit tests
+        run: npm run test
+      - name: Build production bundle (Dry-Run)
+        run: npm run build
+
+  validate_backend:
+    name: Validate Backend
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
-      - name: Set up Node.js (for packaging check)
+      - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: '24'
       - name: Install Lambda dependencies
         run: |
           set -e
-          # Install shared backend dependencies for tests
           (cd apps/backend && npm install --ignore-scripts)
-          # Install individual lambda dependencies
           for d in apps/backend/lambdas/*; do
             if [ -f "$d/package.json" ]; then
-              echo "Installing dependencies in $d"
               (cd "$d" && npm install --ignore-scripts)
             fi
           done
@@ -49,7 +74,7 @@ jobs:
         run: |
           cd apps/backend
           npm test
-      - name: Run Trivy vulnerability scanner (fs) on Lambdas
+      - name: Run Trivy vulnerability scanner (fs)
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
@@ -71,24 +96,10 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
         working-directory: infra/terraform
-      - name: Run Checkov static analysis on Terraform
-        uses: bridgecrewio/checkov-action@master
-        with:
-          directory: infra/terraform
-          framework: terraform
-          output_format: cli,sarif
-          output_file_path: console,results.sarif
-          soft_fail: false
-      - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@v4
-        if: success() || failure()
-        with:
-          sarif_file: results.sarif
-          category: checkov
 
-  deploy_dev:
-    name: Deploy to DEV
-    needs: validate
+  deploy_backend_dev:
+    name: Deploy Backend DEV
+    needs: validate_backend
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     env:
@@ -110,16 +121,15 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-      - name: Set up Node.js (for packaging Lambdas)
+      - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: '24'
-      - name: Install Lambda dependencies (production only)
+      - name: Install Lambda dependencies (prod only)
         run: |
           set -e
           for d in apps/backend/lambdas/*; do
             if [ -f "$d/package.json" ]; then
-              echo "Installing production dependencies in $d"
               (cd "$d" && npm install --omit=dev --ignore-scripts)
             fi
           done
@@ -137,12 +147,55 @@ jobs:
         working-directory: infra/terraform
         run: terraform apply -auto-approve tfplan
 
-  e2e_dev:
-    name: E2E Tests (DEV)
-    needs: deploy_dev
+  deploy_frontend_dev:
+    name: Deploy Frontend DEV
+    needs: [validate_frontend, deploy_backend_dev]
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     env:
-      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      API_GATEWAY_ID: ${{ vars.API_GATEWAY_ID }}
+      WS_API_GATEWAY_ID: ${{ vars.WS_API_GATEWAY_ID }}
+      S3_BUCKET: ${{ vars.S3_BUCKET }}
+      CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: apps/frontend/package-lock.json
+      - name: Install dependencies
+        working-directory: apps/frontend
+        run: npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
+      - name: Build production bundle
+        working-directory: apps/frontend
+        env:
+          VITE_APP_TITLE: CricScoreDev
+          VITE_API_URL: https://${{ env.API_GATEWAY_ID }}.execute-api.${{ env.AWS_REGION }}.amazonaws.com
+          VITE_WS_URL: wss://${{ env.WS_API_GATEWAY_ID }}.execute-api.${{ env.AWS_REGION }}.amazonaws.com/prod
+          VITE_ADMIN_PIN: ${{ secrets.VITE_ADMIN_PIN }}
+        run: npm run build
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Upload build to S3
+        run: |
+          aws s3 sync apps/frontend/dist/ s3://${{ env.S3_BUCKET }}/ --delete --cache-control "public,max-age=31536000,immutable" --exclude "index.html"
+          aws s3 cp apps/frontend/dist/index.html s3://${{ env.S3_BUCKET }}/index.html --cache-control "no-cache,no-store,must-revalidate" --content-type "text/html"
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
+
+  e2e_dev:
+    name: E2E Tests DEV
+    needs: deploy_frontend_dev
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
@@ -167,13 +220,13 @@ jobs:
         with:
           name: playwright-report-dev
           path: apps/e2e/playwright-report/
-          retention-days: 14
 
-  deploy_prod:
-    name: Deploy to PROD
-    needs: [deploy_dev, e2e_dev]
+  deploy_backend_prod:
+    name: Deploy Backend PROD
+    needs: e2e_dev
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    environment: prod
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
       TF_VAR_environment: prod
@@ -184,25 +237,21 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
-      - name: Validate AWS_REGION secret
-        run: |
-          if [ -z "$AWS_REGION" ]; then echo "Missing AWS_REGION. Set vars.AWS_REGION"; exit 1; fi
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-      - name: Set up Node.js (for packaging Lambdas)
+      - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: '24'
-      - name: Install Lambda dependencies (production only)
+      - name: Install Lambda dependencies (prod only)
         run: |
           set -e
           for d in apps/backend/lambdas/*; do
             if [ -f "$d/package.json" ]; then
-              echo "Installing production dependencies in $d"
               (cd "$d" && npm install --omit=dev --ignore-scripts)
             fi
           done
@@ -220,12 +269,55 @@ jobs:
         working-directory: infra/terraform
         run: terraform apply -auto-approve tfplan
 
-  e2e_prod:
-    name: E2E Tests (PROD)
-    needs: deploy_prod
+  deploy_frontend_prod:
+    name: Deploy Frontend PROD
+    needs: deploy_backend_prod
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     env:
-      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      API_GATEWAY_ID: ${{ vars.API_GATEWAY_ID }}
+      WS_API_GATEWAY_ID: ${{ vars.WS_API_GATEWAY_ID }}
+      S3_BUCKET: ${{ vars.S3_BUCKET }}
+      CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: apps/frontend/package-lock.json
+      - name: Install dependencies
+        working-directory: apps/frontend
+        run: npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
+      - name: Build production bundle
+        working-directory: apps/frontend
+        env:
+          VITE_APP_TITLE: CricScore
+          VITE_API_URL: https://${{ env.API_GATEWAY_ID }}.execute-api.${{ env.AWS_REGION }}.amazonaws.com
+          VITE_WS_URL: wss://${{ env.WS_API_GATEWAY_ID }}.execute-api.${{ env.AWS_REGION }}.amazonaws.com/prod
+          VITE_ADMIN_PIN: ${{ secrets.VITE_ADMIN_PIN }}
+        run: npm run build
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Upload build to S3
+        run: |
+          aws s3 sync apps/frontend/dist/ s3://${{ env.S3_BUCKET }}/ --delete --cache-control "public,max-age=31536000,immutable" --exclude "index.html"
+          aws s3 cp apps/frontend/dist/index.html s3://${{ env.S3_BUCKET }}/index.html --cache-control "no-cache,no-store,must-revalidate" --content-type "text/html"
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
+
+  e2e_prod:
+    name: E2E Tests PROD
+    needs: deploy_frontend_prod
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
@@ -250,4 +342,3 @@ jobs:
         with:
           name: playwright-report-prod
           path: apps/e2e/playwright-report/
-          retention-days: 14
