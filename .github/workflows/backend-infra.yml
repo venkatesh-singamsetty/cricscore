@@ -138,9 +138,42 @@ jobs:
         working-directory: infra/terraform
         run: terraform apply -auto-approve tfplan
 
+  e2e_dev:
+    name: E2E Tests (DEV)
+    needs: deploy_dev
+    runs-on: ubuntu-latest
+    environment: dev
+    env:
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: 'package-lock.json'
+      - name: Install E2E dependencies
+        working-directory: ./apps/e2e
+        run: npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
+      - name: Install Playwright Browsers
+        working-directory: ./apps/e2e
+        run: npx playwright install --with-deps
+      - name: Run Playwright tests against DEV
+        working-directory: ./apps/e2e
+        env:
+          BASE_URL: https://${{ vars.DOMAIN_NAME }}
+          API_URL: https://${{ vars.API_GATEWAY_ID }}.execute-api.${{ vars.AWS_REGION }}.amazonaws.com
+        run: npx playwright test
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: playwright-report-dev
+          path: apps/e2e/playwright-report/
+          retention-days: 14
+
   deploy_prod:
     name: Deploy to PROD
-    needs: deploy_dev
+    needs: [deploy_dev, e2e_dev]
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: prod
@@ -189,3 +222,36 @@ jobs:
       - name: Terraform Apply
         working-directory: infra/terraform
         run: terraform apply -auto-approve tfplan
+
+  e2e_prod:
+    name: E2E Tests (PROD)
+    needs: deploy_prod
+    runs-on: ubuntu-latest
+    environment: prod
+    env:
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: 'package-lock.json'
+      - name: Install E2E dependencies
+        working-directory: ./apps/e2e
+        run: npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
+      - name: Install Playwright Browsers
+        working-directory: ./apps/e2e
+        run: npx playwright install --with-deps
+      - name: Run Playwright tests against PROD
+        working-directory: ./apps/e2e
+        env:
+          BASE_URL: https://${{ vars.DOMAIN_NAME }}
+          API_URL: https://${{ vars.API_GATEWAY_ID }}.execute-api.${{ vars.AWS_REGION }}.amazonaws.com
+        run: npx playwright test
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: playwright-report-prod
+          path: apps/e2e/playwright-report/
+          retention-days: 14
