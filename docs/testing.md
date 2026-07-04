@@ -163,6 +163,5 @@ Production testing is strictly limited to passive observability and lightweight,
 
 Our GitHub Actions pipelines automatically enforce this entire testing pyramid on all Pull Requests and merges to the `main` branch.
 
-- **Frontend CI**: `.github/workflows/frontend.yml` automatically executes the frontend Unit and Integration tests.
-- **Backend CI**: `.github/workflows/backend-infra.yml` automatically executes the backend Unit and API tests before any Terraform infrastructure is applied.
+- **Frontend & Backend CI**: `.github/workflows/ci-cd.yml` automatically executes all Unit, API, and Integration tests in parallel before deploying to DEV and PROD environments.
 - **E2E CI**: `.github/workflows/e2e.yml` runs the complete Smoke and E2E User Journey test suite against the deployed environment to prevent production regressions.

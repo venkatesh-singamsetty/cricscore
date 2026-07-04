@@ -113,7 +113,7 @@ This document tracks the complete evolutionary history of the CricScore platform
 
 ### 🐛 Bug Fixes
 
-- **State Integrity**: Fixed a critical Terraform drift issue where the `ADMIN_EMAIL` repository variable was being silently dropped during CI deployments. Enforced `TF_VAR_ADMIN_EMAIL` passing within the `.github/workflows/backend-infra.yml` pipeline.
+- **State Integrity**: Fixed a critical Terraform drift issue where the `ADMIN_EMAIL` repository variable was being silently dropped during CI deployments. Enforced `TF_VAR_ADMIN_EMAIL` passing within the `.github/workflows/ci-cd.yml` pipeline.
 
 ---
 
@@ -205,7 +205,7 @@ This release represents a massive leap forward in the platform's infrastructure,
 
 ### CI/CD & Documentation Modernization
 
-- **Dynamic Pipeline Hydration**: Eradicated hardcoded infrastructure parameters (domains, namespaces) from the `.github/workflows/backend-infra.yml` file. The CI/CD pipelines now hydrate completely dynamically from GitHub Repository Variables (`vars.DOMAIN_NAME`).
+- **Dynamic Pipeline Hydration**: Eradicated hardcoded infrastructure parameters (domains, namespaces) from the `.github/workflows/ci-cd.yml` file. The CI/CD pipelines now hydrate completely dynamically from GitHub Repository Variables (`vars.DOMAIN_NAME`).
 - **Zero-Cost Guarantees**: Updated Cost Management docs to explicitly record the $0-cost architectural optimizations deployed via Terraform (disabling S3 Versioning and DynamoDB Point-in-Time Recovery).
 - **Agnostic Documentation**: Sanitized all architecture, API, and deployment markdown files to permanently remove hardcoded structural version labels (like `v2.0`), significantly reducing future maintenance overhead.
 
@@ -216,8 +216,7 @@ This release represents a massive leap forward in the platform's infrastructure,
 ### CI/CD Pipeline Restructuring
 
 - **Consolidated Workflows**: Merged 5 scattered workflow files into 3 component-centric pipelines following enterprise standards:
-  - [`frontend.yml`](.github/workflows/frontend.yml): Frontend lint, Trivy scan, unit tests, build validation (PR gate) → S3 sync + CloudFront invalidation (main-only deploy).
-  - [`backend-infra.yml`](.github/workflows/backend-infra.yml): Lambda dependency check, Trivy scan, Terraform format/validate, Checkov IaC audit (PR gate) → Terraform apply (main-only deploy).
+  - [`ci-cd.yml`](.github/workflows/ci-cd.yml): Unified pipeline combining Frontend lint, Trivy scan, unit tests, build validation, Backend Lambda dependency check, Terraform format/validate, Checkov IaC audit → parallel deployment to DEV → E2E DEV tests → single manual approval gate → parallel deployment to PROD → E2E PROD tests.
   - [`codeql.yml`](.github/workflows/codeql.yml): Standalone SAST analysis kept separate to avoid delaying fast CI feedback loops.
 - **Branch Isolation**: Deploy jobs use `if: github.ref == 'refs/heads/main'` — feature branch PRs trigger only validation, never deployment.
 - **Concurrency Groups**: `cancel-in-progress: true` on all workflows to prune stale runs and conserve runner minutes.
@@ -225,7 +224,7 @@ This release represents a massive leap forward in the platform's infrastructure,
 
 ### Security Scanning Integrations
 
-- **Checkov**: Terraform IaC static analysis in `backend-infra.yml` with `soft_fail: true` — flags misconfigurations without blocking pipelines.
+- **Checkov**: Terraform IaC static analysis in `ci-cd.yml` with `soft_fail: true` — flags misconfigurations without blocking pipelines.
 - **Trivy**: Filesystem vulnerability scanning (`HIGH,CRITICAL` severity, `ignore-unfixed: true`) in both frontend and backend pipelines.
 - **CodeQL**: Native SAST code scanning for JavaScript/TypeScript. Configured to upload results directly to GitHub Code Scanning tab (public repo — no GHAS license required). Runs on push, PRs, and weekly Thursday schedule.
 - **Dependabot**: Daily automated dependency updates across `/frontend`, `/apps/backend/lambdas/*`, and `/terraform`.

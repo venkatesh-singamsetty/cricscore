@@ -102,9 +102,9 @@ The following pipelines act as automated gatekeepers. You can view their executi
 
 - [**GitLeaks**](https://github.com/your-username/cricscore/actions/workflows/secrets.yml): Detects hardcoded secrets or AWS keys before code is pushed.
 - [**CodeQL SAST**](https://github.com/your-username/cricscore/actions/workflows/codeql.yml): Native static application security testing to detect vulnerabilities like XSS and SQL injection.
-- [**Trivy & Checkov**](https://github.com/your-username/cricscore/actions/workflows/backend-infra.yml): Runs inside the Backend infrastructure pipeline to scan dependencies for CRITICAL/HIGH CVEs (Trivy) and audit Terraform misconfigurations (Checkov).
+- [**Trivy & Checkov**](https://github.com/your-username/cricscore/actions/workflows/ci-cd.yml): Runs inside the unified pipeline to scan dependencies for CRITICAL/HIGH CVEs (Trivy) and audit Terraform misconfigurations (Checkov).
 - [**Syft (SBOM)**](https://github.com/your-username/cricscore/actions/workflows/sbom.yml): Automatically generates a Software Bill of Materials (available as a downloadable artifact `spdx-json` on the pipeline run page).
-- [**OWASP ZAP (DAST)**](https://github.com/your-username/cricscore/actions/workflows/dast.yml): Runs an active baseline scan against the live deployed API Gateway URLs to detect runtime misconfigurations like missing HTTP headers.
+- [**OWASP ZAP (DAST)**](https://github.com/your-username/cricscore/actions/workflows/ci-cd.yml): Runs an active baseline scan against the live deployed API Gateway URLs to detect runtime misconfigurations like missing HTTP headers.
 
 ---
 

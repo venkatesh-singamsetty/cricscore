@@ -46,7 +46,7 @@ This engineering trace documents the real-world resolutions for the CricScore ba
 
 - **Symptom**: The `upload-sarif` step in the Checkov GitHub Action failed with `Resource not accessible by integration`.
 - **Cause**: The GitHub Action was missing the `security-events: write` permission required to publish vulnerabilities to the GitHub Code Scanning dashboard.
-- **Fix**: Injected `permissions: security-events: write` explicitly into the `backend-infra.yml` job.
+- **Fix**: Injected `permissions: security-events: write` explicitly into the `ci-cd.yml` job.
 
 ### 44. **Playwright Polluting Production Database**
 
@@ -129,7 +129,7 @@ This engineering trace documents the real-world resolutions for the CricScore ba
 ### 31. **CI/CD Hardcoded Infrastructure Drift**
 
 - **Symptom**: CI/CD pipelines ran correctly but lacked environment portability due to hardcoded AWS domains and buckets.
-- **Cause**: The `.github/workflows/backend-infra.yml` file had hardcoded deployment parameters.
+- **Cause**: The `.github/workflows/ci-cd.yml` file had hardcoded deployment parameters.
 - **Fix**: Removed hardcoded strings (`cricscore...site`) and injected dynamic GitHub context variables (`${{ vars.DOMAIN_NAME }}`) directly into the pipeline execution paths.
 
 ### 30. **Frontend `.env` Overwrite Data Loss**

@@ -17,12 +17,10 @@ GitHub enforces extremely strict directory constraints for its automated service
 .github/
 ├── dependabot.yml           <-- Native Service (Must be here)
 └── workflows/               <-- Flat folder structure
-    ├── backend-infra.yml
+    ├── ci-cd.yml
     ├── codeql.yml
-    ├── dast.yml
     ├── drift.yml
     ├── e2e.yml
-    ├── frontend.yml
     ├── keepalive.yml
     ├── release.yml
     ├── sbom.yml
@@ -54,26 +52,27 @@ push to main
   │
   │  (blocked if e2e_dev fails — PROD will NOT be deployed)
   ▼
-[4] deploy_prod       — Requires manual approval in GitHub (environment: prod)
+[4] deploy_backend_prod   — Requires manual approval in GitHub (environment: prod)
                         Once approved: Terraform apply to PROD AWS environment
-  │ (parallel)
-  └──▶ Frontend deploy_prod — Build React bundle → upload to PROD S3 + CloudFront
+  │ (sequential)
+  └──▶ deploy_frontend_prod — Build React bundle → upload to PROD S3 + CloudFront
   │
   ▼
 [5] e2e_prod          — Playwright E2E against PROD site (TEAM A vs TEAM B match)
                         ✅ Match is preserved in PROD DB for manual visual verification
+  │
+  └──▶ dast_prod            — OWASP ZAP Baseline Security Scan against PROD
 ```
 
 **Key gates:**
 
 - **DEV E2E must pass** before PROD deployment is even attempted
-- **Manual approval is required** before any PROD deployment runs (GitHub environment protection)
+- **A SINGLE Manual approval is required** before any PROD deployment runs (GitHub environment protection on `deploy_backend_prod`)
 - **E2E matches are preserved** in both DEV and PROD after each run so you can visually verify the scoreboard, live scoring, and UI before signing off
 
 **Workflows:**
 
-- `backend-infra.yml`: Runs the full pipeline above (validate → deploy_dev → e2e_dev → deploy_prod → e2e_prod). Also runs validation-only on PRs.
-- `frontend.yml`: Handles frontend build and S3 deploys (dev → prod) in parallel with the backend pipeline. Also runs lint/test/build-check on PRs.
+- `ci-cd.yml`: Runs the fully unified pipeline above (validate frontend & backend → deploy_dev → dast_dev → e2e_dev → deploy_prod → dast_prod → e2e_prod). Also runs validation-only on PRs.
 - `e2e.yml`: Runs Playwright E2E on **pull requests only** against the DEV environment for pre-merge validation.
 
 ### Security & Governance (Triggered on Pull Request)
@@ -88,7 +87,6 @@ These pipelines perform deep static analysis and compliance checks.
 
 These pipelines run asynchronously on schedules or specific deployment events.
 
-- `keepalive.yml`: Scheduled CRON job that pings the Aiven Database to prevent inactivity pauses. Runs within the `prod` environment context to securely access the database connection string.
-- `dast.yml`: Nightly scheduled Dynamic Application Security Testing (OWASP ZAP) against the live API.
+- `keepalive.yml`: Scheduled CRON job that pings the Aiven Database to prevent inactivity pauses.
 - `drift.yml`: Nightly scheduled Terraform Drift Detection. Runs as a matrix check across both `dev` and `prod` environments, using environment-specific state keys and loading the correct environment secrets/variables to detect manual infrastructure modifications.
 - `release.yml`: Triggered automatically on merge to `main` to generate Semantic Versions and changelogs.
