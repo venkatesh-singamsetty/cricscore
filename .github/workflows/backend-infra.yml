@@ -91,7 +91,6 @@ jobs:
     needs: validate
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    environment: dev
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
       TF_VAR_environment: dev
@@ -142,7 +141,6 @@ jobs:
     name: E2E Tests (DEV)
     needs: deploy_dev
     runs-on: ubuntu-latest
-    environment: dev
     env:
       ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
     steps:
@@ -176,7 +174,6 @@ jobs:
     needs: [deploy_dev, e2e_dev]
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    environment: prod
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
       TF_VAR_environment: prod
@@ -227,7 +224,6 @@ jobs:
     name: E2E Tests (PROD)
     needs: deploy_prod
     runs-on: ubuntu-latest
-    environment: prod
     env:
       ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
     steps:
