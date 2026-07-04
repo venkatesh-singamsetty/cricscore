@@ -342,3 +342,41 @@ jobs:
         with:
           name: playwright-report-prod
           path: apps/e2e/playwright-report/
+
+  dast_dev:
+    name: DAST Scan DEV
+    needs: deploy_frontend_dev
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+      - name: Fix workspace permissions for ZAP Docker
+        run: chmod -R 777 ${{ github.workspace }}
+      - name: Run OWASP ZAP Baseline Scan against DEV
+        uses: zaproxy/action-baseline@v0.15.0
+        with:
+          target: 'https://cricscoredev.venkateshsingamsetty.site'
+          rules_file_name: '.zap/rules.tsv'
+          fail_action: false
+
+  dast_prod:
+    name: DAST Scan PROD
+    needs: deploy_frontend_prod
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+      - name: Fix workspace permissions for ZAP Docker
+        run: chmod -R 777 ${{ github.workspace }}
+      - name: Run OWASP ZAP Baseline Scan against PROD
+        uses: zaproxy/action-baseline@v0.15.0
+        with:
+          target: 'https://cricscore.venkateshsingamsetty.site'
+          rules_file_name: '.zap/rules.tsv'
+          fail_action: false
