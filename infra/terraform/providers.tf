@@ -19,10 +19,24 @@ terraform {
 
 provider "aws" {
   region = var.aws_region
+
+  default_tags {
+    tags = {
+      Environment = var.environment
+      Project     = var.project_name
+    }
+  }
 }
 
 # CloudFront certificates MUST be deployed in us-east-1
 provider "aws" {
   alias  = "us-east-1"
   region = "us-east-1"
+
+  default_tags {
+    tags = {
+      Environment = var.environment
+      Project     = var.project_name
+    }
+  }
 }

@@ -18,8 +18,8 @@ describe("MatchSetup Component", () => {
   it("renders correctly with default teams", async () => {
     render(<MatchSetup onStartMatch={vi.fn()} onResumeMatch={vi.fn()} />);
 
-    expect(screen.getByDisplayValue("CHICAGO SPARTANS")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("SHARK BLUE")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("TEAM A")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("TEAM B")).toBeInTheDocument();
 
     // Check Settings
     expect(screen.getByText(/Settings/i)).toBeInTheDocument();
@@ -75,10 +75,10 @@ describe("MatchSetup Component", () => {
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledTimes(2);
       expect(mockStartMatch).toHaveBeenCalledWith(
-        expect.objectContaining({ name: "CHICAGO SPARTANS" }),
-        expect.objectContaining({ name: "SHARK BLUE" }),
+        expect.objectContaining({ name: "TEAM A" }),
+        expect.objectContaining({ name: "TEAM B" }),
         20,
-        "CHICAGO SPARTANS", // Default bat first
+        "TEAM A", // Default bat first
         "123",
         "inn1",
         expect.any(String),

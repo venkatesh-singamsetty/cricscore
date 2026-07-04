@@ -7,22 +7,52 @@ This document provides quick-access UI links to view the live AWS resources, tel
 
 ---
 
-## ⚡ Serverless Compute (AWS Lambda)
+## 🟢 Development (DEV)
 
-Direct links to view the source code, configurations, and test events for the serverless functions:
+### Application Endpoints
 
-- [**broadcaster** (`cricscore-broadcaster`)](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-broadcaster?tab=code)
-- [**match-api** (`cricscore-match-api`)](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-match-api?tab=code)
-- [**onconnect** (`cricscore-onconnect`)](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-onconnect?tab=code)
-- [**ondisconnect** (`cricscore-ondisconnect`)](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-ondisconnect?tab=code)
-- [**score-upd** (`cricscore-score-upd`)](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-score-upd?tab=code)
-- [**storage-worker** (`cricscore-storage-worker`)](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-storage-worker?tab=code)
+- **Frontend App**: [https://cricscoredev.venkateshsingamsetty.site](https://cricscoredev.venkateshsingamsetty.site)
+- **HTTP API Gateway**: `https://sx6hhs0yj6.execute-api.us-east-1.amazonaws.com`
+- **WebSocket API**: `wss://ql2tnw8ls6.execute-api.us-east-1.amazonaws.com/prod`
+
+### Serverless Compute (AWS Lambda)
+
+- [**broadcaster**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredev-broadcaster)
+- [**match-api**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredev-match-api)
+- [**onconnect**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredev-onconnect)
+- [**ondisconnect**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredev-ondisconnect)
+- [**score-upd**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredev-score-upd)
+- [**storage-worker**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredev-storage-worker)
+
+### Application Logs (CloudWatch Logs)
+
+- [**broadcaster Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredev-broadcaster)
+- [**match-api Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredev-match-api)
+- [**onconnect Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredev-onconnect)
+- [**ondisconnect Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredev-ondisconnect)
+- [**score-upd Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredev-score-upd)
+- [**storage-worker Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredev-storage-worker)
 
 ---
 
-## 📝 Application Logs (CloudWatch Logs)
+## 🔵 Production (PROD)
 
-Direct links to the live execution logs (stdout/stderr) and `console.log()` outputs for troubleshooting:
+### Application Endpoints
+
+- **Frontend App**: [https://cricscore.venkateshsingamsetty.site](https://cricscore.venkateshsingamsetty.site)
+- **HTTP API Gateway**: `https://ispht71fh0.execute-api.us-east-1.amazonaws.com`
+- **WebSocket API**: `wss://to0pkago8j.execute-api.us-east-1.amazonaws.com/prod`
+
+### Serverless Compute (AWS Lambda)
+
+- [**broadcaster**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-broadcaster)
+- [**match-api**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-match-api)
+- [**onconnect**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-onconnect)
+- [**ondisconnect**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-ondisconnect)
+- [**score-upd**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-score-upd)
+- [**storage-worker**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-storage-worker)
+
+### Application Logs (CloudWatch Logs)
 
 - [**broadcaster Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-broadcaster)
 - [**match-api Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-match-api)
@@ -59,23 +89,25 @@ AWS X-Ray visualizes the request path between API Gateway, Lambda, and SNS, help
 
 CricScore utilizes a strict DevSecOps pipeline. To view the results of the automated security tools:
 
-### GitHub Native Dashboards
+### Security & Analysis Dashboards (GitHub Native)
 
-- [**CodeQL & Checkov Alerts**](https://github.com/venkatesh-singamsetty/cricscore/security/code-scanning): View static application security testing results (e.g., detected SQL injection, XSS) and Terraform misconfigurations (Checkov issues).
-- [**Dependabot SCA Alerts**](https://github.com/venkatesh-singamsetty/cricscore/security/dependabot): View known vulnerabilities in third-party NPM dependencies.
-
-### CI/CD Pipeline Scanners (View in GitHub Actions Logs)
-
-The following tools block Pull Requests automatically. You can click these direct links to view the specific workflows running these tools:
-
-- [**GitLeaks**](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/secrets.yml): Detects hardcoded secrets or AWS keys before code is pushed.
-- [**CodeQL SAST**](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/codeql.yml): Native static application security testing to detect vulnerabilities like XSS and SQL injection.
-- [**Trivy & Checkov**](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/backend-infra.yml): Runs inside the Backend infrastructure pipeline to scan dependencies for CRITICAL/HIGH CVEs (Trivy) and audit Terraform misconfigurations (Checkov).
-- [**Syft (SBOM)**](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/sbom.yml): Automatically generates a Software Bill of Materials (available as a downloadable artifact `spdx-json` on the pipeline run page).
-- [**OWASP ZAP (DAST)**](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/dast.yml): Runs an active baseline scan against the live deployed API Gateway URLs to detect runtime misconfigurations like missing HTTP headers.
+- [**CodeQL & Checkov Alerts**](https://github.com/your-username/cricscore/security/code-scanning): View static application security testing results (e.g., detected SQL injection, XSS) and Terraform misconfigurations (Checkov issues).
+- [**Dependabot SCA Alerts**](https://github.com/your-username/cricscore/security/dependabot): View known vulnerabilities in third-party NPM dependencies.
 
 ---
 
-## 📋 Project Management & Issue Tracking
+### CI/CD Security Scanners (Pipeline Logs)
 
-- [**Open GitHub Issues**](https://github.com/venkatesh-singamsetty/cricscore/issues?q=is%3Aissue+is%3Aopen): View the active queue of pending bugs, requested features, and ongoing tasks. Tracking open issues helps developers understand current system limitations, prioritize upcoming architecture changes, and manage active security remediation efforts.
+The following pipelines act as automated gatekeepers. You can view their execution logs and downloadable reports here:
+
+- [**GitLeaks**](https://github.com/your-username/cricscore/actions/workflows/secrets.yml): Detects hardcoded secrets or AWS keys before code is pushed.
+- [**CodeQL SAST**](https://github.com/your-username/cricscore/actions/workflows/codeql.yml): Native static application security testing to detect vulnerabilities like XSS and SQL injection.
+- [**Trivy & Checkov**](https://github.com/your-username/cricscore/actions/workflows/backend-infra.yml): Runs inside the Backend infrastructure pipeline to scan dependencies for CRITICAL/HIGH CVEs (Trivy) and audit Terraform misconfigurations (Checkov).
+- [**Syft (SBOM)**](https://github.com/your-username/cricscore/actions/workflows/sbom.yml): Automatically generates a Software Bill of Materials (available as a downloadable artifact `spdx-json` on the pipeline run page).
+- [**OWASP ZAP (DAST)**](https://github.com/your-username/cricscore/actions/workflows/dast.yml): Runs an active baseline scan against the live deployed API Gateway URLs to detect runtime misconfigurations like missing HTTP headers.
+
+---
+
+### Engineering & Issue Tracking
+
+- [**Open GitHub Issues**](https://github.com/your-username/cricscore/issues?q=is%3Aissue+is%3Aopen): View the active queue of pending bugs, requested features, and ongoing tasks. Tracking open issues helps developers understand current system limitations, prioritize upcoming architecture changes, and manage active security remediation efforts.

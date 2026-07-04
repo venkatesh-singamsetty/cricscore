@@ -1,13 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 process.env.MATCH_EVENTS_TOPIC =
   "arn:aws:sns:us-east-1:123456789012:test-topic";
+process.env.STORAGE_BUFFER_QUEUE =
+  "https://sqs.us-east-1.amazonaws.com/123456789012/test-queue.fifo";
 import { handler } from "./index.js";
 import { SNSClient } from "@aws-sdk/client-sns";
+import { SQSClient } from "@aws-sdk/client-sqs";
 
 // Mock SNS Client using prototype
 export const mockSend = vi
   .spyOn(SNSClient.prototype, "send")
   .mockResolvedValue({ MessageId: "mock-sns-id-123" });
+
+// Mock SQS Client using prototype
+export const mockSqsSend = vi
+  .spyOn(SQSClient.prototype, "send")
+  .mockResolvedValue({ MessageId: "mock-sqs-id-123" });
 
 describe("score-update Lambda handler", () => {
   beforeEach(() => {

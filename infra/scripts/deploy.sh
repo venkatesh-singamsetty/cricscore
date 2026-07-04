@@ -6,14 +6,19 @@ cd "$(dirname "$0")/../.."
 
 # Optional flags
 USE_LOCAL_ENV=false
+ENV_FILE=""
 while [[ "$#" -gt 0 ]]; do
   case "$1" in
     --use-local-env)
       USE_LOCAL_ENV=true
       shift
       ;;
+    --env)
+      ENV_FILE="$2"
+      shift 2
+      ;;
     --help|-h)
-      echo "Usage: $0 [--use-local-env]"
+      echo "Usage: $0 [--use-local-env] [--env dev|prod]"
       exit 0
       ;;
     *)
@@ -22,6 +27,12 @@ while [[ "$#" -gt 0 ]]; do
       ;;
   esac
 done
+
+if [ -z "$ENV_FILE" ]; then
+  echo "Error: --env [dev|prod] is required." >&2
+  exit 1
+fi
+
 
 # If requested, load variables from local .env.local into the environment
 if [ "$USE_LOCAL_ENV" = true ]; then
@@ -39,10 +50,6 @@ fi
 if [ -n "${TF_DATABASE_URL:-}" ]; then export TF_VAR_database_url="$TF_DATABASE_URL"; fi
 if [ -n "${TF_SES_SOURCE_EMAIL:-}" ]; then export TF_VAR_ses_source_email="$TF_SES_SOURCE_EMAIL"; fi
 if [ -n "${AWS_REGION:-}" ]; then export TF_VAR_aws_region="$AWS_REGION"; fi
-if [ -n "${DOMAIN_NAME:-}" ]; then export TF_VAR_domain_name="$DOMAIN_NAME"; fi
-if [ -n "${ZONE_DOMAIN:-}" ]; then export TF_VAR_zone_domain="$ZONE_DOMAIN"; fi
-if [ -n "${SUBDOMAIN_PREFIX:-}" ]; then export TF_VAR_subdomain_prefix="$SUBDOMAIN_PREFIX"; fi
-if [ -n "${PROJECT_NAME:-}" ]; then export TF_VAR_project_name="$PROJECT_NAME"; fi
 if [ -n "${ADMIN_EMAIL:-}" ]; then export TF_VAR_admin_email="$ADMIN_EMAIL"; fi
 
 # 1. Install Dependencies
@@ -59,10 +66,10 @@ done
 
 # 2. Apply Infrastructure first to get correct API Gateway URLs
 echo "⚙️ Initializing & Upgrading Terraform..."
-(cd infra/terraform && terraform init -reconfigure -upgrade)
+(cd infra/terraform && terraform init -reconfigure -upgrade -backend-config="key=cricscore/${ENV_FILE}/terraform.tfstate")
 
-echo "☁️ Applying AWS Infrastructure (S3, CloudFront, Route53, ACM, API Gateway)..."
-(cd infra/terraform && terraform apply -auto-approve)
+echo "☁️ Applying AWS Infrastructure for $ENV_FILE environment..."
+(cd infra/terraform && terraform apply -var-file="environments/$ENV_FILE.tfvars" -auto-approve)
 
 # 3. Read Terraform outputs
 echo "🔍 Querying Terraform outputs..."
@@ -72,14 +79,21 @@ WS_URL=$(cd infra/terraform && terraform output -raw websocket_url)
 echo "⚙️ Synchronizing frontend environment variables..."
 # Preserve existing variables (like VITE_ADMIN_PIN) by only filtering out old URLs
 if [ -f apps/frontend/.env ]; then
-  grep -v "^VITE_API_URL=" apps/frontend/.env | grep -v "^VITE_WS_URL=" > apps/frontend/.env.tmp || true
+  grep -v "^VITE_API_URL=" apps/frontend/.env | grep -v "^VITE_WS_URL=" | grep -v "^VITE_APP_TITLE=" > apps/frontend/.env.tmp || true
   mv apps/frontend/.env.tmp apps/frontend/.env
+fi
+
+if [ "$ENV_FILE" = "dev" ]; then
+  APP_TITLE="CricScoreDev"
+else
+  APP_TITLE="CricScore"
 fi
 
 # Append the live AWS URLs to the end of the file
 cat <<EOF >> apps/frontend/.env
 VITE_API_URL=$API_URL
 VITE_WS_URL=$WS_URL
+VITE_APP_TITLE=$APP_TITLE
 EOF
 
 # 4. Build the application with the correct variables

@@ -287,22 +287,27 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
             const result = (() => {
               const i1 = previousInnings;
               const i2 = currentInnings;
-              if (i2.totalRuns > i1.totalRuns) {
+              const i1Runs = Number(i1.totalRuns || 0);
+              const i2Runs = Number(i2.totalRuns || 0);
+              const i2Wickets = Number(i2.totalWickets || 0);
+              const i2Overs = Number(i2.overs || 0);
+
+              if (i2Runs > i1Runs) {
                 return {
-                  text: `${i2.battingTeamName} WON BY ${10 - i2.totalWickets} WICKETS`,
+                  text: `${i2.battingTeamName} WON BY ${10 - i2Wickets} WICKETS`,
                   team: i2.battingTeamName,
                 };
               } else if (
-                i1.totalRuns > i2.totalRuns &&
-                (i2.overs >= (totalOvers || 0) || i2.totalWickets >= 10)
+                i1Runs > i2Runs &&
+                (i2Overs >= (totalOvers || 0) || i2Wickets >= 10)
               ) {
                 return {
-                  text: `${i1.battingTeamName} WON BY ${i1.totalRuns - i2.totalRuns} RUNS`,
+                  text: `${i1.battingTeamName} WON BY ${i1Runs - i2Runs} RUNS`,
                   team: i1.battingTeamName,
                 };
               } else if (
-                i1.totalRuns === i2.totalRuns &&
-                (i2.overs >= (totalOvers || 0) || i2.totalWickets >= 10)
+                i1Runs === i2Runs &&
+                (i2Overs >= (totalOvers || 0) || i2Wickets >= 10)
               ) {
                 return { text: "MATCH TIED", team: "TIED" };
               }

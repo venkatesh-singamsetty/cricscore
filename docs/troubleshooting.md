@@ -50,7 +50,7 @@ This engineering trace documents the real-world resolutions for the CricScore ba
 
 ### 44. **Playwright Polluting Production Database**
 
-- **Symptom**: Dozens of duplicate "CHICAGO SPARTANS vs SHARK BLUE" matches appeared on the live `cricscore.venkateshsingamsetty.site` viewer dashboard with broken scores (like `4/1` after 0.2 overs).
+- **Symptom**: Dozens of duplicate "CHICAGO SPARTANS vs SHARK BLUE" matches appeared on the live `cricscore.yourdomain.com` viewer dashboard with broken scores (like `4/1` after 0.2 overs).
 - **Cause**: The Playwright configuration defaults to testing against the live production URL. Running `npx playwright test` locally was creating authentic database entries without cleaning them up upon failure or timeout.
 - **Fix**: Connected directly to the Aiven PostgreSQL production database via `psql` and executed a targeted cleanup: `DELETE FROM matches WHERE team_a_name = 'CHICAGO SPARTANS' AND team_b_name = 'SHARK BLUE';`.
 
@@ -253,6 +253,19 @@ This engineering trace documents the real-world resolutions for the CricScore ba
 - **Fix**:
   - Implemented a **Triple-Layer Sync**: Standalone `PATCH`, WebSocket broadcast, and failover DB update during every ball event.
   - Updated `LiveScoreboard` to prioritize WebSocket metadata over potentially stale polling results.
+
+### 12. **Terraform State Lock / Acquire Lock Error**
+
+- **Symptom**: `Error: Error acquiring the state lock` with `ConditionalCheckFailedException` during a deployment or drift check execution.
+- **Cause**: A previous Terraform run (local or remote runner) crashed or was cancelled before it could release the lock row in the DynamoDB `terraform-state-locking` table.
+- **Fix**:
+  1. Note the lock ID from the error message.
+  2. Run `terraform force-unlock -force <LOCK_ID>` from the `infra/terraform` directory.
+  3. Alternatively, delete the stale lock item directly using the AWS CLI:
+     ```bash
+     aws dynamodb delete-item --table-name terraform-state-locking --key '{"LockID": {"S": "venky-2026-terraform-state/cricscore/terraform.tfstate"}}'
+     ```
+     _(Make sure to adjust the state key path in the partition key value if using environment-specific states, e.g., `/dev/` or `/prod/`)_
 
 ### 11. **Match Hub Consolidation & Layout Clarity**
 

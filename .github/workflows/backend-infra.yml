@@ -26,16 +26,13 @@ jobs:
   validate:
     name: Backend & Terraform Validation
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
-
       - name: Set up Node.js (for packaging check)
         uses: actions/setup-node@v6
         with:
           node-version: '24'
-
       - name: Install Lambda dependencies
         run: |
           set -e
@@ -48,12 +45,10 @@ jobs:
               (cd "$d" && npm install --ignore-scripts)
             fi
           done
-
       - name: Run Backend Unit Tests
         run: |
           cd apps/backend
           npm test
-
       - name: Run Trivy vulnerability scanner (fs) on Lambdas
         uses: aquasecurity/trivy-action@master
         with:
@@ -63,24 +58,19 @@ jobs:
           format: 'table'
           exit-code: '1'
           severity: 'HIGH,CRITICAL'
-
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: '~1.9'
-
       - name: Terraform Format Check
         run: terraform fmt -check -recursive
         working-directory: infra/terraform
-
       - name: Terraform Init (no backend)
         run: terraform init -backend=false
         working-directory: infra/terraform
-
       - name: Terraform Validate
         run: terraform validate
         working-directory: infra/terraform
-
       - name: Run Checkov static analysis on Terraform
         uses: bridgecrewio/checkov-action@master
         with:
@@ -89,7 +79,6 @@ jobs:
           output_format: cli,sarif
           output_file_path: console,results.sarif
           soft_fail: false
-
       - name: Upload SARIF file
         uses: github/codeql-action/upload-sarif@v4
         if: success() || failure()
@@ -97,43 +86,35 @@ jobs:
           sarif_file: results.sarif
           category: checkov
 
-  deploy:
-    name: Provision & Deploy Backend + Infra
+  deploy_dev:
+    name: Deploy to DEV
     needs: validate
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-
+    environment: dev
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
+      TF_VAR_environment: dev
       TF_VAR_aws_region: ${{ vars.AWS_REGION }}
-      TF_VAR_domain_name: ${{ vars.DOMAIN_NAME }}
-      TF_VAR_zone_domain: ${{ vars.ZONE_DOMAIN }}
-      TF_VAR_subdomain_prefix: ${{ vars.SUBDOMAIN_PREFIX }}
-      TF_VAR_project_name: ${{ vars.PROJECT_NAME }}
       TF_VAR_ses_source_email: ${{ secrets.TF_SES_SOURCE_EMAIL }}
       TF_VAR_database_url: ${{ secrets.TF_DATABASE_URL }}
       TF_VAR_admin_email: ${{ vars.ADMIN_EMAIL }}
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
-
       - name: Validate AWS_REGION secret
         run: |
           if [ -z "$AWS_REGION" ]; then echo "Missing AWS_REGION. Set vars.AWS_REGION"; exit 1; fi
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-
       - name: Set up Node.js (for packaging Lambdas)
         uses: actions/setup-node@v6
         with:
           node-version: '24'
-
       - name: Install Lambda dependencies (production only)
         run: |
           set -e
@@ -143,34 +124,68 @@ jobs:
               (cd "$d" && npm install --omit=dev --ignore-scripts)
             fi
           done
-
-      - name: Run Trivy vulnerability scanner (fs)
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'fs'
-          scan-ref: 'apps/backend/lambdas'
-          ignore-unfixed: true
-          format: 'table'
-          exit-code: '1'
-          severity: 'HIGH,CRITICAL'
-
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: '~1.9'
-
       - name: Terraform Init
         working-directory: infra/terraform
-        run: terraform init
-
-      - name: Terraform Validate
-        working-directory: infra/terraform
-        run: terraform validate
-
+        run: terraform init -backend-config="key=cricscore/dev/terraform.tfstate"
       - name: Terraform Plan
         working-directory: infra/terraform
-        run: terraform plan -out=tfplan
+        run: terraform plan -var-file="environments/dev.tfvars" -out=tfplan
+      - name: Terraform Apply
+        working-directory: infra/terraform
+        run: terraform apply -auto-approve tfplan
 
+  deploy_prod:
+    name: Deploy to PROD
+    needs: deploy_dev
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: prod
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      TF_VAR_environment: prod
+      TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+      TF_VAR_ses_source_email: ${{ secrets.TF_SES_SOURCE_EMAIL }}
+      TF_VAR_database_url: ${{ secrets.TF_DATABASE_URL }}
+      TF_VAR_admin_email: ${{ vars.ADMIN_EMAIL }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+      - name: Validate AWS_REGION secret
+        run: |
+          if [ -z "$AWS_REGION" ]; then echo "Missing AWS_REGION. Set vars.AWS_REGION"; exit 1; fi
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Set up Node.js (for packaging Lambdas)
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - name: Install Lambda dependencies (production only)
+        run: |
+          set -e
+          for d in apps/backend/lambdas/*; do
+            if [ -f "$d/package.json" ]; then
+              echo "Installing production dependencies in $d"
+              (cd "$d" && npm install --omit=dev --ignore-scripts)
+            fi
+          done
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: '~1.9'
+      - name: Terraform Init
+        working-directory: infra/terraform
+        run: terraform init -backend-config="key=cricscore/prod/terraform.tfstate"
+      - name: Terraform Plan
+        working-directory: infra/terraform
+        run: terraform plan -var-file="environments/prod.tfvars" -out=tfplan
       - name: Terraform Apply
         working-directory: infra/terraform
         run: terraform apply -auto-approve tfplan

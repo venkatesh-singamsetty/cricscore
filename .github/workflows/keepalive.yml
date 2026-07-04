@@ -10,6 +10,7 @@ jobs:
   ping-database:
     name: Ping Aiven PostgreSQL
     runs-on: ubuntu-latest
+    environment: prod
     steps:
       - name: Install PostgreSQL Client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client

@@ -1,6 +1,8 @@
 # 🏏 CricScore: Real-Time Cricket Match Engine
 
-🚀 **Live Production:** **https://cricscore.venkateshsingamsetty.site**
+🚀 **Production Environment:** **https://cricscore.venkateshsingamsetty.site**
+
+🧪 **Development Environment:** **https://cricscoredev.venkateshsingamsetty.site**
 
 👉 **Deployment Details:** **[Full Deployment Guide](./docs/deployment.md)**
 

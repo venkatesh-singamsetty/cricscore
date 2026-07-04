@@ -1,3 +1,24 @@
+# [3.4.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v3.3.0...v3.4.0) (2026-07-04)
+
+### Features
+
+- Complete dev/prod environment isolation, workflow fixes, and dependency upgrades ([#106](https://github.com/venkatesh-singamsetty/cricscore/issues/106)) ([8adc278](https://github.com/venkatesh-singamsetty/cricscore/commit/8adc278445ddeb0c557ba0ce140048934faaf570))
+- **e2e:** Use generic team and player names (`TEAM A`/`TEAM B`, `Player A1`–`Player B11`) and preserve test matches in DEV for manual validation; auto-clean only in PROD ([#107](https://github.com/venkatesh-singamsetty/cricscore/issues/107)) ([317c2af](https://github.com/venkatesh-singamsetty/cricscore/commit/317c2af0e124df66a38efc329e1d67cffa0dbf99))
+
+# [3.3.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v3.2.2...v3.3.0) (2026-07-04)
+
+### Features
+
+- add feedback link and fix email batsman sort order ([#101](https://github.com/venkatesh-singamsetty/cricscore/issues/101)) ([501aa10](https://github.com/venkatesh-singamsetty/cricscore/commit/501aa106670978d56aa73ec8a6d0176d246b9ea4))
+- complete dev/prod environment isolation, workflow fixes, and dependency upgrades ([#106](https://github.com/venkatesh-singamsetty/cricscore/issues/106)) ([8adc278](https://github.com/venkatesh-singamsetty/cricscore/commit/8adc278445ddeb0c557ba0ce140048934faaf570))
+
+# [3.3.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v3.2.2...v3.3.0) (2026-07-04)
+
+### Features
+
+- add feedback link and fix email batsman sort order ([#101](https://github.com/venkatesh-singamsetty/cricscore/issues/101)) ([501aa10](https://github.com/venkatesh-singamsetty/cricscore/commit/501aa106670978d56aa73ec8a6d0176d246b9ea4))
+- complete dev/prod environment isolation, workflow fixes, and dependency upgrades ([#106](https://github.com/venkatesh-singamsetty/cricscore/issues/106)) ([8adc278](https://github.com/venkatesh-singamsetty/cricscore/commit/8adc278445ddeb0c557ba0ce140048934faaf570))
+
 # 📅 CricScore: Full Project Timeline & Release Log
 
 This document tracks the complete evolutionary history of the CricScore platform.

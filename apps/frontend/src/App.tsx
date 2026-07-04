@@ -532,10 +532,10 @@ const App: React.FC = () => {
           target: inn.target,
           battingTeamName: inn.batting_team_name,
           bowlingTeamName: inn.bowling_team_name,
-          totalRuns: inn.total_runs,
-          totalWickets: inn.total_wickets,
-          overs: inn.overs,
-          balls: inn.balls,
+          totalRuns: Number(inn.total_runs || 0),
+          totalWickets: Number(inn.total_wickets || 0),
+          overs: Number(inn.overs || 0),
+          balls: Number(inn.balls || 0),
           currentOver,
           allBalls: allMappedBalls,
           strikerId: inn.striker_name
@@ -874,7 +874,7 @@ const App: React.FC = () => {
 
         <div className="flex items-center gap-3">
           <a
-            href="https://github.com/venkatesh-singamsetty/cricscore/issues/new"
+            href="https://github.com/your-username/cricscore/issues/new"
             target="_blank"
             rel="noopener noreferrer"
             className="px-3 py-1.5 bg-slate-800/50 border border-white/5 rounded-lg text-slate-400 hover:text-emerald-400 text-[9px] font-black uppercase tracking-widest transition-all hover:bg-emerald-400/10 flex items-center gap-1"

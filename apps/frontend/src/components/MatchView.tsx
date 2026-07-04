@@ -428,8 +428,8 @@ const MatchView: React.FC<MatchViewProps> = ({
           currentOvers: innings.overs,
           currentBalls: innings.balls,
           matchTotalOvers: totalOvers,
-          totalRuns: innings.totalRuns,
-          totalWickets: innings.totalWickets,
+          totalRuns: Number(innings.totalRuns || 0),
+          totalWickets: Number(innings.totalWickets || 0),
           bowlerOvers: bOvers,
           bowlerBalls: bBalls,
           battingOrderNames: innings.battingOrder

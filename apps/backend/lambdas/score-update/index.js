@@ -1,7 +1,10 @@
 const { SNSClient, PublishCommand } = require("@aws-sdk/client-sns");
+const { SQSClient, SendMessageCommand } = require("@aws-sdk/client-sqs");
 
 const snsClient = new SNSClient({});
+const sqsClient = new SQSClient({});
 const TOPIC_ARN = process.env.MATCH_EVENTS_TOPIC;
+const QUEUE_URL = process.env.STORAGE_BUFFER_QUEUE;
 
 exports.handler = async (event) => {
   const { httpMethod } = event || {};
@@ -33,7 +36,7 @@ exports.handler = async (event) => {
     };
 
     // 1. Publish to character-perfectly technically shard SNS Topic (The Fan-Out Hub)
-    const command = new PublishCommand({
+    const snsCommand = new PublishCommand({
       TopicArn: TOPIC_ARN,
       Message: JSON.stringify(message),
       MessageAttributes: {
@@ -44,8 +47,21 @@ exports.handler = async (event) => {
       },
     });
 
-    const snsRes = await snsClient.send(command);
-    console.log(`SNS Event Published: ${snsRes.MessageId}`);
+    // 2. Send strictly ordered message to Storage Worker Buffer (FIFO SQS)
+    const sqsCommand = new SendMessageCommand({
+      QueueUrl: QUEUE_URL,
+      MessageBody: JSON.stringify(message),
+      MessageGroupId: matchId, // Ensure strict FIFO ordering per match!
+    });
+
+    const [snsRes, sqsRes] = await Promise.all([
+      snsClient.send(snsCommand),
+      sqsClient.send(sqsCommand),
+    ]);
+
+    console.log(
+      `SNS Published: ${snsRes.MessageId}, SQS Sent: ${sqsRes.MessageId}`,
+    );
 
     return {
       statusCode: 200,

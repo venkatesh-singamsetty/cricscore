@@ -37,9 +37,9 @@ Because we are forced to keep all workflow files completely flat inside the `.gi
 
 These pipelines validate that the application builds, tests pass, and infrastructure is secure before deployment.
 
-- `frontend.yml`: Validates React UI components (Vitest, ESLint).
-- `backend-infra.yml`: Validates Serverless Lambdas and Terraform configurations.
-- `e2e.yml`: Executes End-to-End browser tests via Playwright.
+- `frontend.yml`: Runs React UI checks (Vitest/ESLint) on PRs. On merge/push to `main`, it automatically compiles and deploys the frontend bundle sequentially to `dev` S3, then `prod` S3.
+- `backend-infra.yml`: Runs serverless Lambdas unit tests and Terraform format/validation checks on PRs. On merge/push to `main`, it automatically provisions and deploys backend Lambdas/infrastructure sequentially to the `dev`, then `prod` AWS environments.
+- `e2e.yml`: Runs Playwright End-to-End browser tests. Dynamically runs against the `dev` URL context during PRs and the `prod` URL context during `main` branch push triggers.
 
 ### Security & Governance (Triggered on Pull Request)
 
@@ -53,7 +53,7 @@ These pipelines perform deep static analysis and compliance checks.
 
 These pipelines run asynchronously on schedules or specific deployment events.
 
-- `keepalive.yml`: Scheduled CRON job that pings the Aiven Database to prevent inactivity pauses.
+- `keepalive.yml`: Scheduled CRON job that pings the Aiven Database to prevent inactivity pauses. Runs within the `prod` environment context to securely access the database connection string.
 - `dast.yml`: Nightly scheduled Dynamic Application Security Testing (OWASP ZAP) against the live API.
-- `drift.yml`: Nightly scheduled Terraform Drift Detection to alert if live AWS resources deviate from the IaC state.
+- `drift.yml`: Nightly scheduled Terraform Drift Detection. Runs as a matrix check across both `dev` and `prod` environments, using environment-specific state keys and loading the correct environment secrets/variables to detect manual infrastructure modifications.
 - `release.yml`: Triggered automatically on merge to `main` to generate Semantic Versions and changelogs.

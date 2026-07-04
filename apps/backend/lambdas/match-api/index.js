@@ -236,7 +236,7 @@ const sendMatchReportEmail = async (
             Body: { Html: { Charset: "UTF-8", Data: htmlBody } },
             Subject: {
               Charset: "UTF-8",
-              Data: `🏏 ADMIN REPORT: ${matchRecord.team_a_name} vs ${matchRecord.team_b_name}`,
+              Data: `[${(process.env.DB_SCHEMA || "DEV").toUpperCase()}] 🏏 ADMIN REPORT: ${matchRecord.team_a_name} vs ${matchRecord.team_b_name}`,
             },
           },
           Source: process.env.SES_SOURCE || "noreply@example.com",
@@ -259,7 +259,7 @@ const sendMatchReportEmail = async (
             Body: { Html: { Charset: "UTF-8", Data: htmlBody } },
             Subject: {
               Charset: "UTF-8",
-              Data: `🏏 FINAL SCORECARD: ${matchRecord.team_a_name} vs ${matchRecord.team_b_name}`,
+              Data: `[${(process.env.DB_SCHEMA || "DEV").toUpperCase()}] 🏏 FINAL SCORECARD: ${matchRecord.team_a_name} vs ${matchRecord.team_b_name}`,
             },
           },
           Source: process.env.SES_SOURCE || "noreply@example.com",
@@ -313,6 +313,10 @@ exports.handler = async (event) => {
 
   try {
     await client.connect();
+    const dbSchema = process.env.DB_SCHEMA || "public";
+    if (process.env.NODE_ENV !== "test") {
+      await client.query(`SET search_path TO ${dbSchema}`);
+    }
 
     const { path, httpMethod, body, pathParameters } = event;
 

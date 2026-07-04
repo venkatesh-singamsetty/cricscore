@@ -39,9 +39,10 @@ We chose Aiven because it perfectly aligns with CricScore's **Zero-Cost Architec
      ```bash
      TF_DATABASE_URL='postgres://avnadmin:[PASSWORD]@[HOST]:[PORT]/defaultdb?sslmode=require'
      ```
+   - **Environment Isolation Note**: Both the `dev` and `prod` environments will share this exact same connection string! CricScore isolates the data by instructing the Lambdas to query different PostgreSQL **schemas** (e.g., `SET search_path TO dev` vs `prod`).
 
 5. **Deploy**:
-   - The database is now ready to use! When you run `./infra/scripts/deploy.sh`, Terraform will automatically deploy the tables and configure the AWS Lambda functions to securely communicate with this database.
+   - The database is now ready to use! When you run `./infra/scripts/deploy.sh --use-local-env --env dev`, Terraform will automatically deploy the tables (into the `dev` schema) and configure the AWS Lambda functions to securely communicate with this database.
 
 ---
 

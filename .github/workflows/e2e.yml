@@ -13,6 +13,7 @@ jobs:
   playwright-tests:
     timeout-minutes: 60
     runs-on: ubuntu-latest
+    environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}
     steps:
     - uses: actions/checkout@v7
     - uses: actions/setup-node@v6
@@ -31,6 +32,9 @@ jobs:
       
     - name: Run Playwright tests
       working-directory: ./apps/e2e
+      env:
+        BASE_URL: https://${{ vars.DOMAIN_NAME }}
+        API_URL: https://${{ vars.API_GATEWAY_ID }}.execute-api.${{ vars.AWS_REGION }}.amazonaws.com
       run: npx playwright test
       
     - uses: actions/upload-artifact@v7

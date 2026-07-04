@@ -54,16 +54,16 @@ If a user experiences a "white screen of death" or a silent JavaScript exception
 
 ## 5. ⏱️ Uptime Monitoring (BetterStack / UptimeRobot)
 
-To ensure the `cricscore.venkateshsingamsetty.site` URL is always resolving globally, we highly recommend attaching a free external uptime monitor.
+To ensure the `cricscore.yourdomain.com` URL is always resolving globally, we highly recommend attaching a free external uptime monitor.
 
 **Why we configured this:**
 While AWS Alarms can tell you if your backend code is throwing errors, they cannot tell you if your entire AWS region goes offline, or if your DNS registrar accidentally expires your domain. By using an external 3rd-party pinging service outside of the AWS ecosystem, you guarantee an independent source of truth regarding whether your site is actually online for your fans.
 
 ### Recommended Free Setup:
 
-1. Go to [BetterStack (Uptime)](https://betterstack.com/) or [UptimeRobot](https://uptimerobot.com/).
-2. Create an **HTTP(s) Monitor**.
-3. Point it at your production URL: `https://cricscore.venkateshsingamsetty.site/`
+1. Go to [BetterUptime](https://betterstack.com/better-uptime) or [UptimeRobot](https://uptimerobot.com/).
+2. Create a new HTTP(s) Monitor.
+3. Point it at your production URL: `https://cricscore.yourdomain.com/`
 4. Set the ping interval to **3 minutes**.
 5. Configure SMS or Email alerts if the site drops connection.
 

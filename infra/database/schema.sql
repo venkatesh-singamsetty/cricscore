@@ -1,11 +1,23 @@
 -- PostgreSQL Schema for CricScore (Aiven)
 
+CREATE SCHEMA IF NOT EXISTS dev;
+CREATE SCHEMA IF NOT EXISTS prod;
+
+-- Note: Ensure you set the search_path before creating tables
+-- e.g. SET search_path TO dev;
+
 CREATE TABLE IF NOT EXISTS matches (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     team_a_name VARCHAR(100) NOT NULL,
     team_b_name VARCHAR(100) NOT NULL,
     total_overs INT NOT NULL,
     bat_first_team VARCHAR(100),
+    team_a_score INT DEFAULT 0,
+    team_a_wickets INT DEFAULT 0,
+    team_a_overs VARCHAR(10) DEFAULT '0.0',
+    team_b_score INT DEFAULT 0,
+    team_b_wickets INT DEFAULT 0,
+    team_b_overs VARCHAR(10) DEFAULT '0.0',
     status VARCHAR(25) NOT NULL DEFAULT 'SETUP',
     match_winner VARCHAR(100),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,

@@ -20,6 +20,7 @@ resource "aws_lambda_function" "match_api" {
   environment {
     variables = {
       DATABASE_URL       = var.database_url
+      DB_SCHEMA          = var.environment
       SES_SOURCE         = var.ses_source_email
       ADMIN_REPORT_EMAIL = var.admin_email
       BROADCASTER_LAMBDA = aws_lambda_function.score_update.function_name
@@ -55,7 +56,8 @@ resource "aws_lambda_function" "score_update" {
 
   environment {
     variables = {
-      MATCH_EVENTS_TOPIC = aws_sns_topic.match_events.arn
+      MATCH_EVENTS_TOPIC   = aws_sns_topic.match_events.arn
+      STORAGE_BUFFER_QUEUE = aws_sqs_queue.storage_buffer.url
     }
   }
 
@@ -167,6 +169,7 @@ resource "aws_lambda_function" "storage_worker" {
   environment {
     variables = {
       DATABASE_URL = var.database_url
+      DB_SCHEMA    = var.environment
     }
   }
 }

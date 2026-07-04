@@ -136,13 +136,13 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
   canDelete = true,
   initialEmail = import.meta.env.VITE_DEFAULT_EMAIL || "",
 }) => {
-  const [teamAName, setTeamAName] = useState("CHICAGO SPARTANS");
-  const [teamBName, setTeamBName] = useState("SHARK BLUE");
+  const [teamAName, setTeamAName] = useState("TEAM A");
+  const [teamBName, setTeamBName] = useState("TEAM B");
   const [teamASquad, setTeamASquad] = useState(
-    "suri\nvenky\nsunil\nraju\nsandy\nsrinath\ndonny\nparth\nsrini\nsrikanth\neega",
+    "Player A1\nPlayer A2\nPlayer A3\nPlayer A4\nPlayer A5\nPlayer A6\nPlayer A7\nPlayer A8\nPlayer A9\nPlayer A10\nPlayer A11",
   );
   const [teamBSquad, setTeamBSquad] = useState(
-    "yaswanth\ngopi\navinash\ngabriel\nsagar\namogh\nambarasan\ntejas\nraj\nsakthikumar\nashvin",
+    "Player B1\nPlayer B2\nPlayer B3\nPlayer B4\nPlayer B5\nPlayer B6\nPlayer B7\nPlayer B8\nPlayer B9\nPlayer B10\nPlayer B11",
   );
 
   const [overs, setOvers] = useState(20);

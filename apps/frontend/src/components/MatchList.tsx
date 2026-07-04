@@ -115,20 +115,29 @@ const MatchList: React.FC<MatchListProps> = ({
     };
   }, [WS_URL]);
 
-  const calculateResult = (match: MatchMetadata) => {
+  const calculateResult = (match: any) => {
     if (!match.innings || match.innings.length < 2) return null;
+
     const i1 = match.innings[0];
     const i2 = match.innings[1];
-    if (i2.total_runs > i1.total_runs) {
-      return `${i2.batting_team_name} WON BY ${10 - i2.total_wickets} WICKETS`;
-    } else if (i1.total_runs > i2.total_runs) {
-      return `${i1.batting_team_name} WON BY ${i1.total_runs - i2.total_runs} RUNS`;
+    const totalOvers = match.total_overs;
+
+    const i1Runs = Number(i1.total_runs || 0);
+    const i2Runs = Number(i2.total_runs || 0);
+    const i2Wickets = Number(i2.total_wickets || 0);
+    const i2Overs = Number(i2.overs || 0);
+
+    if (i2Runs > i1Runs) {
+      return `${i2.batting_team_name} WON BY ${10 - i2Wickets} WICKETS`;
+    } else if (i1Runs > i2Runs) {
+      return `${i1.batting_team_name} WON BY ${i1Runs - i2Runs} RUNS`;
     } else if (
-      i1.total_runs === i2.total_runs &&
-      (i2.overs >= match.total_overs || i2.total_wickets >= 10)
+      i1Runs === i2Runs &&
+      (i2Overs >= totalOvers || i2Wickets >= 10)
     ) {
       return "MATCH TIED";
     }
+
     return null;
   };
 
@@ -328,8 +337,8 @@ const MatchList: React.FC<MatchListProps> = ({
                             </h4>
                             {leftTeamInnings ? (
                               <span className="text-xs font-black text-slate-400 tabular-nums">
-                                {leftTeamInnings.total_runs}/
-                                {leftTeamInnings.total_wickets}
+                                {Number(leftTeamInnings.total_runs)}/
+                                {Number(leftTeamInnings.total_wickets)}
                                 <span className="text-[10px] text-slate-600 lowercase ml-1">
                                   ({leftTeamInnings.overs}.
                                   {leftTeamInnings.balls})

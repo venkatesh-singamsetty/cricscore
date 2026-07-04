@@ -3,13 +3,20 @@ name: Terraform Drift Detection
 on:
   schedule:
     - cron: "0 0 * * *" # Runs every midnight
+  workflow_dispatch: # Allows manual triggering from the GitHub UI
 
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
 
 jobs:
   drift-check:
+    name: Drift Check (${{ matrix.environment }})
     runs-on: ubuntu-latest
+    environment: ${{ matrix.environment }}
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: [dev, prod]
     defaults:
       run:
         working-directory: ./infra/terraform
@@ -22,14 +29,22 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: '~1.9'
 
       - name: Terraform Init
-        run: terraform init
+        run: terraform init -backend-config="key=cricscore/${{ matrix.environment }}/terraform.tfstate"
 
       - name: Terraform Plan (Detailed Exitcode)
         # -detailed-exitcode returns 0 if no changes, 1 if error, 2 if there are changes (drift)
-        run: terraform plan -detailed-exitcode
+        env:
+          TF_VAR_environment: ${{ matrix.environment }}
+          TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+          TF_VAR_ses_source_email: ${{ secrets.TF_SES_SOURCE_EMAIL }}
+          TF_VAR_database_url: ${{ secrets.TF_DATABASE_URL }}
+          TF_VAR_admin_email: ${{ vars.ADMIN_EMAIL }}
+        run: terraform plan -detailed-exitcode -var-file="environments/${{ matrix.environment }}.tfvars"

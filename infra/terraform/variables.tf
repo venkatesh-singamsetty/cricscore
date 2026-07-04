@@ -4,6 +4,11 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
+variable "environment" {
+  type        = string
+  description = "The deployment environment (dev or prod)"
+}
+
 variable "domain_name" {
   type        = string
   description = "The full subdomain name for the application (e.g. cricscore.example.com)"
