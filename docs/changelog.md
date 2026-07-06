@@ -1,3 +1,11 @@
+## [3.6.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v3.6.0...v3.6.1) (2026-07-06)
+
+
+### Bug Fixes
+
+* **ai:** add total_overs to context and scale rulebook policies ([e4d78f4](https://github.com/venkatesh-singamsetty/cricscore/commit/e4d78f4534329041a6bd34f30caa911ff7592919))
+* Database migrations and Semantic Release workflow ([#110](https://github.com/venkatesh-singamsetty/cricscore/issues/110)) ([ed2ac0d](https://github.com/venkatesh-singamsetty/cricscore/commit/ed2ac0d320b48805a63c046d231bc1cdc98709b8))
+
 # [3.7.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v3.6.0...v3.7.0) (2026-07-06)
 
 ### ✨ Features
