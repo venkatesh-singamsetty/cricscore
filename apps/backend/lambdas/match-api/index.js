@@ -42,10 +42,7 @@ const sendMatchReportEmail = async (
   const matchRecord = matchRes.rows[0];
   if (!matchRecord) return { success: false, error: "Match not found" };
 
-  if (
-    matchRecord.team_a_name === "TEAM A" &&
-    matchRecord.team_b_name === "TEAM B"
-  ) {
+  if (matchRecord.scorer_email === "e2e.test@gmail.com") {
     console.log("🛑 E2E Match detected. Skipping SES email to avoid spam.");
     return { success: true, message: "E2E Email Skipped" };
   }
