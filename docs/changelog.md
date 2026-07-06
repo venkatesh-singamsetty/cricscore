@@ -1,3 +1,11 @@
+## [3.6.2](https://github.com/venkatesh-singamsetty/cricscore/compare/v3.6.1...v3.6.2) (2026-07-06)
+
+
+### Bug Fixes
+
+* AI summary race conditions and SQL sorting ([#111](https://github.com/venkatesh-singamsetty/cricscore/issues/111)) ([844c1a2](https://github.com/venkatesh-singamsetty/cricscore/commit/844c1a24d591a4df1b50198af52d1f9e97639456))
+* Use scorer_email for E2E email spam filter ([#112](https://github.com/venkatesh-singamsetty/cricscore/issues/112)) ([91cf00d](https://github.com/venkatesh-singamsetty/cricscore/commit/91cf00de12777ac7a3873cd837cf4dd9c6d7905d))
+
 ## [3.6.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v3.6.0...v3.6.1) (2026-07-06)
 
 
