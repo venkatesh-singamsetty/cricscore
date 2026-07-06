@@ -46,7 +46,7 @@ sequenceDiagram
             Note right of ChatAPI: 1. Text-to-SQL Routing
             LLM-->>ChatAPI: Generate Tool Call: `execute_sql`
             ChatAPI->>MCPServer: Delegate: Call `execute_sql` tool
-            MCPServer->>Aiven_PG: BEGIN READ ONLY; Execute SQL;
+            MCPServer->>Aiven_PG: BEGIN READ ONLY - Execute SQL
             Aiven_PG-->>MCPServer: Return Query Results
             MCPServer-->>ChatAPI: Return MCP Standard Response
             ChatAPI->>LLM: Return Tool Result
