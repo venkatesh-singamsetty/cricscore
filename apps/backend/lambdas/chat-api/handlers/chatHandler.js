@@ -10,11 +10,11 @@ const { InMemoryTransport } = require("@modelcontextprotocol/sdk/inMemory.js");
  * without exposing unnecessary schema details.
  */
 const DB_SCHEMA = `
-matches(id, team_a_name, team_b_name, bat_first_team, team_a_score, team_a_wickets, team_a_overs, team_b_score, team_b_wickets, team_b_overs, status, match_winner)
+matches(id, team_a_name, team_b_name, total_overs, bat_first_team, team_a_score, team_a_wickets, team_a_overs, team_b_score, team_b_wickets, team_b_overs, status, match_winner, toss_winner, toss_decision)
 innings(id, match_id, inning_number, batting_team_name, bowling_team_name, total_runs, total_wickets, overs, balls, is_completed)
 players(id, inning_id, name, runs, balls_faced, fours, sixes, is_out, wicket_type, batting_position)
 bowlers(id, inning_id, name, overs_completed, runs_conceded, wickets)
-ball_events(id, inning_id, over_number, ball_number, bowler_name, batter_name, runs, is_extra, extra_runs, is_wicket, wicket_type)
+ball_events(id, inning_id, over_number, ball_number, bowler_name, batter_name, runs, is_extra, extra_type, extra_runs, is_wicket, wicket_type)
 `;
 
 /**
@@ -55,7 +55,7 @@ async function chatHandler(body, corsHeaders) {
       );
       if (matchRes.rows.length > 0) {
         const m = matchRes.rows[0];
-        matchContext = `Active Match: ${m.team_a_name} vs ${m.team_b_name} (${m.status}). Score: ${m.team_a_score}/${m.team_a_wickets} & ${m.team_b_score}/${m.team_b_wickets}.`;
+        matchContext = `Active Match: ${m.team_a_name} vs ${m.team_b_name} (${m.status}). Total Overs: ${m.total_overs}. Score: ${m.team_a_score}/${m.team_a_wickets} & ${m.team_b_score}/${m.team_b_wickets}. Toss: ${m.toss_winner} elected to ${m.toss_decision}.`;
       }
     }
   } catch (err) {
@@ -71,8 +71,9 @@ async function chatHandler(body, corsHeaders) {
 1. DATABASE QUERIES: If the user asks about matches, scores, stats, players, or standings → ALWAYS call 'execute_sql'.
 2. RULEBOOK QUERIES: If the user asks ANYTHING about rules, regulations, formats, timings, breaks, eligibility, penalties, tiebreakers, LBW, weather, DLS, or any tournament policy → ALWAYS call 'search_tournament_rules' FIRST before answering. Do NOT answer from general cricket knowledge. The rulebook has the tournament-specific rules that override general cricket knowledge.
 3. NEVER answer a rulebook-type question from memory. Always search first, then answer based on the retrieved chunks. YOU MUST explicitly cite the [Source: document_name] provided in the search results so the user knows which rulebook the answer comes from.
-4. OFF-TOPIC: Refuse anything unrelated to cricket. NOTE: Deleting matches and sending emails ARE valid cricket administrative tasks. Do NOT refuse them as off-topic.
-5. DELETE MATCHES (ADMIN): If the user asks to delete matches, you MUST first call 'execute_sql' to fetch the matching records, show them to the user, and explicitly ask for confirmation. ONLY call 'delete_match' AFTER the user says "yes" or confirms the deletion.
+4. SCALED RULES: If the active match is shorter than a full tournament match, you MUST automatically scale rules like Powerplay proportionally based on the Active Match's Total Overs (e.g., if the rulebook specifies 8 powerplay overs for a 25-over match, a 10-over match has a 3-over powerplay).
+5. OFF-TOPIC: Refuse anything unrelated to cricket. NOTE: Deleting matches and sending emails ARE valid cricket administrative tasks. Do NOT refuse them as off-topic.
+6. DELETE MATCHES (ADMIN): If the user asks to delete matches, you MUST first call 'execute_sql' to fetch the matching records, show them to the user, and explicitly ask for confirmation. ONLY call 'delete_match' AFTER the user says "yes" or confirms the deletion.
 
 ## Database Schema:
 ${DB_SCHEMA}
