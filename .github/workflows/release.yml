@@ -2,7 +2,7 @@ name: Semantic Release
 
 on:
   workflow_run:
-    workflows: ["Backend & Infrastructure CI/CD", "Frontend CI/CD"]
+    workflows: ["CricScore CI/CD"]
     types:
       - completed
     branches: [main]
