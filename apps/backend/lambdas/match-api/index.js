@@ -181,7 +181,7 @@ const sendMatchReportEmail = async (
             <tbody>`;
 
     players
-      .filter((p) => (p.balls_faced || p.ballsFaced) > 0 || p.is_out)
+      .filter((p) => (p.balls_faced || p.ballsFaced) > 0 || p.is_out || p.isOut)
       .forEach((p) => {
         const r = p.runs || 0;
         const b = p.balls_faced || p.ballsFaced || 0;
@@ -189,10 +189,10 @@ const sendMatchReportEmail = async (
         const s = p.sixes || 0;
 
         let dismissalText = "not out";
-        if (p.is_out) {
-          const wType = p.wicket_type || "";
-          const wBy = p.wicket_by || "unknown bowler";
-          const fName = p.fielder_name || "unknown fielder";
+        if (p.is_out || p.isOut) {
+          const wType = p.wicket_type || p.wicketType || "";
+          const wBy = p.wicket_by || p.wicketBy || "unknown bowler";
+          const fName = p.fielder_name || p.fielderName || "unknown fielder";
 
           if (wType === "BOWLED") dismissalText = `b ${wBy}`;
           else if (wType === "CAUGHT") dismissalText = `c ${fName} b ${wBy}`;
@@ -206,7 +206,7 @@ const sendMatchReportEmail = async (
 
         htmlBody += `
                 <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
-                    <td style="padding: 12px; font-weight: bold;">${p.name} ${p.is_out ? "" : "*"}</td>
+                    <td style="padding: 12px; font-weight: bold;">${p.name} ${p.is_out || p.isOut ? "" : "*"}</td>
                     <td style="padding: 12px; color: #94a3b8; font-size: 12px; font-style: italic;">${dismissalText}</td>
                     <td style="padding: 12px; font-weight: bold;">${r}</td>
                     <td style="padding: 12px; color: #64748b;">${b}</td>
@@ -244,6 +244,18 @@ const sendMatchReportEmail = async (
       });
 
     htmlBody += `</tbody></table></div>`;
+  }
+
+  if (matchRecord.ai_summary) {
+    htmlBody += `
+        <div style="margin-top: 30px; background: #1e293b; padding: 25px; border-radius: 15px; border: 1px solid rgba(99,102,241,0.2);">
+            <h3 style="color: #818cf8; text-transform: uppercase; letter-spacing: 1px; margin-top: 0; display: flex; align-items: center; gap: 8px;">
+                🤖 AI MATCH SUMMARY & MAN OF THE MATCH
+            </h3>
+            <div style="color: #cbd5e1; line-height: 1.6; font-size: 15px; white-space: pre-wrap;">
+                ${matchRecord.ai_summary}
+            </div>
+        </div>`;
   }
 
   htmlBody += `<p style="text-align: center; color: #475569; font-size: 12px; margin-top: 40px;">Generated securely via CricScore on AWS</p></div>`;
@@ -470,15 +482,33 @@ exports.handler = async (event) => {
     }
 
     if (httpMethod === "POST" && path === "/match") {
-      const { teamA, teamB, totalOvers, batFirstTeam, teamASquad, teamBSquad } =
-        JSON.parse(body);
+      const {
+        teamA,
+        teamB,
+        totalOvers,
+        batFirstTeam,
+        tossWinner,
+        tossDecision,
+        teamASquad,
+        teamBSquad,
+        scorerEmail,
+      } = JSON.parse(body);
 
       await client.query("BEGIN");
       try {
         // 1. Create the Match
         const res = await client.query(
-          "INSERT INTO matches (team_a_name, team_b_name, total_overs, bat_first_team, status) VALUES ($1, $2, $3, $4, $5) RETURNING id",
-          [teamA, teamB, totalOvers, batFirstTeam, "LIVE"],
+          "INSERT INTO matches (team_a_name, team_b_name, total_overs, bat_first_team, toss_winner, toss_decision, status, scorer_email) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+          [
+            teamA,
+            teamB,
+            totalOvers,
+            batFirstTeam,
+            tossWinner,
+            tossDecision,
+            "LIVE",
+            scorerEmail,
+          ],
         );
         const matchId = res.rows[0].id;
 

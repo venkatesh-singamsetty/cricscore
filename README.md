@@ -26,6 +26,18 @@ The platform simulates a real-world cricket scoring ecosystem:
 The goal is not only to build a cricket application, but to demonstrate
 enterprise engineering practices applied to a real-world workload.
 
+### 🤖 Agentic AI & RAG Integration
+
+CricScore features a production-grade **Agentic AI Chat Assistant** powered by:
+
+| Concept                               | Implementation                                                           |
+| ------------------------------------- | ------------------------------------------------------------------------ |
+| **Model Context Protocol (MCP)**      | Secure, decoupled tool execution — LLM never sees credentials            |
+| **Text-to-SQL RAG**                   | LLM autonomously writes & executes SQL to answer live match queries      |
+| **Multi-Doc Vector RAG (`pgvector`)** | Cosine-similarity search across multiple uploaded PDF rulebooks          |
+| **OpenRouter / gpt-4o-mini**          | Cost-effective, reliable LLM with native tool-calling support            |
+| **Dev/Prod Isolation**                | `DB_SCHEMA` env var scopes all queries to the correct environment schema |
+
 ---
 
 ## 🔄 System Architecture (Fan-Out)
@@ -93,22 +105,26 @@ graph TD
 
 ## Backend & APIs
 
-| Technology         | Purpose                              |
-| ------------------ | ------------------------------------ |
-| AWS Lambda         | Serverless backend execution         |
-| Amazon API Gateway | REST API and WebSocket communication |
-| Amazon SNS         | Event fan-out messaging              |
-| Amazon SQS         | Reliable asynchronous processing     |
-| Amazon SES         | Email notifications                  |
+| Technology          | Purpose                              |
+| ------------------- | ------------------------------------ |
+| AWS Lambda          | Serverless backend execution         |
+| Amazon API Gateway  | REST API and WebSocket communication |
+| Amazon SNS          | Event fan-out messaging              |
+| Amazon SQS          | Asynchronous worker queues           |
+| Node.js 24.x        | High performance runtime             |
+| OpenRouter / OpenAI | Foundation Models for Agentic RAG    |
+| MCP SDK             | Model Context Protocol architecture  |
 
 ---
 
 ## Database
 
-| Technology       | Purpose                                          |
-| ---------------- | ------------------------------------------------ |
-| Aiven PostgreSQL | Managed relational database                      |
-| PostgreSQL       | Match, player, score, and tournament persistence |
+| Technology       | Purpose                                              |
+| ---------------- | ---------------------------------------------------- |
+| Aiven PostgreSQL | Managed relational database                          |
+| PostgreSQL       | Match, player, score, and tournament persistence     |
+| pgvector         | Vector similarity search extension for RAG           |
+| HNSW Index       | High-performance approximate nearest-neighbor search |
 
 ---
 
@@ -146,6 +162,54 @@ graph TD
 | Vitest                | Unit testing framework        |
 | React Testing Library | Frontend component testing    |
 | Playwright            | End-to-end browser automation |
+
+---
+
+# 🤖 AI Architecture
+
+See the **[Full AI Architecture Guide](./docs/ai_architecture.md)** for a complete deep-dive.
+
+## MCP Tools
+
+The `chat-api` Lambda implements the **Model Context Protocol (MCP)** with two registered tools:
+
+| Tool                      | Type            | Purpose                                                                                           |
+| ------------------------- | --------------- | ------------------------------------------------------------------------------------------------- |
+| `execute_sql`             | Text-to-SQL RAG | Writes & executes READ-ONLY SQL to answer live score, player stats, and historical data questions |
+| `search_tournament_rules` | Vector RAG      | Embeds the user query and performs cosine-similarity search against the uploaded PDF rulebook     |
+| `send_email`              | Action          | Dispatches automated emails via AWS SES to scorers or administrators upon request                 |
+| `delete_match`            | Action          | Allows administrators to securely delete single, multiple, or all matches from the database       |
+
+## AI File Structure
+
+```
+apps/backend/lambdas/chat-api/
+├── index.js                      ← Thin Lambda router (entry point)
+├── config/
+│   ├── db.js                     ← Shared PostgreSQL pool + setSearchPath (dev/prod aware)
+│   └── llm.js                    ← Shared OpenAI client, model & embedding config
+├── handlers/
+│   ├── chatHandler.js            ← Agentic MCP chat loop (main AI pipeline)
+│   ├── summaryHandler.js         ← AI post-match summary generation
+│   └── uploadRulesHandler.js     ← PDF text extraction + batch embedding ingestion
+└── mcp/
+    ├── server.js                 ← MCP Server (tool registry)
+    └── tools/
+        ├── executeSql.js         ← Text-to-SQL tool (READ ONLY, 3s timeout)
+        └── searchRules.js        ← Vector cosine-similarity search tool
+```
+
+## Required Environment Variables
+
+| Variable       | Description                          | Example                        |
+| -------------- | ------------------------------------ | ------------------------------ |
+| `LLM_API_KEY`  | OpenRouter or OpenAI API key         | `sk-or-v1-...`                 |
+| `LLM_BASE_URL` | LLM provider base URL                | `https://openrouter.ai/api/v1` |
+| `LLM_MODEL`    | _(Optional)_ Override model name     | `gpt-4o-mini`                  |
+| `DATABASE_URL` | Aiven PostgreSQL connection string   | `postgres://...`               |
+| `DB_SCHEMA`    | Environment schema (`dev` or `prod`) | `dev`                          |
+
+> **Security:** All credentials are loaded inside the MCP Server/tools only. The LLM (OpenRouter) **never** receives `DATABASE_URL` or `LLM_API_KEY` — it only sees tool schemas and query results.
 
 ---
 
@@ -196,7 +260,14 @@ The architecture decouples the frontend from backend persistence using SNS fan-o
 - 📖 **[Full Deployment & Infrastructure](./docs/deployment.md)**: Local preview, bootstrap foundations, and AWS/Aiven Setup.
 - 📖 **[Troubleshooting](./docs/troubleshooting.md)**: Setup fixes and identity verification help.
 
-### 6. 🚀 CI/CD Automation
+### 6. 🤖 Agentic AI & RAG
+
+**Production-grade AI with MCP Security Boundaries**
+The AI Chat system implements the Model Context Protocol to enforce a strict security boundary between the LLM and the database. All tool execution, credential access, and query validation happens inside the MCP Server — entirely hidden from the LLM provider.
+
+- 📖 **[AI Architecture](./docs/ai_architecture.md)**: Full Agentic RAG design, MCP architecture diagram, troubleshooting log (13 documented bugs & fixes), educational AI concepts, and cost breakdown.
+
+### 7. 🚀 CI/CD Automation
 
 **Aggressive Pipeline Governance**
 Merge requests to `main` require 8 passing status checks. The deployment pipeline automatically builds the Vite frontend, synchronizes S3 buckets, invalidates CloudFront caches, packages Lambdas, and executes semantic version releases entirely hands-free.
@@ -216,6 +287,11 @@ AI tools were used as productivity accelerators for:
 - Test creation assistance
 - Troubleshooting
 - Architecture brainstorming
+
+## AI Agents and Tools Used
+
+- **Antigravity / Gemini 3.1 Pro**: Used for autonomous agentic coding, writing Vitest mock tests, implementing the Model Context Protocol (MCP), debugging database connection isolation, and refactoring backend Lambdas.
+- **Claude 3.5 Sonnet**: Used for initial architecture planning and logic generation.
 
 Engineering decisions were reviewed manually including:
 

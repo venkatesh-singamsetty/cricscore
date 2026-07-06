@@ -16,10 +16,11 @@ permissions:
 
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
+  AWS_REGION: us-east-1
 
 jobs:
   validate_frontend:
-    name: Validate Frontend
+    name: Lint & Test
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -52,7 +53,7 @@ jobs:
         run: npm run build
 
   validate_backend:
-    name: Validate Backend
+    name: Backend & Terraform Validation
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -71,6 +72,9 @@ jobs:
             fi
           done
       - name: Run Backend Unit Tests
+        env:
+          LLM_API_KEY: "dummy"
+          OPENAI_API_KEY: "dummy"
         run: |
           cd apps/backend
           npm test
@@ -99,7 +103,7 @@ jobs:
 
 
   deploy_and_test_dev:
-    name: Deploy & Test DEV
+    name: Deploy, Test & OWASP ZAP DEV
     needs: [validate_frontend, validate_backend]
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
@@ -114,6 +118,8 @@ jobs:
       TF_VAR_ses_source_email: ${{ secrets.TF_SES_SOURCE_EMAIL }}
       TF_VAR_database_url: ${{ secrets.TF_DATABASE_URL }}
       TF_VAR_admin_email: ${{ vars.ADMIN_EMAIL }}
+      TF_VAR_llm_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+      TF_VAR_llm_base_url: "https://openrouter.ai/api/v1"
       API_GATEWAY_ID: ${{ vars.API_GATEWAY_ID }}
       WS_API_GATEWAY_ID: ${{ vars.WS_API_GATEWAY_ID }}
       S3_BUCKET: ${{ vars.S3_BUCKET }}
@@ -139,6 +145,15 @@ jobs:
           node-version: '24'
           cache: 'npm'
           cache-dependency-path: apps/frontend/package-lock.json
+
+      - name: Install PostgreSQL Client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Run Database Migrations
+        run: |
+          cd infra/database
+          chmod +x migrate.sh
+          ./migrate.sh "${{ secrets.TF_DATABASE_URL }}" "dev"
 
       # --- BACKEND DEPLOYMENT ---
       - name: Install Lambda dependencies
@@ -225,7 +240,7 @@ jobs:
           fail_action: false
 
   deploy_and_test_prod:
-    name: Deploy & Test PROD
+    name: Deploy, Test & OWASP ZAP PROD
     needs: deploy_and_test_dev
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
@@ -240,6 +255,8 @@ jobs:
       TF_VAR_ses_source_email: ${{ secrets.TF_SES_SOURCE_EMAIL }}
       TF_VAR_database_url: ${{ secrets.TF_DATABASE_URL }}
       TF_VAR_admin_email: ${{ vars.ADMIN_EMAIL }}
+      TF_VAR_llm_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+      TF_VAR_llm_base_url: "https://openrouter.ai/api/v1"
       API_GATEWAY_ID: ${{ vars.API_GATEWAY_ID }}
       WS_API_GATEWAY_ID: ${{ vars.WS_API_GATEWAY_ID }}
       S3_BUCKET: ${{ vars.S3_BUCKET }}
@@ -265,6 +282,15 @@ jobs:
           node-version: '24'
           cache: 'npm'
           cache-dependency-path: apps/frontend/package-lock.json
+
+      - name: Install PostgreSQL Client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Run Database Migrations
+        run: |
+          cd infra/database
+          chmod +x migrate.sh
+          ./migrate.sh "${{ secrets.TF_DATABASE_URL }}" "prod"
 
       # --- BACKEND DEPLOYMENT ---
       - name: Install Lambda dependencies

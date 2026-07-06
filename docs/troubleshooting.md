@@ -2,6 +2,33 @@
 
 This engineering trace documents the real-world resolutions for the CricScore backend integration.
 
+### 52. **AI Summary Showing "5 Balls" When Match Ended on Ball 6 (Complete Over)**
+
+- **Symptom**: The AI post-match summary showed "5 balls" for an innings that completed in exactly 1 over (6 legal balls). For example, a team that chased in the 6th ball (last ball of the over) would appear to have batted only 5 balls.
+- **Cause**: When the winning run is hit on the 6th ball, the match concludes immediately. The scoring engine records the ball event but **the over-flip transition** (converting `overs=0, balls=5` → `overs=1, balls=0`) runs on the _next_ state tick, which never happens because the match is already `COMPLETED`. As a result, `matches.team_b_overs` is stored as `0.5` (0 complete overs + index 5, i.e., the 6th ball position in 0-based counting).
+- **Fix**: The `summaryHandler.js` now counts the actual `ball_events` rows per innings directly from the database (`COUNT(be.id) FILTER (WHERE extra_type NOT IN ('WIDE','NO_BALL'))`) and converts to overs using floor division: `Math.floor(totalLegalBalls / 6)` completed overs and `totalLegalBalls % 6` remaining balls. This is always accurate regardless of when the match ended.
+
+---
+
+### 51. **AI Summary Using Decimal Notation for Overs (e.g., "0.5 overs", "1.1 overs")**
+
+- **Symptom**: The AI summary would write "Team B chased in 0.5 overs" instead of "5 balls", and "Team A batted for 1.1 overs" instead of "1 over and 1 ball".
+- **Cause**: The `formatOvers()` helper was building a string that included the raw decimal up front: `"0.5 overs (0 completed overs and 5 balls)"`. The LLM latched onto the decimal at the start of the string and used it in the output, ignoring the plain-English description in the parentheses.
+- **Fix**: Replaced `formatOvers()` with `ballsToOversText()` which takes a raw total ball count (counted from `ball_events`) and returns **only** plain English with zero decimals: `5 balls`, `1 over`, `1 over and 2 balls`. The prompt instruction was also updated from _"Always write out overs in plain English"_ to _"Overs are already pre-calculated in plain English for you below. Use them exactly as written."_
+
+---
+
+### 50. **AI Summary Hallucinating or Assuming the Toss Outcome**
+
+- **Symptom**: The AI post-match summary would state incorrect toss information, e.g., "Team A won the toss and elected to bat" when in fact Team B won the toss and chose to bowl. Sometimes it would omit the toss entirely.
+- **Cause**: The match setup originally used a simple `batFirstTeam` boolean-style field. The AI had no factual toss data to draw from, so it was hallucinating based on which team batted first.
+- **Fix (1) — DB Schema**: Added `toss_winner VARCHAR` and `toss_decision VARCHAR` columns to the `matches` table via the `add_toss_fields.sql` migration, applied to both `dev` and `prod` schemas.
+- **Fix (2) — Frontend**: `MatchSetup.tsx` now shows two separate fields — a Toss Winner selector (Team A / Team B) and a Decision selector (BAT / BOWL). Both values are sent in the `POST /match` body as `tossWinner` and `tossDecision`.
+- **Fix (3) — Backend**: `match-api/index.js` parses and persists both fields to the DB during match creation.
+- **Fix (4) — AI Prompt**: `summaryHandler.js` reads `m.toss_winner` and `m.toss_decision` directly from the DB row and injects them as a concrete instruction: _"Mention the toss details: [TEAM X] won the toss and elected to [BAT/BOWL]."_
+
+---
+
 ### 49. **Viewer Scoreboard Not Refreshing (Stale Data on Live Matches)**
 
 - **Symptom**: The viewer page showed a frozen/stale scoreboard during a live match. Even after the scorer entered new balls, the viewer's scores and active batters didn't update.

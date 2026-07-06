@@ -1,0 +1,4 @@
+ALTER TABLE dev.matches ADD COLUMN IF NOT EXISTS toss_winner VARCHAR(100);
+ALTER TABLE dev.matches ADD COLUMN IF NOT EXISTS toss_decision VARCHAR(10);
+ALTER TABLE prod.matches ADD COLUMN IF NOT EXISTS toss_winner VARCHAR(100);
+ALTER TABLE prod.matches ADD COLUMN IF NOT EXISTS toss_decision VARCHAR(10);

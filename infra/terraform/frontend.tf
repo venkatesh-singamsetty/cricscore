@@ -110,6 +110,7 @@ resource "aws_cloudfront_origin_access_control" "default" {
 }
 
 # --- 4. CloudFront Distribution ---
+# trivy:ignore:AWS-0011 (WAF costs $5/mo, skipped for free tier)
 resource "aws_cloudfront_distribution" "s3_distribution" {
   origin {
     domain_name              = aws_s3_bucket.static_app.bucket_regional_domain_name

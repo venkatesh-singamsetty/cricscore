@@ -6,6 +6,8 @@ CREATE SCHEMA IF NOT EXISTS prod;
 -- Note: Ensure you set the search_path before creating tables
 -- e.g. SET search_path TO dev;
 
+CREATE EXTENSION IF NOT EXISTS vector;
+
 CREATE TABLE IF NOT EXISTS matches (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     team_a_name VARCHAR(100) NOT NULL,
@@ -20,6 +22,10 @@ CREATE TABLE IF NOT EXISTS matches (
     team_b_overs VARCHAR(10) DEFAULT '0.0',
     status VARCHAR(25) NOT NULL DEFAULT 'SETUP',
     match_winner VARCHAR(100),
+    toss_winner VARCHAR(100),
+    toss_decision VARCHAR(10),
+    scorer_email VARCHAR(255),
+    ai_summary TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -97,3 +103,15 @@ CREATE TABLE IF NOT EXISTS sent_emails (
     recipient_type VARCHAR(50) NOT NULL,
     sent_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS tournament_rules (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    document_name VARCHAR(255) NOT NULL,
+    chunk_text TEXT NOT NULL,
+    embedding vector(1536),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS tournament_rules_embedding_idx 
+ON tournament_rules 
+USING hnsw (embedding vector_cosine_ops);

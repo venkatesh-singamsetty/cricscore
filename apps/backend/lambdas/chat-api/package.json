@@ -1,0 +1,14 @@
+{
+  "name": "cricscore-chat-api",
+  "version": "1.0.0",
+  "description": "RAG Chat API for CricScore",
+  "main": "index.js",
+  "type": "commonjs",
+  "dependencies": {
+    "@aws-sdk/client-ses": "^3.1079.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "openai": "^4.28.0",
+    "pdf-parse": "^2.4.5",
+    "pg": "^8.11.3"
+  }
+}

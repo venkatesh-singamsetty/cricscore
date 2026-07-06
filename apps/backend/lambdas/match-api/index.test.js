@@ -85,14 +85,32 @@ describe("match-api Lambda handler", () => {
         teamB: "Australia",
         totalOvers: 20,
         batFirstTeam: "India",
+        tossWinner: "India",
+        tossDecision: "BAT",
         teamASquad: ["Player1"],
         teamBSquad: [],
+        scorerEmail: "test@example.com",
       }),
     };
 
     const response = await handler(event);
     expect(response.statusCode).toBe(201);
     expect(JSON.parse(response.body).matchId).toBe("match_123");
+
+    // Verify that toss fields and scorer_email were passed to the INSERT query
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.stringContaining("INSERT INTO matches"),
+      [
+        "India",
+        "Australia",
+        20,
+        "India",
+        "India",
+        "BAT",
+        "LIVE",
+        "test@example.com",
+      ],
+    );
     expect(mockQuery).toHaveBeenCalledWith("COMMIT");
   });
 

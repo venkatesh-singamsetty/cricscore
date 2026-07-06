@@ -72,6 +72,13 @@ resource "aws_iam_policy" "lambda_messaging" {
         ]
         Effect   = "Allow"
         Resource = aws_kms_key.cric_key.arn
+      },
+      {
+        Action = [
+          "lambda:InvokeFunction"
+        ]
+        Effect   = "Allow"
+        Resource = "*"
       }
     ]
   })

@@ -146,7 +146,8 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
   );
 
   const [overs, setOvers] = useState(20);
-  const [batFirst, setBatFirst] = useState("Team A"); // 'Team A' or 'Team B'
+  const [tossWinner, setTossWinner] = useState("Team A");
+  const [tossDecision, setTossDecision] = useState("BAT");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const textareaRefA = useRef<HTMLTextAreaElement>(null);
@@ -190,7 +191,12 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
     try {
       const teamA: TeamData = { name: teamAName.trim(), players: parsedTeamA };
       const teamB: TeamData = { name: teamBName.trim(), players: parsedTeamB };
-      const batFirstTeamName = batFirst === "Team A" ? teamA.name : teamB.name;
+      const batFirstTeamName =
+        (tossWinner === "Team A" && tossDecision === "BAT") ||
+        (tossWinner === "Team B" && tossDecision === "BOWL")
+          ? teamA.name
+          : teamB.name;
+      const tossWinnerName = tossWinner === "Team A" ? teamA.name : teamB.name;
 
       // 🏛️ Initialize Match in Aiven PostgreSQL
       const response = await fetch(`${API_URL}/match`, {
@@ -201,8 +207,11 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
           teamB: teamB.name,
           totalOvers: overs,
           batFirstTeam: batFirstTeamName,
+          tossWinner: tossWinnerName,
+          tossDecision: tossDecision,
           teamASquad: teamA.players,
           teamBSquad: teamB.players,
+          scorerEmail: initialEmail,
         }),
       });
 
@@ -448,25 +457,49 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-[8px] font-black uppercase tracking-[0.3em] text-slate-500 block">
-                  Who Bats First?
-                </label>
-                <div className="bg-slate-950 p-1 rounded-xl border border-white/5 flex gap-2 shadow-inner">
-                  <button
-                    type="button"
-                    onClick={() => setBatFirst("Team A")}
-                    className={`flex-1 py-2 px-3 rounded-lg font-black text-[10px] uppercase tracking-tighter transition-all truncate border ${batFirst === "Team A" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/30 border-indigo-400" : "text-slate-500 border-transparent hover:text-slate-300"}`}
-                  >
-                    {teamAName || "TEAM A"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setBatFirst("Team B")}
-                    className={`flex-1 py-2 px-3 rounded-lg font-black text-[10px] uppercase tracking-tighter transition-all truncate border ${batFirst === "Team B" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/30 border-indigo-400" : "text-slate-500 border-transparent hover:text-slate-300"}`}
-                  >
-                    {teamBName || "TEAM B"}
-                  </button>
+              <div className="flex flex-col gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[8px] font-black uppercase tracking-[0.3em] text-slate-500 block">
+                    Toss Winner
+                  </label>
+                  <div className="bg-slate-950 p-1 rounded-xl border border-white/5 flex gap-2 shadow-inner">
+                    <button
+                      type="button"
+                      onClick={() => setTossWinner("Team A")}
+                      className={`flex-1 py-2 px-3 rounded-lg font-black text-[10px] uppercase tracking-tighter transition-all truncate border ${tossWinner === "Team A" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/30 border-indigo-400" : "text-slate-500 border-transparent hover:text-slate-300"}`}
+                    >
+                      {teamAName || "TEAM A"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTossWinner("Team B")}
+                      className={`flex-1 py-2 px-3 rounded-lg font-black text-[10px] uppercase tracking-tighter transition-all truncate border ${tossWinner === "Team B" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/30 border-indigo-400" : "text-slate-500 border-transparent hover:text-slate-300"}`}
+                    >
+                      {teamBName || "TEAM B"}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[8px] font-black uppercase tracking-[0.3em] text-slate-500 block">
+                    Decision
+                  </label>
+                  <div className="bg-slate-950 p-1 rounded-xl border border-white/5 flex gap-2 shadow-inner">
+                    <button
+                      type="button"
+                      onClick={() => setTossDecision("BAT")}
+                      className={`flex-1 py-2 px-3 rounded-lg font-black text-[10px] uppercase tracking-tighter transition-all truncate border ${tossDecision === "BAT" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/30 border-indigo-400" : "text-slate-500 border-transparent hover:text-slate-300"}`}
+                    >
+                      BAT
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTossDecision("BOWL")}
+                      className={`flex-1 py-2 px-3 rounded-lg font-black text-[10px] uppercase tracking-tighter transition-all truncate border ${tossDecision === "BOWL" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/30 border-indigo-400" : "text-slate-500 border-transparent hover:text-slate-300"}`}
+                    >
+                      BOWL
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

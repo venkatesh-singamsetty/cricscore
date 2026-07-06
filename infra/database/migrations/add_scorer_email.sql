@@ -1,0 +1,2 @@
+ALTER TABLE dev.matches ADD COLUMN IF NOT EXISTS scorer_email VARCHAR(255);
+ALTER TABLE prod.matches ADD COLUMN IF NOT EXISTS scorer_email VARCHAR(255);

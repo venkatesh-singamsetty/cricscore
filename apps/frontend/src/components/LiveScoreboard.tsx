@@ -3,6 +3,7 @@ import { useWebSocket } from "../hooks/useWebSocket";
 import MatchList from "./MatchList"; // Added Phase 6+
 import Scoreboard from "./Scoreboard";
 import { InningsState, ExtraType, WicketType } from "../types";
+import { getCurrentPartnership } from "../utils/partnershipUtils";
 
 interface LiveBall {
   overNumber: number;
@@ -37,6 +38,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
     teamA: string;
     teamB: string;
     totalOvers: number;
+    aiSummary?: string | null;
   } | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [showFullScorecard, setShowFullScorecard] = useState(false);
@@ -55,6 +57,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
           teamA: data.match.team_a_name,
           teamB: data.match.team_b_name,
           totalOvers: data.match.total_overs,
+          aiSummary: data.match.ai_summary,
         });
 
         // Map DB rows to InningsState
@@ -433,6 +436,26 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                         </div>
                       ))
                     )}
+                    {currentInnings.allBalls &&
+                      currentInnings.allBalls.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-white/5 flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-400">
+                          <span>Partnership</span>
+                          <span className="text-indigo-400">
+                            {
+                              getCurrentPartnership(currentInnings.allBalls)
+                                .runs
+                            }{" "}
+                            <span className="text-slate-500 text-[9px]">
+                              (
+                              {
+                                getCurrentPartnership(currentInnings.allBalls)
+                                  .balls
+                              }
+                              )
+                            </span>
+                          </span>
+                        </div>
+                      )}
                   </div>
 
                   {/* Bowler */}
@@ -599,6 +622,23 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                       </button>
                     </div>
                   </div>
+                  {!matchMeta?.aiSummary ? (
+                    <div className="bg-slate-800/30 border border-white/5 rounded-[2rem] p-6 text-center animate-pulse">
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center justify-center gap-2">
+                        <span className="animate-spin">⏳</span> GENERATING AI
+                        SUMMARY & MOTM...
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="bg-slate-800/50 border border-indigo-500/30 rounded-[2rem] p-6 text-left shadow-xl animate-in slide-in-from-bottom-4 duration-700">
+                      <h4 className="text-xs font-black text-indigo-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <span>🤖</span> AI MATCH SUMMARY & MOTM
+                      </h4>
+                      <div className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
+                        {matchMeta.aiSummary}
+                      </div>
+                    </div>
+                  )}
                   <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic leading-relaxed opacity-50">
                     This match is safely archived in the cloud.
                   </p>

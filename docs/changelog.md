@@ -1,3 +1,58 @@
+# [3.7.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v3.6.0...v3.7.0) (2026-07-06)
+
+### ✨ Features
+
+- **Admin Match Deletion UI**: Added a dedicated Admin tab with a direct "Delete" (trash) button for matches, replacing the AI-only deletion flow for better usability.
+- **Admin Auth Bypass**: If an admin logs in, they are automatically granted Scorer authentication with a default `admin@cricscore.com` email, bypassing the redundant scorer email prompt.
+- **View Persistence**: Added `sessionStorage` tracking for the `view` state so that refreshing the page correctly restores the user to the Admin, Viewer, Scorer, or AI Chat tab they were currently on.
+
+### 🐛 Bug Fixes
+
+- **AI Summary Race Condition**: The AI Match Summary occasionally hallucinated the final score because it queried the database before the background SQS queue finished saving the final ball. Fixed by adding a 2.5-second `setTimeout` in the frontend before triggering the `/chat/summary` endpoint.
+- **AI Summary Prompt Prefix**: Instructed the LLM to start the summary directly with the toss details instead of prepending filler phrases like "In a completed match".
+- **AI Summary Ball Count Discrepancy**: Migrated the match summary ball and over counting logic to rely on the robust `innings` table `overs` and `balls` values rather than manually counting records in the `balls` table.
+- **AI Chat Layout Bug**: Prevented the "FINAL SCORECARD" component from rendering underneath and pushing down the AI Chat interface when a match concludes. The Chat component height was also increased to better utilize vertical screen space.
+- **AI Database Context Truncation**: Increased the JSON output limit in `executeSql.js` from 2,000 to 25,000 characters, allowing the AI to correctly read and analyze all 10+ historical matches instead of truncating at 4 matches.
+
+---
+
+# [3.6.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v3.5.0...v3.6.0) (2026-07-05)
+
+### ✨ Features
+
+- **Toss Details**: Match setup now captures `Toss Winner` + `Toss Decision` (Bat/Bowl) via dedicated UI controls. Fields are persisted to the `matches` table (`toss_winner`, `toss_decision` columns) and reflected in the AI post-match summary.
+- **Admin Login via Chatbot**: The Admin navigation tab has been removed from the public UI. Admins authenticate by typing `/login <pin>` directly into the AI chatbot. On success, `sessionStorage.auth_admin = true` is set and the page reloads in admin mode silently.
+- **Delete Match via Chatbot (Admin only)**: A new `delete_match` MCP tool allows admins to delete one, multiple, or all matches just by asking the chatbot naturally (e.g., _"Delete all matches"_ or _"Delete match abc-123"_). Supports single ID, array of IDs, or the special `"ALL"` value.
+- **Scorer Email Field**: Match creation now accepts and persists a `scorer_email` for post-match email delivery.
+
+### 🐛 Bug Fixes
+
+- **AI Summary — Incorrect Over Display (0.5 instead of 1 over)**: When a match ended on the 6th ball (completing a full over), the stored overs field would show `0.5` because the over counter hadn't flipped before the match concluded. Fixed by counting actual `ball_events` per innings from the DB at summary generation time, then converting total legal balls to plain English using floor division (6 balls = 1 over, 7 = 1 over and 1 ball, etc.).
+- **AI Summary — Decimal Notation (0.5 overs, 1.1 overs)**: The previous `formatOvers` helper passed the raw decimal string to the LLM (e.g., `"0.5 overs (0 completed overs and 5 balls)"`), and the model latched onto the decimal. Replaced with a `ballsToOversText()` function that emits only plain English with zero decimals.
+- **AI Summary — Toss Winner Hallucination**: The LLM was inventing or assuming the toss outcome. Fixed by injecting the actual `toss_winner` and `toss_decision` values from the DB directly into the prompt.
+
+### 🗄️ Database Migrations
+
+- `infra/database/migrations/add_toss_fields.sql` — Adds `toss_winner` and `toss_decision` to `matches` (applied to both `dev` and `prod` schemas).
+- `infra/database/migrations/add_scorer_email.sql` — Adds `scorer_email` column to `matches`.
+- `infra/database/migrations/add_ai_summary.sql` — Adds `ai_summary` column for caching generated summaries.
+
+### ✅ Testing
+
+- Updated `MatchSetup.test.tsx` — Asserts Toss Winner/Decision UI is rendered; verifies `tossWinner`/`tossDecision` in POST payload.
+- Updated `match-api/index.test.js` — POST `/match` test includes toss fields and validates new SQL parameter order.
+- Updated `summaryHandler.test.js` — Mocks the new `ball_events` COUNT query for all affected test cases.
+- Added E2E test: _"Admin - Login via Chatbot and Delete Match"_ — validates `/login` command triggers page reload in admin mode, then verifies chatbot can list matches.
+- Updated `user-journey.spec.ts` — Replaced "Who Bats First?" button click with new two-step Toss Winner + Decision selection flow.
+
+### 📚 Documentation
+
+- `docs/ai_architecture.md` — Updated MCP tools list; corrected PDF upload location to chatbot; added new **🔐 Admin Tools & Secret Login** section with full `delete_match` usage guide and toss fields documentation.
+- `docs/changelog.md` — This entry.
+- `docs/troubleshooting.md` — Added entries 50–52 covering the three AI summary bugs.
+
+---
+
 # [3.5.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v3.3.0...v3.5.0) (2026-07-04)
 
 ### Features & Fixes

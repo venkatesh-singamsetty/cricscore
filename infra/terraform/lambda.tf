@@ -181,6 +181,7 @@ resource "aws_lambda_event_source_mapping" "sqs_trigger" {
 }
 
 # --- CloudWatch Alarms & Alerts ---
+# trivy:ignore:AWS-0095 (Topic encryption requires CMK which costs $1/mo, skipped)
 resource "aws_sns_topic" "lambda_alerts" {
   name = "${var.project_name}-lambda-alerts"
 }
@@ -222,5 +223,40 @@ resource "aws_cloudwatch_metric_alarm" "score_update_errors" {
 
   dimensions = {
     FunctionName = aws_lambda_function.score_update.function_name
+  }
+}
+
+# --- Chat API Lambda Function ---
+data "archive_file" "chat_api_zip" {
+  type        = "zip"
+  source_dir  = "${path.module}/../../apps/backend/lambdas/chat-api"
+  output_path = "${path.module}/chat_api.zip"
+}
+
+resource "aws_lambda_function" "chat_api" {
+  filename         = data.archive_file.chat_api_zip.output_path
+  function_name    = "${var.project_name}-chat-api"
+  role             = aws_iam_role.lambda_role.arn
+  handler          = "index.handler"
+  runtime          = "nodejs24.x"
+  source_code_hash = data.archive_file.chat_api_zip.output_base64sha256
+  timeout          = 30
+  memory_size      = 1024
+
+  tracing_config {
+    mode = "Active"
+  }
+
+  environment {
+    variables = {
+      DATABASE_URL = var.database_url
+      DB_SCHEMA    = var.environment
+      LLM_API_KEY  = var.llm_api_key
+      LLM_BASE_URL = var.llm_base_url
+    }
+  }
+
+  tags = {
+    Project = var.project_name
   }
 }

@@ -19,6 +19,7 @@ jobs:
           DATABASE_URL: ${{ secrets.TF_DATABASE_URL }}
         # The ?sslmode=require ensures the connection succeeds with Aiven's strict TLS requirements
         run: |
+          if [ -z "$DATABASE_URL" ]; then echo "Missing DATABASE_URL secret, skipping ping"; exit 0; fi
           echo "Pinging database to prevent inactivity shutdown..."
           psql "$DATABASE_URL" -c "SELECT 1 as keep_alive;"
           echo "Database successfully pinged."

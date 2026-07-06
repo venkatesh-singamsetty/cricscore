@@ -141,3 +141,56 @@ resource "aws_lambda_permission" "api_gw_score" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.http_api.execution_arn}/*/*"
 }
+
+resource "aws_apigatewayv2_integration" "chat_api" {
+  api_id           = aws_apigatewayv2_api.http_api.id
+  integration_type = "AWS_PROXY"
+
+  connection_type    = "INTERNET"
+  description        = "Chat API Lambda Integration"
+  integration_method = "POST"
+  integration_uri    = aws_lambda_function.chat_api.invoke_arn
+}
+
+resource "aws_apigatewayv2_route" "post_chat" {
+  api_id             = aws_apigatewayv2_api.http_api.id
+  route_key          = "POST /chat"
+  target             = "integrations/${aws_apigatewayv2_integration.chat_api.id}"
+  authorization_type = "NONE"
+}
+
+resource "aws_apigatewayv2_route" "post_chat_summary" {
+  api_id             = aws_apigatewayv2_api.http_api.id
+  route_key          = "POST /chat/summary"
+  target             = "integrations/${aws_apigatewayv2_integration.chat_api.id}"
+  authorization_type = "NONE"
+}
+
+resource "aws_apigatewayv2_route" "post_rules_upload" {
+  api_id             = aws_apigatewayv2_api.http_api.id
+  route_key          = "POST /rules/upload"
+  target             = "integrations/${aws_apigatewayv2_integration.chat_api.id}"
+  authorization_type = "NONE"
+}
+
+resource "aws_apigatewayv2_route" "get_rules" {
+  api_id             = aws_apigatewayv2_api.http_api.id
+  route_key          = "GET /rules"
+  target             = "integrations/${aws_apigatewayv2_integration.chat_api.id}"
+  authorization_type = "NONE"
+}
+
+resource "aws_apigatewayv2_route" "delete_rules" {
+  api_id             = aws_apigatewayv2_api.http_api.id
+  route_key          = "DELETE /rules"
+  target             = "integrations/${aws_apigatewayv2_integration.chat_api.id}"
+  authorization_type = "NONE"
+}
+
+resource "aws_lambda_permission" "api_gw_chat" {
+  statement_id  = "AllowExecutionFromAPIGatewayChat"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.chat_api.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.http_api.execution_arn}/*/*"
+}

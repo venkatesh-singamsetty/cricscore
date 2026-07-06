@@ -144,15 +144,20 @@ When AWS creates your Route 53 zone, it generates 4 unique Nameservers (NS recor
 
 Because the frontend requires the **API Gateway Endpoints** to be built into its bundle, we use a unified deployment script that handles the entire pipeline locally.
 
-Execute the master deployment script and specify which environment to deploy (`dev` or `prod`). It will provision Terraform, extract the live endpoints automatically, inject them into `apps/frontend/.env`, build the frontend, and push to S3:
+Execute the master deployment script and specify which environment to deploy (`dev` or `prod`). It will automatically run PostgreSQL database schema migrations, provision Terraform, extract the live endpoints automatically, inject them into `apps/frontend/.env`, build the frontend, and push to S3:
 
 ```bash
 # Deploy the Development Environment
-./infra/scripts/deploy.sh --use-local-env --env dev
+./deploy_local_dev.sh
 
 # Deploy the Production Environment
-./infra/scripts/deploy.sh --use-local-env --env prod
+./deploy_local_prod.sh
 ```
+
+### 🗄️ Automated Database Migrations
+
+Both the local deployment scripts and the CI/CD pipeline are configured to run database migrations fully autonomously.
+When deployed, a master script (`infra/database/migrate.sh`) executes against the target schema (`dev` or `prod`) and ensures that all base tables (via `schema.sql`) and incremental column changes (`migrations/*.sql`) are applied properly, ensuring a safe recovery from wiped databases.
 
 ---
 

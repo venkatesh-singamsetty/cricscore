@@ -74,6 +74,8 @@ Smoke tests are the fastest End-to-End checks. They ping the live production app
 
 - **Live Availability Checks**: Validates that the Viewer Dashboard and Match Setup modes successfully render without crashing.
   - _Location:_ `apps/e2e/tests/smoke.spec.ts`
+- **AI API Smoke Tests**: Validates that the Agentic RAG endpoints (`/chat` and `/chat/summary`) are deployed, accessible via API Gateway, and correctly handle missing payload schemas without returning 500 errors.
+  - _Location:_ `apps/e2e/tests/ai-api.spec.ts`
 
 ### Running Smoke Tests
 

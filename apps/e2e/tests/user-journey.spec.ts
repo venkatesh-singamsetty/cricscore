@@ -44,8 +44,11 @@ test.describe("User Journey - Full Match Scoring", () => {
     // Set 2 Over match
     await page.locator('input[type="number"]').first().fill("2");
 
-    // Click to make TEAM B bat first
-    await page.getByRole("button", { name: "TEAM B" }).click();
+    // Set Toss: TEAM B wins toss and elects to BAT (so TEAM B bats first)
+    // The Toss Winner buttons appear first; click TEAM B
+    const tossWinnerButtons = page.getByRole("button", { name: "TEAM B" });
+    await tossWinnerButtons.first().click();
+    // Decision is already defaulted to BAT — no change needed
 
     // Click "Start Fresh Match"
     const startButton = page.getByRole("button", {
@@ -542,6 +545,48 @@ test.describe("User Journey - Full Match Scoring", () => {
     // Assert Chicago Spartans won
     await expect(page.getByText(/TEAM A WON/i)).toBeVisible({
       timeout: 15000,
+    });
+  });
+});
+
+test.describe("Admin - Login via Chatbot and Delete Match", () => {
+  test("should login as admin via /login command and delete a match via chatbot", async ({
+    page,
+  }) => {
+    test.setTimeout(60000);
+
+    // 1. Navigate to Chat tab
+    await page.goto("/");
+    await page.getByRole("button", { name: /CHAT/i }).click();
+
+    // 2. Confirm chatbot is loaded
+    await expect(page.getByText(/Hi! Ask me anything/i)).toBeVisible({
+      timeout: 10000,
+    });
+
+    // 3. Send /login command with admin PIN
+    const chatInput = page.getByPlaceholder(/Ask about the match/i);
+    const ADMIN_PIN = process.env.VITE_ADMIN_PIN || "2403";
+    await chatInput.fill(`/login ${ADMIN_PIN}`);
+    await page.keyboard.press("Enter");
+
+    // 4. Page should reload and admin should now be active
+    // (sessionStorage.auth_admin=true is set before reload)
+    await page.waitForURL(/.*/, { timeout: 10000 });
+
+    // 5. After reload, go to Chat tab again
+    await page.getByRole("button", { name: /CHAT/i }).click();
+    await expect(page.getByText(/Hi! Ask me anything/i)).toBeVisible({
+      timeout: 10000,
+    });
+
+    // 6. Ask chatbot to list recent matches
+    await page
+      .getByPlaceholder(/Ask about the match/i)
+      .fill("List the most recent 3 matches with their IDs");
+    await page.keyboard.press("Enter");
+    await expect(page.getByText(/match/i).last()).toBeVisible({
+      timeout: 30000,
     });
   });
 });

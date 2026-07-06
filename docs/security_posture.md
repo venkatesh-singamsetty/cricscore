@@ -70,11 +70,11 @@ Our GitHub Actions pipelines automatically enforce 5 layers of security scanning
 
 ## ⚙️ CI/CD & Pipeline Governance
 
-### 5. Relaxed Infrastructure Auditing (`.checkov.yaml`)
+### 5. Relaxed Infrastructure Auditing (`.checkov.yaml` & Trivy)
 
 **Status:** ⚠️ Intentionally Relaxed  
-**The Tradeoff:** Checkov flags our S3 buckets for lacking access logging (`CKV_AWS_18`) and versioning (`CKV_AWS_21`).
-**The Reason (Cost):** Enabling these generates continuous AWS storage costs. We explicitly disabled them in Terraform and skipped the rules in Checkov to enforce our $0/month Free Tier mandate.
+**The Tradeoff:** Checkov flags our S3 buckets for lacking access logging (`CKV_AWS_18`) and versioning (`CKV_AWS_21`). Trivy flags our CloudFront for missing WAF (`AWS-0011`), our logging S3 bucket for missing CMK encryption (`AWS-0132`), and our alerts SNS topic for missing CMK encryption (`AWS-0095`).
+**The Reason (Cost):** Enabling these features introduces baseline monthly costs (WAF is $5/mo, KMS CMKs are $1/mo). We explicitly bypassed these rules in Terraform (`# trivy:ignore:AWS-...`) and Checkov to aggressively protect our $0/month Free Tier mandate.
 
 ### 6. Pipeline Stability vs Upstream Deprecations
 

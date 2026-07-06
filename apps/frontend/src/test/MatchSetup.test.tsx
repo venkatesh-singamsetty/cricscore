@@ -24,6 +24,12 @@ describe("MatchSetup Component", () => {
     // Check Settings
     expect(screen.getByText(/Settings/i)).toBeInTheDocument();
     expect(screen.getByDisplayValue("20")).toBeInTheDocument(); // Default overs
+
+    // Check Toss UI is rendered
+    expect(screen.getByText(/Toss Winner/i)).toBeInTheDocument();
+    expect(screen.getByText(/Decision/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /BAT/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /BOWL/i })).toBeInTheDocument();
   });
 
   it("shows validation error if squad has less than 2 players", async () => {
@@ -78,11 +84,18 @@ describe("MatchSetup Component", () => {
         expect.objectContaining({ name: "TEAM A" }),
         expect.objectContaining({ name: "TEAM B" }),
         20,
-        "TEAM A", // Default bat first
+        "TEAM A", // Default: Toss Winner=Team A + Decision=BAT → Team A bats first
         "123",
         "inn1",
         expect.any(String),
       );
+
+      // Verify POST body includes toss fields
+      const fetchBody = JSON.parse(
+        (global.fetch as ReturnType<typeof vi.fn>).mock.calls[1][1].body,
+      );
+      expect(fetchBody.tossWinner).toBe("TEAM A");
+      expect(fetchBody.tossDecision).toBe("BAT");
     });
   });
 });

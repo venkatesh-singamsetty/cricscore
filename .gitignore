@@ -115,3 +115,21 @@ setup-secrets.sh
 apps/e2e/playwright-report/
 apps/e2e/test-results/
 apps/e2e/playwright/.cache/
+
+# ==============================================================================
+# Build Artifacts & Lambda Packages
+# ==============================================================================
+# Lambda zip files generated during deployment — never commit these
+prod_lambda.zip
+dev_lambda.zip
+
+# SBOM (Software Bill of Materials) — generated locally by Syft, not source-controlled
+cricscore-sbom.json
+
+# ==============================================================================
+# Local Test & Run Logs
+# ==============================================================================
+# Large E2E test output logs from local runs
+e2e_prod_log.txt
+e2e_dev_log.txt
+*.e2e_log.txt

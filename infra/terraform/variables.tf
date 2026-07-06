@@ -49,3 +49,15 @@ variable "admin_email" {
   description = "The admin email address to receive BCC match reports."
   default     = "admin@example.com"
 }
+
+variable "llm_api_key" {
+  type        = string
+  description = "The API key for the LLM provider (OpenRouter, Groq, etc.)"
+  sensitive   = true
+}
+
+variable "llm_base_url" {
+  type        = string
+  description = "The base URL for the LLM provider"
+  default     = "https://api.openai.com/v1"
+}

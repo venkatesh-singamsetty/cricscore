@@ -43,6 +43,7 @@ resource "aws_kms_alias" "cric_key_alias" {
 }
 
 // Logging bucket for S3 access logs
+# trivy:ignore:AWS-0132 (CMK costs $1/mo, using free SSE-S3)
 resource "aws_s3_bucket" "static_app_logs" {
   bucket_prefix = "${var.project_name}-app-logs-"
   force_destroy = true

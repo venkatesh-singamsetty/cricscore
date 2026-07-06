@@ -1,0 +1,2 @@
+ALTER TABLE dev.matches ADD COLUMN IF NOT EXISTS ai_summary TEXT;
+ALTER TABLE prod.matches ADD COLUMN IF NOT EXISTS ai_summary TEXT;
