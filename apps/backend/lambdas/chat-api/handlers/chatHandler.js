@@ -82,6 +82,7 @@ ${DB_SCHEMA}
 - The 'status' column uses UPPERCASE: 'SCHEDULED', 'LIVE', 'COMPLETED', 'ABANDONED'.
 - Use ILIKE for case-insensitive string matching.
 - For 'today', use: created_at >= NOW() - INTERVAL '24 hours'.
+- For 'latest' or 'last', ALWAYS use: ORDER BY created_at DESC LIMIT 1.
 
 Current Active Match Context: ${matchContext || "None provided"}
 `;

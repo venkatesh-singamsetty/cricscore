@@ -867,12 +867,12 @@ const App: React.FC = () => {
         hasSentAutoEmailRef.current = true;
         setHasSentAutoEmail(true);
         // Generate AI Summary first, then send email so summary is included
-        // 🕰️ Wait 2.5 seconds to ensure the final ball's SQS message is fully processed by the database
+        // 🕰️ Wait 5.0 seconds to ensure the final ball's SQS message is fully processed by the database
         setTimeout(() => {
           handleGenerateAiSummary().finally(() => {
             handleSendEmail(true, true); // Silent send with admin copy
           });
-        }, 2500);
+        }, 5000);
       }
     }
     if (matchStatus === MatchStatus.SETUP) {
