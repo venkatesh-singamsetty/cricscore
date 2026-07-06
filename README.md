@@ -35,7 +35,7 @@ CricScore features a production-grade **Agentic AI Chat Assistant** powered by:
 | **Model Context Protocol (MCP)**      | Secure, decoupled tool execution — LLM never sees credentials            |
 | **Text-to-SQL RAG**                   | LLM autonomously writes & executes SQL to answer live match queries      |
 | **Multi-Doc Vector RAG (`pgvector`)** | Cosine-similarity search across multiple uploaded PDF rulebooks          |
-| **OpenRouter / gpt-4o-mini**          | Cost-effective, reliable LLM with native tool-calling support            |
+| **OpenRouter LLMs**                   | Chat: **gpt-4o-mini**, Embeddings: **text-embedding-3-small**            |
 | **Dev/Prod Isolation**                | `DB_SCHEMA` env var scopes all queries to the correct environment schema |
 
 ---
@@ -177,8 +177,6 @@ The `chat-api` Lambda implements the **Model Context Protocol (MCP)** with two r
 | ------------------------- | --------------- | ------------------------------------------------------------------------------------------------- |
 | `execute_sql`             | Text-to-SQL RAG | Writes & executes READ-ONLY SQL to answer live score, player stats, and historical data questions |
 | `search_tournament_rules` | Vector RAG      | Embeds the user query and performs cosine-similarity search against the uploaded PDF rulebook     |
-| `send_email`              | Action          | Dispatches automated emails via AWS SES to scorers or administrators upon request                 |
-| `delete_match`            | Action          | Allows administrators to securely delete single, multiple, or all matches from the database       |
 
 ## AI File Structure
 

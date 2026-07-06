@@ -23,8 +23,10 @@ resource "aws_lambda_function" "match_api" {
       DB_SCHEMA          = var.environment
       SES_SOURCE         = var.ses_source_email
       ADMIN_REPORT_EMAIL = var.admin_email
-      BROADCASTER_LAMBDA = aws_lambda_function.score_update.function_name
-      FRONTEND_URL       = "https://${var.domain_name}"
+      BROADCASTER_LAMBDA   = aws_lambda_function.score_update.function_name
+      FRONTEND_URL         = "https://${var.domain_name}"
+      BACKUP_BUCKET        = aws_s3_bucket.match_backups.bucket
+      COGNITO_USER_POOL_ID = aws_cognito_user_pool.pool.id
     }
   }
 
@@ -58,6 +60,9 @@ resource "aws_lambda_function" "score_update" {
     variables = {
       MATCH_EVENTS_TOPIC   = aws_sns_topic.match_events.arn
       STORAGE_BUFFER_QUEUE = aws_sqs_queue.storage_buffer.url
+      DATABASE_URL         = var.database_url
+      DB_SCHEMA            = var.environment
+      ADMIN_REPORT_EMAIL   = var.admin_email
     }
   }
 

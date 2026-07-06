@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-
+import { fetchAuthSession } from "aws-amplify/auth";
 interface MatchInningSummary {
   inning_number: number;
   batting_team_name: string;
@@ -439,8 +439,13 @@ const MatchList: React.FC<MatchListProps> = ({
                     onClick={async () => {
                       setConfirmAction(null);
                       try {
+                        const session = await fetchAuthSession();
+                        const token = session.tokens?.idToken?.toString();
                         const res = await fetch(`${API_URL}/matches`, {
                           method: "DELETE",
+                          headers: {
+                            Authorization: `Bearer ${token}`,
+                          },
                         });
                         if (!res.ok) throw new Error("Purge failed");
                         fetchMatches();
@@ -491,8 +496,13 @@ const MatchList: React.FC<MatchListProps> = ({
                         prev.filter((m) => m.id !== matchId),
                       );
                       try {
+                        const session = await fetchAuthSession();
+                        const token = session.tokens?.idToken?.toString();
                         const res = await fetch(`${API_URL}/match/${matchId}`, {
                           method: "DELETE",
+                          headers: {
+                            Authorization: `Bearer ${token}`,
+                          },
                         });
                         if (!res.ok) throw new Error("Delete failed");
                         fetchMatches();

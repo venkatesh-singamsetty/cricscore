@@ -99,14 +99,13 @@ CricScore implements a high-performance **Event-Driven Architecture (EDA)** usin
 
 ### **4. Security Strategy**
 
-- **Administrative Sovereignty**: Operations impacting global match state (e.g., `DELETE /match/{id}`) are restricted via a **State-Sync PIN** (`VITE_ADMIN_PIN`), ensuring only authorized board-governance actors can purge records.
-
+- **Administrative Sovereignty**: Operations impacting global match state (e.g., `DELETE /match/{id}`) are restricted via **AWS Cognito Google SSO**, ensuring only the designated `ADMIN_EMAIL` can purge records and access the Admin Control Center.
 - **SSL Enforcement**: Mandatory for all Aiven PostgreSQL persistence sessions.
 - **Multi-Tenant Isolation**: Dual-scoped session logic ensures that scorer identities and match states are isolated by both Email and MatchID, preventing cross-tenant data leakage.
 - **Role-Based Access Hierarchy**:
   - **Viewer 🌍**: Public/No-Auth spectator access based solely on the sharable match UUID.
-  - **Scorer 🎮**: Secure/Email-Auth access for persistence and ball-by-ball updates.
-  - **Admin ⚡**: Protected/PIN-Auth access for global record purging and database maintenance.
+  - **Scorer 🎮**: Secure/Google-SSO access for persistence and ball-by-ball updates. Can only manage matches they created.
+  - **Admin ⚡**: Protected/Google-SSO access restricted strictly to the designated `ADMIN_EMAIL` for global record purging and database maintenance.
 
 ### **5. Infrastructure Automation & CI/CD**
 

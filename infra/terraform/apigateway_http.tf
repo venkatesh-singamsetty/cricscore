@@ -20,6 +20,18 @@ resource "aws_apigatewayv2_stage" "default" {
   depends_on = [aws_api_gateway_account.apigateway_account]
 }
 
+resource "aws_apigatewayv2_authorizer" "cognito" {
+  api_id           = aws_apigatewayv2_api.http_api.id
+  authorizer_type  = "JWT"
+  identity_sources = ["$request.header.Authorization"]
+  name             = "cognito-authorizer"
+
+  jwt_configuration {
+    audience = [aws_cognito_user_pool_client.client.id]
+    issuer   = "https://${aws_cognito_user_pool.pool.endpoint}"
+  }
+}
+
 # CloudWatch Log Group for API Gateway HTTP access logs
 resource "aws_cloudwatch_log_group" "http_api_access_logs" {
   name              = "/aws/apigateway/${var.project_name}-http"
@@ -42,7 +54,8 @@ resource "aws_apigatewayv2_route" "post_match" {
   api_id             = aws_apigatewayv2_api.http_api.id
   route_key          = "POST /match"
   target             = "integrations/${aws_apigatewayv2_integration.match_api.id}"
-  authorization_type = "NONE"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
 resource "aws_apigatewayv2_route" "get_match" {
@@ -70,35 +83,64 @@ resource "aws_apigatewayv2_route" "patch_match" {
   api_id             = aws_apigatewayv2_api.http_api.id
   route_key          = "PATCH /match/{matchId}"
   target             = "integrations/${aws_apigatewayv2_integration.match_api.id}"
-  authorization_type = "NONE"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
 resource "aws_apigatewayv2_route" "post_innings" {
   api_id             = aws_apigatewayv2_api.http_api.id
   route_key          = "POST /match/{matchId}/innings"
   target             = "integrations/${aws_apigatewayv2_integration.match_api.id}"
-  authorization_type = "NONE"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
 resource "aws_apigatewayv2_route" "delete_matches" {
   api_id             = aws_apigatewayv2_api.http_api.id
   route_key          = "DELETE /matches"
   target             = "integrations/${aws_apigatewayv2_integration.match_api.id}"
-  authorization_type = "NONE"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
 resource "aws_apigatewayv2_route" "delete_match" {
   api_id             = aws_apigatewayv2_api.http_api.id
   route_key          = "DELETE /match/{matchId}"
   target             = "integrations/${aws_apigatewayv2_integration.match_api.id}"
-  authorization_type = "NONE"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
 resource "aws_apigatewayv2_route" "post_match_email" {
   api_id             = aws_apigatewayv2_api.http_api.id
   route_key          = "POST /match/{matchId}/email"
   target             = "integrations/${aws_apigatewayv2_integration.match_api.id}"
-  authorization_type = "NONE"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "post_admin_roles" {
+  api_id             = aws_apigatewayv2_api.http_api.id
+  route_key          = "POST /admin/users/roles"
+  target             = "integrations/${aws_apigatewayv2_integration.match_api.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "get_admin_users" {
+  api_id             = aws_apigatewayv2_api.http_api.id
+  route_key          = "GET /admin/users"
+  target             = "integrations/${aws_apigatewayv2_integration.match_api.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "delete_admin_roles" {
+  api_id             = aws_apigatewayv2_api.http_api.id
+  route_key          = "DELETE /admin/users/roles"
+  target             = "integrations/${aws_apigatewayv2_integration.match_api.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
 resource "aws_apigatewayv2_route" "get_health" {
@@ -131,7 +173,8 @@ resource "aws_apigatewayv2_route" "post_score_update" {
   api_id             = aws_apigatewayv2_api.http_api.id
   route_key          = "POST /update-score"
   target             = "integrations/${aws_apigatewayv2_integration.score_update.id}"
-  authorization_type = "NONE"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
 resource "aws_lambda_permission" "api_gw_score" {

@@ -143,3 +143,54 @@ resource "aws_iam_role_policy_attachment" "lambda_xray_attach" {
   role       = aws_iam_role.lambda_role.name
   policy_arn = "arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess"
 }
+
+# --- IAM Policy for S3 Match Backups ---
+resource "aws_iam_policy" "lambda_s3_backups" {
+  name        = "${var.project_name}-lambda-s3-backups"
+  description = "Allow Lambda to upload match backups to S3"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "s3:PutObject"
+        ]
+        Effect   = "Allow"
+        Resource = "${aws_s3_bucket.match_backups.arn}/*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_s3_backups_attach" {
+  role       = aws_iam_role.lambda_role.name
+  policy_arn = aws_iam_policy.lambda_s3_backups.arn
+}
+
+# --- IAM Policy for Cognito Admin Actions ---
+resource "aws_iam_policy" "lambda_cognito_admin" {
+  name        = "${var.project_name}-lambda-cognito-admin"
+  description = "Allow Lambda to manage Cognito users and groups"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "cognito-idp:AdminAddUserToGroup",
+          "cognito-idp:AdminRemoveUserFromGroup",
+          "cognito-idp:ListUsers",
+          "cognito-idp:ListUsersInGroup"
+        ]
+        Effect   = "Allow"
+        Resource = aws_cognito_user_pool.pool.arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_cognito_admin_attach" {
+  role       = aws_iam_role.lambda_role.name
+  policy_arn = aws_iam_policy.lambda_cognito_admin.arn
+}

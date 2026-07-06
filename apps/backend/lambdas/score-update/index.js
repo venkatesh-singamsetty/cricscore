@@ -6,6 +6,12 @@ const sqsClient = new SQSClient({});
 const TOPIC_ARN = process.env.MATCH_EVENTS_TOPIC;
 const QUEUE_URL = process.env.STORAGE_BUFFER_QUEUE;
 
+const { Client } = require("pg");
+
+const getClaims = (event) => {
+  return event.requestContext?.authorizer?.jwt?.claims || {};
+};
+
 exports.handler = async (event) => {
   const { httpMethod } = event || {};
   if (httpMethod === "OPTIONS") {
@@ -20,9 +26,38 @@ exports.handler = async (event) => {
     };
   }
 
+  let client;
   try {
     const body = JSON.parse(event.body);
     const { matchId, inningId, syncOnly, undo } = body;
+
+    const cleanDbUrl = (process.env.DATABASE_URL || "").split("?")[0];
+    client = new Client({
+      connectionString: cleanDbUrl,
+      ssl: { rejectUnauthorized: false }, // Required for Aiven PostgreSQL
+    });
+    await client.connect();
+    if (process.env.DB_SCHEMA) {
+      await client.query(`SET search_path TO ${process.env.DB_SCHEMA}, public`);
+    }
+
+    // Auth Check
+    const claims = getClaims(event);
+    const isAdmin =
+      claims.email && claims.email === process.env.ADMIN_REPORT_EMAIL;
+
+    if (!isAdmin) {
+      const matchRes = await client.query(
+        "SELECT scorer_email FROM matches WHERE id = $1",
+        [matchId],
+      );
+      if (
+        matchRes.rows.length === 0 ||
+        claims.email !== matchRes.rows[0].scorer_email
+      ) {
+        return { statusCode: 403, body: "Forbidden" };
+      }
+    }
 
     console.log(
       `Producing v2.0 Fan-Out event for match: ${matchId}, Inning: ${inningId}, Type: ${syncOnly ? "SYNC" : "SCORE"}`,
@@ -82,5 +117,7 @@ exports.handler = async (event) => {
       body: JSON.stringify({ error: error.message }),
       headers: { "Access-Control-Allow-Origin": "*" },
     };
+  } finally {
+    if (client) await client.end();
   }
 };

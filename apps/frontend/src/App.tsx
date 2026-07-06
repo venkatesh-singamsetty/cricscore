@@ -9,7 +9,11 @@ import {
 } from "./types";
 import MatchSetup from "./components/MatchSetup";
 import MatchView from "./components/MatchView";
-import LiveScoreboard from "./components/LiveScoreboard"; // Added Phase 6
+import LiveScoreboard from "./components/LiveScoreboard";
+import AdminPanel from "./components/AdminPanel";
+import { Authenticator } from "@aws-amplify/ui-react";
+import { fetchAuthSession, signOut } from "aws-amplify/auth"; // Added Phase 6
+import { Hub } from "aws-amplify/utils";
 import { ChatComponent } from "./components/ChatComponent";
 
 // Key helper for saving match state by email
@@ -17,68 +21,59 @@ const getMatchStateKey = (email: string) =>
   `cric-match-state-${email.toLowerCase().trim()}`;
 
 const App: React.FC = () => {
-  const [isAuthorized, setIsAuthorized] = useState<
-    Record<"SCORER" | "ADMIN", boolean>
-  >(() => ({
-    SCORER: sessionStorage.getItem("auth_scorer") === "true",
-    ADMIN: sessionStorage.getItem("auth_admin") === "true",
-  }));
+  const [userToken, setUserToken] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
-  const [authModal, setAuthModal] = useState<{
-    isOpen: boolean;
-    targetView: "SCORER" | "ADMIN" | null;
-  }>({ isOpen: false, targetView: null });
-
-  const [emailTo, setEmailTo] = useState(
-    sessionStorage.getItem("scorer_email") || "@gmail.com",
-  );
+  const [emailTo, setEmailTo] = useState("");
   const emailInputRef = React.useRef<HTMLInputElement>(null);
 
   const isRestoringRef = React.useRef(false);
   const isEndingInningsRef = React.useRef(false);
 
   // Auto-position cursor before @gmail.com when modal opens
-  useEffect(() => {
-    if (
-      authModal.isOpen &&
-      authModal.targetView === "SCORER" &&
-      emailInputRef.current
-    ) {
-      const input = emailInputRef.current;
-      // Native focus might put cursor at end, we force it to 0
-      setTimeout(() => {
-        input.focus();
-        input.setSelectionRange(0, 0);
-      }, 100);
-    }
-  }, [authModal.isOpen, authModal.targetView]);
 
-  const [view, setView] = useState<"VIEWER" | "SCORER" | "ADMIN" | "CHAT">(
-    () => {
-      const savedView = sessionStorage.getItem("last_view") as any;
-      if (
-        savedView === "ADMIN" &&
-        sessionStorage.getItem("auth_admin") !== "true"
-      )
-        return "VIEWER";
-      if (
-        savedView === "SCORER" &&
-        sessionStorage.getItem("auth_scorer") !== "true"
-      )
-        return "VIEWER";
-      return savedView || "VIEWER";
-    },
-  );
+  const [view, setView] = useState<
+    "VIEWER" | "SCORER" | "ADMIN_PANEL" | "CHAT"
+  >("VIEWER");
 
   // Security: Auto-open modal if unauthorized on a restricted view
   useEffect(() => {
-    if (view === "SCORER" && !isAuthorized.SCORER) {
-      setAuthModal({ isOpen: true, targetView: "SCORER" });
-    }
-    if (view === "ADMIN" && !isAuthorized.ADMIN) {
-      setAuthModal({ isOpen: true, targetView: "ADMIN" });
-    }
-  }, [view, isAuthorized]);
+    const checkSession = () => {
+      fetchAuthSession()
+        .then((session) => {
+          const token = session.tokens?.idToken?.toString();
+          if (token) {
+            setUserToken(token);
+            const payload = session.tokens?.idToken?.payload;
+            setUserEmail(payload?.email?.toString() || null);
+            const groups = (payload?.["cognito:groups"] as string[]) || [];
+            setIsAdmin(groups.includes("Admin"));
+            if (payload?.email) {
+              setEmailTo(payload.email.toString());
+            }
+          } else {
+            setUserToken(null);
+            setIsAdmin(false);
+            setUserEmail(null);
+          }
+        })
+        .catch(() => {
+          setUserToken(null);
+          setIsAdmin(false);
+          setUserEmail(null);
+        });
+    };
+
+    checkSession();
+    const unsubscribe = Hub.listen("auth", (data) => {
+      if (data.payload.event === "signedIn" || data.payload.event === "signedOut") {
+        checkSession();
+      }
+    });
+
+    return unsubscribe;
+  }, [view]);
   const [hubKey, setHubKey] = useState(0); // For forcing reset to list
   const [urlMatchId, setUrlMatchId] = useState<string | null>(null);
   const [matchStatus, setMatchStatus] = useState<MatchStatus>(
@@ -145,7 +140,7 @@ const App: React.FC = () => {
   // Restore on mount for Scorer if already authorized (session refresh)
   useEffect(() => {
     const init = async () => {
-      if (isAuthorized.SCORER) {
+      if (userToken) {
         const savedRaw = localStorage.getItem(getMatchStateKey(emailTo));
         if (savedRaw) {
           try {
@@ -184,22 +179,22 @@ const App: React.FC = () => {
       console.log("🔗 Deep Link Captured:", mId);
       setUrlMatchId(mId);
 
-      if (isAuthorized.SCORER) {
+      if (!!userToken) {
         // Scorers can also jump to a match directly
         resumeMatch(mId);
+        setView("SCORER");
       }
-
-      // CLEAN UP URL immediately so it doesn't haunt the session
+    } else if (window.location.search) {
       window.history.replaceState({}, "", window.location.pathname);
     }
-  }, [isAuthorized.SCORER]);
+  }, [userToken]);
 
   // Handle view persistence or role-based logic updates here if needed
 
   useEffect(() => {
     // Only save persistence if we are in Scorer view and NOT in the middle of a reset/restore
     if (
-      isAuthorized.SCORER &&
+      userToken &&
       emailTo &&
       view === "SCORER" &&
       !isRestoringRef.current
@@ -231,7 +226,7 @@ const App: React.FC = () => {
     view,
     hasSentAutoEmail,
     emailTo,
-    isAuthorized.SCORER,
+    userToken,
   ]);
 
   // Persist the current view globally
@@ -615,6 +610,18 @@ const App: React.FC = () => {
     setAuthModal({ isOpen: false, targetView: null });
   };
 
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      setUserToken(null);
+      setIsAdmin(false);
+      setUserEmail(null);
+      setView("VIEWER");
+    } catch (e) {
+      console.error("Sign out error", e);
+    }
+  };
+
   const handleViewClick = (target: "VIEWER" | "SCORER" | "ADMIN" | "CHAT") => {
     if (target === "VIEWER" || target === "CHAT") {
       setView(target);
@@ -623,8 +630,8 @@ const App: React.FC = () => {
     }
 
     // Check if already authorized for this session
-    if (isAuthorized[target]) {
-      setView(target);
+    if ((target === "SCORER" && userToken) || (target === "ADMIN" && isAdmin)) {
+      setView(target === "ADMIN" ? "ADMIN_PANEL" : target);
       if (target === "ADMIN") setHubKey((k) => k + 1);
       return;
     }
@@ -888,43 +895,46 @@ const App: React.FC = () => {
         <div className="flex items-center gap-4">
           <div className="flex bg-slate-900 p-1 rounded-xl border border-white/5">
             <button
-              onClick={() => handleViewClick("VIEWER")}
-              className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${view === "VIEWER" ? "bg-indigo-600 text-white shadow-lg" : "text-slate-500 hover:text-slate-300"}`}
+              onClick={() => setView("VIEWER")}
+              className={`px-4 py-2 font-bold text-sm tracking-wide transition-colors ${view === "VIEWER" ? "text-blue-500 bg-slate-800/80 rounded-lg shadow-sm" : "text-gray-500 hover:text-blue-400"}`}
             >
-              Viewer 🌍
+              VIEWER 🌍
             </button>
             <button
-              onClick={() => handleViewClick("SCORER")}
-              className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${view === "SCORER" ? "bg-indigo-600 text-white shadow-lg" : "text-slate-500 hover:text-slate-300"}`}
+              onClick={() => setView("SCORER")}
+              className={`px-4 py-2 font-bold text-sm tracking-wide transition-colors ${view === "SCORER" ? "text-green-500 bg-slate-800/80 rounded-lg shadow-sm" : "text-gray-500 hover:text-green-400"}`}
             >
-              Scorer 🎮
+              SCORER 🎮
             </button>
             <button
-              onClick={() => handleViewClick("CHAT")}
-              className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1 ${view === "CHAT" ? "bg-purple-600 text-white shadow-[0_0_15px_rgba(147,51,234,0.3)]" : "text-slate-500 hover:text-slate-300"}`}
+              onClick={() => setView("CHAT")}
+              className={`px-4 py-2 font-bold text-sm tracking-wide transition-colors ${view === "CHAT" ? "text-amber-500 bg-slate-800/80 rounded-lg shadow-sm" : "text-gray-500 hover:text-amber-400"}`}
             >
-              AI Chat ✨
+              AI CHAT ✨
             </button>
+            {userToken && (
+              <button
+                onClick={handleSignOut}
+                className="px-4 py-2 font-bold text-sm tracking-wide text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                SIGN OUT
+              </button>
+            )}
           </div>
 
-          {(isAuthorized.SCORER || isAuthorized.ADMIN) && (
-            <button
-              onClick={handleLogout}
-              className="px-3 py-1.5 bg-slate-800/50 border border-white/5 rounded-lg text-slate-400 hover:text-rose-500 text-[9px] font-black uppercase tracking-widest transition-all hover:bg-rose-500/10 active:scale-95"
-            >
-              Sign Out 🚪
-            </button>
+          {isAdmin && (
+            <div className="flex bg-slate-900 p-1 rounded-xl border border-white/5">
+              <button
+                onClick={() => setView("ADMIN_PANEL")}
+                className={`px-4 py-2 font-bold text-sm tracking-wide transition-colors ${view === "ADMIN_PANEL" ? "text-red-500 bg-slate-800/80 rounded-lg shadow-sm" : "text-gray-500 hover:text-red-400"}`}
+              >
+                ADMIN ⚡️
+              </button>
+            </div>
           )}
         </div>
 
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => handleViewClick("ADMIN")}
-            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1 border ${view === "ADMIN" ? "bg-rose-600 text-white border-rose-500 shadow-[0_0_15px_rgba(225,29,72,0.3)]" : "bg-slate-800/50 text-slate-400 border-white/5 hover:bg-slate-700/50 hover:text-slate-300"}`}
-          >
-            Admin ⚡
-          </button>
-
           {matchStatus !== MatchStatus.SETUP && view !== "VIEWER" && (
             <button
               onClick={() => setShowResetConfirm(true)}
@@ -937,94 +947,6 @@ const App: React.FC = () => {
       </div>
 
       <div className="flex-1 overflow-hidden relative">
-        {/* PIN Authentication Modal */}
-        {authModal.isOpen && (
-          <div className="fixed inset-0 bg-slate-950/90 flex items-center justify-center z-[300] p-4 backdrop-blur-md">
-            <div className="bg-slate-900 border border-white/5 rounded-[2.5rem] w-full max-w-sm shadow-2xl overflow-hidden p-8 text-center animate-in zoom-in-95 duration-200">
-              <div
-                className={`w-16 h-16 ${authModal.targetView === "ADMIN" ? "bg-rose-500/10 text-rose-500" : "bg-indigo-500/10 text-indigo-500"} rounded-full flex items-center justify-center mx-auto mb-6 border border-white/5`}
-              >
-                <span className="text-2xl">
-                  {authModal.targetView === "ADMIN" ? "⚡" : "🎮"}
-                </span>
-              </div>
-              <h3 className="text-xl font-black uppercase tracking-widest text-white mb-2 italic">
-                {authModal.targetView === "SCORER"
-                  ? "IDENTITY VERIFICATION"
-                  : "ADMIN ACCESS"}
-              </h3>
-              <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mb-4">
-                {authModal.targetView === "SCORER"
-                  ? "Identity Synchronization"
-                  : "Restricted Cloud Management"}
-              </p>
-
-              {authModal.targetView === "SCORER" && (
-                <p className="text-slate-400 text-[9px] font-medium leading-relaxed mb-8 px-4">
-                  Please enter your email to synchronize your scoring session
-                  and enable match tracking.
-                </p>
-              )}
-
-              <div className="space-y-4">
-                <input
-                  ref={emailInputRef}
-                  type={authModal.targetView === "SCORER" ? "text" : "password"}
-                  value={
-                    authModal.targetView === "SCORER" ? emailTo : undefined
-                  }
-                  onChange={(e) =>
-                    authModal.targetView === "SCORER" &&
-                    setEmailTo(e.target.value)
-                  }
-                  placeholder={
-                    authModal.targetView === "SCORER"
-                      ? "EMAIL ADDRESS..."
-                      : "ENTER PIN..."
-                  }
-                  className={`w-full bg-slate-800 border border-white/5 rounded-2xl py-4 px-6 text-center font-black text-white outline-none focus:border-indigo-500 transition-all placeholder:text-[10px] placeholder:tracking-widest placeholder:text-slate-700 ${authModal.targetView === "SCORER" ? "text-lg" : "text-2xl tracking-[0.5em]"}`}
-                  onFocus={(e) => {
-                    if (
-                      authModal.targetView === "SCORER" &&
-                      e.target.value === "@gmail.com"
-                    ) {
-                      const el = e.target;
-                      setTimeout(() => el.setSelectionRange(0, 0), 10);
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter")
-                      handleAuthSubmit((e.target as HTMLInputElement).value);
-                  }}
-                />
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() =>
-                      setAuthModal({ isOpen: false, targetView: null })
-                    }
-                    className="py-4 bg-slate-800 rounded-xl font-black text-[10px] uppercase tracking-widest text-slate-400 hover:text-white transition-all border border-white/5"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => {
-                      const input = document.querySelector(
-                        "input",
-                      ) as HTMLInputElement;
-                      handleAuthSubmit(input.value);
-                    }}
-                    className={`py-4 rounded-xl font-black text-[10px] uppercase tracking-widest text-white transition-all shadow-lg ${authModal.targetView === "ADMIN" ? "bg-rose-600 hover:bg-rose-500 shadow-rose-600/20" : "bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/20"}`}
-                  >
-                    {authModal.targetView === "SCORER"
-                      ? "CONTINUE 🎯"
-                      : "VERIFY 📡"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Custom Reset Confirmation Modal */}
         {showResetConfirm && (
           <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[200] p-4 backdrop-blur-sm">
@@ -1064,73 +986,99 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {(view === "VIEWER" || view === "ADMIN") && (
+        {view === "VIEWER" && (
           <div className="h-full bg-slate-950 flex flex-col p-4 md:p-8 overflow-y-auto">
             <div className="max-w-4xl mx-auto w-full space-y-8 animate-in fade-in zoom-in-95 duration-500">
               <div className="text-center space-y-2">
                 <h1 className="text-4xl font-black text-white uppercase tracking-tighter italic">
-                  Match{" "}
-                  <span
-                    className={
-                      view === "ADMIN" ? "text-rose-500" : "text-indigo-500"
-                    }
-                  >
-                    {view === "ADMIN" ? "Control Center" : "Hub Center"}
-                  </span>
+                  Match <span className="text-indigo-500">Hub Center</span>
                 </h1>
                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em]">
-                  {view === "ADMIN"
-                    ? "Cloud Management & Database Pruning"
-                    : "Live Feeds & Historical Records"}
+                  Live Feeds & Historical Records
                 </p>
               </div>
               <div className="bg-slate-900/50 border border-white/5 p-6 rounded-[2rem] backdrop-blur-3xl shadow-2xl">
                 <LiveScoreboard
                   key={`hub-${hubKey}`}
-                  isAdmin={view === "ADMIN"}
+                  isAdmin={isAdmin}
                   initialMatchId={urlMatchId || undefined}
-                  onResumeMatch={
-                    view !== "VIEWER"
-                      ? (id) => {
-                          resumeMatch(id);
-                          setView("SCORER");
-                        }
-                      : undefined
-                  }
+                  onResumeMatch={undefined}
                 />
               </div>
             </div>
           </div>
         )}
 
-        {matchStatus === MatchStatus.SETUP &&
-          view === "SCORER" &&
-          isAuthorized.SCORER && (
-            <MatchSetup
-              onStartMatch={startMatch}
-              onResumeMatch={resumeMatch}
-              initialEmail={emailTo}
-              hideResume={true}
-              canDelete={false}
-            />
-          )}
+        {view === "ADMIN_PANEL" && (
+          <Authenticator hideSignUp>
+            {() => (
+              <div className="h-full bg-slate-950 flex flex-col p-4 md:p-8 overflow-y-auto">
+                <div className="max-w-4xl mx-auto w-full space-y-8 animate-in fade-in zoom-in-95 duration-500">
+                  <div className="text-center space-y-2">
+                    <h1 className="text-4xl font-black text-white uppercase tracking-tighter italic">
+                      Match <span className="text-rose-500">Control Center</span>
+                    </h1>
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em]">
+                      Cloud Management & Database Pruning
+                    </p>
+                  </div>
+                  <div className="bg-slate-900/50 border border-white/5 p-6 rounded-[2rem] backdrop-blur-3xl shadow-2xl mb-8">
+                    {isAdmin ? (
+                      <AdminPanel />
+                    ) : (
+                      <div className="text-center text-white p-10 font-bold text-xl">
+                        Access Denied: You must be in the Admin group.
+                      </div>
+                    )}
+                  </div>
 
-        {matchStatus === MatchStatus.LIVE &&
-          currentInnings &&
-          view === "SCORER" &&
-          isAuthorized.SCORER && (
-            <MatchView
-              initialState={currentInnings}
-              previousInnings={previousInnings}
-              totalOvers={totalOvers}
-              matchId={matchId!}
-              onInningsEnd={handleInningsEnd}
-              onResetMatch={() => setShowResetConfirm(true)}
-              onForceReset={forceResetMatch}
-              onUpdateOvers={updateMatchOvers}
-              onStateChange={(state) => setCurrentInnings(state)} // Sync ball-by-ball
-            />
-          )}
+                  {isAdmin && (
+                    <div className="bg-slate-900/50 border border-white/5 p-6 rounded-[2rem] backdrop-blur-3xl shadow-2xl">
+                      <LiveScoreboard
+                        key={`hub-${hubKey}`}
+                        isAdmin={true}
+                        initialMatchId={urlMatchId || undefined}
+                        onResumeMatch={undefined}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </Authenticator>
+        )}
+
+        {view === "SCORER" && (
+          <Authenticator hideSignUp>
+            {() => (
+              <>
+                {matchStatus === MatchStatus.SETUP && (
+                  <MatchSetup
+                    onStartMatch={startMatch}
+                    onResumeMatch={resumeMatch}
+                    initialEmail={userEmail || ""}
+                    hideResume={true}
+                    canDelete={false}
+                  />
+                )}
+
+                {matchStatus === MatchStatus.LIVE && currentInnings && (
+                  <MatchView
+                    initialState={currentInnings}
+                    previousInnings={previousInnings}
+                    totalOvers={totalOvers}
+                    matchId={matchId!}
+                    onInningsEnd={handleInningsEnd}
+                    onResetMatch={() => setShowResetConfirm(true)}
+                    onForceReset={forceResetMatch}
+                    onUpdateOvers={updateMatchOvers}
+                    onStateChange={(state) => setCurrentInnings(state)}
+                  />
+                )}
+              </>
+            )}
+          </Authenticator>
+        )}
 
         {matchStatus === MatchStatus.INNINGS_BREAK &&
           currentInnings &&
@@ -1297,7 +1245,7 @@ const App: React.FC = () => {
         <ChatComponent
           matchId={matchId}
           apiUrl={import.meta.env.VITE_API_URL}
-          isAdmin={isAuthorized.ADMIN}
+          isAdmin={isAdmin}
           setAlertMessage={setAlertMessage}
         />
       )}

@@ -110,6 +110,7 @@ Please generate a simple, concise 1-2 paragraph post-match summary for the follo
 CRITICAL INSTRUCTIONS:
 - Start your response directly with the toss details (e.g. "${m.toss_winner || "Unknown"} won the toss and elected to ${m.toss_decision || "BAT"}"). Do NOT use filler prefixes like "In a completed match," or "In this match,".
 - Overs are already pre-calculated in plain English for you below. Use them exactly as written.
+- The team's total runs and total overs are provided in the "Score 1" and "Score 2" lines. DO NOT calculate the team's total score or balls by adding up individual batting performances, as extras (wides, no balls) are not included in batting stats. Use the team scores exactly as provided.
 At the end, name the "Man of the Match" based on the statistics and give a brief 1 sentence reason.
 
 Match: ${m.team_a_name} vs ${m.team_b_name}

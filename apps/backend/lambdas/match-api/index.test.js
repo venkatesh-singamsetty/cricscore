@@ -11,6 +11,20 @@ vi.mock("@aws-sdk/client-lambda", () => {
   };
 });
 
+vi.mock("@aws-sdk/client-s3", () => {
+  return {
+    S3Client: vi.fn(),
+    PutObjectCommand: vi.fn(),
+  };
+});
+
+vi.mock("@aws-sdk/client-cognito-identity-provider", () => {
+  return {
+    CognitoIdentityProviderClient: vi.fn(),
+    AdminAddUserToGroupCommand: vi.fn(),
+  };
+});
+
 vi.mock("@aws-sdk/client-ses", () => {
   return {
     SESClient: vi.fn().mockImplementation(function () {
@@ -49,11 +63,17 @@ describe("match-api Lambda handler", () => {
   });
 
   it("should delete a match and notify broadcaster", async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ scorer_email: "test@example.com" }],
+    }); // Mock Auth check
     mockQuery.mockResolvedValueOnce({ rowCount: 1 }); // Mock delete success
 
     const event = {
       httpMethod: "DELETE",
       pathParameters: { matchId: "123" },
+      requestContext: {
+        authorizer: { jwt: { claims: { email: "test@example.com" } } },
+      },
     };
 
     const response = await handler(event);
@@ -80,6 +100,9 @@ describe("match-api Lambda handler", () => {
     const event = {
       httpMethod: "POST",
       path: "/match",
+      requestContext: {
+        authorizer: { jwt: { claims: { email: "test@example.com" } } },
+      },
       body: JSON.stringify({
         teamA: "India",
         teamB: "Australia",
@@ -157,6 +180,9 @@ describe("match-api Lambda handler", () => {
 
   it("should update match metadata for PATCH /match/{matchId}", async () => {
     mockQuery.mockResolvedValueOnce({
+      rows: [{ scorer_email: "test@example.com" }],
+    }); // Mock Auth check
+    mockQuery.mockResolvedValueOnce({
       rows: [{ id: "match_123", status: "COMPLETED" }],
     }); // UPDATE
     // Since status is COMPLETED, it will also trigger two more queries
@@ -166,11 +192,32 @@ describe("match-api Lambda handler", () => {
     const event = {
       httpMethod: "PATCH",
       pathParameters: { matchId: "match_123" },
+      requestContext: {
+        authorizer: { jwt: { claims: { email: "test@example.com" } } },
+      },
       body: JSON.stringify({ status: "COMPLETED" }),
     };
 
     const response = await handler(event);
     expect(response.statusCode).toBe(200);
     expect(JSON.parse(response.body).status).toBe("COMPLETED");
+  });
+
+  it("should return 403 Forbidden if user is unauthorized", async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ scorer_email: "owner@example.com" }],
+    }); // Mock Auth check
+
+    const event = {
+      httpMethod: "DELETE",
+      pathParameters: { matchId: "123" },
+      requestContext: {
+        authorizer: { jwt: { claims: { email: "attacker@example.com" } } },
+      },
+    };
+
+    const response = await handler(event);
+    expect(response.statusCode).toBe(403);
+    expect(response.body).toBe("Forbidden");
   });
 });

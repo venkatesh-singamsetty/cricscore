@@ -2,7 +2,27 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css";
 import App from "./App";
+import { Amplify } from "aws-amplify";
+import "@aws-amplify/ui-react/styles.css";
 
+Amplify.configure({
+  Auth: {
+    Cognito: {
+      userPoolId: import.meta.env.VITE_COGNITO_USER_POOL_ID || "",
+      userPoolClientId: import.meta.env.VITE_COGNITO_CLIENT_ID || "",
+      loginWith: {
+        oauth: {
+          domain: `${import.meta.env.VITE_COGNITO_DOMAIN}.auth.${import.meta.env.VITE_COGNITO_REGION}.amazoncognito.com`,
+          scopes: ["email", "openid", "profile"],
+          redirectSignIn: [window.location.origin + "/"],
+          redirectSignOut: [window.location.origin + "/"],
+          responseType: "code",
+          providers: ["Google"],
+        },
+      },
+    },
+  },
+});
 import * as Sentry from "@sentry/react";
 
 if (import.meta.env.VITE_SENTRY_DSN) {
