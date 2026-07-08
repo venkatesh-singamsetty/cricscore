@@ -291,7 +291,20 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
             />
           )}
 
-          {matchDetails && matchMeta?.status !== "COMPLETED" ? (
+          {matchDetails && matchMeta?.status === "INNINGS_BREAK" ? (
+            <div className="bg-slate-900 border border-white/5 p-10 rounded-[2rem] shadow-2xl relative overflow-hidden backdrop-blur-3xl text-center">
+              <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic mb-2">
+                Innings Break
+              </h2>
+              <p className="text-indigo-400 font-bold mb-6 text-sm uppercase tracking-[0.2em]">
+                Target: {matchDetails.innings[0]?.totalRuns + 1}
+              </p>
+              <div className="w-12 h-12 border-2 border-slate-700 border-t-indigo-500 rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">
+                Waiting for 2nd innings...
+              </p>
+            </div>
+          ) : matchDetails && matchMeta?.status !== "COMPLETED" ? (
             (() => {
               const currentInnings =
                 matchDetails.innings[matchDetails.innings.length - 1];

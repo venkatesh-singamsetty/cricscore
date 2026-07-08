@@ -15,6 +15,7 @@ interface MatchSetupProps {
   initialEmail?: string;
   hideResume?: boolean;
   canDelete?: boolean;
+  token?: string;
 }
 
 const handleScroll = (
@@ -134,6 +135,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
   onResumeMatch,
   hideResume,
   canDelete = true,
+  token,
   initialEmail = import.meta.env.VITE_DEFAULT_EMAIL || "",
 }) => {
   const [teamAName, setTeamAName] = useState("TEAM A");
@@ -201,7 +203,10 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
       // 🏛️ Initialize Match in Aiven PostgreSQL
       const response = await fetch(`${API_URL}/match`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           teamA: teamA.name,
           teamB: teamB.name,
@@ -250,10 +255,28 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
   const [recentMatches, setRecentMatches] = useState<any[]>([]);
   const [loadingRecent, setLoadingRecent] = useState(false);
 
+  const handleDeleteMatch = async (matchId: string) => {
+    if (!window.confirm("Are you sure you want to delete this match?")) return;
+    try {
+      const response = await fetch(`${API_URL}/match/${matchId}`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (response.ok) {
+        fetchRecentMatches();
+        setDeleteConfirmId(null);
+      }
+    } catch (err) {
+      console.error("Delete failed", err);
+    }
+  };
+
   const fetchRecentMatches = async () => {
     setLoadingRecent(true);
     try {
-      const response = await fetch(`${API_URL}/matches`);
+      const response = await fetch(`${API_URL}/matches`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       const data = await response.json();
       // FILTER: Scorer only sees the MOST RECENT LIVE match to resume
       const resumeable = data
@@ -542,87 +565,93 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
             CricScore Hyper-Secure Protocol
           </p>
         </div>
+      </div>
 
-        {deleteConfirmId && (
-          <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[300] p-4 backdrop-blur-md">
-            <div className="bg-slate-900 border border-slate-700/50 rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden p-6 text-center text-slate-100 animate-in zoom-in-95 duration-200">
-              <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20">
-                <span className="text-3xl">🚨</span>
-              </div>
-              <h3 className="text-xl font-black uppercase tracking-widest text-white mb-2 italic">
-                Delete Match?
-              </h3>
-              <p className="text-slate-400 text-sm font-medium mb-8 leading-relaxed">
-                This record will be permanently removed.
-                <br />
-                <br />
-                <strong className="text-white uppercase tracking-wider text-xs block">
-                  Do you want to continue?
-                </strong>
-              </p>
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setDeleteConfirmId(null)}
-                  className="flex-1 py-4 bg-slate-800 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] text-slate-300 hover:text-white hover:bg-slate-700 transition-all border border-slate-700/50 active:scale-95"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const matchId = deleteConfirmId;
-                    setDeleteConfirmId(null);
-                    // Optimistic UI update
-                    setRecentMatches((prev) =>
-                      prev.filter((item) => item.id !== matchId),
-                    );
-                    try {
-                      const res = await fetch(`${API_URL}/match/${matchId}`, {
-                        method: "DELETE",
-                      });
-                      if (!res.ok) {
-                        const errData = await res.json();
-                        throw new Error(errData.error || "Server failed");
-                      }
-                      fetchRecentMatches();
-                    } catch (err: any) {
-                      setAlertMessage(`Delete failed!\n${err.message}`);
-                      fetchRecentMatches();
-                    }
-                  }}
-                  className="flex-1 py-4 bg-red-600 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] text-white hover:bg-red-500 transition-all shadow-lg shadow-red-600/20 active:scale-95"
-                >
-                  Delete Match
-                </button>
-              </div>
+      {deleteConfirmId && (
+        <div
+          className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[300] p-4 backdrop-blur-md"
+          style={{ position: "fixed" }}
+        >
+          <div className="bg-slate-900 border border-slate-700/50 rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden p-6 text-center text-slate-100 animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20">
+              <span className="text-3xl">🚨</span>
             </div>
-          </div>
-        )}
-
-        {alertMessage && (
-          <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[400] p-4 backdrop-blur-md">
-            <div className="bg-slate-900 border border-slate-700/50 rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden p-6 text-center text-slate-100 animate-in zoom-in-95 duration-200">
-              <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20">
-                <span className="text-3xl">⚠️</span>
-              </div>
-              <h3 className="text-xl font-black uppercase tracking-widest text-white mb-2 italic">
-                Notification
-              </h3>
-              <p className="text-slate-300 text-sm font-medium mb-8 leading-relaxed whitespace-pre-line">
-                {alertMessage}
-              </p>
+            <h3 className="text-xl font-black uppercase tracking-widest text-white mb-2 italic">
+              Delete Match?
+            </h3>
+            <p className="text-slate-400 text-sm font-medium mb-8 leading-relaxed">
+              This record will be permanently removed.
+              <br />
+              <br />
+              <strong className="text-white uppercase tracking-wider text-xs block">
+                Do you want to continue?
+              </strong>
+            </p>
+            <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => setAlertMessage(null)}
-                className="w-full py-4 bg-indigo-600 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] text-white hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-600/20 active:scale-95"
+                onClick={() => setDeleteConfirmId(null)}
+                className="flex-1 py-4 bg-slate-800 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] text-slate-300 hover:text-white hover:bg-slate-700 transition-all border border-slate-700/50 active:scale-95"
               >
-                Acknowledge
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const matchId = deleteConfirmId;
+                  setDeleteConfirmId(null);
+                  // Optimistic UI update
+                  setRecentMatches((prev) =>
+                    prev.filter((item) => item.id !== matchId),
+                  );
+                  try {
+                    const res = await fetch(`${API_URL}/match/${matchId}`, {
+                      method: "DELETE",
+                    });
+                    if (!res.ok) {
+                      const errData = await res.json();
+                      throw new Error(errData.error || "Server failed");
+                    }
+                    fetchRecentMatches();
+                  } catch (err: any) {
+                    setAlertMessage(`Delete failed!\n${err.message}`);
+                    fetchRecentMatches();
+                  }
+                }}
+                className="flex-1 py-4 bg-red-600 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] text-white hover:bg-red-500 transition-all shadow-lg shadow-red-600/20 active:scale-95"
+              >
+                Delete Match
               </button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {alertMessage && (
+        <div
+          className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[400] p-4 backdrop-blur-md"
+          style={{ position: "fixed" }}
+        >
+          <div className="bg-slate-900 border border-slate-700/50 rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden p-6 text-center text-slate-100 animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20">
+              <span className="text-3xl">⚠️</span>
+            </div>
+            <h3 className="text-xl font-black uppercase tracking-widest text-white mb-2 italic">
+              Notification
+            </h3>
+            <p className="text-slate-300 text-sm font-medium mb-8 leading-relaxed whitespace-pre-line">
+              {alertMessage}
+            </p>
+            <button
+              type="button"
+              onClick={() => setAlertMessage(null)}
+              className="w-full py-4 bg-indigo-600 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] text-white hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-600/20 active:scale-95"
+            >
+              Acknowledge
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

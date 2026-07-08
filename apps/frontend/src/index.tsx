@@ -10,16 +10,6 @@ Amplify.configure({
     Cognito: {
       userPoolId: import.meta.env.VITE_COGNITO_USER_POOL_ID || "",
       userPoolClientId: import.meta.env.VITE_COGNITO_CLIENT_ID || "",
-      loginWith: {
-        oauth: {
-          domain: `${import.meta.env.VITE_COGNITO_DOMAIN}.auth.${import.meta.env.VITE_COGNITO_REGION}.amazoncognito.com`,
-          scopes: ["email", "openid", "profile"],
-          redirectSignIn: [window.location.origin + "/"],
-          redirectSignOut: [window.location.origin + "/"],
-          responseType: "code",
-          providers: ["Google"],
-        },
-      },
     },
   },
 });
@@ -40,6 +30,8 @@ if (import.meta.env.VITE_SENTRY_DSN) {
   });
 }
 
+import { ThemeProvider } from "@aws-amplify/ui-react";
+
 const rootElement = document.getElementById("root");
 if (!rootElement) {
   throw new Error("Could not find root element to mount to");
@@ -48,6 +40,8 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <App />
+    <ThemeProvider colorMode="dark">
+      <App />
+    </ThemeProvider>
   </React.StrictMode>,
 );

@@ -184,8 +184,8 @@ resource "aws_iam_policy" "lambda_cognito_admin" {
           "cognito-idp:ListUsersInGroup"
         ]
         Effect   = "Allow"
-        Resource = aws_cognito_user_pool.pool.arn
-      }
+        Resource = "*"
+      },
     ]
   })
 }

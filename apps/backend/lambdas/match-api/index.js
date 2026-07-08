@@ -6,7 +6,7 @@ const {
   AdminAddUserToGroupCommand,
   AdminRemoveUserFromGroupCommand,
   ListUsersCommand,
-  ListUsersInGroupCommand
+  ListUsersInGroupCommand,
 } = require("@aws-sdk/client-cognito-identity-provider");
 const { LambdaClient, InvokeCommand } = require("@aws-sdk/client-lambda");
 
@@ -84,7 +84,8 @@ const getPartnerships = (allBalls = []) => {
 };
 
 const getClaims = (event) => {
-  const claims = event.requestContext?.authorizer?.jwt?.claims || {};
+  const authorizer = event.requestContext?.authorizer || {};
+  const claims = authorizer.jwt?.claims || authorizer.claims || {};
   console.log("CLAIMS:", JSON.stringify(claims));
   return claims;
 };
@@ -92,9 +93,11 @@ const getClaims = (event) => {
 const isAuthorized = (event, matchRecord) => {
   const claims = getClaims(event);
   const userEmail = claims.email;
-  const isAdmin = userEmail && userEmail === process.env.ADMIN_REPORT_EMAIL;
+  const isSuperAdmin =
+    userEmail && userEmail === process.env.ADMIN_REPORT_EMAIL;
+  const hasAdminGroup = (claims["cognito:groups"] || []).includes("Admin");
 
-  if (isAdmin) return true;
+  if (isSuperAdmin || hasAdminGroup) return true;
   if (matchRecord && userEmail === matchRecord.scorer_email) return true;
 
   return false;
@@ -597,7 +600,12 @@ exports.handler = async (event) => {
 
     if (httpMethod === "POST" && path === "/match") {
       const claims = getClaims(event);
-      if (!claims.email) return { statusCode: 401, body: "Unauthorized" };
+      if (!claims.email)
+        return {
+          statusCode: 401,
+          body: "Unauthorized",
+          headers: { "Access-Control-Allow-Origin": "*" },
+        };
 
       let {
         teamA,
@@ -985,8 +993,10 @@ exports.handler = async (event) => {
     // GET /admin/users (List all users and their roles)
     if (httpMethod === "GET" && path === "/admin/users") {
       const claims = getClaims(event);
-      const isSuperAdmin = claims.email && claims.email === process.env.ADMIN_REPORT_EMAIL;
-      const hasAdminGroup = claims["cognito:groups"] && claims["cognito:groups"].includes("Admin");
+      const isSuperAdmin =
+        claims.email && claims.email === process.env.ADMIN_REPORT_EMAIL;
+      const hasAdminGroup =
+        claims["cognito:groups"] && claims["cognito:groups"].includes("Admin");
       const isAdmin = isSuperAdmin || hasAdminGroup;
 
       const headers = {
@@ -995,17 +1005,23 @@ exports.handler = async (event) => {
       };
 
       if (!isAdmin) {
-        return { statusCode: 403, headers, body: JSON.stringify({ error: "Forbidden - Admins only" }) };
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({ error: "Forbidden - Admins only" }),
+        };
       }
 
       try {
-        const cognito = new CognitoIdentityProviderClient({ region: "us-east-1" });
-        
+        const cognito = new CognitoIdentityProviderClient({
+          region: "us-east-1",
+        });
+
         // 1. Get all users
         const usersRes = await cognito.send(
           new ListUsersCommand({
             UserPoolId: process.env.COGNITO_USER_POOL_ID,
-          })
+          }),
         );
 
         // 2. Get users in Admin group
@@ -1015,13 +1031,13 @@ exports.handler = async (event) => {
             new ListUsersInGroupCommand({
               UserPoolId: process.env.COGNITO_USER_POOL_ID,
               GroupName: "Admin",
-            })
+            }),
           );
-          (adminsRes.Users || []).forEach(u => {
-            const emailAttr = u.Attributes?.find(a => a.Name === "email");
+          (adminsRes.Users || []).forEach((u) => {
+            const emailAttr = u.Attributes?.find((a) => a.Name === "email");
             if (emailAttr) adminUsers.add(emailAttr.Value);
           });
-        } catch(e) {
+        } catch (e) {
           console.warn("Could not fetch Admin group:", e.message);
         }
 
@@ -1032,40 +1048,51 @@ exports.handler = async (event) => {
             new ListUsersInGroupCommand({
               UserPoolId: process.env.COGNITO_USER_POOL_ID,
               GroupName: "Scorer",
-            })
+            }),
           );
-          (scorersRes.Users || []).forEach(u => {
-            const emailAttr = u.Attributes?.find(a => a.Name === "email");
+          (scorersRes.Users || []).forEach((u) => {
+            const emailAttr = u.Attributes?.find((a) => a.Name === "email");
             if (emailAttr) scorerUsers.add(emailAttr.Value);
           });
-        } catch(e) {
+        } catch (e) {
           console.warn("Could not fetch Scorer group:", e.message);
         }
 
-        const formattedUsers = (usersRes.Users || []).map(u => {
-          const emailAttr = u.Attributes?.find(a => a.Name === "email");
+        const formattedUsers = (usersRes.Users || []).map((u) => {
+          const emailAttr = u.Attributes?.find((a) => a.Name === "email");
           const email = emailAttr ? emailAttr.Value : u.Username;
           return {
             username: u.Username,
             email: email,
             status: u.UserStatus,
-            isAdmin: adminUsers.has(email) || email === process.env.ADMIN_REPORT_EMAIL,
+            isAdmin:
+              adminUsers.has(email) || email === process.env.ADMIN_REPORT_EMAIL,
             isScorer: scorerUsers.has(email),
           };
         });
 
-        return { statusCode: 200, headers, body: JSON.stringify(formattedUsers) };
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify(formattedUsers),
+        };
       } catch (err) {
-        return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ error: err.message }),
+        };
       }
     }
 
     // POST /admin/users/roles (Add user to Admin or Scorer group)
     if (httpMethod === "POST" && path === "/admin/users/roles") {
       const claims = getClaims(event);
-      
-      const isSuperAdmin = claims.email && claims.email === process.env.ADMIN_REPORT_EMAIL;
-      const hasAdminGroup = claims["cognito:groups"] && claims["cognito:groups"].includes("Admin");
+
+      const isSuperAdmin =
+        claims.email && claims.email === process.env.ADMIN_REPORT_EMAIL;
+      const hasAdminGroup =
+        claims["cognito:groups"] && claims["cognito:groups"].includes("Admin");
       const isAdmin = isSuperAdmin || hasAdminGroup;
 
       const headers = {
@@ -1074,12 +1101,20 @@ exports.handler = async (event) => {
       };
 
       if (!isAdmin) {
-        return { statusCode: 403, headers, body: JSON.stringify({ error: "Forbidden - Admins only" }) };
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({ error: "Forbidden - Admins only" }),
+        };
       }
 
       const { emailToPromote, role = "Admin" } = JSON.parse(body);
       if (!emailToPromote) {
-        return { statusCode: 400, headers, body: JSON.stringify({ error: "Missing emailToPromote" }) };
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: "Missing emailToPromote" }),
+        };
       }
 
       try {
@@ -1114,9 +1149,11 @@ exports.handler = async (event) => {
     // DELETE /admin/users/roles (Remove user from Admin or Scorer group)
     if (httpMethod === "DELETE" && path === "/admin/users/roles") {
       const claims = getClaims(event);
-      
-      const isSuperAdmin = claims.email && claims.email === process.env.ADMIN_REPORT_EMAIL;
-      const hasAdminGroup = claims["cognito:groups"] && claims["cognito:groups"].includes("Admin");
+
+      const isSuperAdmin =
+        claims.email && claims.email === process.env.ADMIN_REPORT_EMAIL;
+      const hasAdminGroup =
+        claims["cognito:groups"] && claims["cognito:groups"].includes("Admin");
       const isAdmin = isSuperAdmin || hasAdminGroup;
 
       const headers = {
@@ -1125,16 +1162,30 @@ exports.handler = async (event) => {
       };
 
       if (!isAdmin) {
-        return { statusCode: 403, headers, body: JSON.stringify({ error: "Forbidden - Admins only" }) };
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({ error: "Forbidden - Admins only" }),
+        };
       }
 
       const { emailToDemote, role } = JSON.parse(body || "{}");
       if (!emailToDemote || !role) {
-        return { statusCode: 400, headers, body: JSON.stringify({ error: "Missing emailToDemote or role" }) };
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: "Missing emailToDemote or role" }),
+        };
       }
 
       if (emailToDemote === process.env.ADMIN_REPORT_EMAIL) {
-        return { statusCode: 400, headers, body: JSON.stringify({ error: "Cannot demote the root administrator" }) };
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({
+            error: "Cannot demote the root administrator",
+          }),
+        };
       }
 
       try {

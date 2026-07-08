@@ -60,3 +60,57 @@ body {
     -ms-overflow-style: none;
     scrollbar-width: none;
 }
+
+/* 🎨 Amplify Authenticator AI / Dark Mode Styling */
+[data-amplify-authenticator] {
+  --amplify-colors-background-primary: #0f172a; /* slate-900 */
+  --amplify-colors-background-secondary: #1e293b; /* slate-800 */
+  --amplify-colors-brand-primary-10: #e0e7ff;
+  --amplify-colors-brand-primary-80: #4f46e5; /* indigo-600 */
+  --amplify-colors-brand-primary-90: #4338ca; /* indigo-700 */
+  --amplify-colors-font-interactive: #ffffff;
+  --amplify-colors-font-active: #ffffff;
+  --amplify-colors-font-primary: #f8fafc;
+  --amplify-colors-font-secondary: #94a3b8;
+  --amplify-colors-border-primary: rgba(255, 255, 255, 0.1);
+  --amplify-colors-border-secondary: rgba(255, 255, 255, 0.05);
+  --amplify-components-tabs-item-active-color: #818cf8; /* indigo-400 */
+  --amplify-components-tabs-item-active-border-color: #4f46e5;
+  --amplify-components-button-primary-background-color: #4f46e5;
+  --amplify-components-button-primary-hover-background-color: #4338ca;
+  --amplify-components-button-primary-color: #ffffff;
+  --amplify-radii-small: 0.5rem;
+  --amplify-radii-medium: 1rem;
+  --amplify-radii-large: 1.5rem;
+  --amplify-shadows-medium: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  
+  height: 100%;
+  width: 100%;
+}
+
+/* Only center and pad when the login form is present */
+[data-amplify-authenticator]:has([data-amplify-router]) {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+}
+
+/* Global Amplify Dark Mode Overrides for Inputs */
+.amplify-input, .amplify-select, .amplify-field-group__control {
+  background-color: var(--amplify-colors-background-secondary) !important;
+  color: var(--amplify-colors-font-primary) !important;
+  border-color: var(--amplify-colors-border-primary) !important;
+}
+
+.amplify-label {
+  color: var(--amplify-colors-font-secondary) !important;
+}
+
+[data-amplify-authenticator] [data-amplify-router] {
+  border-radius: 1.5rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(16px);
+  background: #0f172a;
+}
