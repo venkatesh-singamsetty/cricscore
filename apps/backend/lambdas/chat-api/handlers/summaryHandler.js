@@ -40,13 +40,22 @@ async function summaryHandler(matchId, corsHeaders) {
     }
     const m = matchRes.rows[0];
 
-    // Return cached summary if already generated
+    // Return cached summary if already generated and valid
     if (m.ai_summary) {
-      return {
-        statusCode: 200,
-        headers: corsHeaders,
-        body: JSON.stringify({ summary: m.ai_summary }),
-      };
+      const isStaleLiveSummary =
+        m.status === "COMPLETED" &&
+        (m.ai_summary.includes("currently live") ||
+          m.ai_summary.includes("0/0") ||
+          m.ai_summary.includes("yet to begin") ||
+          m.ai_summary.includes("0 balls") ||
+          m.ai_summary.includes("has not started"));
+      if (!isStaleLiveSummary) {
+        return {
+          statusCode: 200,
+          headers: corsHeaders,
+          body: JSON.stringify({ summary: m.ai_summary }),
+        };
+      }
     }
 
     // Fetch top batting performances
