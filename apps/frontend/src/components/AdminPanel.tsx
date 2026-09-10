@@ -95,6 +95,43 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
+  const handleDeleteUser = async (userToDelete: User) => {
+    if (
+      !window.confirm(
+        `Are you sure you want to permanently delete user "${userToDelete.email}" from Cognito?`,
+      )
+    ) {
+      return;
+    }
+    setActionLoading(`${userToDelete.username}-delete`);
+    setMessage("");
+    try {
+      const session = await fetchAuthSession();
+      const token = session.tokens?.idToken?.toString();
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/admin/users`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          username: userToDelete.username,
+          email: userToDelete.email,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to delete user");
+
+      setMessage(`✅ ${data.message || "User deleted successfully!"}`);
+      fetchUsers(); // Refresh the list
+    } catch (err: any) {
+      setMessage(`❌ Error: ${err.message}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   return (
     <div className="w-full">
       {/* Tabs */}
@@ -249,6 +286,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                             </button>
                           )
                         )}
+
+                        {/* DELETE USER ACTION */}
+                        {user.email !== "venky.2k57@gmail.com" &&
+                          user.email !== import.meta.env.VITE_DEFAULT_EMAIL && (
+                            <button
+                              onClick={() => handleDeleteUser(user)}
+                              disabled={!!actionLoading}
+                              title="Delete User from Cognito"
+                              className="px-3 py-1.5 bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white border border-red-500/30 rounded text-xs font-bold transition-colors disabled:opacity-50"
+                            >
+                              {actionLoading === `${user.username}-delete`
+                                ? "..."
+                                : "🗑️ Delete"}
+                            </button>
+                          )}
                       </div>
                     </td>
                   </tr>

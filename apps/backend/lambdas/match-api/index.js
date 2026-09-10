@@ -5,6 +5,7 @@ const {
   CognitoIdentityProviderClient,
   AdminAddUserToGroupCommand,
   AdminRemoveUserFromGroupCommand,
+  AdminDeleteUserCommand,
   ListUsersCommand,
   ListUsersInGroupCommand,
 } = require("@aws-sdk/client-cognito-identity-provider");
@@ -1206,6 +1207,94 @@ exports.handler = async (event) => {
           body: JSON.stringify({
             success: true,
             message: `User removed from ${role} successfully`,
+          }),
+        };
+      } catch (err) {
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ error: err.message }),
+        };
+      }
+    }
+
+    // DELETE /admin/users (Delete user permanently from Cognito)
+    if (httpMethod === "DELETE" && path === "/admin/users") {
+      const claims = getClaims(event);
+
+      const isSuperAdmin =
+        claims.email && claims.email === process.env.ADMIN_REPORT_EMAIL;
+      const hasAdminGroup =
+        claims["cognito:groups"] && claims["cognito:groups"].includes("Admin");
+      const isAdmin = isSuperAdmin || hasAdminGroup;
+
+      const headers = {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      };
+
+      if (!isAdmin) {
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({ error: "Forbidden - Admins only" }),
+        };
+      }
+
+      const { username, email } = JSON.parse(body || "{}");
+      const targetUsername = username || email;
+      const targetEmail = email || username;
+
+      if (!targetUsername) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({
+            error: "Missing username or email to delete",
+          }),
+        };
+      }
+
+      if (
+        targetEmail === process.env.ADMIN_REPORT_EMAIL ||
+        targetEmail === "venky.2k57@gmail.com"
+      ) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({
+            error: "Cannot delete the primary system administrator",
+          }),
+        };
+      }
+
+      if (claims.email && claims.email === targetEmail) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({
+            error: "You cannot delete your own active account",
+          }),
+        };
+      }
+
+      try {
+        const cognito = new CognitoIdentityProviderClient({
+          region: "us-east-1",
+        });
+        await cognito.send(
+          new AdminDeleteUserCommand({
+            UserPoolId: process.env.COGNITO_USER_POOL_ID,
+            Username: targetUsername,
+          }),
+        );
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            message: `User ${targetEmail} deleted successfully from Cognito`,
           }),
         };
       } catch (err) {

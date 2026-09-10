@@ -172,6 +172,7 @@ resource "aws_iam_policy" "lambda_cognito_admin" {
         Action = [
           "cognito-idp:AdminAddUserToGroup",
           "cognito-idp:AdminRemoveUserFromGroup",
+          "cognito-idp:AdminDeleteUser",
           "cognito-idp:ListUsers",
           "cognito-idp:ListUsersInGroup"
         ]
