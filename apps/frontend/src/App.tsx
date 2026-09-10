@@ -20,6 +20,55 @@ import { ChatComponent } from "./components/ChatComponent";
 const getMatchStateKey = (email: string) =>
   `cric-match-state-${email.toLowerCase().trim()}`;
 
+const authFormFields = {
+  signUp: {
+    username: {
+      label: "Username",
+      placeholder: "Enter your Email address",
+      descriptiveText: "(Please use your email address as your username)",
+      isRequired: true,
+      order: 1,
+    },
+    password: {
+      label: "Password",
+      placeholder: "Enter your Password",
+      descriptiveText:
+        "Password must be at least 8 characters, containing uppercase & lowercase letters, numbers, and special characters.",
+      isRequired: true,
+      order: 2,
+    },
+    confirm_password: {
+      label: "Confirm Password",
+      placeholder: "Please confirm your Password",
+      isRequired: true,
+      order: 3,
+    },
+    given_name: {
+      label: "First Name",
+      placeholder: "Enter your First Name",
+      isRequired: true,
+      order: 4,
+    },
+    family_name: {
+      label: "Last Name",
+      placeholder: "Enter your Last Name",
+      isRequired: true,
+      order: 5,
+    },
+  },
+  signIn: {
+    username: {
+      label: "Username",
+      placeholder: "Enter your Email address",
+      descriptiveText: "(Email address)",
+    },
+    password: {
+      label: "Password",
+      placeholder: "Enter your Password",
+    },
+  },
+};
+
 const App: React.FC = () => {
   const [userToken, setUserToken] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -1008,7 +1057,7 @@ const App: React.FC = () => {
         )}
 
         {view === "ADMIN_PANEL" && (
-          <Authenticator hideSignUp>
+          <Authenticator hideSignUp formFields={authFormFields}>
             {() => (
               <div className="h-full bg-slate-950 flex flex-col p-4 md:p-8 overflow-y-auto">
                 <div className="max-w-4xl mx-auto w-full space-y-8 animate-in fade-in zoom-in-95 duration-500">
@@ -1048,7 +1097,10 @@ const App: React.FC = () => {
         )}
 
         {view === "SCORER" && (
-          <Authenticator signUpAttributes={["given_name", "family_name"]}>
+          <Authenticator
+            signUpAttributes={["given_name", "family_name"]}
+            formFields={authFormFields}
+          >
             {({ signOut, user }) => (
               <div className="h-full w-full">
                 {matchStatus === MatchStatus.SETUP && (
