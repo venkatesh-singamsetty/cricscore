@@ -61,7 +61,12 @@ body {
     scrollbar-width: none;
 }
 
-/* 🎨 Amplify Authenticator AI / Dark Mode Styling */
+
+/* ============================================================
+   🎨 Amplify Authenticator — Dark Mode Styling
+   Scoped to [data-amplify-authenticator] only — does NOT
+   affect the rest of the app UI (viewer scoreboard etc.)
+   ============================================================ */
 [data-amplify-authenticator] {
   --amplify-colors-background-primary: #0f172a; /* slate-900 */
   --amplify-colors-background-secondary: #1e293b; /* slate-800 */
@@ -83,7 +88,7 @@ body {
   --amplify-radii-medium: 1rem;
   --amplify-radii-large: 1.5rem;
   --amplify-shadows-medium: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
-  
+
   height: 100%;
   width: 100%;
 }
@@ -113,4 +118,14 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(16px);
   background: #0f172a;
+}
+
+/* ============================================================
+   🛡️ App-level style resets — loaded AFTER Amplify to
+   reassert our base styles over any :root token bleed-through
+   ============================================================ */
+body {
+  background-color: #020617 !important; /* slate-950 */
+  color: #f8fafc !important;            /* slate-50 */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
 }

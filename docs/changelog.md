@@ -1,18 +1,29 @@
-## [3.6.2](https://github.com/venkatesh-singamsetty/cricscore/compare/v3.6.1...v3.6.2) (2026-07-06)
+# [3.7.1] - 2026-09-10
 
+### 💰 Cost Reduction
+
+- **Removed AWS KMS Customer Managed Key (CMK)**: Eliminated ~$2/month in KMS charges by switching all resources to free AWS-managed encryption:
+  - **S3** frontend bucket: `aws:kms` → `AES256 (SSE-S3)`
+  - **SNS** topic: CMK → `alias/aws/sns` (AWS-managed)
+  - **SQS** FIFO queue: CMK → `sqs_managed_sse_enabled = true`
+  - Removed `aws_kms_key` + `aws_kms_alias` Terraform resources
+  - Removed KMS IAM permissions from Lambda execution role
+
+---
+
+## [3.6.2](https://github.com/venkatesh-singamsetty/cricscore/compare/v3.6.1...v3.6.2) (2026-07-06)
 
 ### Bug Fixes
 
-* AI summary race conditions and SQL sorting ([#111](https://github.com/venkatesh-singamsetty/cricscore/issues/111)) ([844c1a2](https://github.com/venkatesh-singamsetty/cricscore/commit/844c1a24d591a4df1b50198af52d1f9e97639456))
-* Use scorer_email for E2E email spam filter ([#112](https://github.com/venkatesh-singamsetty/cricscore/issues/112)) ([91cf00d](https://github.com/venkatesh-singamsetty/cricscore/commit/91cf00de12777ac7a3873cd837cf4dd9c6d7905d))
+- AI summary race conditions and SQL sorting ([#111](https://github.com/venkatesh-singamsetty/cricscore/issues/111)) ([844c1a2](https://github.com/venkatesh-singamsetty/cricscore/commit/844c1a24d591a4df1b50198af52d1f9e97639456))
+- Use scorer_email for E2E email spam filter ([#112](https://github.com/venkatesh-singamsetty/cricscore/issues/112)) ([91cf00d](https://github.com/venkatesh-singamsetty/cricscore/commit/91cf00de12777ac7a3873cd837cf4dd9c6d7905d))
 
 ## [3.6.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v3.6.0...v3.6.1) (2026-07-06)
 
-
 ### Bug Fixes
 
-* **ai:** add total_overs to context and scale rulebook policies ([e4d78f4](https://github.com/venkatesh-singamsetty/cricscore/commit/e4d78f4534329041a6bd34f30caa911ff7592919))
-* Database migrations and Semantic Release workflow ([#110](https://github.com/venkatesh-singamsetty/cricscore/issues/110)) ([ed2ac0d](https://github.com/venkatesh-singamsetty/cricscore/commit/ed2ac0d320b48805a63c046d231bc1cdc98709b8))
+- **ai:** add total_overs to context and scale rulebook policies ([e4d78f4](https://github.com/venkatesh-singamsetty/cricscore/commit/e4d78f4534329041a6bd34f30caa911ff7592919))
+- Database migrations and Semantic Release workflow ([#110](https://github.com/venkatesh-singamsetty/cricscore/issues/110)) ([ed2ac0d](https://github.com/venkatesh-singamsetty/cricscore/commit/ed2ac0d320b48805a63c046d231bc1cdc98709b8))
 
 # [3.7.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v3.6.0...v3.7.0) (2026-07-06)
 

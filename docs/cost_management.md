@@ -23,10 +23,12 @@ This document provides a breakdown of the estimated operational costs for the Cr
 - **SQS (Reliability Buffer)**: First 1,000,000 Standard Requests per month are **FREE**.
 - **The Multiplier**: 1 Ball = 1 SNS Publish + 2 SNS Deliveries (Lambda + SQS) + 1 SQS Write.
 - **Est. Usage**: 300,000 ball events comfortably fit within these limits.
+- **Encryption**: SNS uses `alias/aws/sns` (AWS-managed, **free**). SQS uses `sqs_managed_sse_enabled` (**free**).
 
 ### 4. **Storage: Amazon S3 & DynamoDB**
 
 - **S3**: First 5GB of Standard Storage + 20,000 GET requests per month are **FREE**. (The React app is ~5MB).
+- **S3 Encryption**: Uses SSE-S3 (`AES256`) — AWS-managed, **$0/month**.
 - **DynamoDB**: 25GB of Storage + 2.5 Million Read/Write capacity per month. (Spectator connection tracking is negligible).
 
 ### 5. **Delivery: CloudFront & Route 53**
@@ -54,6 +56,15 @@ This document provides a breakdown of the estimated operational costs for the Cr
 - **Cost**: First 2,000 execution minutes per month are **FREE** for private repositories (Unlimited for public).
 - **Usage**: CI/CD checks, Semantic Releases, Drift Detection, and E2E Tests use a fraction of these minutes. $0/month.
 
+### 10. **Encryption: AWS KMS** _(removed)_
+
+- **Previously**: A Customer Managed Key (CMK) was used to encrypt S3, SNS, and SQS resources, costing **$1.00/month** per key + API call charges (~$2/month total).
+- **Now**: All resources use free AWS-managed encryption:
+  - S3 → `SSE-S3 (AES256)` — **$0**
+  - SNS → `alias/aws/sns` — **$0**
+  - SQS → `sqs_managed_sse_enabled` — **$0**
+- **Saving**: ~$2.00/month eliminated with no reduction in encryption strength.
+
 ---
 
 ## 🗄️ Database (Aiven PostgreSQL)
@@ -78,7 +89,7 @@ CricScore is designed for **maximum profitability** on minimal infrastructure. B
 | **1 Month** | $0.500           | $0.00        | $0.160         | **~$0.660**    |
 | **1 Year**  | $6.000           | $0.00        | $2.000         | **~$8.000**    |
 
-_Note: Route 53 Hosted Zone is a fixed $0.50/mo. Domain costs vary ($2+ for .site/.me, ~$12 for .com)._
+_Note: Route 53 Hosted Zone is a fixed $0.50/mo. Domain costs vary ($2+ for .site/.me, ~$12 for .com). KMS CMK cost (~$2/mo) was eliminated in Sept 2026 by switching to free AWS-managed encryption._
 
 ---
 
@@ -107,6 +118,7 @@ For a standard **20-Overs Match** (120 balls per innings = **240 total events/ma
 2.  **Log Retention**: Configure CloudWatch logs for 7-day retention to avoid storage creep.
 3.  **Domain Selection**: Use low-cost TLDs (like `.site` or `.me`) to keep your yearly overhead under **$2.00**.
 4.  **Strict Zero-Cost Infrastructure**: We have explicitly disabled **S3 Versioning** and **DynamoDB Point-in-Time Recovery (PITR)** across the Terraform stack to guarantee $0 hidden backup costs.
+5.  **Avoid Customer Managed KMS Keys (CMKs)**: Each CMK costs $1.00/month regardless of usage. Use free AWS-managed alternatives: `AES256` for S3, `alias/aws/sns` for SNS, `sqs_managed_sse_enabled` for SQS.
 
 ## ⚖️ Total Monthly Estimated Cost
 

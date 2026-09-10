@@ -64,15 +64,7 @@ resource "aws_iam_policy" "lambda_messaging" {
         Effect   = "Allow"
         Resource = aws_sqs_queue.storage_buffer.arn
       },
-      {
-        Action = [
-          "kms:GenerateDataKey*",
-          "kms:Decrypt",
-          "kms:Encrypt"
-        ]
-        Effect   = "Allow"
-        Resource = aws_kms_key.cric_key.arn
-      },
+
       {
         Action = [
           "lambda:InvokeFunction"
