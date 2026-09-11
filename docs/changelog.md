@@ -1,3 +1,10 @@
+# [4.1.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.0.1...v4.1.0) (2026-09-11)
+
+
+### Features
+
+* complete AI security hardening and ci-cd optimizations ([baf3fcd](https://github.com/venkatesh-singamsetty/cricscore/commit/baf3fcd48531e818ba47705e3fa7e95c09e62841))
+
 ## [4.0.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.0.0...v4.0.1) (2026-09-11)
 
 
