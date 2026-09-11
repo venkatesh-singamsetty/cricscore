@@ -1,3 +1,13 @@
+## [4.0.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.0.0...v4.0.1) (2026-09-11)
+
+
+### Bug Fixes
+
+* **ci:** fix typescript compile errors and terraform formatting ([3af55be](https://github.com/venkatesh-singamsetty/cricscore/commit/3af55beae8b4ab33e76821fa6cf9c81794970440))
+* **ci:** restore live domain names in tfvars ([451c1e2](https://github.com/venkatesh-singamsetty/cricscore/commit/451c1e21018a126da4279dc45f128ae0d09c322c))
+* **e2e:** Refactor Playwright clicks to prevent swallowed clicks during React state transitions ([2973142](https://github.com/venkatesh-singamsetty/cricscore/commit/2973142ce25429cf32138bc7496d7fbca6c4d059))
+* guard missing Cognito config for guest mode ([8c820d6](https://github.com/venkatesh-singamsetty/cricscore/commit/8c820d6e70ddd8d13bd677ecdadc3bd59ae2a6ea))
+
 # [4.0.0] - 2026-09-11
 
 ## ✨ Features
