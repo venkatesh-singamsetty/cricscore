@@ -22,6 +22,6 @@
     "@vitest/coverage-v8": "^4.1.9",
     "aws-sdk-client-mock": "^4.1.0",
     "pg": "^8.22.0",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.11"
   }
 }
