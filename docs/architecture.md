@@ -74,7 +74,7 @@ CricScore implements a high-performance **Event-Driven Architecture (EDA)** usin
 - **X-Ray Distributed Tracing:** AWS X-Ray is actively enabled across the Lambda stack using a strict 5% sampling rule, providing deep insights into cold starts and bottlenecks while mathematically guaranteeing $0 cost.
 - **Aiven TLS Bypass:** Explicit fallback overriding Node v24 strict intermediate CAs (`NODE_TLS_REJECT_UNAUTHORIZED = '0'`) allowing seamless PostgreSQL scaling.
 - **UI Render Debouncing:** Synchronous `useRef` execution locks prevent React async state-drifts during rapid scoring bursts, enforcing exact chronological network sequences.
-- **Secure Isolation:** Enterprise-grade multi-tenant scoring engine with **VITE_ADMIN_PIN** record governance.
+- **Secure Isolation:** Enterprise-grade multi-tenant scoring engine with **AWS Cognito JWT** record governance.
 
 ---
 

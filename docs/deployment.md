@@ -1,212 +1,293 @@
-# 🚀 Deployment: End-to-End Infrastructure Guide
+# 🚀 Deployment Guide
 
-This guide is designed for developers setting up the project from absolute scratch. Follow these steps sequentially to go from an empty laptop to a fully deployed cloud infrastructure with dual environments (`dev` and `prod`).
+This guide walks you through deploying your own CricScore instance from scratch — from registering a domain to having a live, fully-featured cricket scoring platform running in the cloud.
 
----
-
-## 🛑 Step 0: Absolute Prerequisites
-
-Before you touch any code, you must secure the foundational accounts and assets for the platform.
-
-### 1. Purchase a Domain Name
-
-The AWS architecture requires a registered domain name (e.g., `yourdomain.com`).
-
-1. Go to a registrar like [GoDaddy](https://godaddy.com) or [Namecheap](https://namecheap.com).
-2. Purchase your desired domain name. You do _not_ need to purchase any hosting or email packages.
-
-### 2. Create Cloud Accounts
-
-1. **AWS Account**: Sign up at [aws.amazon.com](https://aws.amazon.com/). You will need an IAM User with Administrator privileges and an Access Key.
-2. **Aiven PostgreSQL**: Sign up at [console.aiven.io](https://console.aiven.io/) and create a Free Tier PostgreSQL database. Set the **SSL Mode** to `require` and copy the **Service URI** (`postgres://avnadmin...`).
-   _(Note: Both `dev` and `prod` environments will share this database but are strictly isolated via PostgreSQL schemas: `dev` and `prod`.)_
+> [!NOTE]
+> You do **not** need any prior cloud experience. Every step is explained. Estimated total setup time: **1-2 hours**.
 
 ---
 
-## 💻 Step 1: Local Environment Setup
+## What You'll Build
 
-To run or deploy CricScore locally, your computer needs Node.js, Terraform, AWS CLI, and a suite of security scanners.
+- A **dev environment** (e.g., `cricscoredev.yourdomain.com`) for testing
+- A **prod environment** (e.g., `cricscore.yourdomain.com`) for live matches
+- Fully automated CI/CD that deploys on every push to `main`
 
-We provide an automated setup script that detects your OS (macOS/Linux) and uses native package managers to install everything you need perfectly.
+---
+
+## Step 0: Get Your Accounts & Domain
+
+You need three things before touching any code.
+
+### 1. A Domain Name
+
+Buy a domain from [Namecheap](https://namecheap.com) or [GoDaddy](https://godaddy.com). A `.site` or `.me` domain is cheapest (~$2/year). You do **not** need hosting — just the domain.
+
+### 2. An AWS Account
+
+Sign up at [aws.amazon.com](https://aws.amazon.com/). After signing in:
+
+1. Go to **IAM → Users → Create User**
+2. Attach the **AdministratorAccess** policy
+3. Go to **Security Credentials → Create Access Key** and save the `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
+
+### 3. An Aiven PostgreSQL Database
+
+Sign up at [console.aiven.io](https://console.aiven.io/) and create a **free** PostgreSQL service:
+
+1. Click **Create Service → PostgreSQL**
+2. Choose the **Free** plan
+3. After it starts, click your service → **Overview** → copy the **Service URI** (starts with `postgres://avnadmin:...`)
+
+> [!NOTE]
+> Both `dev` and `prod` share one Aiven database. They are isolated via PostgreSQL schemas (`dev` and `prod`).
+
+### 4. An OpenRouter API Key (for AI features)
+
+Sign up at [openrouter.ai](https://openrouter.ai) and create an API key. This powers the AI chat assistant.
+
+---
+
+## Step 1: Clone & Install Tools
 
 ```bash
-# Run this from the root of the repository
+git clone https://github.com/venkatesh-singamsetty/cricscore.git
+cd cricscore
+
+# Install Node.js, Terraform, AWS CLI, and security tools automatically
 ./infra/scripts/setup.sh
 ```
 
 ---
 
-## 🔐 Step 2: Local Configuration
+## Step 2: Configure Your Environment
 
-You must define your global environment variables locally before Terraform or the deployment scripts can run.
+### 2a. Root config — `.env.local`
 
-### 1. Root Configuration (`.env.local`)
-
-Create a file at `.env.local` in the project root. This file provides the core authentication secrets.
-
-- **⚠️ SECURITY**: This file contains secrets. **DO NOT commit it to version control.**
+Copy the example file and fill in your values:
 
 ```bash
-# AWS Credentials & Region
-AWS_ACCESS_KEY_ID=AKIA...
-AWS_SECRET_ACCESS_KEY=...
-AWS_REGION='us-east-1'
-AWS_DEFAULT_REGION='us-east-1'
-
-# Database & Email
-TF_DATABASE_URL='postgres://avnadmin:...@host:port/defaultdb?sslmode=require'
-TF_SES_SOURCE_EMAIL='noreply@yourdomain.com'
-ADMIN_EMAIL='your-email@gmail.com'
+cp .env.local.example .env.local
 ```
 
-_(Environment-specific variables like domains and project names are now safely managed in `infra/terraform/environments/dev.tfvars` and `prod.tfvars`.)_
-
-### 2. Frontend Configuration (`apps/frontend/.env`)
-
-Create a file at `apps/frontend/.env` (use `apps/frontend/.env.example` as a template):
+Edit `.env.local`:
 
 ```bash
-# The secret PIN required for the scorer/admin dashboard
-VITE_ADMIN_PIN=123456
+# AWS credentials
+AWS_ACCESS_KEY_ID=your-access-key
+AWS_SECRET_ACCESS_KEY=your-secret-key
+AWS_REGION=us-east-1
+AWS_DEFAULT_REGION=us-east-1
 
-# The default email address to pre-fill in the scorer login
-VITE_DEFAULT_EMAIL=admin@example.com
+# Aiven PostgreSQL connection string
+TF_DATABASE_URL='postgres://avnadmin:PASSWORD@HOST:PORT/defaultdb?sslmode=require'
 
-# (Optional) Sentry Crash Reporting Data Source Name
+# Email — SES will send from this address (must be verified in SES)
+TF_SES_SOURCE_EMAIL='noreply@yourdomain.com'
+
+# Your email — receives BCC of all match report emails
+ADMIN_EMAIL='you@youremail.com'
+
+# Your domain settings
+DOMAIN_NAME='cricscore.yourdomain.com'
+ZONE_DOMAIN='yourdomain.com'
+SUBDOMAIN_PREFIX='cricscore'
+PROJECT_NAME='cricscore'
+
+# AI / LLM
+LLM_API_KEY='your-openrouter-api-key'
+LLM_BASE_URL='https://openrouter.ai/api/v1'
+```
+
+> [!CAUTION]
+> Never commit `.env.local` to version control. It is in `.gitignore` by default.
+
+### 2b. Set your domain in the Terraform config files
+
+Open **`infra/terraform/environments/dev.tfvars`** and update all four values:
+
+```hcl
+environment      = "dev"
+project_name     = "myappdev"
+domain_name      = "cricscoredev.yourdomain.com"
+zone_domain      = "yourdomain.com"
+subdomain_prefix = "cricscoredev"
+```
+
+Open **`infra/terraform/environments/prod.tfvars`** and update:
+
+```hcl
+environment      = "prod"
+project_name     = "myapp"
+domain_name      = "cricscore.yourdomain.com"
+zone_domain      = "yourdomain.com"
+subdomain_prefix = "cricscore"
+```
+
+> [!IMPORTANT]
+> `zone_domain` must match exactly the root domain you registered (e.g., `yourdomain.com`).
+> `domain_name` is the full URL your app will be served at.
+
+### 2c. Frontend config — `apps/frontend/.env`
+
+```bash
+cp apps/frontend/.env.example apps/frontend/.env
+```
+
+You only need to set the optional Sentry DSN if you want crash reporting. Everything else is auto-populated by the deploy script.
+
+```bash
+# (Optional) Sentry Crash Reporting DSN
 VITE_SENTRY_DSN=
 ```
 
-> [!NOTE]
-> You do **not** need to manually define `VITE_API_URL`, `VITE_WS_URL`, or `VITE_APP_TITLE`. The local deployment script automatically extracts these from Terraform and injects them into this file.
-
 ---
 
-## 🛡️ Step 3: Bootstrap Governance
+## Step 3: Bootstrap — One-Time AWS Setup
 
-Before deploying the application, we must create the permanent infrastructure that holds your deployment state.
+This creates the S3 bucket and DynamoDB table that store your Terraform state, plus the Route 53 hosted zone for your domain. **Run this once.**
 
-**These resources are created once and should NEVER be destroyed.**
+### 3a. Update `infra/terraform/providers.tf`
 
-### 1. Apply the Bootstrap Configuration
-
-Update the placeholders below and apply them using Terraform:
+Open `infra/terraform/providers.tf` and set your state bucket name (must be globally unique):
 
 ```hcl
-# 1. S3 Bucket for Terraform State
-resource "aws_s3_bucket" "terraform_state" {
-  bucket = "yourname-cricscore-state" # UPDATE THIS
-  lifecycle { prevent_destroy = true }
-}
-
-resource "aws_s3_bucket_versioning" "terraform_state_versioning" {
-  bucket = aws_s3_bucket.terraform_state.id
-  versioning_configuration { status = "Enabled" }
-}
-
-# 2. DynamoDB Table for State Locking
-resource "aws_dynamodb_table" "terraform_locks" {
-  name         = "terraform-state-locking" # UPDATE THIS
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "LockID"
-
-  attribute {
-    name = "LockID"
-    type = "S"
-  }
-  lifecycle { prevent_destroy = true }
-}
-
-# 3. Route 53 Primary Hosted Zone
-resource "aws_route53_zone" "primary" {
-  name = "yourdomain.com" # UPDATE THIS
-  lifecycle { prevent_destroy = true }
+backend "s3" {
+  bucket         = "yourname-cricscore-state"   # Pick a unique name
+  key            = "cricscore/terraform.tfstate"
+  region         = "us-east-1"
+  dynamodb_table = "terraform-state-locking"
+  encrypt        = true
 }
 ```
 
-### 2. The DNS Handshake (GoDaddy/Registrar)
+Then in `infra/terraform/bootstrap/` apply the bootstrap config:
 
-When AWS creates your Route 53 zone, it generates 4 unique Nameservers (NS records).
+```bash
+cd infra/terraform/bootstrap
+terraform init
+terraform apply
+```
 
-1. Open the AWS Route 53 Console and copy those 4 Nameservers.
-2. Log into your domain registrar (e.g., GoDaddy).
-3. Find the "DNS Settings" or "Nameservers" section for your domain.
-4. Replace the default GoDaddy nameservers with the 4 custom AWS nameservers.
-5. _Wait 15-60 minutes for global DNS propagation to occur._
+This creates the S3 state bucket, DynamoDB lock table, and Route 53 hosted zone.
 
-### 3. Synchronize Bootstrap Metadata
+### 3b. Point your domain to AWS
 
-1.  **Update Backend**: Insert your new S3 bucket and DynamoDB table names into **`infra/terraform/providers.tf`**.
-2.  **Initialize**: Run `./infra/scripts/terraform.sh init` in the project root.
+After the bootstrap runs, AWS gives you 4 nameservers:
+
+1. Go to **AWS Console → Route 53 → Hosted Zones → your domain**
+2. Copy the 4 NS record values
+3. Log into your domain registrar (GoDaddy / Namecheap)
+4. Replace the default nameservers with your 4 AWS nameservers
+5. Wait **15–60 minutes** for DNS propagation
+
+### 3c. Verify SES email
+
+1. Go to **AWS Console → SES → Verified Identities → Create Identity**
+2. Enter `yourdomain.com` and verify ownership via the DNS TXT record shown
+3. This lets SES send match report emails from `noreply@yourdomain.com`
 
 ---
 
-## 🚀 Step 4: Full-Stack Cloud Deployment
+## Step 4: Deploy
 
-Because the frontend requires the **API Gateway Endpoints** to be built into its bundle, we use a unified deployment script that handles the entire pipeline locally.
-
-Execute the master deployment script and specify which environment to deploy (`dev` or `prod`). It will automatically run PostgreSQL database schema migrations, provision Terraform, extract the live endpoints automatically, inject them into `apps/frontend/.env`, build the frontend, and push to S3:
+Run the deploy script for your target environment:
 
 ```bash
-# Deploy the Development Environment
+# Deploy dev
 ./deploy_local_dev.sh
 
-# Deploy the Production Environment
+# Deploy prod
 ./deploy_local_prod.sh
 ```
 
-### 🗄️ Automated Database Migrations
+The script automatically:
 
-Both the local deployment scripts and the CI/CD pipeline are configured to run database migrations fully autonomously.
-When deployed, a master script (`infra/database/migrate.sh`) executes against the target schema (`dev` or `prod`) and ensures that all base tables (via `schema.sql`) and incremental column changes (`migrations/*.sql`) are applied properly, ensuring a safe recovery from wiped databases.
+1. Runs PostgreSQL database schema migrations
+2. Provisions all AWS infrastructure via Terraform
+3. Reads the live API Gateway and WebSocket URLs from Terraform output
+4. Injects them into `apps/frontend/.env`
+5. Builds the React app
+6. Uploads to S3 and invalidates CloudFront cache
+
+After a successful deploy you'll see:
+
+```
+✅ Local DEV Deployment Complete!
+```
+
+Your app is live at `https://cricscoredev.yourdomain.com` (or your configured domain).
 
 ---
 
-## 🧪 Step 5: Local Testing & Validation
+## Step 5: Local Development
 
-Once deployed, you can develop on the platform locally.
-
-### Frontend Development
-
-- **`npm run dev`**: Starts a hyper-fast local server pointing to the dev backend APIs.
-- **`npm run build`**: Translates TypeScript and builds the app.
-
-### Pre-Commit Validation
-
-To prevent failing the strict GitHub Actions pipelines, run the bundled validation script locally before pushing:
+After deploying at least once (so the backend exists), run the frontend locally:
 
 ```bash
-./infra/scripts/validate_local.sh
+cd apps/frontend
+npm run dev
+```
+
+This starts a local dev server that points to your deployed backend APIs.
+
+To run all unit and API tests:
+
+```bash
+npm run test:all
 ```
 
 ---
 
-## ⚙️ Step 6: CI/CD — GitHub Actions Workflows
+## Step 6: Automate with GitHub Actions (CI/CD)
 
-All future deployments are fully automated via GitHub Actions with distinct `dev` and `prod` targets.
+### 6a. Upload your secrets to GitHub
 
-### Setting Up GitHub Environments Automatically
+We provide a script that reads your `.env.local` and `.tfvars` files and uploads everything to GitHub automatically:
 
-We provide a powerful script that uses the GitHub CLI to automatically create your `dev` and `prod` environments, parse your local `.env.local` and `.tfvars` files, and automatically upload all required GitHub Secrets and Variables to your repository!
+```bash
+# Install GitHub CLI first
+brew install gh
+gh auth login
+
+# Upload all secrets and variables
+./infra/scripts/setup_github_envs.sh
+```
 
 > [!CAUTION]
-> **This is a ONE-TIME Bootstrap Tool.**
-> Do not run this script regularly as part of your day-to-day workflow. If you experiment with your local `.env.local` or `.tfvars` files and then run this script, it **will blindly overwrite** your real GitHub Secrets and Variables with your local testing data, potentially breaking your cloud pipelines. Once you have bootstrapped your repository, you should make any future credential updates manually via the GitHub UI (**Settings → Environments**).
+> Run this **once during setup only**. If you run it again after changing local test values, it will overwrite your real GitHub Secrets.
 
-1. Install and authenticate the GitHub CLI (`brew install gh` && `gh auth login`).
-2. Run the automated setup script:
-   ```bash
-   ./infra/scripts/setup_github_envs.sh
-   ```
+### 6b. How the pipeline works
 
-### Branch Protection & Deployment Rules
+| Event               | What Happens                                                                |
+| ------------------- | --------------------------------------------------------------------------- |
+| **Open/Update PR**  | Runs formatters, security scans, unit tests, and E2E tests. No deployment.  |
+| **Merge to `main`** | Deploys to `dev` first, then sequentially to `prod`.                        |
+| **Manual trigger**  | Go to GitHub Actions → workflow → `Run workflow` to target `dev` or `prod`. |
 
-To protect the integrity of environments, CricScore enforces the following deployment policies:
+---
 
-- **Pull Request (PR) Validation**: When a PR is opened or updated, the pipeline runs code formatters, security scanners, and test suites (including Playwright E2E tests). **No deployments are performed on PR branches** to prevent developers from concurrently overwriting and breaking the shared `dev` sandbox environment.
-- **Merge/Push to `main`**: Merging a PR into `main` automatically triggers a sequential deployment:
-  1. Installs, builds, formats, and validates the branch.
-  2. Automatically deploys the changes to the **`dev`** environment context first.
-  3. Sequentially triggers the deployment to the **`prod`** environment context.
-- **Manual Deployments**: Deploys can be manually triggered to target `dev` or `prod` using the `workflow_dispatch` option in the GitHub Actions UI.
+## Step 7: Sign In & Set Up Admin
 
-© 2026 CricScore Documentation. 🏎️🏁🚀
+1. Open your live app and click the **SCORER** tab
+2. Click **Create Account**, fill in your name and email, and create a password
+3. To make your account an Admin:
+   - Go to **AWS Console → Cognito → User Pools → your pool → Groups → Admin**
+   - Click **Add user** and add yourself
+4. Sign out and sign back in — you will now see the **Admin Panel** tab
+
+---
+
+## Troubleshooting
+
+See [troubleshooting.md](./troubleshooting.md) for solutions to common issues.
+
+For quick checks:
+
+- **App not loading**: CloudFront cache may be propagating — wait 5 minutes and hard-refresh
+- **Login not working**: Check that Cognito User Pool and Client IDs are correctly output by Terraform
+- **Emails not sending**: Verify your SES domain identity in the AWS console
+
+---
+
+© 2026 CricScore Documentation
