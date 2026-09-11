@@ -44,6 +44,10 @@ S3_BUCKET=$(cd infra/terraform && terraform output -raw s3_bucket_name)
 export VITE_APP_TITLE="CricScoreDev"
 export VITE_API_URL="https://${API_GATEWAY_ID}.execute-api.us-east-1.amazonaws.com"
 export VITE_WS_URL="wss://${WS_API_GATEWAY_ID}.execute-api.us-east-1.amazonaws.com/prod"
+export VITE_COGNITO_USER_POOL_ID=$(cd infra/terraform && terraform output -raw cognito_user_pool_id)
+export VITE_COGNITO_CLIENT_ID=$(cd infra/terraform && terraform output -raw cognito_client_id)
+export VITE_COGNITO_DOMAIN=$(cd infra/terraform && terraform output -raw cognito_domain)
+export VITE_COGNITO_REGION="us-east-1"
 export VITE_ADMIN_PIN="1234" # Or fetch from secrets
 
 echo "VITE_API_URL: $VITE_API_URL"

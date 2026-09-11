@@ -57,6 +57,16 @@ API tests explicitly validate the HTTP contract and REST endpoints of the backen
 
 - **REST API Validation**: We test the API Gateway proxy paths (e.g., `/health`, `GET /matches`, `POST /match`) to guarantee proper status codes (200, 201, 404, 500) and data structures.
   - _Location:_ `apps/backend/lambdas/match-api/index.test.js`
+- **Auth & Authorization Tests**: Per-endpoint authorization is validated:
+  - `DELETE /match/{id}` by the match owner → 200
+  - `DELETE /match/{id}` by an unauthorized user → 403
+  - `DELETE /match/{id}` by an Admin group member (not owner) → 200 (**admin override**)
+  - `POST /match` without a valid JWT email claim → 401
+  - `DELETE /matches` (bulk purge) by a non-admin → 403
+  - `GET /admin/users` by a non-admin → 403 with `"Admins only"` error message
+
+> [!NOTE]
+> See [auth.md](./auth.md) for the complete authentication and authorization model documentation.
 
 ### Running API Tests
 

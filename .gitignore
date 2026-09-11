@@ -31,7 +31,7 @@ crash.*.log
 # Ignore variables file containing secrets (terraform.tfvars MUST be ignored for security)
 terraform.tfvars
 *.auto.tfvars
-infra/terraform/*.zip
+**/*.zip
 apps/backend/**/node_modules/
 
 # Ignore terraform plan files

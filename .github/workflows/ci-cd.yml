@@ -182,7 +182,13 @@ jobs:
         working-directory: infra/terraform
         run: terraform apply -auto-approve tfplan
 
-      # --- FRONTEND DEPLOYMENT ---
+      - name: Export Terraform Outputs
+        working-directory: infra/terraform
+        run: |
+          echo "COGNITO_USER_POOL_ID=$(terraform output -raw cognito_user_pool_id)" >> $GITHUB_ENV
+          echo "COGNITO_CLIENT_ID=$(terraform output -raw cognito_client_id)" >> $GITHUB_ENV
+          echo "COGNITO_DOMAIN=$(terraform output -raw cognito_domain)" >> $GITHUB_ENV
+
       - name: Install Frontend dependencies
         working-directory: apps/frontend
         run: npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
@@ -194,6 +200,10 @@ jobs:
           VITE_API_URL: https://${{ env.API_GATEWAY_ID }}.execute-api.${{ env.AWS_REGION }}.amazonaws.com
           VITE_WS_URL: wss://${{ env.WS_API_GATEWAY_ID }}.execute-api.${{ env.AWS_REGION }}.amazonaws.com/prod
           VITE_ADMIN_PIN: ${{ secrets.VITE_ADMIN_PIN }}
+          VITE_COGNITO_USER_POOL_ID: ${{ env.COGNITO_USER_POOL_ID }}
+          VITE_COGNITO_CLIENT_ID: ${{ env.COGNITO_CLIENT_ID }}
+          VITE_COGNITO_DOMAIN: ${{ env.COGNITO_DOMAIN }}
+          VITE_COGNITO_REGION: ${{ env.AWS_REGION }}
         run: npm run build
       
       - name: Upload build to S3

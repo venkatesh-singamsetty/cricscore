@@ -23,8 +23,10 @@ resource "aws_lambda_function" "match_api" {
       DB_SCHEMA          = var.environment
       SES_SOURCE         = var.ses_source_email
       ADMIN_REPORT_EMAIL = var.admin_email
-      BROADCASTER_LAMBDA = aws_lambda_function.score_update.function_name
-      FRONTEND_URL       = "https://${var.domain_name}"
+      BROADCASTER_LAMBDA   = aws_lambda_function.score_update.function_name
+      FRONTEND_URL         = "https://${var.domain_name}"
+      BACKUP_BUCKET        = aws_s3_bucket.match_backups.bucket
+      COGNITO_USER_POOL_ID = aws_cognito_user_pool.pool.id
     }
   }
 
@@ -58,6 +60,9 @@ resource "aws_lambda_function" "score_update" {
     variables = {
       MATCH_EVENTS_TOPIC   = aws_sns_topic.match_events.arn
       STORAGE_BUFFER_QUEUE = aws_sqs_queue.storage_buffer.url
+      DATABASE_URL         = var.database_url
+      DB_SCHEMA            = var.environment
+      ADMIN_REPORT_EMAIL   = var.admin_email
     }
   }
 
@@ -249,11 +254,36 @@ resource "aws_lambda_function" "chat_api" {
 
   environment {
     variables = {
-      DATABASE_URL = var.database_url
-      DB_SCHEMA    = var.environment
-      LLM_API_KEY  = var.llm_api_key
-      LLM_BASE_URL = var.llm_base_url
+      DATABASE_URL         = var.database_url
+      DB_SCHEMA            = var.environment
+      LLM_API_KEY          = var.llm_api_key
+      LLM_BASE_URL         = var.llm_base_url
+      COGNITO_USER_POOL_ID = aws_cognito_user_pool.pool.id
     }
+  }
+
+  tags = {
+    Project = var.project_name
+  }
+}
+
+# --- Cognito PreSignUp Lambda ---
+data "archive_file" "cognito_presignup_zip" {
+  type        = "zip"
+  source_dir  = "${path.module}/../../apps/backend/lambdas/cognito-presignup"
+  output_path = "${path.module}/cognito_presignup.zip"
+}
+
+resource "aws_lambda_function" "cognito_presignup" {
+  filename         = data.archive_file.cognito_presignup_zip.output_path
+  function_name    = "${var.project_name}-cognito-presignup"
+  role             = aws_iam_role.lambda_role.arn
+  handler          = "index.handler"
+  runtime          = "nodejs24.x"
+  source_code_hash = data.archive_file.cognito_presignup_zip.output_base64sha256
+
+  tracing_config {
+    mode = "Active"
   }
 
   tags = {

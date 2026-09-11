@@ -3,7 +3,7 @@
 # SNS Topic: The Event Hub (Standard for Lambda)
 resource "aws_sns_topic" "match_events" {
   name              = "${var.project_name}-match-events"
-  kms_master_key_id = aws_kms_key.cric_key.arn
+  kms_master_key_id = "alias/aws/sns"
 }
 
 # SQS Queue: The Reliability Buffer (FIFO for strict DB ordering)
@@ -13,7 +13,7 @@ resource "aws_sqs_queue" "storage_buffer" {
   content_based_deduplication = true
   message_retention_seconds   = 86400 # 1 day
   receive_wait_time_seconds   = 20    # Long polling
-  kms_master_key_id           = aws_kms_key.cric_key.arn
+  sqs_managed_sse_enabled     = true
 }
 
 # SNS Sub 1: Broadcaster (Fast-Path)

@@ -1,5 +1,5 @@
 environment      = "prod"
-project_name     = "cricscore"
-domain_name      = "cricscore.venkateshsingamsetty.site"
-zone_domain      = "venkateshsingamsetty.site"
+project_name     = "myapp"
+domain_name      = "cricscore.yourdomain.com"
+zone_domain      = "yourdomain.com"
 subdomain_prefix = "cricscore"
