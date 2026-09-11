@@ -9,6 +9,7 @@ interface ScoreboardProps {
   onResetMatch?: () => void;
   isSpectator?: boolean;
   totalOvers?: number;
+  playerOfTheMatch?: string | null;
 }
 
 const Scoreboard: React.FC<ScoreboardProps> = ({
@@ -18,6 +19,7 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
   onResetMatch,
   isSpectator = false,
   totalOvers,
+  playerOfTheMatch,
 }) => {
   const [activeTab, setActiveTab] = useState<"current" | "previous">("current");
 
@@ -335,6 +337,20 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
         {/* Content */}
         {displayInnings ? (
           <div className="p-8 overflow-y-auto pb-20 scrollbar-hide space-y-12">
+            {playerOfTheMatch && (
+              <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 flex items-center gap-3">
+                <span className="text-2xl">🏆</span>
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-300">
+                    Player of the Match
+                  </div>
+                  <div className="text-sm font-black text-amber-100 uppercase tracking-tight italic">
+                    {playerOfTheMatch}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Batting Section */}
             <div>
               <div className="flex justify-between items-center mb-6">

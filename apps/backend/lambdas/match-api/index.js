@@ -13,6 +13,14 @@ const { LambdaClient, InvokeCommand } = require("@aws-sdk/client-lambda");
 
 const lambda = new LambdaClient({});
 
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
 const broadcastHubUpdate = async (matchId = "global") => {
   if (!process.env.BROADCASTER_LAMBDA) return;
   try {
@@ -202,15 +210,25 @@ const sendMatchReportEmail = async (
     `📧 Preparing SES Email for ${matchId} to ${emailTo}. Result: ${resultText}`,
   );
 
+  const safeTeamA = escapeHtml(matchRecord.team_a_name || "Team A");
+  const safeTeamB = escapeHtml(matchRecord.team_b_name || "Team B");
+  const safeResultText = escapeHtml(resultText);
+  const safeCreatedAt = escapeHtml(
+    new Date(matchRecord.created_at).toLocaleString(),
+  );
+  const safeViewUrl = escapeHtml(
+    `${origin || process.env.FRONTEND_URL || "https://cricscore.example.com"}?matchId=${matchId}`,
+  );
+
   let htmlBody = `
     <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #0f172a; color: white; padding: 40px; border-radius: 20px;">
         <h1 style="color: #6366f1; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 5px;">🏆 CRICSCORE OFFICIAL REPORT</h1>
-        <p style="color: #94a3b8; font-weight: bold; margin-top: 0;">${matchRecord.team_a_name} vs ${matchRecord.team_b_name}</p>
+        <p style="color: #94a3b8; font-weight: bold; margin-top: 0;">${safeTeamA} vs ${safeTeamB}</p>
         
         <div style="background: #1e293b; padding: 20px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.05); margin: 20px 0;">
-            <h2 style="margin: 0; color: #fb7185; text-transform: uppercase; font-style: italic;">${resultText}</h2>
-            <p style="font-size: 14px; color: #94a3b8;">${new Date(matchRecord.created_at).toLocaleString()}</p>
-            <a href="${origin || process.env.FRONTEND_URL || "https://cricscore.example.com"}?matchId=${matchId}" style="display: inline-block; padding: 12px 24px; background: #4f46e5; color: white; text-decoration: none; border-radius: 10px; font-weight: bold; margin-top: 10px;">VIEW INTERACTIVE SCORECARD ⚡</a>
+            <h2 style="margin: 0; color: #fb7185; text-transform: uppercase; font-style: italic;">${safeResultText}</h2>
+            <p style="font-size: 14px; color: #94a3b8;">${safeCreatedAt}</p>
+            <a href="${safeViewUrl}" style="display: inline-block; padding: 12px 24px; background: #4f46e5; color: white; text-decoration: none; border-radius: 10px; font-weight: bold; margin-top: 10px;">VIEW INTERACTIVE SCORECARD ⚡</a>
         </div>`;
 
   for (const inn of innArr) {
@@ -225,19 +243,25 @@ const sendMatchReportEmail = async (
     const ov = inn.overs !== undefined ? inn.overs : 0;
     const balls = inn.balls !== undefined ? inn.balls : 0;
 
-    let players = inn.players || [];
-    let bowlers = inn.bowlers || [];
+    const safeBattingTeam = escapeHtml(battingTeam);
+    const safeRuns = escapeHtml(runs);
+    const safeWickets = escapeHtml(wickets);
+    const safeOvers = escapeHtml(`${ov}.${balls}`);
 
-    if (!inn.players || !inn.bowlers) {
+    let players = Array.isArray(inn.players) ? inn.players : [];
+    let bowlers = Array.isArray(inn.bowlers) ? inn.bowlers : [];
+
+    if (players.length === 0) {
       const pR = await client.query(
         "SELECT * FROM players WHERE inning_id = $1 ORDER BY batting_position ASC NULLS LAST, runs DESC",
         [inn.id],
       );
+      players = pR.rows;
+
       const bR = await client.query(
         "SELECT * FROM bowlers WHERE inning_id = $1 ORDER BY wickets DESC",
         [inn.id],
       );
-      players = pR.rows;
       bowlers = bR.rows;
     } else {
       if (!Array.isArray(players)) players = Object.values(players);
@@ -268,7 +292,7 @@ const sendMatchReportEmail = async (
 
     htmlBody += `
         <div style="margin-top: 40px;">
-            <h3 style="background: #334155; padding: 10px 20px; border-radius: 8px; color: #e2e8f0; margin-bottom: 10px;">🏏 ${battingTeam} - ${runs}/${wickets} (${ov}.${balls})</h3>
+            <h3 style="background: #334155; padding: 10px 20px; border-radius: 8px; color: #e2e8f0; margin-bottom: 10px;">🏏 ${safeBattingTeam} - ${safeRuns}/${safeWickets} (${safeOvers})</h3>
         <table style="width: 100%; border-collapse: collapse; text-align: left; background: rgba(255,255,255,0.02); border-radius: 10px; overflow: hidden;">
             <thead>
                 <tr style="background: rgba(255,255,255,0.05); color: #94a3b8; font-size: 12px; text-transform: uppercase;">
@@ -301,13 +325,19 @@ const sendMatchReportEmail = async (
           else dismissalText = "out";
         }
 
+        const safePName = escapeHtml(p.name || "Unknown Player");
+        const safeDismissalText = escapeHtml(dismissalText);
+        const safeRunsDisplay = escapeHtml(r);
+        const safeBallsDisplay = escapeHtml(b);
+        const safeFourSixDisplay = escapeHtml(`${f}/${s}`);
+
         htmlBody += `
                 <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
-                    <td style="padding: 12px; font-weight: bold;">${p.name} ${p.is_out || p.isOut ? "" : "*"}</td>
-                    <td style="padding: 12px; color: #94a3b8; font-size: 12px; font-style: italic;">${dismissalText}</td>
-                    <td style="padding: 12px; font-weight: bold;">${r}</td>
-                    <td style="padding: 12px; color: #64748b;">${b}</td>
-                    <td style="padding: 12px; color: #64748b;">${f}/${s}</td>
+                    <td style="padding: 12px; font-weight: bold;">${safePName} ${p.is_out || p.isOut ? "" : "*"}</td>
+                    <td style="padding: 12px; color: #94a3b8; font-size: 12px; font-style: italic;">${safeDismissalText}</td>
+                    <td style="padding: 12px; font-weight: bold;">${safeRunsDisplay}</td>
+                    <td style="padding: 12px; color: #64748b;">${safeBallsDisplay}</td>
+                    <td style="padding: 12px; color: #64748b;">${safeFourSixDisplay}</td>
                 </tr>`;
       });
 
@@ -369,14 +399,17 @@ const sendMatchReportEmail = async (
   }
 
   if (matchRecord.ai_summary) {
+    const safeAiSummary = escapeHtml(matchRecord.ai_summary);
+    const safePomName = escapeHtml(matchRecord.player_of_the_match || "");
+
     htmlBody += `
         <div style="margin-top: 30px; background: #1e293b; padding: 25px; border-radius: 15px; border: 1px solid rgba(99,102,241,0.2);">
             <h3 style="color: #818cf8; text-transform: uppercase; letter-spacing: 1px; margin-top: 0; display: flex; align-items: center; gap: 8px;">
                 🤖 AI MATCH SUMMARY & PLAYER OF THE MATCH
             </h3>
-            ${matchRecord.player_of_the_match ? `<div style="margin-bottom: 15px; font-weight: bold; color: #f59e0b; background: rgba(245, 158, 11, 0.1); padding: 10px; border-radius: 8px;">🏆 Player of the Match: ${matchRecord.player_of_the_match}</div>` : ""}
+            ${matchRecord.player_of_the_match ? `<div style="margin-bottom: 15px; font-weight: bold; color: #f59e0b; background: rgba(245, 158, 11, 0.1); padding: 10px; border-radius: 8px;">🏆 Player of the Match: ${safePomName}</div>` : ""}
             <div style="color: #cbd5e1; line-height: 1.6; font-size: 15px; white-space: pre-wrap;">
-                ${matchRecord.ai_summary}
+                ${safeAiSummary}
             </div>
         </div>`;
   }
