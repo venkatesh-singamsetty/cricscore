@@ -7,7 +7,7 @@ const { OpenAI } = require("openai");
  */
 const openai = new OpenAI({
   apiKey: process.env.LLM_API_KEY,
-  baseURL: process.env.LLM_BASE_URL || "https://api.openai.com/v1",
+  baseURL: process.env.LLM_BASE_URL || "https://openrouter.ai/api/v1",
 });
 
 /**

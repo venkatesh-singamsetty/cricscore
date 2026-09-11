@@ -146,7 +146,12 @@ const MatchView: React.FC<MatchViewProps> = ({
   const getLiveKey = () => `cric-live-match-${matchId}`;
 
   const loadSavedLiveState = () => {
-    const savedLive = localStorage.getItem(getLiveKey());
+    let savedLive = null;
+    try {
+      savedLive = window.localStorage.getItem(getLiveKey());
+    } catch {
+      return null;
+    }
     if (savedLive) {
       try {
         const data = JSON.parse(savedLive);
@@ -209,7 +214,12 @@ const MatchView: React.FC<MatchViewProps> = ({
       history,
       lastCommentary,
     };
-    localStorage.setItem(getLiveKey(), JSON.stringify(liveState));
+    const storage = window.localStorage;
+    try {
+      storage.setItem(getLiveKey(), JSON.stringify(liveState));
+    } catch {
+      // Ignore browser storage failures so live match state does not blank the scorer screen.
+    }
     if (onStateChange) onStateChange(innings);
   }, [innings, history, lastCommentary, matchId]);
 

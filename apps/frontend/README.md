@@ -29,7 +29,7 @@ VITE_API_URL=https://<api-gateway-id>.execute-api.<region>.amazonaws.com
 VITE_WS_URL=wss://<ws-gateway-id>.execute-api.<region>.amazonaws.com/prod
 ```
 
-> These are auto-injected during deployment by `deploy_local_dev.sh` and the CI/CD pipeline.
+> These are auto-injected during deployment by `./infra/scripts/deploy.sh --env <dev|prod>` and the CI/CD pipeline.
 
 ## Key Commands
 

@@ -65,6 +65,15 @@ async function chatHandler(body, corsHeaders) {
   }
 
   // Step 2: Build system prompt with tool routing instructions
+  const adminOnlyInstructions = isAdmin
+    ? `
+6. DELETE MATCHES (ADMIN): If the user asks to delete matches, you MUST first call 'execute_sql' to fetch the matching records, show them to the user, and explicitly ask for confirmation. ONLY call 'delete_match' AFTER the user says "yes" or confirms the deletion.
+7. DELETE GUEST DATA (ADMIN): If the user asks to delete, clear, or prune guest users, guest matches, or guest details → ALWAYS call 'delete_guest_data'. Do NOT ask for confirmation first, just execute the tool.
+`
+    : `
+6. ADMIN-ONLY ACTIONS: Do not discuss, suggest, or perform guest cleanup, match deletion, or any other admin-only action unless the caller is explicitly an admin. If a non-admin asks for these actions, politely refuse and explain that admin privileges are required.
+`;
+
   const systemPrompt = `You are CricScore AI, an expert cricket analyst for this specific tournament.
 
 ## TOOL ROUTING RULES (MANDATORY):
@@ -72,10 +81,8 @@ async function chatHandler(body, corsHeaders) {
 2. RULEBOOK QUERIES: If the user asks ANYTHING about rules, regulations, formats, timings, breaks, eligibility, penalties, tiebreakers, LBW, weather, DLS, or any tournament policy → ALWAYS call 'search_tournament_rules' FIRST before answering. Do NOT answer from general cricket knowledge. The rulebook has the tournament-specific rules that override general cricket knowledge.
 3. NEVER answer a rulebook-type question from memory. Always search first, then answer based on the retrieved chunks. YOU MUST explicitly cite the [Source: document_name] provided in the search results so the user knows which rulebook the answer comes from.
 4. SCALED RULES: If the active match is shorter than a full tournament match, you MUST automatically scale rules like Powerplay proportionally based on the Active Match's Total Overs (e.g., if the rulebook specifies 8 powerplay overs for a 25-over match, a 10-over match has a 3-over powerplay).
-5. OFF-TOPIC: Refuse anything unrelated to cricket. NOTE: Deleting matches and sending emails ARE valid cricket administrative tasks. Do NOT refuse them as off-topic.
-6. DELETE MATCHES (ADMIN): If the user asks to delete matches, you MUST first call 'execute_sql' to fetch the matching records, show them to the user, and explicitly ask for confirmation. ONLY call 'delete_match' AFTER the user says "yes" or confirms the deletion.
-7. DELETE GUEST DATA (ADMIN): If the user asks to delete, clear, or prune guest users, guest matches, or guest details → ALWAYS call 'delete_guest_data'. Do NOT ask for confirmation first, just execute the tool.
-## Database Schema:
+5. OFF-TOPIC: Refuse anything unrelated to cricket. Do not treat guest cleanup, match deletion, or other admin-only actions as normal cricket questions for non-admin users.
+${adminOnlyInstructions}## Database Schema:
 ${DB_SCHEMA}
 
 ## Database Hints:

@@ -8,6 +8,7 @@ import {
   FileText,
   ChevronDown,
 } from "lucide-react";
+import { safeSessionStorageSet } from "../utils/storageSafety";
 
 interface Message {
   role: "system" | "user" | "assistant";
@@ -115,7 +116,7 @@ export function ChatComponent({
       const pin = inputText.split(" ")[1];
       const ADMIN_PIN = import.meta.env.VITE_ADMIN_PIN || "2403";
       if (pin === ADMIN_PIN) {
-        sessionStorage.setItem("auth_admin", "true");
+        safeSessionStorageSet("auth_admin", "true");
         window.location.reload();
       } else {
         setMessages((prev) => [

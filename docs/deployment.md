@@ -190,14 +190,14 @@ After the bootstrap runs, AWS gives you 4 nameservers:
 
 ## Step 4: Deploy
 
-Run the deploy script for your target environment:
+Run the canonical deploy script for your target environment:
 
 ```bash
 # Deploy dev
-./deploy_local_dev.sh
+./infra/scripts/deploy.sh --env dev
 
 # Deploy prod
-./deploy_local_prod.sh
+./infra/scripts/deploy.sh --env prod
 ```
 
 The script automatically:
