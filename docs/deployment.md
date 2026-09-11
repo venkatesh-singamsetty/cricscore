@@ -1,5 +1,7 @@
 # 🚀 Deployment Guide
 
+This is the full deployment reference for CricScore. For the quick fresh-clone checklist, see [deployment_checklist.md](./deployment_checklist.md).
+
 This guide walks you through deploying your own CricScore instance from scratch — from registering a domain to having a live, fully-featured cricket scoring platform running in the cloud.
 
 ---
