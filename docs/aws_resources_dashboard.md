@@ -11,9 +11,9 @@ This document provides quick-access UI links to view the live AWS resources, tel
 
 ### Application Endpoints
 
-- **Frontend App**: [https://cricscoredev.venkateshsingamsetty.site](https://cricscoredev.venkateshsingamsetty.site)
-- **HTTP API Gateway**: `https://sx6hhs0yj6.execute-api.us-east-1.amazonaws.com`
-- **WebSocket API**: `wss://ql2tnw8ls6.execute-api.us-east-1.amazonaws.com/prod`
+- **Frontend App**: [https://<YOUR_DEV_DOMAIN>](https://<YOUR_DEV_DOMAIN>)
+- **HTTP API Gateway**: `https://<YOUR_DEV_API_ID>.execute-api.us-east-1.amazonaws.com`
+- **WebSocket API**: `wss://<YOUR_DEV_WS_ID>.execute-api.us-east-1.amazonaws.com/prod`
 
 ### Serverless Compute (AWS Lambda)
 
@@ -43,9 +43,9 @@ This document provides quick-access UI links to view the live AWS resources, tel
 
 ### Application Endpoints
 
-- **Frontend App**: [https://cricscore.venkateshsingamsetty.site](https://cricscore.venkateshsingamsetty.site)
-- **HTTP API Gateway**: `https://ispht71fh0.execute-api.us-east-1.amazonaws.com`
-- **WebSocket API**: `wss://to0pkago8j.execute-api.us-east-1.amazonaws.com/prod`
+- **Frontend App**: [https://<YOUR_PROD_DOMAIN>](https://<YOUR_PROD_DOMAIN>)
+- **HTTP API Gateway**: `https://<YOUR_PROD_API_ID>.execute-api.us-east-1.amazonaws.com`
+- **WebSocket API**: `wss://<YOUR_PROD_WS_ID>.execute-api.us-east-1.amazonaws.com/prod`
 
 ### Serverless Compute (AWS Lambda)
 
@@ -83,12 +83,13 @@ AWS X-Ray visualizes the request path between API Gateway, Lambda, and SNS, help
 
 ## 🌐 Networking & Infrastructure
 
+- [**Cognito User Pools (SSO)**](https://us-east-1.console.aws.amazon.com/cognito/v2/idp/user-pools?region=us-east-1): Manage users, admins, and guest accounts.
 - [**API Gateways (REST & WebSocket)**](https://us-east-1.console.aws.amazon.com/apigateway/main/apis?region=us-east-1): Manage custom domains and throttling.
 - [**SNS Topics (Pub/Sub)**](https://us-east-1.console.aws.amazon.com/sns/v3/home?region=us-east-1#/topics): View the event buses that decouple your microservices.
 - [**SQS Queues (DLQ)**](https://us-east-1.console.aws.amazon.com/sqs/v3/home?region=us-east-1#/queues): View the Dead-Letter Queues capturing failed events.
 - [**DynamoDB Tables**](https://us-east-1.console.aws.amazon.com/dynamodbv2/home?region=us-east-1#tables): View NoSQL state and live caching data.
 - [**Aiven PostgreSQL Console**](https://console.aiven.io/): Access the managed relational database.
-- [**S3 Buckets**](https://s3.console.aws.amazon.com/s3/buckets?region=us-east-1): Frontend static hosting assets.
+- [**S3 Buckets**](https://s3.console.aws.amazon.com/s3/buckets?region=us-east-1): Frontend static hosting assets and match backup data.
 - [**CloudFront Distributions**](https://us-east-1.console.aws.amazon.com/cloudfront/v4/home?region=us-east-1#/distributions): Global CDN caching configurations.
 
 ---
