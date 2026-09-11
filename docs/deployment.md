@@ -18,7 +18,7 @@ You need three things before touching any code.
 
 ### 1. A Domain Name
 
-Buy a domain from [Namecheap](https://namecheap.com) or [GoDaddy](https://godaddy.com). A `.site` or `.me` domain is cheapest (~$2/year). You do **not** need hosting — just the domain.
+Buy a domain from [GoDaddy](https://godaddy.com) or [Namecheap](https://namecheap.com)
 
 ### 2. An AWS Account
 
