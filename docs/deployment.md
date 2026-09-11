@@ -2,9 +2,6 @@
 
 This guide walks you through deploying your own CricScore instance from scratch — from registering a domain to having a live, fully-featured cricket scoring platform running in the cloud.
 
-> [!NOTE]
-> You do **not** need any prior cloud experience. Every step is explained. Estimated total setup time: **1-2 hours**.
-
 ---
 
 ## What You'll Build
