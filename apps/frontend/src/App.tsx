@@ -21,6 +21,7 @@ import {
 } from "aws-amplify/auth";
 import { Hub } from "aws-amplify/utils";
 import { ChatComponent } from "./components/ChatComponent";
+import { hasCognitoAuthConfig } from "./authConfig";
 
 // Key helper for saving match state by email
 const getMatchStateKey = (email: string) =>
@@ -225,6 +226,9 @@ const App: React.FC = () => {
 
   const [isGuestScorer, setIsGuestScorer] = useState(false);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
+
+  const canUseAuth = hasCognitoAuthConfig();
+  const shouldBypassAuth = !canUseAuth;
 
   const SignInFooter = () => {
     const { toForgotPassword } = useAuthenticator();
@@ -1235,8 +1239,34 @@ const App: React.FC = () => {
         )}
 
         {view === "SCORER" &&
-          (isGuestScorer || userToken ? (
+          (shouldBypassAuth || isGuestScorer || userToken ? (
             <div className="h-full w-full flex flex-col">
+              {shouldBypassAuth && !isGuestScorer && (
+                <div className="h-full w-full flex items-center justify-center bg-slate-950 p-4">
+                  <div className="w-full max-w-lg rounded-[2rem] border border-indigo-500/20 bg-slate-900/80 p-8 text-center shadow-2xl">
+                    <div className="text-xs font-black uppercase tracking-[0.4em] text-indigo-400 mb-4">
+                      Demo Mode
+                    </div>
+                    <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tighter italic text-white mb-3">
+                      Match <span className="text-indigo-500">Configuration</span>
+                    </h1>
+                    <p className="text-sm text-slate-300 leading-relaxed mb-6">
+                      Authentication is not configured in this environment, so guest scoring is available without sign-in.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsGuestScorer(true);
+                        setMatchStatus(MatchStatus.SETUP);
+                        setView("SCORER");
+                      }}
+                      className="w-full rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 font-black uppercase tracking-[0.25em] text-white shadow-lg shadow-indigo-600/30 transition-all hover:scale-[1.01] active:scale-[0.99]"
+                    >
+                      🎮 Continue as Guest
+                    </button>
+                  </div>
+                </div>
+              )}
               {isGuestScorer && (
                 <div className="bg-slate-900/90 border-b border-indigo-500/20 px-4 py-2 flex justify-between items-center text-xs font-bold text-indigo-300 shrink-0">
                   <span>🎮 GUEST SCORER MODE</span>
@@ -1253,7 +1283,7 @@ const App: React.FC = () => {
                   </button>
                 </div>
               )}
-              {matchStatus === MatchStatus.SETUP && (
+              {isGuestScorer && matchStatus === MatchStatus.SETUP && (
                 <MatchSetup
                   onStartMatch={startMatch}
                   onResumeMatch={resumeMatch}
