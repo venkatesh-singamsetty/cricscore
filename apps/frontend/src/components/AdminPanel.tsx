@@ -26,6 +26,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [pendingDeleteUser, setPendingDeleteUser] = useState<User | null>(null);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -96,13 +97,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const handleDeleteUser = async (userToDelete: User) => {
-    if (
-      !window.confirm(
-        `Are you sure you want to permanently delete user "${userToDelete.email}" from Cognito?`,
-      )
-    ) {
-      return;
-    }
+    setPendingDeleteUser(null);
     setActionLoading(`${userToDelete.username}-delete`);
     setMessage("");
     try {
@@ -358,7 +353,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         {user.email !== "venky.2k57@gmail.com" &&
                           user.email !== import.meta.env.VITE_DEFAULT_EMAIL && (
                             <button
-                              onClick={() => handleDeleteUser(user)}
+                              onClick={() => setPendingDeleteUser(user)}
                               disabled={!!actionLoading}
                               title="Delete User from Cognito"
                               className="px-3 py-1.5 bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white border border-red-500/30 rounded text-xs font-bold transition-colors disabled:opacity-50"
@@ -384,6 +379,47 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {pendingDeleteUser && (
+        <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[300] p-4 backdrop-blur-md">
+          <div className="bg-slate-900 border border-indigo-500/30 rounded-3xl w-full max-w-sm shadow-2xl shadow-indigo-500/20 overflow-hidden p-6 text-center text-slate-100 animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-rose-500/15 rounded-full flex items-center justify-center mx-auto mb-4 border border-rose-400/30">
+              <span className="text-3xl">🚨</span>
+            </div>
+            <h3 className="text-xl font-black uppercase tracking-widest text-white mb-2 italic">
+              Delete User?
+            </h3>
+            <p className="text-slate-400 text-sm font-medium mb-8 leading-relaxed">
+              Permanently remove{" "}
+              <span className="text-indigo-300 font-bold">
+                {pendingDeleteUser.email}
+              </span>{" "}
+              from Cognito.
+              <br />
+              <br />
+              <strong className="text-indigo-300 uppercase tracking-wider text-xs block">
+                Continue?
+              </strong>
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setPendingDeleteUser(null)}
+                className="flex-1 py-4 bg-slate-800 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] text-slate-300 hover:text-white hover:bg-slate-700 transition-all border border-slate-700/50 active:scale-95"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeleteUser(pendingDeleteUser)}
+                className="flex-1 py-4 bg-gradient-to-r from-rose-500 to-red-600 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] text-white hover:from-red-500 hover:to-rose-500 transition-all shadow-lg shadow-rose-600/20 active:scale-95"
+              >
+                Delete User
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -196,11 +196,6 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
         }));
 
         setMatchDetails({ innings: mappedInnings });
-
-        // Auto-open scorecard for COMPLETED matches on first load
-        if (!isBackground && data.match.status === "COMPLETED") {
-          setShowFullScorecard(true);
-        }
       } catch (err) {
         console.error("Failed to fetch match details:", err);
       } finally {
@@ -356,6 +351,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
               }}
               isSpectator={true}
               totalOvers={matchMeta?.totalOvers}
+              playerOfTheMatch={matchMeta?.playerOfTheMatch}
             />
           )}
 

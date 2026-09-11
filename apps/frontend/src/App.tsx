@@ -280,7 +280,6 @@ const App: React.FC = () => {
           currentEmail?.endsWith("@cricscore.local")
         ),
       );
-      setView("VIEWER");
       setHubKey((k) => k + 1); // Force LiveScoreboard to refresh
     }
     prevEmailRef.current = currentEmail;

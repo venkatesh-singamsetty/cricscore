@@ -1,6 +1,12 @@
 const { openai, LLM_MODEL } = require("../config/llm");
 const { pool, setSearchPath } = require("../config/db");
 
+const stripPomSentenceFromSummary = (text = "") =>
+  String(text)
+    .replace(/\s*Player of the Match\s*[:\-]?[^\n.]+(?:\.\s|\n|$)/gi, "")
+    .replace(/\s*POM\s*[:\-]?[^\n.]+(?:\.\s|\n|$)/gi, "")
+    .trim();
+
 /**
  * Generates an AI-powered post-match summary using match statistics
  * fetched directly from the database.
@@ -155,7 +161,8 @@ ${topBowlersText}`;
         resultJSON = { summary: rawContent.trim(), playerOfTheMatch: null };
       }
 
-      const summary = resultJSON.summary || rawContent.trim();
+      const rawSummary = resultJSON.summary || rawContent.trim();
+      const summary = stripPomSentenceFromSummary(rawSummary);
       const playerOfTheMatch = resultJSON.playerOfTheMatch || null;
 
       return {
@@ -321,7 +328,8 @@ ${bowlersRes.rows.length > 0 ? bowlersRes.rows.map((b) => `- ${b.name} (${b.bowl
       resultJSON = { summary: rawContent.trim(), playerOfTheMatch: null };
     }
 
-    summary = resultJSON.summary || rawContent.trim();
+    const rawSummary = resultJSON.summary || rawContent.trim();
+    summary = stripPomSentenceFromSummary(rawSummary);
     playerOfTheMatch = resultJSON.playerOfTheMatch || null;
 
     // Cache the summary in the database for future requests

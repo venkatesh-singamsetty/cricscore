@@ -540,7 +540,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                   onClick={() => setTossDecision("BOWL")}
                   className={`py-3.5 rounded-xl font-black text-sm uppercase transition-all border active:scale-95 flex items-center justify-center gap-2 ${tossDecision === "BOWL" ? "bg-amber-600 text-white border-amber-400 shadow-lg" : "bg-slate-800 text-slate-400 border-white/5"}`}
                 >
-                  <span className="text-2xl">🟢</span>
+                  <span className="text-2xl">🎾</span>
                   <span>BOWL</span>
                 </button>
               </div>
@@ -737,7 +737,8 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                       onClick={() => setTossDecision("BOWL")}
                       className={`flex-1 py-2 px-3 rounded-lg font-black text-[10px] uppercase tracking-tighter transition-all border flex items-center justify-center gap-1.5 ${tossDecision === "BOWL" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/30 border-indigo-400" : "text-slate-500 border-transparent hover:text-slate-300"}`}
                     >
-                      <span className="text-base">🎾</span>BOWL
+                      <span className="text-base text-emerald-300">🎾</span>
+                      <span className="text-emerald-300">BOWL</span>
                     </button>
                   </div>
                 </div>
@@ -778,8 +779,8 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
       {/* Delete Confirm Modal */}
       {deleteConfirmId && (
         <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[300] p-4 backdrop-blur-md">
-          <div className="bg-slate-900 border border-slate-700/50 rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden p-6 text-center text-slate-100 animate-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20">
+          <div className="bg-slate-900 border border-indigo-500/30 rounded-3xl w-full max-w-sm shadow-2xl shadow-indigo-500/20 overflow-hidden p-6 text-center text-slate-100 animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-rose-500/15 rounded-full flex items-center justify-center mx-auto mb-4 border border-rose-400/30">
               <span className="text-3xl">🚨</span>
             </div>
             <h3 className="text-xl font-black uppercase tracking-widest text-white mb-2 italic">
@@ -789,7 +790,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
               This record will be permanently removed.
               <br />
               <br />
-              <strong className="text-white uppercase tracking-wider text-xs block">
+              <strong className="text-indigo-300 uppercase tracking-wider text-xs block">
                 Do you want to continue?
               </strong>
             </p>
@@ -823,7 +824,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                     fetchRecentMatches();
                   }
                 }}
-                className="flex-1 py-4 bg-red-600 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] text-white hover:bg-red-500 transition-all shadow-lg shadow-red-600/20 active:scale-95"
+                className="flex-1 py-4 bg-gradient-to-r from-rose-500 to-red-600 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] text-white hover:from-red-500 hover:to-rose-500 transition-all shadow-lg shadow-rose-600/20 active:scale-95"
               >
                 Delete Match
               </button>
