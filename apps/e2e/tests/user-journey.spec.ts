@@ -51,7 +51,7 @@ test.describe("User Journey - Full Match Scoring", () => {
 
     // Click "Start Fresh Match"
     const startButton = page.getByRole("button", {
-      name: /Start Fresh Match/i,
+      name: /Start Match/i,
     });
     await expect(startButton).toBeEnabled();
     await startButton.click();
