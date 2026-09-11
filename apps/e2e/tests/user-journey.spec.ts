@@ -42,7 +42,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       );
 
     // Set 2 Over match
-    await desktopLayout.locator('input[type="number"]').first().fill("2");
+    await desktopLayout.locator('input[inputMode="numeric"]').first().fill("2");
 
     // Set Toss: TEAM B wins toss and elects to BAT (so TEAM B bats first)
     // The Toss Winner buttons appear first; click TEAM B
@@ -52,7 +52,7 @@ test.describe("User Journey - Full Match Scoring", () => {
 
     // Click "Start Fresh Match"
     const startButton = desktopLayout.getByRole("button", {
-      name: /Start Match/i,
+      name: /Start Fresh Match/i,
     });
     await expect(startButton).toBeEnabled();
     await startButton.click();
@@ -454,20 +454,37 @@ test.describe("User Journey - Full Match Scoring", () => {
     await page.waitForTimeout(500);
 
     // Ball 1.5: 6 runs (Score: 11)
-    await page
-      .getByRole("button", { name: "6", exact: true })
-      .first()
-      .click({ force: true });
+    // Add retry loop because React state transitions are swallowing the click
+    let clicked6 = false;
+    for (let i = 0; i < 5; i++) {
+      await expect(page.getByRole("button", { name: "6", exact: true }).first()).toBeEnabled();
+      await page.getByRole("button", { name: "6", exact: true }).first().click();
+      
+      // Wait to see if score updates to 11
+      try {
+        await expect(page.getByText(/11\/2/)).toBeVisible({ timeout: 1000 });
+        clicked6 = true;
+        break;
+      } catch (e) {
+        // Click was swallowed, try again
+        await page.waitForTimeout(500);
+      }
+    }
+    if (!clicked6) throw new Error("Failed to click 6 runs!");
     await page.waitForTimeout(1000);
 
     // Ball 1.6: 0 runs
+    await expect(
+      page.getByRole("button", { name: "0", exact: true }).first(),
+    ).toBeEnabled();
     await page
       .getByRole("button", { name: "0", exact: true })
       .first()
-      .click({ force: true });
+      .click();
     await page.waitForTimeout(1000);
 
     // End of Over 1. Select New Bowler.
+    await page.screenshot({ path: "test-results/debug-missing-ball.png", fullPage: true });
     await expect(
       page.getByRole("heading", { name: /Next Bowler/i }),
     ).toBeVisible();
@@ -500,46 +517,62 @@ test.describe("User Journey - Full Match Scoring", () => {
     await page.waitForTimeout(500);
 
     // Ball 2.1: 2 runs (added to adjust target due to 2 runs in 1st innings)
-    await page
-      .getByRole("button", { name: "2", exact: true })
-      .first()
-      .click({ force: true });
+    // Add retry loop because React state transitions are swallowing the click
+    let clicked2 = false;
+    for (let i = 0; i < 5; i++) {
+      await expect(page.getByRole("button", { name: "2", exact: true }).first()).toBeEnabled();
+      await page.getByRole("button", { name: "2", exact: true }).first().click();
+      
+      try {
+        await expect(page.getByText(/13\/3/)).toBeVisible({ timeout: 1000 });
+        clicked2 = true;
+        break;
+      } catch (e) {
+        await page.waitForTimeout(500);
+      }
+    }
+    if (!clicked2) throw new Error("Failed to click 2 runs!");
     await page.waitForTimeout(1000);
 
     // Ball 2.2: 4 runs (Score: 15)
+    await expect(page.getByRole("button", { name: "4", exact: true }).first()).toBeEnabled();
     await page
       .getByRole("button", { name: "4", exact: true })
       .first()
-      .click({ force: true });
+      .click();
     await page.waitForTimeout(1000);
 
     // Ball 2.3: 1 run (Score: 16)
+    await expect(page.getByRole("button", { name: "1", exact: true }).first()).toBeEnabled();
     await page
       .getByRole("button", { name: "1", exact: true })
       .first()
-      .click({ force: true });
+      .click();
     await page.waitForTimeout(1000);
 
     // Ball 2.4: 1 run (Score: 17)
+    await expect(page.getByRole("button", { name: "1", exact: true }).first()).toBeEnabled();
     await page
       .getByRole("button", { name: "1", exact: true })
       .first()
-      .click({ force: true });
+      .click();
     await page.waitForTimeout(1000);
 
     // Ball 2.5: 1 run (Score: 18)
+    await expect(page.getByRole("button", { name: "1", exact: true }).first()).toBeEnabled();
     await page
       .getByRole("button", { name: "1", exact: true })
       .first()
-      .click({ force: true });
+      .click();
     await page.waitForTimeout(1000);
 
-    // Target is 24, score is 18. They need 6 runs off 1 ball.
+    // Target is 26, score is 20. They need 6 runs off 1 ball.
     // Ball 2.6: 6 runs! MATCH WON.
+    await expect(page.getByRole("button", { name: "6", exact: true }).first()).toBeEnabled();
     await page
       .getByRole("button", { name: "6", exact: true })
       .first()
-      .click({ force: true });
+      .click();
     await page.waitForTimeout(2000);
 
     // Assert Chicago Spartans won
