@@ -1,3 +1,101 @@
+# [4.0.0] - 2026-09-11
+
+## ✨ Features
+
+### 🔐 Cognito SSO Authentication (Breaking Change — replaces PIN-based admin)
+
+- **AWS Cognito User Pool**: Full Cognito-backed authentication for all roles. Replaces `VITE_ADMIN_PIN` system with proper JWT-based identity.
+- **Amplify Authenticator UI**: Sign-up/sign-in via `@aws-amplify/ui-react` `<Authenticator>` component with custom `First Name`/`Last Name` fields and field labels.
+- **JWT Authorization on all APIs**: API Gateway now uses a Cognito JWT Authorizer. All mutating endpoints (`POST /match`, `DELETE /match/{id}`, `PATCH /match/{id}`, `POST /match/{id}/email`, `POST /innings`) validate the caller's JWT and enforce per-resource ownership.
+- **Admin Cognito Group**: The `Admin` Cognito group grants elevated privileges — delete any match, access user management APIs, and purge all data.
+- **Cognito Pre-Signup Lambda** (`cognito-presignup`): Auto-confirms guest shadow accounts (`guest-*@cricscore.local`) while enforcing email verification for real users.
+
+### 🎮 Guest Scorer Mode
+
+- **Continue as Guest** button in the Authenticator footer: creates a shadow Cognito account (`guest-{timestamp}@cricscore.local`), signs in immediately, and sets `isGuestScorer = true`.
+- **Guest banner**: Shows "GUEST SCORER MODE" strip at top of scorer view with a "Sign In to Save" link.
+- **Guest match tracking**: Guest matches are owned by the guest email in the database and can be deleted by the guest or by admins.
+
+### 🛡️ Admin Panel (`AdminPanel.tsx`)
+
+- New **Admin Panel** view accessible only to Cognito `Admin` group members.
+- **User Management tab**: Lists all Cognito users with their email, status, and roles. Supports promote/demote to `Admin`/`Scorer` groups and hard-delete from Cognito.
+- **Database Cleanup tab**: Exposes admin-only bulk match purge operations.
+
+### 🤖 AI Chat — Delete Guest Users (Admin Only)
+
+- New `deleteGuestData` MCP tool: filters Cognito users whose `email` attribute starts with `guest-` and ends with `@cricscore.local`, deletes them from Cognito, and cascades to remove their match records.
+- Only callable when the requesting user is in the Cognito `Admin` group (validated via `isAdmin` in `chatHandler.js`).
+
+### 📧 Match Email — Partnership Summary
+
+- Post-match email report now includes a **Batting Partnerships** section showing wicket-by-wicket run and ball contributions.
+- `getPartnerships()` function in `match-api/index.js` computes partnerships from raw ball-by-ball data.
+
+### 💾 S3 Match Backups
+
+- When a match email report is sent (`POST /match/{id}/email`), a JSON snapshot of the full match state is uploaded to the `match-backups` S3 bucket (`backups/match-{id}-{timestamp}.json`).
+- Encrypted with SSE-S3 (`AES256`). Public access fully blocked. Cost: $0/month within free tier.
+
+---
+
+## 🐛 Bug Fixes
+
+### UI
+
+- **Sign-in page gap**: Reduced `padding-top` on Amplify authenticator from `1.5rem` to `0.25rem` so the login form appears near the top of the page.
+- **Toss screen — BAT/BOWL labels**: Both mobile and desktop toss decision buttons now show `🏏 BAT` and `🟢 BOWL` text alongside the emoji icons.
+- **Required Run Rate (RRR) never negative**: Clamped RRR to `Math.max(0, rawRrr)` — when the chasing team has exceeded the target, RRR shows `0.0` instead of a negative number. Also clamped `ballsLeft >= 0`.
+- **Stale match screen after login**: A `prevEmailRef` tracks user identity. When a different user logs in (e.g., guest → real account), all match state is cleared, view resets to `VIEWER`, and `hubKey++` forces a fresh `LiveScoreboard` refresh — preventing stale guest match data from bleeding into a new session.
+- **Viewer screen — stale live AI summaries**: `summaryHandler.js` now invalidates cached summaries that contain `0/0`, `0 balls`, `currently live`, `yet to begin`, or `has not started` for completed matches.
+
+### Backend Auth
+
+- **Per-resource auth**: `DELETE /match/{id}`, `POST /innings`, `PATCH /match/{id}`, `POST /match/{id}/email` all verify the caller owns the match or is in the Admin group.
+- **`DELETE /matches` (bulk purge)**: Now restricted to Admin group only — returns `403 Forbidden` for non-admins.
+- **`POST /match` without JWT**: Returns `401 Unauthorized` if `claims.email` is missing.
+- **`scorerEmail` enforcement**: Non-admin users cannot override their `scorerEmail` — it is always forced to `claims.email` from the JWT.
+
+---
+
+## 🗄️ Database Migrations
+
+_No new migrations required for this release — all new columns (`scorer_email`, `toss_winner`, `toss_decision`, `ai_summary`) were added in previous versions. Cognito auth is purely application-layer._
+
+---
+
+## 🏗️ Infrastructure Changes
+
+- **Terraform**: Added `aws_cognito_user_pool`, `aws_cognito_user_pool_client`, `aws_cognito_user_group` (Admin), `aws_cognito_user_pool_domain`, and Cognito pre-signup Lambda trigger resources to `infra/terraform/cognito.tf`.
+- **IAM**: New `lambda_cognito_admin` IAM policy granting `cognito-idp:AdminDeleteUser`, `AdminAddUserToGroup`, `AdminRemoveUserFromGroup`, `ListUsers` — attached to the Lambda execution role (`infra/terraform/iam.tf`).
+- **API Gateway**: Added new routes for admin user management: `GET /admin/users`, `POST /admin/users/roles`, `DELETE /admin/users/roles`, `DELETE /admin/users` (`infra/terraform/apigateway_http.tf`). All routes use the Cognito JWT Authorizer.
+- **S3**: Added `match-backups` S3 bucket with SSE-S3 encryption and public access block (`infra/terraform/s3_backups.tf`).
+- **Lambda**: Added `cognito-presignup` Lambda function. Updated `match-api` Lambda with `COGNITO_USER_POOL_ID` environment variable.
+
+---
+
+## ✅ Testing
+
+- **Backend**: Added 5 new auth/admin test cases to `match-api/index.test.js`:
+  - Admin group member can delete any match (regardless of ownership) → 200
+  - Non-owner delete attempt → 403
+  - `POST /match` without JWT email claim → 401
+  - `DELETE /matches` by non-admin → 403
+  - `GET /admin/users` by non-admin → 403 with `"Admins only"` message
+- **Frontend**: Rewrote `MatchSetup.test.tsx` (4 tests) to handle dual mobile/desktop DOM layout rendering, fixed stale default-overs assertion (20→1), added guest-mode submission test, and added token-authenticated POST test.
+- **Total**: 74 passing tests (55 backend + 19 frontend).
+
+---
+
+## 📖 Documentation
+
+- **New** `docs/auth.md`: Full authentication and authorization specification — Cognito flows, guest mode, admin management, JWT validation, cross-session identity guard, infrastructure config, and test coverage table.
+- **Updated** `docs/architecture.md`: Security strategy updated to Cognito SSO (removed old PIN-based model), added Admin Panel and cross-session identity guard to component breakdown, added auth role model table.
+- **Updated** `docs/cost_management.md`: Added Section 11 (Cognito User Pool — free ≤50K MAUs), updated S3 Storage section with match backups, added Lambda section for cognito-presignup, added Cognito-specific cost optimization tips (guest account purging), updated total cost summary.
+- **Updated** `docs/testing.md`: Documented new auth/admin test cases in API Tests section with reference to `auth.md`.
+
+---
+
 # [3.7.1] - 2026-09-10
 
 ### 🐛 Bug Fixes
