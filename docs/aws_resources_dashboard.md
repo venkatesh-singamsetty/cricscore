@@ -10,13 +10,11 @@ This document provides quick-access UI links to view the live AWS resources, tel
 ## 🟢 Development (DEV)
 
 ### Application Endpoints
-
 - **Frontend App**: [https://<YOUR_DEV_DOMAIN>](https://<YOUR_DEV_DOMAIN>)
 - **HTTP API Gateway**: `https://<YOUR_DEV_API_ID>.execute-api.us-east-1.amazonaws.com`
 - **WebSocket API**: `wss://<YOUR_DEV_WS_ID>.execute-api.us-east-1.amazonaws.com/prod`
 
 ### Serverless Compute (AWS Lambda)
-
 - [**broadcaster**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredev-broadcaster)
 - [**chat-api**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredev-chat-api)
 - [**cognito-presignup**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredev-cognito-presignup)
@@ -27,7 +25,6 @@ This document provides quick-access UI links to view the live AWS resources, tel
 - [**storage-worker**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredev-storage-worker)
 
 ### Application Logs (CloudWatch Logs)
-
 - [**broadcaster Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredev-broadcaster)
 - [**chat-api Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredev-chat-api)
 - [**cognito-presignup Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredev-cognito-presignup)
@@ -38,17 +35,14 @@ This document provides quick-access UI links to view the live AWS resources, tel
 - [**storage-worker Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredev-storage-worker)
 
 ---
-
 ## 🔵 Production (PROD)
 
 ### Application Endpoints
-
 - **Frontend App**: [https://<YOUR_PROD_DOMAIN>](https://<YOUR_PROD_DOMAIN>)
 - **HTTP API Gateway**: `https://<YOUR_PROD_API_ID>.execute-api.us-east-1.amazonaws.com`
 - **WebSocket API**: `wss://<YOUR_PROD_WS_ID>.execute-api.us-east-1.amazonaws.com/prod`
 
 ### Serverless Compute (AWS Lambda)
-
 - [**broadcaster**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-broadcaster)
 - [**chat-api**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-chat-api)
 - [**cognito-presignup**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-cognito-presignup)
@@ -59,7 +53,6 @@ This document provides quick-access UI links to view the live AWS resources, tel
 - [**storage-worker**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-storage-worker)
 
 ### Application Logs (CloudWatch Logs)
-
 - [**broadcaster Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-broadcaster)
 - [**chat-api Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-chat-api)
 - [**cognito-presignup Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-cognito-presignup)

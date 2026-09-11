@@ -26,7 +26,8 @@ test.describe("User Journey - Full Match Scoring", () => {
       page.getByRole("heading", { name: /Match Configuration/i }),
     ).toBeVisible({ timeout: 15000 });
 
-    const squadInputs = page.getByPlaceholder(/Enter player name/i);
+    const desktopLayout = page.locator(".hidden.md\\:flex");
+    const squadInputs = desktopLayout.getByPlaceholder(/Enter player name/i);
     // TEAM A Squad
     await squadInputs
       .nth(0)
@@ -41,16 +42,16 @@ test.describe("User Journey - Full Match Scoring", () => {
       );
 
     // Set 2 Over match
-    await page.locator('input[type="number"]').first().fill("2");
+    await desktopLayout.locator('input[type="number"]').first().fill("2");
 
     // Set Toss: TEAM B wins toss and elects to BAT (so TEAM B bats first)
     // The Toss Winner buttons appear first; click TEAM B
-    const tossWinnerButtons = page.getByRole("button", { name: "TEAM B" });
+    const tossWinnerButtons = desktopLayout.getByRole("button", { name: "TEAM B" });
     await tossWinnerButtons.first().click();
     // Decision is already defaulted to BAT — no change needed
 
     // Click "Start Fresh Match"
-    const startButton = page.getByRole("button", {
+    const startButton = desktopLayout.getByRole("button", {
       name: /Start Match/i,
     });
     await expect(startButton).toBeEnabled();
