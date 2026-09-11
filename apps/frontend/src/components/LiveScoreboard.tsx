@@ -41,6 +41,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
     teamB: string;
     totalOvers: number;
     aiSummary?: string | null;
+    playerOfTheMatch?: string | null;
   } | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [showFullScorecard, setShowFullScorecard] = useState(false);
@@ -61,7 +62,13 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
         const data = await response.json();
         if (data.summary) {
           setMatchMeta((prev) =>
-            prev ? { ...prev, aiSummary: data.summary } : null,
+            prev
+              ? {
+                  ...prev,
+                  aiSummary: data.summary,
+                  playerOfTheMatch: data.playerOfTheMatch,
+                }
+              : null,
           );
         }
       } catch (err) {
@@ -86,6 +93,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
           teamB: data.match.team_b_name,
           totalOvers: data.match.total_overs,
           aiSummary: data.match.ai_summary,
+          playerOfTheMatch: data.match.player_of_the_match,
         });
 
         // If completed match has missing or stale summary, auto-trigger generation
@@ -108,7 +116,13 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
             .then((summaryRes) => {
               if (summaryRes.summary) {
                 setMatchMeta((prev) =>
-                  prev ? { ...prev, aiSummary: summaryRes.summary } : null,
+                  prev
+                    ? {
+                        ...prev,
+                        aiSummary: summaryRes.summary,
+                        playerOfTheMatch: summaryRes.playerOfTheMatch,
+                      }
+                    : null,
                 );
               }
             })
@@ -116,72 +130,70 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
         }
 
         // Map DB rows to InningsState
-        const mappedInnings = data.innings.map(
-          (inn: any): InningsState => ({
-            id: inn.id,
-            inningNumber: inn.inning_number,
-            target: inn.target,
-            battingTeamName: inn.batting_team_name,
-            bowlingTeamName: inn.bowling_team_name,
-            totalRuns: Number(inn.total_runs || 0),
-            totalWickets: Number(inn.total_wickets || 0),
-            overs: Number(inn.overs || 0),
-            balls: Number(inn.balls || 0),
-            currentOver: [],
-            allBalls: (inn.allBalls || []).map((b: any) => ({
-              ...b,
-              bowlerName: b.bowler_name,
-              batterName: b.batter_name,
-              isExtra: b.is_extra,
-              extraType: b.extra_type as ExtraType,
-              extraRuns: b.extra_runs,
-              isWicket: b.is_wicket,
-              wicketType: b.wicket_type as WicketType,
-              overNumber: b.over_number,
-              ballNumber: b.ball_number,
-            })),
-            strikerId:
-              (inn.players || []).find((p: any) => p.name === inn.striker_name)
-                ?.id || "",
-            nonStrikerId:
-              (inn.players || []).find(
-                (p: any) => p.name === inn.non_striker_name,
-              )?.id || "",
-            currentBowlerId:
-              (inn.bowlers || []).find(
-                (b: any) => b.name === inn.current_bowler_name,
-              )?.id || "",
-            players: (inn.players || []).reduce((acc: any, p: any) => {
-              acc[p.id] = {
-                id: p.id,
-                name: p.name,
-                runs: p.runs,
-                ballsFaced: p.balls_faced,
-                fours: p.fours,
-                sixes: p.sixes,
-                isOut: p.is_out,
-                wicketBy: p.wicket_by,
-                wicketType: p.wicket_type as WicketType,
-                fielderName: p.fielder_name,
-              };
-              return acc;
-            }, {}),
-            bowlers: (inn.bowlers || []).reduce((acc: any, b: any) => {
-              acc[b.id] = {
-                id: b.id,
-                name: b.name,
-                overs: b.overs_completed,
-                balls: b.balls,
-                maidens: b.maidens,
-                runsConceded: b.runs_conceded,
-                wickets: b.wickets,
-              };
-              return acc;
-            }, {}),
-            battingOrder: (inn.players || []).map((p: any) => p.id),
-            bowlingOrder: (inn.bowlers || []).map((b: any) => b.id),
-          }),
-        );
+        const mappedInnings = data.innings.map((inn: any): InningsState => ({
+          id: inn.id,
+          inningNumber: inn.inning_number,
+          target: inn.target,
+          battingTeamName: inn.batting_team_name,
+          bowlingTeamName: inn.bowling_team_name,
+          totalRuns: Number(inn.total_runs || 0),
+          totalWickets: Number(inn.total_wickets || 0),
+          overs: Number(inn.overs || 0),
+          balls: Number(inn.balls || 0),
+          currentOver: [],
+          allBalls: (inn.allBalls || []).map((b: any) => ({
+            ...b,
+            bowlerName: b.bowler_name,
+            batterName: b.batter_name,
+            isExtra: b.is_extra,
+            extraType: b.extra_type as ExtraType,
+            extraRuns: b.extra_runs,
+            isWicket: b.is_wicket,
+            wicketType: b.wicket_type as WicketType,
+            overNumber: b.over_number,
+            ballNumber: b.ball_number,
+          })),
+          strikerId:
+            (inn.players || []).find((p: any) => p.name === inn.striker_name)
+              ?.id || "",
+          nonStrikerId:
+            (inn.players || []).find(
+              (p: any) => p.name === inn.non_striker_name,
+            )?.id || "",
+          currentBowlerId:
+            (inn.bowlers || []).find(
+              (b: any) => b.name === inn.current_bowler_name,
+            )?.id || "",
+          players: (inn.players || []).reduce((acc: any, p: any) => {
+            acc[p.id] = {
+              id: p.id,
+              name: p.name,
+              runs: p.runs,
+              ballsFaced: p.balls_faced,
+              fours: p.fours,
+              sixes: p.sixes,
+              isOut: p.is_out,
+              wicketBy: p.wicket_by,
+              wicketType: p.wicket_type as WicketType,
+              fielderName: p.fielder_name,
+            };
+            return acc;
+          }, {}),
+          bowlers: (inn.bowlers || []).reduce((acc: any, b: any) => {
+            acc[b.id] = {
+              id: b.id,
+              name: b.name,
+              overs: b.overs_completed,
+              balls: b.balls,
+              maidens: b.maidens,
+              runsConceded: b.runs_conceded,
+              wickets: b.wickets,
+            };
+            return acc;
+          }, {}),
+          battingOrder: (inn.players || []).map((p: any) => p.id),
+          bowlingOrder: (inn.bowlers || []).map((b: any) => b.id),
+        }));
 
         setMatchDetails({ innings: mappedInnings });
 
@@ -727,6 +739,19 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                       <div className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
                         {matchMeta.aiSummary}
                       </div>
+                      {matchMeta.playerOfTheMatch && (
+                        <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-center gap-3">
+                          <span className="text-2xl">🏆</span>
+                          <div>
+                            <div className="text-amber-500 text-[10px] font-black tracking-widest uppercase">
+                              Player of the Match
+                            </div>
+                            <div className="text-amber-100 font-bold text-sm">
+                              {matchMeta.playerOfTheMatch}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                   <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic leading-relaxed opacity-50">

@@ -37,8 +37,8 @@ const getMatchStateKey = (email: string) =>
 export const isGuestEmail = (email?: string | null) =>
   Boolean(
     email &&
-      email.trim().toLowerCase().startsWith("guest-") &&
-      email.trim().toLowerCase().endsWith("@cricscore.local"),
+    email.trim().toLowerCase().startsWith("guest-") &&
+    email.trim().toLowerCase().endsWith("@cricscore.local"),
   );
 
 export const decodeJwtPayload = (token: string | null | undefined) => {
@@ -194,7 +194,9 @@ const App: React.FC = () => {
 
         if (effectiveToken) {
           setUserToken(effectiveToken);
-          const payload = session.tokens?.idToken?.payload || decodeJwtPayload(effectiveToken);
+          const payload =
+            session.tokens?.idToken?.payload ||
+            decodeJwtPayload(effectiveToken);
           let emailStr = payload?.email?.toString() || fallbackAuth.email || "";
 
           if (!emailStr) {
@@ -813,6 +815,22 @@ const App: React.FC = () => {
             body: JSON.stringify({
               status: MatchStatus.COMPLETED,
               matchWinner,
+              finalInnings: {
+                id: completedInnings.id,
+                totalRuns: completedInnings.totalRuns,
+                totalWickets: completedInnings.totalWickets,
+                overs: completedInnings.overs,
+                balls: completedInnings.balls,
+              },
+              previousInnings: previousInnings
+                ? {
+                    id: previousInnings.id,
+                    totalRuns: previousInnings.totalRuns,
+                    totalWickets: previousInnings.totalWickets,
+                    overs: previousInnings.overs,
+                    balls: previousInnings.balls,
+                  }
+                : undefined,
             }),
           });
           console.log(
@@ -1360,10 +1378,12 @@ const App: React.FC = () => {
                       Demo Mode
                     </div>
                     <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tighter italic text-white mb-3">
-                      Match <span className="text-indigo-500">Configuration</span>
+                      Match{" "}
+                      <span className="text-indigo-500">Configuration</span>
                     </h1>
                     <p className="text-sm text-slate-300 leading-relaxed mb-6">
-                      Authentication is not configured in this environment, so guest scoring is available without sign-in.
+                      Authentication is not configured in this environment, so
+                      guest scoring is available without sign-in.
                     </p>
                     <button
                       type="button"

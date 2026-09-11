@@ -1,0 +1,1 @@
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS player_of_the_match VARCHAR(100);

@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS matches (
     team_b_overs VARCHAR(10) DEFAULT '0.0',
     status VARCHAR(25) NOT NULL DEFAULT 'SETUP',
     match_winner VARCHAR(100),
+    player_of_the_match VARCHAR(100),
     toss_winner VARCHAR(100),
     toss_decision VARCHAR(10),
     scorer_email VARCHAR(255),

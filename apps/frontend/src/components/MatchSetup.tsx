@@ -530,7 +530,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                 <button
                   type="button"
                   onClick={() => setTossDecision("BAT")}
-                  className={`py-3.5 rounded-xl font-black text-sm uppercase transition-all border active:scale-95 flex items-center justify-center gap-2 ${tossDecision === "BAT" ? "bg-emerald-600 text-white border-emerald-400 shadow-lg" : "bg-slate-800 text-slate-400 border-white/5"}`}
+                  className={`py-3.5 rounded-xl font-black text-sm uppercase transition-all border active:scale-95 flex items-center justify-center gap-2 ${tossDecision === "BAT" ? "bg-indigo-600 text-white border-indigo-400 shadow-lg shadow-indigo-600/30" : "bg-slate-800 text-slate-400 border-white/5"}`}
                 >
                   <span className="text-2xl">🏏</span>
                   <span>BAT</span>
@@ -737,7 +737,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                       onClick={() => setTossDecision("BOWL")}
                       className={`flex-1 py-2 px-3 rounded-lg font-black text-[10px] uppercase tracking-tighter transition-all border flex items-center justify-center gap-1.5 ${tossDecision === "BOWL" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/30 border-indigo-400" : "text-slate-500 border-transparent hover:text-slate-300"}`}
                     >
-                      <span className="text-base">🟢</span>BOWL
+                      <span className="text-base">🎾</span>BOWL
                     </button>
                   </div>
                 </div>

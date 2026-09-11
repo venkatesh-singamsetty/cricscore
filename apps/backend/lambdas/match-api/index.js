@@ -372,8 +372,9 @@ const sendMatchReportEmail = async (
     htmlBody += `
         <div style="margin-top: 30px; background: #1e293b; padding: 25px; border-radius: 15px; border: 1px solid rgba(99,102,241,0.2);">
             <h3 style="color: #818cf8; text-transform: uppercase; letter-spacing: 1px; margin-top: 0; display: flex; align-items: center; gap: 8px;">
-                🤖 AI MATCH SUMMARY & MAN OF THE MATCH
+                🤖 AI MATCH SUMMARY & PLAYER OF THE MATCH
             </h3>
+            ${matchRecord.player_of_the_match ? `<div style="margin-bottom: 15px; font-weight: bold; color: #f59e0b; background: rgba(245, 158, 11, 0.1); padding: 10px; border-radius: 8px;">🏆 Player of the Match: ${matchRecord.player_of_the_match}</div>` : ""}
             <div style="color: #cbd5e1; line-height: 1.6; font-size: 15px; white-space: pre-wrap;">
                 ${matchRecord.ai_summary}
             </div>
@@ -869,7 +870,8 @@ exports.handler = async (event) => {
         return { statusCode: 403, body: "Forbidden" };
       }
 
-      const { totalOvers, status, matchWinner } = JSON.parse(body);
+      const { totalOvers, status, matchWinner, finalInnings, previousInnings } =
+        JSON.parse(body);
 
       const updates = [];
       const params = [matchId];
@@ -893,6 +895,32 @@ exports.handler = async (event) => {
 
         // ✅ When match completes, mark all innings as completed and trigger automated report email
         if (status === "COMPLETED") {
+          // Synchronously sync explicit innings aggregates to fix Eventual Consistency WebSocket race condition
+          if (finalInnings) {
+            await client.query(
+              "UPDATE innings SET total_runs = $1, total_wickets = $2, overs = $3, balls = $4 WHERE id = $5",
+              [
+                finalInnings.totalRuns,
+                finalInnings.totalWickets,
+                finalInnings.overs,
+                finalInnings.balls,
+                finalInnings.id,
+              ],
+            );
+          }
+          if (previousInnings) {
+            await client.query(
+              "UPDATE innings SET total_runs = $1, total_wickets = $2, overs = $3, balls = $4 WHERE id = $5",
+              [
+                previousInnings.totalRuns,
+                previousInnings.totalWickets,
+                previousInnings.overs,
+                previousInnings.balls,
+                previousInnings.id,
+              ],
+            );
+          }
+
           await client.query(
             `UPDATE innings SET is_completed = TRUE, updated_at = CURRENT_TIMESTAMP WHERE match_id = $1`,
             [matchId],
@@ -919,6 +947,9 @@ exports.handler = async (event) => {
           console.log(
             `✅ Synchronized team scores and wickets on matches table for ${matchId}.`,
           );
+
+          // Force all connected WebSocket viewers to immediately fetch the perfectly synchronized final database state
+          await broadcastHubUpdate(matchId);
 
           // NOTE: Email report is triggered by the frontend via POST /match/{id}/email
           // to avoid double-sending when scorer and admin share the same email.
