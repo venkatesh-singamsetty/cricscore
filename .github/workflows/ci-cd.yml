@@ -19,6 +19,36 @@ env:
   AWS_REGION: us-east-1
 
 jobs:
+  validate_ai:
+    name: AI Chat Evaluation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - name: Install backend dependencies
+        run: |
+          set -e
+          (cd apps/backend && npm install --ignore-scripts)
+          for d in apps/backend/lambdas/*; do
+            if [ -f "$d/package.json" ]; then
+              (cd "$d" && npm install --ignore-scripts)
+            fi
+          done
+      - name: Validate AI eval dataset
+        run: |
+          node -e "JSON.parse(require('fs').readFileSync('evals/ai-chat-eval.json','utf8')); console.log('AI eval dataset is valid JSON');"
+      - name: Run AI chat unit tests
+        env:
+          LLM_API_KEY: "dummy"
+          OPENAI_API_KEY: "dummy"
+        run: |
+          cd apps/backend
+          npx vitest run lambdas/chat-api/handlers/chatHandler.test.js
+
   validate_frontend:
     name: Lint & Test
     runs-on: ubuntu-latest
@@ -104,7 +134,7 @@ jobs:
 
   deploy_and_test_dev:
     name: Deploy, Test & OWASP ZAP DEV
-    needs: [validate_frontend, validate_backend]
+    needs: [validate_ai, validate_frontend, validate_backend]
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: dev
@@ -214,6 +244,12 @@ jobs:
       - name: Invalidate CloudFront cache
         run: |
           aws cloudfront create-invalidation --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
+
+      - name: Run AI chat evaluation against deployed API
+        env:
+          CHAT_API_URL: https://${{ env.API_GATEWAY_ID }}.execute-api.${{ env.AWS_REGION }}.amazonaws.com
+        run: |
+          npm run test:ai -- --url "$CHAT_API_URL" --limit 4
 
       # --- E2E TESTS ---
       - name: Install E2E dependencies
@@ -329,6 +365,13 @@ jobs:
         working-directory: infra/terraform
         run: terraform apply -auto-approve tfplan
 
+      - name: Export Terraform Outputs
+        working-directory: infra/terraform
+        run: |
+          echo "COGNITO_USER_POOL_ID=$(terraform output -raw cognito_user_pool_id)" >> $GITHUB_ENV
+          echo "COGNITO_CLIENT_ID=$(terraform output -raw cognito_client_id)" >> $GITHUB_ENV
+          echo "COGNITO_DOMAIN=$(terraform output -raw cognito_domain)" >> $GITHUB_ENV
+
       # --- FRONTEND DEPLOYMENT ---
       - name: Install Frontend dependencies
         working-directory: apps/frontend
@@ -341,6 +384,10 @@ jobs:
           VITE_API_URL: https://${{ env.API_GATEWAY_ID }}.execute-api.${{ env.AWS_REGION }}.amazonaws.com
           VITE_WS_URL: wss://${{ env.WS_API_GATEWAY_ID }}.execute-api.${{ env.AWS_REGION }}.amazonaws.com/prod
           VITE_ADMIN_PIN: ${{ secrets.VITE_ADMIN_PIN }}
+          VITE_COGNITO_USER_POOL_ID: ${{ env.COGNITO_USER_POOL_ID }}
+          VITE_COGNITO_CLIENT_ID: ${{ env.COGNITO_CLIENT_ID }}
+          VITE_COGNITO_DOMAIN: ${{ env.COGNITO_DOMAIN }}
+          VITE_COGNITO_REGION: ${{ env.AWS_REGION }}
         run: npm run build
       
       - name: Upload build to S3
@@ -351,6 +398,12 @@ jobs:
       - name: Invalidate CloudFront cache
         run: |
           aws cloudfront create-invalidation --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
+
+      - name: Run AI chat evaluation against deployed API
+        env:
+          CHAT_API_URL: https://${{ env.API_GATEWAY_ID }}.execute-api.${{ env.AWS_REGION }}.amazonaws.com
+        run: |
+          npm run test:ai -- --url "$CHAT_API_URL" --limit 4
 
       # --- E2E TESTS ---
       - name: Install E2E dependencies

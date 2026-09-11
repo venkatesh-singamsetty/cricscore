@@ -13,30 +13,76 @@ can be designed using modern cloud-native, DevOps, security, and
 reliability engineering practices while maintaining a cost-optimized
 architecture.
 
-The platform simulates a real-world cricket scoring ecosystem:
+The project models a live cricket platform with:
 
-- Global viewers consuming live match updates
-- Authorized scorers submitting ball-by-ball events
-- Event-driven processing pipelines
-- Infrastructure provisioning using Infrastructure as Code
-- Automated security validation
-- Observability and operational monitoring
-- Fully automated CI/CD workflows
+- fans viewing match updates in real time
+- authorized scorers recording ball-by-ball events
+- event-driven backend processing
+- Terraform-managed cloud infrastructure
+- security and observability built into deployment
+- CI/CD automation for repeatable releases
 
-The goal is not only to build a cricket application, but to demonstrate
-enterprise engineering practices applied to a real-world workload.
+This repository is a practical production-style reference implementation for
+cloud-native app delivery, AI integration, and operational discipline.
 
-### 🤖 Agentic AI & RAG Integration
+## 🚀 Deployment
 
-CricScore features a production-grade **Agentic AI Chat Assistant** powered by:
+Use the canonical deployer for each environment:
 
-| Concept                               | Implementation                                                           |
-| ------------------------------------- | ------------------------------------------------------------------------ |
-| **Model Context Protocol (MCP)**      | Secure, decoupled tool execution — LLM never sees credentials            |
-| **Text-to-SQL RAG**                   | LLM autonomously writes & executes SQL to answer live match queries      |
-| **Multi-Doc Vector RAG (`pgvector`)** | Cosine-similarity search across multiple uploaded PDF rulebooks          |
-| **OpenRouter LLMs**                   | Chat: **gpt-4o-mini**, Embeddings: **text-embedding-3-small**            |
-| **Dev/Prod Isolation**                | `DB_SCHEMA` env var scopes all queries to the correct environment schema |
+```bash
+# Development
+./infra/scripts/deploy.sh --env dev
+
+# Production
+./infra/scripts/deploy.sh --env prod
+```
+
+This script applies the correct Terraform environment, regenerates the frontend
+runtime values from live AWS outputs, builds the app, uploads it to S3, and
+invalidates CloudFront so the dev and prod sites stay isolated.
+
+### 🔐 One-Time Setup for a Fresh Clone
+
+Before the first deployment, make sure you have the required local values ready:
+
+- AWS credentials configured for the target account
+- Terraform installed locally
+- Aiven PostgreSQL connection string for the environment you want to deploy
+- OpenRouter or OpenAI API key for the LLM layer
+- SES sender email and admin email configured in the environment variables
+- A hosted domain or Route 53 zone already created if you plan to use the public
+  site URLs
+
+A typical local setup is:
+
+```bash
+cp .env.local.example .env.local
+# fill in the required AWS / database / LLM values before running the deploy script
+```
+
+If your repo does not include a `.env.local.example`, use the values already
+referenced by the infra scripts and Terraform variables as the source of truth.
+
+### 💰 Cost Notes
+
+The recurring cost is expected to stay very low for normal usage. In practice, the
+main fixed monthly expense is typically the Route 53 hosted zone, while most other
+services are event-driven or usage-based. If you are not actively testing the dev
+site, you can destroy or pause it to keep costs near the minimum possible level.
+
+### 🤖 AI & RAG
+
+CricScore includes a production-style **AI Chat Assistant** powered by:
+
+| Capability | Implementation |
+| --------- | -------------- |
+| **MCP tools** | Secure tool execution with credentials kept inside the backend |
+| **Text-to-SQL** | LLM-generated read-only SQL for live match and stats questions |
+| **Vector RAG** | `pgvector` search over uploaded tournament rule PDFs |
+| **LLM provider** | OpenRouter with `gpt-4o-mini` and `text-embedding-3-small` |
+| **Environment isolation** | `DB_SCHEMA` keeps dev and prod data separated |
+
+A lightweight AI evaluation baseline is included under `evals/` to monitor tool choice, safety, and answer quality for the chat assistant.
 
 ---
 
@@ -219,12 +265,12 @@ apps/backend/lambdas/chat-api/
 
 # 🏢 Enterprise-Grade Standards & Technical Documentation
 
-CricScore is engineered to demonstrate production-readiness across 6 core pillars of enterprise architecture. All technical decisions, tradeoffs, and deep-dives are documented in their respective guides below.
+CricScore is structured to demonstrate production-oriented engineering practices across 6 core pillars of enterprise architecture. All technical decisions, tradeoffs, and deep-dives are documented in their respective guides below.
 
 ### 1. 🛡️ DevSecOps & Security
 
 **Zero-Trust Identity & Automated Scanning**
-We enforce a strict security posture using **AWS Cognito JWT-based authentication**, API Gateway JWT Authorizers, and multi-tenant data isolation. The CI/CD pipeline acts as an automated gatekeeper, blocking PRs that fail GitLeaks, Trivy, Checkov, CodeQL, or OWASP ZAP.
+The platform is designed around **AWS Cognito JWT-based authentication**, API Gateway JWT Authorizers, and multi-tenant data isolation. The CI/CD pipeline can act as an automated gatekeeper, blocking PRs that fail GitLeaks, Trivy, Checkov, CodeQL, or OWASP ZAP.
 
 - 📖 **[Authentication & Authorization](./docs/auth.md)**: Cognito SSO flows, guest mode, admin user management, JWT validation, and cross-session identity guard.
 - 📖 **[Security Posture & Tradeoffs](./docs/security_posture.md)**: Defense in depth strategy, multi-tenant isolation, and encryption layers.
@@ -233,7 +279,7 @@ We enforce a strict security posture using **AWS Cognito JWT-based authenticatio
 ### 2. 🔭 Observability & Logging
 
 **Total System Visibility**
-All Lambda executions stream structured JSON logs to CloudWatch. We employ AWS X-Ray for distributed tracing across API Gateway, SNS, SQS, and Lambda, allowing us to pinpoint latency bottlenecks. Critical failure metrics trigger automated SNS alerts.
+The platform is instrumented to stream structured JSON logs to CloudWatch. AWS X-Ray can be used for distributed tracing across API Gateway, SNS, SQS, and Lambda to pinpoint latency bottlenecks. Critical failure metrics can trigger automated SNS alerts.
 
 - 📖 **[Observability Suite](./docs/observability.md)**: CloudWatch Dashboards, X-Ray Tracing, Sentry Crash Reporting, and Uptime monitors.
 - 📖 **[Cost & Performance](./docs/cost_management.md)**: Free-tier monitoring strategy and architecture scale limits.
@@ -242,7 +288,7 @@ All Lambda executions stream structured JSON logs to CloudWatch. We employ AWS X
 ### 3. ✅ Rigorous Testing
 
 **Multi-Layer Test Pyramid**
-Code is validated at every tier: Unit tests evaluate isolated Lambda functions, API tests validate REST contracts, and Playwright executes E2E User Journey tests against the staging environment.
+Code is intended to be validated at every tier: Unit tests evaluate isolated Lambda functions, API tests validate REST contracts, and Playwright can execute E2E user journey tests against the staging environment.
 
 - 📖 **[Testing Guide](./docs/testing.md)**: Vitest and Playwright test commands, Availability Testing (Chaos/DR), and E2E structures.
 - 📖 **[Toolchain & Security Stack](./docs/tools.md)**: Master list of all CI/CD, IaC, and AppSec tools used in the pipeline.
@@ -250,7 +296,7 @@ Code is validated at every tier: Unit tests evaluate isolated Lambda functions, 
 ### 4. ♾️ High Availability & Reliability
 
 **Fault-Tolerant Event-Driven Design**
-The architecture decouples the frontend from backend persistence using SNS fan-out and SQS queuing. If the database experiences downtime, SQS retains messages and retries automatically via dead-letter queues (DLQs).
+The architecture decouples the frontend from backend persistence using SNS fan-out and SQS queuing. If the database experiences downtime, the queue-based pattern is designed to retain and replay work with retry and dead-letter handling.
 
 - 📖 **[Detailed Architecture](./docs/architecture.md)**: System design, sequence flows, and EDA logic.
 - 📖 **[API Guide](./docs/api.md)**: REST & WebSocket contract specifications.
@@ -260,22 +306,22 @@ The architecture decouples the frontend from backend persistence using SNS fan-o
 ### 5. 🏗️ Infrastructure as Code (IaC)
 
 **Immutable & Reproducible Environments**
-100% of the AWS infrastructure is codified in Terraform. Changes are planned, validated for security drift by Checkov, and applied automatically via GitHub Actions, eliminating manual click-ops errors.
+The AWS infrastructure is codified in Terraform. Changes can be planned, validated for security drift by Checkov, and applied through GitHub Actions or the deploy script to reduce manual click-ops errors.
 
 - 📖 **[Full Deployment & Infrastructure](./docs/deployment.md)**: Local preview, bootstrap foundations, and AWS/Aiven Setup.
 - 📖 **[Troubleshooting](./docs/troubleshooting.md)**: Setup fixes and identity verification help.
 
 ### 6. 🤖 Agentic AI & RAG
 
-**Production-grade AI with MCP Security Boundaries**
-The AI Chat system implements the Model Context Protocol to enforce a strict security boundary between the LLM and the database. All tool execution, credential access, and query validation happens inside the MCP Server — entirely hidden from the LLM provider.
+**Production-style AI with MCP Security Boundaries**
+The AI chat system implements the Model Context Protocol to enforce a clear security boundary between the LLM and the database. Tool execution, credential access, and query validation are designed to remain inside the MCP server boundary rather than being exposed directly to the provider.
 
 - 📖 **[AI Architecture](./docs/ai_architecture.md)**: Full Agentic RAG design, MCP architecture diagram, troubleshooting log (13 documented bugs & fixes), educational AI concepts, and cost breakdown.
 
 ### 7. 🚀 CI/CD Automation
 
-**Aggressive Pipeline Governance**
-Merge requests to `main` require 8 passing status checks. The deployment pipeline automatically builds the Vite frontend, synchronizes S3 buckets, invalidates CloudFront caches, packages Lambdas, and executes semantic version releases entirely hands-free.
+**Pipeline Governance**
+Merge requests to `main` are designed to require passing status checks. The deployment pipeline can automatically build the Vite frontend, synchronize S3 buckets, invalidate CloudFront caches, package Lambdas, and execute semantic version releases in a controlled, repeatable way.
 
 - 📖 **[GitHub Actions Architecture](./docs/github_actions.md)**: CI/CD Directory structure constraints and pipeline organization.
 - 📖 **[Automated Releases](./docs/release_process.md)**: Semantic release and Conventional Commit specifications.

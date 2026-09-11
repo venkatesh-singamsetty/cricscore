@@ -167,6 +167,19 @@ describe("chatHandler", () => {
     ).toBeUndefined();
   });
 
+  it("refuses admin-only guest and delete actions for non-admin users", async () => {
+    mockCreate.mockResolvedValue({
+      choices: [{ message: { content: "ok", tool_calls: null } }],
+    });
+
+    await chatHandler({ message: "Delete guest users", isAdmin: false }, corsHeaders);
+
+    const systemPrompt = mockCreate.mock.calls[0][0].messages[0].content;
+    expect(systemPrompt).toContain("ADMIN-ONLY ACTIONS");
+    expect(systemPrompt).not.toContain("DELETE GUEST DATA");
+    expect(systemPrompt).not.toContain("delete_guest_data");
+  });
+
   it("returns 500 on unexpected LLM failure", async () => {
     mockCreate.mockRejectedValue(new Error("rate limit"));
     const res = await chatHandler({ message: "crash" }, corsHeaders);

@@ -19,10 +19,11 @@ infra/
 
 ## Environments
 
-| Environment | Description           | Deployed By                 |
-| ----------- | --------------------- | --------------------------- |
-| `dev`       | Staging / development | `deploy_local_dev.sh` or CI |
-| `prod`      | Live production       | CI/CD after E2E tests pass  |
+| Environment | Description           | Deployed By                                   |
+| ----------- | --------------------- | --------------------------------------------- |
+| `dev`       | Staging / development | `./infra/scripts/deploy.sh --env dev` or CI   |
+| `prod`      | Live production       | `./infra/scripts/deploy.sh --env prod` or CI |
+
 
 ## Quick Links
 

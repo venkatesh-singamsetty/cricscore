@@ -1,0 +1,17 @@
+{
+  "apiUrl": "https://sx6hhs0yj6.execute-api.us-east-1.amazonaws.com",
+  "total": 1,
+  "failed": 1,
+  "results": [
+    {
+      "id": "match-score-01",
+      "category": "sql",
+      "prompt": "What is the current score in the live match?",
+      "expected_tool": "execute_sql",
+      "ok": false,
+      "status": 500,
+      "elapsedMs": 2572,
+      "replyPreview": "LLM processing failed"
+    }
+  ]
+}

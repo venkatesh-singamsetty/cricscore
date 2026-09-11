@@ -140,7 +140,35 @@ Because E2E tests require specific browser binaries, you must run them directly 
 
 ---
 
-## 6. Availability & Reliability Testing
+## 6. AI Chat Evaluation
+
+The AI layer should be validated independently from generic frontend and API testing because chat quality depends on tool selection, grounded reasoning, and safety behavior rather than only HTTP correctness.
+
+We recommend a small evaluation baseline under the `evals/` folder that includes:
+
+- tool selection checks (`execute_sql`, `search_tournament_rules`, or no tool)
+- answer grounding checks against live DB results or rulebook context
+- refusal / safety checks for dangerous prompts
+- latency tracking for the chat workflow
+
+Suggested files:
+
+- `evals/README.md`
+- `evals/ai-chat-eval.json`
+
+Example evaluation dimensions:
+
+- tool chosen correctly
+- answer uses evidence from the tool result
+- no hallucinated match data
+- no credential leakage
+- rulebook answers cite the correct source document
+
+This gives a measurable quality gate before shipping model or prompt changes.
+
+---
+
+## 7. Availability & Reliability Testing
 
 At an enterprise scale, it is crucial to validate that the system survives severe infrastructure degradation and high-concurrency traffic without data loss.
 

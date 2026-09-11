@@ -22,10 +22,86 @@ import {
 import { Hub } from "aws-amplify/utils";
 import { ChatComponent } from "./components/ChatComponent";
 import { hasCognitoAuthConfig } from "./authConfig";
+import {
+  safeLocalStorageGet,
+  safeLocalStorageRemove,
+  safeLocalStorageSet,
+  safeSessionStorageGet,
+  safeSessionStorageSet,
+} from "./utils/storageSafety";
 
 // Key helper for saving match state by email
 const getMatchStateKey = (email: string) =>
   `cric-match-state-${email.toLowerCase().trim()}`;
+
+export const isGuestEmail = (email?: string | null) =>
+  Boolean(
+    email &&
+      email.trim().toLowerCase().startsWith("guest-") &&
+      email.trim().toLowerCase().endsWith("@cricscore.local"),
+  );
+
+export const decodeJwtPayload = (token: string | null | undefined) => {
+  if (!token) return null;
+
+  try {
+    const parts = token.split(".");
+    if (parts.length < 2) return null;
+    const payload = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = payload.padEnd(
+      payload.length + ((4 - (payload.length % 4)) % 4),
+      "=",
+    );
+    const decoded = atob(padded);
+    return JSON.parse(
+      decodeURIComponent(
+        Array.from(decoded)
+          .map((char) => `%${char.charCodeAt(0).toString(16).padStart(2, "0")}`)
+          .join(""),
+      ),
+    );
+  } catch {
+    return null;
+  }
+};
+
+export const getStoredAuthFromLocalStorage = () => {
+  if (typeof window === "undefined") return { token: null, email: null };
+
+  const keys = Object.keys(window.localStorage);
+  const lastAuthUserKey = keys.find((key) => key.endsWith(".LastAuthUser"));
+
+  if (lastAuthUserKey) {
+    const userId = window.localStorage.getItem(lastAuthUserKey);
+    if (userId) {
+      const baseKey = lastAuthUserKey.replace(/\.LastAuthUser$/, "");
+      const tokenKey = `${baseKey}.${userId}.idToken`;
+      const token = window.localStorage.getItem(tokenKey);
+      const payload = decodeJwtPayload(token);
+      const email =
+        payload?.email?.toString() ||
+        payload?.["cognito:username"]?.toString() ||
+        null;
+
+      return { token: token || null, email: email || null };
+    }
+  }
+
+  const idTokenKey = keys.find(
+    (key) => key.endsWith(".idToken") || key.includes("idToken"),
+  );
+
+  if (!idTokenKey) return { token: null, email: null };
+
+  const token = window.localStorage.getItem(idTokenKey);
+  const payload = decodeJwtPayload(token);
+  const email =
+    payload?.email?.toString() ||
+    payload?.["cognito:username"]?.toString() ||
+    null;
+
+  return { token: token || null, email: email || null };
+};
 
 const authFormFields = {
   signUp: {
@@ -72,6 +148,22 @@ const authFormFields = {
   },
 };
 
+export const canAccessScorer = ({
+  shouldBypassAuth,
+  isGuestScorer,
+  userToken,
+  userEmail,
+}: {
+  shouldBypassAuth: boolean;
+  isGuestScorer: boolean;
+  userToken?: string | null;
+  userEmail?: string | null;
+}) =>
+  shouldBypassAuth ||
+  isGuestScorer ||
+  Boolean(userToken) ||
+  Boolean(userEmail && userEmail.trim());
+
 const App: React.FC = () => {
   const [userToken, setUserToken] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -89,7 +181,7 @@ const App: React.FC = () => {
 
   const [view, setView] = useState<
     "VIEWER" | "SCORER" | "ADMIN_PANEL" | "CHAT"
-  >(() => (sessionStorage.getItem("last_view") as any) || "VIEWER");
+  >(() => (safeSessionStorageGet("last_view") as any) || "VIEWER");
 
   // Security: Auto-open modal if unauthorized on a restricted view
   useEffect(() => {
@@ -97,10 +189,13 @@ const App: React.FC = () => {
       try {
         const session = await fetchAuthSession();
         const token = session.tokens?.idToken?.toString();
-        if (token) {
-          setUserToken(token);
-          const payload = session.tokens?.idToken?.payload;
-          let emailStr = payload?.email?.toString() || "";
+        const fallbackAuth = getStoredAuthFromLocalStorage();
+        const effectiveToken = token || fallbackAuth.token;
+
+        if (effectiveToken) {
+          setUserToken(effectiveToken);
+          const payload = session.tokens?.idToken?.payload || decodeJwtPayload(effectiveToken);
+          let emailStr = payload?.email?.toString() || fallbackAuth.email || "";
 
           if (!emailStr) {
             try {
@@ -114,12 +209,8 @@ const App: React.FC = () => {
           setUserEmail(emailStr || null);
           const groups = (payload?.["cognito:groups"] as string[]) || [];
 
-          if (
-            emailStr.startsWith("guest-") &&
-            emailStr.endsWith("@cricscore.local")
-          ) {
-            setIsGuestScorer(true);
-          }
+          const isGuest = isGuestEmail(emailStr);
+          setIsGuestScorer(isGuest);
           setIsAdmin(groups.includes("Admin"));
           if (emailStr) {
             setEmailTo(emailStr);
@@ -128,11 +219,25 @@ const App: React.FC = () => {
           setUserToken(null);
           setIsAdmin(false);
           setUserEmail(null);
+          setIsGuestScorer(false);
         }
       } catch (err) {
+        const fallbackAuth = getStoredAuthFromLocalStorage();
+        if (fallbackAuth.token && fallbackAuth.email) {
+          setUserToken(fallbackAuth.token);
+          setUserEmail(fallbackAuth.email);
+          setIsGuestScorer(isGuestEmail(fallbackAuth.email));
+          setIsAdmin(false);
+          if (fallbackAuth.email) {
+            setEmailTo(fallbackAuth.email);
+          }
+          return;
+        }
+
         setUserToken(null);
         setIsAdmin(false);
         setUserEmail(null);
+        setIsGuestScorer(false);
       }
     };
 
@@ -229,6 +334,13 @@ const App: React.FC = () => {
 
   const canUseAuth = hasCognitoAuthConfig();
   const shouldBypassAuth = !canUseAuth;
+  const hasAuthenticatedUser = Boolean(userToken || userEmail);
+  const canAccessScorerView = canAccessScorer({
+    shouldBypassAuth,
+    isGuestScorer,
+    userToken,
+    userEmail,
+  });
 
   const SignInFooter = () => {
     const { toForgotPassword } = useAuthenticator();
@@ -400,7 +512,7 @@ const App: React.FC = () => {
     // ✅ Never restore a COMPLETED match — always start fresh on next login.
     if (saved.matchStatus === MatchStatus.COMPLETED) {
       console.log("🏁 Previous match COMPLETED. Starting fresh session.");
-      localStorage.removeItem(getMatchStateKey(emailTo));
+      safeLocalStorageRemove(getMatchStateKey(emailTo));
       applyLoadedState(null);
       return;
     }
@@ -421,7 +533,7 @@ const App: React.FC = () => {
       if (userToken && emailTo && !hasRestored) {
         setHasRestored(true);
         isRestoringRef.current = true;
-        const savedRaw = localStorage.getItem(getMatchStateKey(emailTo));
+        const savedRaw = safeLocalStorageGet(getMatchStateKey(emailTo));
         if (savedRaw) {
           try {
             const saved = JSON.parse(savedRaw);
@@ -438,7 +550,7 @@ const App: React.FC = () => {
                   "Match not found in Cloud! 🗑️ It may have been deleted by an Admin.",
                 );
                 // Force Wipe Stale Local Data
-                localStorage.removeItem(getMatchStateKey(emailTo));
+                safeLocalStorageRemove(getMatchStateKey(emailTo));
                 applyLoadedState(null);
                 setView("VIEWER"); // Revert if match deleted
               }
@@ -490,7 +602,7 @@ const App: React.FC = () => {
         hasSentAutoEmail,
         completedAt: matchStatus === MatchStatus.COMPLETED ? Date.now() : null,
       };
-      localStorage.setItem(
+      safeLocalStorageSet(
         getMatchStateKey(emailTo),
         JSON.stringify(stateToSave),
       );
@@ -511,7 +623,7 @@ const App: React.FC = () => {
 
   // Persist the current view globally
   useEffect(() => {
-    sessionStorage.setItem("last_view", view);
+    safeSessionStorageSet("last_view", view);
   }, [view]);
 
   // 🕒 Auto-Cleanup Timer: If user stays on Completed screen for 5 mins, reset to setup
@@ -520,7 +632,7 @@ const App: React.FC = () => {
       const timer = setTimeout(
         () => {
           console.log("🕒 Foreground TTL expired. Resetting to Setup.");
-          localStorage.removeItem(getMatchStateKey(emailTo));
+          safeLocalStorageRemove(getMatchStateKey(emailTo));
           applyLoadedState(null);
         },
         5 * 60 * 1000,
@@ -1108,7 +1220,7 @@ const App: React.FC = () => {
             >
               AI CHAT ✨
             </button>
-            {userToken && !isGuestScorer && (
+            {hasAuthenticatedUser && !isGuestScorer && (
               <button
                 onClick={handleSignOut}
                 className="px-2.5 py-1 md:px-4 md:py-1.5 font-bold text-[11px] md:text-xs tracking-wide text-slate-400 hover:text-slate-200 transition-colors whitespace-nowrap"
@@ -1239,7 +1351,7 @@ const App: React.FC = () => {
         )}
 
         {view === "SCORER" &&
-          (shouldBypassAuth || isGuestScorer || userToken ? (
+          (canAccessScorerView ? (
             <div className="h-full w-full flex flex-col">
               {shouldBypassAuth && !isGuestScorer && (
                 <div className="h-full w-full flex items-center justify-center bg-slate-950 p-4">
@@ -1283,7 +1395,7 @@ const App: React.FC = () => {
                   </button>
                 </div>
               )}
-              {isGuestScorer && matchStatus === MatchStatus.SETUP && (
+              {matchStatus === MatchStatus.SETUP && (
                 <MatchSetup
                   onStartMatch={startMatch}
                   onResumeMatch={resumeMatch}

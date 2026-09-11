@@ -134,7 +134,7 @@ Authorization is enforced at two layers:
 ### **5. Infrastructure Automation & CI/CD**
 
 - **Automated Bootstrapping**: `infra/scripts/setup.sh` provides intelligent OS-aware dependency installation.
-- **Dynamic Variable Hydration**: `deploy_local_dev.sh` bridges environment variables into Terraform format.
+- **Dynamic Variable Hydration**: `./infra/scripts/deploy.sh --env dev` bridges environment variables into Terraform format.
 - **Non-Destructive Configuration**: Local deployment cleanly appends live API Gateway and WebSocket URLs into `apps/frontend/.env`.
 - **Pipeline Dynamics**: `.github/workflows/ci-cd.yml` uses GitHub Repository Variables for perfectly portable CI/CD workflows.
 

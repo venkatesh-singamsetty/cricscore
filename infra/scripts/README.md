@@ -4,14 +4,14 @@ Helper scripts for local development, deployment, and validation.
 
 ## Scripts
 
-| Script                | Purpose                                                         |
-| --------------------- | --------------------------------------------------------------- |
-| `deploy_local_dev.sh` | Full local dev deploy (Terraform + S3 sync + CloudFront inval.) |
-| `validate_local.sh`   | Pre-push validation suite (lint, tests, tf fmt, security)       |
-| `setup.sh`            | Install local security tooling (checkov, gitleaks, trivy, syft) |
-| `terraform.sh`        | Thin wrapper around Terraform with variable pre-injection       |
+| Script              | Purpose                                                         |
+| ------------------- | --------------------------------------------------------------- |
+| `deploy.sh`         | Canonical environment deployer for `dev` and `prod`              |
+| `validate_local.sh` | Pre-push validation suite (lint, tests, tf fmt, security)       |
+| `setup.sh`          | Install local security tooling (checkov, gitleaks, trivy, syft) |
+| `terraform.sh`      | Thin wrapper around Terraform with variable pre-injection       |
 
-> Note: `deploy_local_dev.sh` lives in the **repo root** for convenience, not in this directory.
+> Use: `./infra/scripts/deploy.sh --env dev` or `./infra/scripts/deploy.sh --env prod`.
 
 ## `validate_local.sh` — Pre-Push Checklist
 
@@ -47,7 +47,7 @@ Installs: `checkov`, `gitleaks`, `trivy`, `syft`, `terraform`
 
 ## `terraform.sh` — Terraform Wrapper
 
-Runs Terraform with the correct variable file and backend configuration pre-injected. Used internally by `validate_local.sh` and `deploy_local_dev.sh`.
+Runs Terraform with the correct variable file and backend configuration pre-injected. Used internally by `validate_local.sh` and the canonical `deploy.sh` helper.
 
 ```bash
 # Usage (from repo root)

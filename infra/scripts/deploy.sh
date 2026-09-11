@@ -51,16 +51,16 @@ if [ -n "${TF_DATABASE_URL:-}" ]; then export TF_VAR_database_url="$TF_DATABASE_
 if [ -n "${TF_SES_SOURCE_EMAIL:-}" ]; then export TF_VAR_ses_source_email="$TF_SES_SOURCE_EMAIL"; fi
 if [ -n "${AWS_REGION:-}" ]; then export TF_VAR_aws_region="$AWS_REGION"; fi
 if [ -n "${ADMIN_EMAIL:-}" ]; then export TF_VAR_admin_email="$ADMIN_EMAIL"; fi
-
+if [ -n "${LLM_API_KEY:-}" ]; then export TF_VAR_llm_api_key="$LLM_API_KEY"; fi
 # 1. Install Dependencies
 echo "📦 Installing required frontend dependencies..."
-(cd apps/frontend && npm install)
+(cd apps/frontend && npm install --ignore-scripts)
 
 echo "📦 Installing required Lambda dependencies..."
 for dir in apps/backend/lambdas/*/; do
   if [ -f "$dir/package.json" ]; then
     echo "Hydrating $dir..."
-    (cd "$dir" && npm install --omit=dev)
+    (cd "$dir" && npm install --omit=dev --ignore-scripts)
   fi
 done
 
