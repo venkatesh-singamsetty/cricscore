@@ -18,6 +18,7 @@ interface MatchMetadata {
   created_at: string;
   updated_at: string;
   innings?: MatchInningSummary[];
+  scorer_email?: string;
 }
 
 interface MatchListProps {
