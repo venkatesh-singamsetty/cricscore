@@ -66,6 +66,9 @@ body {
    🎨 Amplify Authenticator — Premium Slate Dark Theme
    ============================================================ */
 [data-amplify-authenticator] {
+  align-items: flex-start !important;
+  justify-content: center !important;
+  padding-top: 2rem !important;
   --amplify-colors-background-primary: #020617; /* slate-950 */
   --amplify-colors-background-secondary: #0f172a; /* slate-900 */
   --amplify-colors-brand-primary-10: #e0e7ff;
@@ -94,6 +97,35 @@ body {
   align-items: flex-start !important;
   padding-top: 0.25rem !important;
   padding-bottom: 1rem !important;
+  overflow-y: auto !important;
+}
+
+[data-amplify-authenticator] [data-amplify-router],
+.amplify-authenticator__router,
+.amplify-card {
+  min-height: 420px !important;
+  align-self: flex-start !important;
+  flex: none !important;
+}
+
+[data-amplify-authenticator] [data-amplify-router] {
+  padding-top: 0.5rem !important;
+}
+
+[data-amplify-authenticator] .amplify-tabs {
+  justify-content: flex-start !important;
+}
+
+[data-amplify-authenticator] .amplify-tabs__items {
+  width: 100%;
+}
+
+[data-amplify-authenticator] [role="tab"] {
+  align-items: center;
+  justify-content: center;
+}
+
+[data-amplify-authenticator] [data-amplify-router] {
   overflow-y: auto !important;
 }
 
