@@ -74,7 +74,7 @@ async function chatHandler(body, corsHeaders) {
 4. SCALED RULES: If the active match is shorter than a full tournament match, you MUST automatically scale rules like Powerplay proportionally based on the Active Match's Total Overs (e.g., if the rulebook specifies 8 powerplay overs for a 25-over match, a 10-over match has a 3-over powerplay).
 5. OFF-TOPIC: Refuse anything unrelated to cricket. NOTE: Deleting matches and sending emails ARE valid cricket administrative tasks. Do NOT refuse them as off-topic.
 6. DELETE MATCHES (ADMIN): If the user asks to delete matches, you MUST first call 'execute_sql' to fetch the matching records, show them to the user, and explicitly ask for confirmation. ONLY call 'delete_match' AFTER the user says "yes" or confirms the deletion.
-
+7. DELETE GUEST DATA (ADMIN): If the user asks to delete, clear, or prune guest users, guest matches, or guest details → ALWAYS call 'delete_guest_data'. Do NOT ask for confirmation first, just execute the tool.
 ## Database Schema:
 ${DB_SCHEMA}
 

@@ -16,12 +16,14 @@ interface LiveBall {
 
 interface LiveScoreboardProps {
   isAdmin?: boolean;
+  showDeleteControls?: boolean;
   onResumeMatch?: (matchId: string) => void;
   initialMatchId?: string;
 }
 
 const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
   isAdmin,
+  showDeleteControls = false,
   onResumeMatch,
   initialMatchId,
 }) => {
@@ -44,6 +46,32 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
   const [showFullScorecard, setShowFullScorecard] = useState(false);
   const [hubUpdateTrigger, setHubUpdateTrigger] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isGeneratingAiSummary, setIsGeneratingAiSummary] = useState(false);
+
+  const handleGenerateAiSummary = useCallback(
+    async (force = false) => {
+      if (!targetMatchId || isGeneratingAiSummary) return;
+      setIsGeneratingAiSummary(true);
+      try {
+        const response = await fetch(`${API_URL}/chat/summary`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ matchId: targetMatchId, forceRefresh: force }),
+        });
+        const data = await response.json();
+        if (data.summary) {
+          setMatchMeta((prev) =>
+            prev ? { ...prev, aiSummary: data.summary } : null,
+          );
+        }
+      } catch (err) {
+        console.error("Failed to generate AI summary in LiveScoreboard:", err);
+      } finally {
+        setIsGeneratingAiSummary(false);
+      }
+    },
+    [API_URL, targetMatchId, isGeneratingAiSummary],
+  );
 
   const fetchMatchDetails = useCallback(
     async (matchId: string, isBackground = false) => {
@@ -59,6 +87,33 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
           totalOvers: data.match.total_overs,
           aiSummary: data.match.ai_summary,
         });
+
+        // If completed match has missing or stale summary, auto-trigger generation
+        const summary = data.match.ai_summary || "";
+        const isStale =
+          !summary ||
+          summary.includes("0/0") ||
+          summary.includes("0 balls") ||
+          summary.includes("currently live") ||
+          summary.includes("yet to begin") ||
+          summary.includes("has not started");
+
+        if (data.match.status === "COMPLETED" && isStale) {
+          fetch(`${API_URL}/chat/summary`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ matchId, forceRefresh: true }),
+          })
+            .then((res) => res.json())
+            .then((summaryRes) => {
+              if (summaryRes.summary) {
+                setMatchMeta((prev) =>
+                  prev ? { ...prev, aiSummary: summaryRes.summary } : null,
+                );
+              }
+            })
+            .catch((e) => console.error("Auto AI summary fetch failed:", e));
+        }
 
         // Map DB rows to InningsState
         const mappedInnings = data.innings.map(
@@ -207,7 +262,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
   }, [targetMatchId, matchMeta?.status, fetchMatchDetails]);
 
   return (
-    <div className="p-6 bg-slate-900 text-white rounded-[2rem] border border-white/5 shadow-2xl max-w-md mx-auto">
+    <div className="p-6 bg-slate-900 text-white rounded-[2rem] border border-white/5 shadow-2xl w-full">
       <div className="flex flex-col gap-4 mb-6">
         <div className="flex justify-between items-center px-1">
           <div className="flex items-center gap-2">
@@ -246,6 +301,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
             setSearchTerm(""); // Reset search on select
           }}
           isAdmin={isAdmin}
+          showDeleteControls={showDeleteControls}
           onResumeMatch={onResumeMatch}
           refreshTrigger={hubUpdateTrigger}
           searchTerm={searchTerm}
@@ -635,18 +691,39 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                       </button>
                     </div>
                   </div>
-                  {!matchMeta?.aiSummary ? (
+                  {!matchMeta?.aiSummary || isGeneratingAiSummary ? (
                     <div className="bg-slate-800/30 border border-white/5 rounded-[2rem] p-6 text-center animate-pulse">
-                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center justify-center gap-2">
-                        <span className="animate-spin">⏳</span> GENERATING AI
-                        SUMMARY & MOTM...
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center justify-center gap-2 mb-3">
+                        <span className="animate-spin">⏳</span>{" "}
+                        {isGeneratingAiSummary
+                          ? "GENERATING AI SUMMARY & MOTM..."
+                          : "FETCHING AI SUMMARY..."}
                       </span>
+                      {!isGeneratingAiSummary && (
+                        <button
+                          onClick={() => handleGenerateAiSummary(true)}
+                          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-lg"
+                        >
+                          ✨ GENERATE AI SUMMARY NOW
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <div className="bg-slate-800/50 border border-indigo-500/30 rounded-[2rem] p-6 text-left shadow-xl animate-in slide-in-from-bottom-4 duration-700">
-                      <h4 className="text-xs font-black text-indigo-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <span>🤖</span> AI MATCH SUMMARY & MOTM
-                      </h4>
+                      <div className="flex justify-between items-center mb-4">
+                        <h4 className="text-xs font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">
+                          <span>🤖</span> AI MATCH SUMMARY & MOTM
+                        </h4>
+                        <button
+                          onClick={() => handleGenerateAiSummary(true)}
+                          disabled={isGeneratingAiSummary}
+                          className="px-3 py-1.5 bg-indigo-600/20 hover:bg-indigo-600 text-indigo-400 hover:text-white rounded-xl font-black text-[10px] uppercase tracking-wider border border-indigo-500/30 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                        >
+                          {isGeneratingAiSummary
+                            ? "REGENERATING..."
+                            : "🔄 REFRESH"}
+                        </button>
+                      </div>
                       <div className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
                         {matchMeta.aiSummary}
                       </div>

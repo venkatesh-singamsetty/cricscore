@@ -1,5 +1,11 @@
 # [3.7.1] - 2026-09-10
 
+### 🐛 Bug Fixes
+
+- **Stale AI Summary Invalidation**: Fixed `summaryHandler.js` cache check to invalidate summaries containing `0/0`, `0 balls`, `currently live`, `yet to begin`, or `has not started` regardless of whether match status is `LIVE` or `COMPLETED`.
+- **Score Update Cache Purging**: Added `ai_summary = NULL` to `storage-worker` and `match-api` PostgreSQL UPDATE queries so that any score update or match completion event automatically clears cached AI summaries for fresh generation.
+- **Fixture Card Display**: Updated `MatchList.tsx` to render `—` for unstarted team innings (0 overs, 0 balls, 0 runs, 0 wickets) instead of showing `0/0 (0.0)`.
+
 ### 💰 Cost Reduction
 
 - **Removed AWS KMS Customer Managed Key (CMK)**: Eliminated ~$2/month in KMS charges by switching all resources to free AWS-managed encryption:

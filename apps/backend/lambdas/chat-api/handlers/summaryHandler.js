@@ -12,13 +12,149 @@ const { pool, setSearchPath } = require("../config/db");
  * @param {object} corsHeaders - CORS headers to include in response
  * @returns {object} Lambda response with { summary } or error
  */
-async function summaryHandler(matchId, corsHeaders) {
-  if (!matchId) {
+async function summaryHandler(
+  matchId,
+  corsHeaders,
+  forceRefresh = false,
+  matchData = null,
+) {
+  if (!matchId && !matchData) {
     return {
       statusCode: 400,
       headers: corsHeaders,
-      body: JSON.stringify({ error: "matchId is required" }),
+      body: JSON.stringify({ error: "matchId or matchData is required" }),
     };
+  }
+
+  // Handle local / guest match payload directly
+  if (matchData || (matchId && String(matchId).startsWith("guest_"))) {
+    try {
+      const data = matchData || {};
+      const teamAName = data.teamAName || data.teamA?.name || "Team A";
+      const teamBName = data.teamBName || data.teamB?.name || "Team B";
+      const matchWinner =
+        data.winnerMessage || data.matchWinner || "Match Completed";
+      const tossWinner = data.tossWinner || teamAName;
+      const tossDecision = data.tossDecision || "BAT";
+
+      let score1Text = "Score 1: Not started";
+      let score2Text = "Score 2: Not started";
+
+      if (data.previousInnings) {
+        const inn1 = data.previousInnings;
+        score1Text = `Score 1 (${inn1.battingTeamName}): ${inn1.totalRuns} runs for ${inn1.totalWickets} wickets in ${inn1.overs}.${inn1.balls} overs`;
+      }
+      if (data.currentInnings) {
+        const inn2 = data.currentInnings;
+        const text = `Score 2 (${inn2.battingTeamName}): ${inn2.totalRuns} runs for ${inn2.totalWickets} wickets in ${inn2.overs}.${inn2.balls} overs`;
+        if (data.previousInnings) {
+          score2Text = text;
+        } else {
+          score1Text = text;
+        }
+      }
+
+      const batters = [];
+      const bowlers = [];
+      [data.previousInnings, data.currentInnings]
+        .filter(Boolean)
+        .forEach((inn) => {
+          if (inn.players) {
+            Object.values(inn.players).forEach((p) => {
+              if (p.runs > 0)
+                batters.push({
+                  name: p.name,
+                  team: inn.battingTeamName,
+                  runs: p.runs,
+                  balls: p.ballsFaced || 0,
+                  fours: p.fours || 0,
+                  sixes: p.sixes || 0,
+                });
+            });
+          }
+          if (inn.bowlers) {
+            Object.values(inn.bowlers).forEach((b) => {
+              if (b.wickets > 0 || b.overs > 0)
+                bowlers.push({
+                  name: b.name,
+                  team: inn.bowlingTeamName,
+                  wickets: b.wickets || 0,
+                  runsConceded: b.runsConceded || 0,
+                });
+            });
+          }
+        });
+
+      batters.sort((a, b) => b.runs - a.runs);
+      bowlers.sort(
+        (a, b) => b.wickets - a.wickets || a.runsConceded - b.runsConceded,
+      );
+
+      const topBattersText =
+        batters.length > 0
+          ? batters
+              .slice(0, 5)
+              .map(
+                (b) =>
+                  `- ${b.name} (${b.team}): ${b.runs} off ${b.balls} balls (${b.fours}x4, ${b.sixes}x6)`,
+              )
+              .join("\n")
+          : "None";
+      const topBowlersText =
+        bowlers.length > 0
+          ? bowlers
+              .slice(0, 5)
+              .map(
+                (b) =>
+                  `- ${b.name} (${b.team}): ${b.wickets} wickets for ${b.runsConceded} runs`,
+              )
+              .join("\n")
+          : "None";
+
+      const prompt = `You are a strict, factual cricket analyst.
+Generate a concise 1-2 paragraph post-match summary for the following match using ONLY the exact factual numbers provided.
+
+CRITICAL INSTRUCTIONS:
+1. Start directly with the toss details: "${tossWinner} won the toss and elected to ${tossDecision}."
+2. You MUST state the EXACT final team scores as provided in the Score 1 and Score 2 lines. Do NOT alter, recalculate, or invent any score, ball count, or wicket count. For example: "${score1Text}" and "${score2Text}".
+3. State the official match winner: "${matchWinner}".
+4. Name the "Man of the Match" based on top individual performances and state their exact stats in 1 sentence.
+
+MATCH STATISTICS:
+Match: ${teamAName} vs ${teamBName}
+Result/Status: COMPLETED (Winner: ${matchWinner})
+${score1Text}
+${score2Text}
+
+Top Batting Performances:
+${topBattersText}
+
+Top Bowling Performances:
+${topBowlersText}`;
+
+      const response = await openai.chat.completions.create({
+        model: LLM_MODEL,
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.0,
+        max_tokens: 800,
+      });
+
+      const summary = response.choices[0].message.content;
+      return {
+        statusCode: 200,
+        headers: corsHeaders,
+        body: JSON.stringify({ summary }),
+      };
+    } catch (err) {
+      console.error("Guest summaryHandler error:", err);
+      return {
+        statusCode: 500,
+        headers: corsHeaders,
+        body: JSON.stringify({
+          error: "Failed to generate summary for guest match",
+        }),
+      };
+    }
   }
 
   const client = await pool.connect();
@@ -40,16 +176,21 @@ async function summaryHandler(matchId, corsHeaders) {
     }
     const m = matchRes.rows[0];
 
-    // Return cached summary if already generated and valid
-    if (m.ai_summary) {
-      const isStaleLiveSummary =
-        m.status === "COMPLETED" &&
-        (m.ai_summary.includes("currently live") ||
-          m.ai_summary.includes("0/0") ||
-          m.ai_summary.includes("yet to begin") ||
-          m.ai_summary.includes("0 balls") ||
-          m.ai_summary.includes("has not started"));
-      if (!isStaleLiveSummary) {
+    // Return cached summary if already generated and valid (unless forceRefresh is true)
+    if (m.ai_summary && !forceRefresh) {
+      const isStaleSummary =
+        m.ai_summary.includes("currently live") ||
+        m.ai_summary.includes("currently ongoing") ||
+        m.ai_summary.includes("ongoing") ||
+        m.ai_summary.includes("yet to score") ||
+        m.ai_summary.includes("no balls bowled") ||
+        m.ai_summary.includes("0/0") ||
+        m.ai_summary.includes("yet to begin") ||
+        m.ai_summary.includes("0 balls") ||
+        m.ai_summary.includes("has not started") ||
+        (m.team_a_score > 0 && !m.ai_summary.includes(`${m.team_a_score}`)) ||
+        (m.team_b_score > 0 && !m.ai_summary.includes(`${m.team_b_score}`));
+      if (!isStaleSummary) {
         return {
           statusCode: 200,
           headers: corsHeaders,
@@ -107,46 +248,38 @@ async function summaryHandler(matchId, corsHeaders) {
     const score2Overs = inn2 ? formatOvers(inn2.overs, inn2.balls) : "0 balls";
 
     const score1Text = inn1
-      ? `Score 1: ${inn1.batting_team_name} - ${inn1.total_runs}/${inn1.total_wickets} in ${score1Overs}`
+      ? `Score 1 (${inn1.batting_team_name}): ${inn1.total_runs} runs for ${inn1.total_wickets} wickets in ${score1Overs}`
       : "Score 1: Not started";
     const score2Text = inn2
-      ? `Score 2: ${inn2.batting_team_name} - ${inn2.total_runs}/${inn2.total_wickets} in ${score2Overs}`
+      ? `Score 2 (${inn2.batting_team_name}): ${inn2.total_runs} runs for ${inn2.total_wickets} wickets in ${score2Overs}`
       : "Score 2: Not started";
 
     // Build LLM prompt with match context
-    const prompt = `You are a factual cricket analyst.
-Please generate a simple, concise 1-2 paragraph post-match summary for the following match. Do not be overly creative or dramatic. Keep it straightforward.
-CRITICAL INSTRUCTIONS:
-- Start your response directly with the toss details (e.g. "${m.toss_winner || "Unknown"} won the toss and elected to ${m.toss_decision || "BAT"}"). Do NOT use filler prefixes like "In a completed match," or "In this match,".
-- Overs are already pre-calculated in plain English for you below. Use them exactly as written.
-- The team's total runs and total overs are provided in the "Score 1" and "Score 2" lines. DO NOT calculate the team's total score or balls by adding up individual batting performances, as extras (wides, no balls) are not included in batting stats. Use the team scores exactly as provided.
-At the end, name the "Man of the Match" based on the statistics and give a brief 1 sentence reason.
+    const prompt = `You are a strict, factual cricket analyst.
+Generate a concise 1-2 paragraph post-match summary for the following match using ONLY the exact factual numbers provided.
 
+CRITICAL INSTRUCTIONS:
+1. Start directly with the toss details: "${m.toss_winner || m.team_a_name} won the toss and elected to ${m.toss_decision || "BAT"}."
+2. You MUST state the EXACT final team scores as provided in the Score 1 and Score 2 lines. Do NOT alter, recalculate, or invent any score, ball count, or wicket count. For example: "${score1Text}" and "${score2Text}".
+3. State the official match winner: "${m.match_winner || "Match Completed"}".
+4. Name the "Man of the Match" based on top individual performances and state their exact stats in 1 sentence.
+
+MATCH STATISTICS:
 Match: ${m.team_a_name} vs ${m.team_b_name}
 Result/Status: ${m.status} (Winner: ${m.match_winner || "TBD"})
 ${score1Text}
 ${score2Text}
 
 Top Batting Performances:
-${battersRes.rows
-  .map(
-    (b) =>
-      `- ${b.name} (${b.batting_team_name}): ${b.runs} off ${b.balls_faced} balls (${b.fours}x4, ${b.sixes}x6)`,
-  )
-  .join("\n")}
+${battersRes.rows.length > 0 ? battersRes.rows.map((b) => `- ${b.name} (${b.batting_team_name}): ${b.runs} off ${b.balls_faced} balls (${b.fours}x4, ${b.sixes}x6)`).join("\n") : "None"}
 
 Top Bowling Performances:
-${bowlersRes.rows
-  .map(
-    (b) =>
-      `- ${b.name} (${b.bowling_team_name}): ${b.wickets}/${b.runs_conceded}`,
-  )
-  .join("\n")}`;
+${bowlersRes.rows.length > 0 ? bowlersRes.rows.map((b) => `- ${b.name} (${b.bowling_team_name}): ${b.wickets} wickets for ${b.runs_conceded} runs`).join("\n") : "None"}`;
 
     const response = await openai.chat.completions.create({
       model: LLM_MODEL,
       messages: [{ role: "user", content: prompt }],
-      temperature: 0.7,
+      temperature: 0.0,
       max_tokens: 800,
     });
 

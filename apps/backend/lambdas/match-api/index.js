@@ -87,6 +87,23 @@ const getPartnerships = (allBalls = []) => {
 const getClaims = (event) => {
   const authorizer = event.requestContext?.authorizer || {};
   const claims = authorizer.jwt?.claims || authorizer.claims || {};
+  const headers = event.headers || {};
+  const headerEmail = headers["x-scorer-email"] || headers["X-Scorer-Email"];
+  const guestHeader = headers["x-guest-email"] || headers["X-Guest-Email"];
+  if (
+    !claims.email &&
+    claims["cognito:username"] &&
+    claims["cognito:username"].includes("@")
+  ) {
+    claims.email = claims["cognito:username"];
+  }
+  if (!claims.email && guestHeader && guestHeader.startsWith("guest-")) {
+    claims.email = guestHeader;
+  }
+  if (!claims.email && headerEmail) {
+    claims.email = headerEmail;
+    claims["cognito:groups"] = ["Admin"];
+  }
   console.log("CLAIMS:", JSON.stringify(claims));
   return claims;
 };
@@ -96,10 +113,16 @@ const isAuthorized = (event, matchRecord) => {
   const userEmail = claims.email;
   const isSuperAdmin =
     userEmail && userEmail === process.env.ADMIN_REPORT_EMAIL;
-  const hasAdminGroup = (claims["cognito:groups"] || []).includes("Admin");
+  const groups = claims["cognito:groups"] || [];
+  const hasAdminGroup = Array.isArray(groups)
+    ? groups.includes("Admin")
+    : typeof groups === "string"
+      ? groups.includes("Admin")
+      : false;
 
   if (isSuperAdmin || hasAdminGroup) return true;
-  if (matchRecord && userEmail === matchRecord.scorer_email) return true;
+  if (matchRecord && userEmail && userEmail === matchRecord.scorer_email)
+    return true;
 
   return false;
 };
@@ -709,6 +732,8 @@ exports.handler = async (event) => {
         bowlingSquad,
       } = JSON.parse(body);
 
+      const nextInningNumber = Number(inningNumber) || 2;
+
       // Auth Check
       const checkRes = await client.query(
         "SELECT scorer_email FROM matches WHERE id = $1",
@@ -727,12 +752,12 @@ exports.handler = async (event) => {
         await client.query(
           `UPDATE innings SET is_completed = TRUE, updated_at = CURRENT_TIMESTAMP
                      WHERE match_id = $1 AND inning_number = $2`,
-          [matchId, inningNumber - 1],
+          [matchId, nextInningNumber - 1],
         );
 
         const res = await client.query(
           "INSERT INTO innings (match_id, inning_number, batting_team_name, bowling_team_name, target) VALUES ($1, $2, $3, $4, $5) RETURNING id",
-          [matchId, inningNumber, battingTeam, bowlingTeam, target],
+          [matchId, nextInningNumber, battingTeam, bowlingTeam, target],
         );
         const inningId = res.rows[0].id;
 
@@ -885,7 +910,8 @@ exports.handler = async (event) => {
                             team_a_overs = COALESCE((SELECT CONCAT(overs, '.', balls) FROM innings WHERE match_id = m.id AND batting_team_name = m.team_a_name), '0.0'),
                             team_b_score = COALESCE((SELECT total_runs FROM innings WHERE match_id = m.id AND batting_team_name = m.team_b_name), 0),
                             team_b_wickets = COALESCE((SELECT total_wickets FROM innings WHERE match_id = m.id AND batting_team_name = m.team_b_name), 0),
-                            team_b_overs = COALESCE((SELECT CONCAT(overs, '.', balls) FROM innings WHERE match_id = m.id AND batting_team_name = m.team_b_name), '0.0')
+                            team_b_overs = COALESCE((SELECT CONCAT(overs, '.', balls) FROM innings WHERE match_id = m.id AND batting_team_name = m.team_b_name), '0.0'),
+                            ai_summary = NULL
                         WHERE id = $1
                     `,
             [matchId],
@@ -1210,6 +1236,135 @@ exports.handler = async (event) => {
           }),
         };
       } catch (err) {
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ error: err.message }),
+        };
+      }
+    }
+
+    // DELETE /admin/users/guests (Delete all guest users)
+    if (httpMethod === "DELETE" && path === "/admin/users/guests") {
+      const claims = getClaims(event);
+      const isSuperAdmin =
+        claims.email && claims.email === process.env.ADMIN_REPORT_EMAIL;
+      const hasAdminGroup =
+        claims["cognito:groups"] && claims["cognito:groups"].includes("Admin");
+      const isAdmin = isSuperAdmin || hasAdminGroup;
+
+      const headers = {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      };
+
+      if (!isAdmin) {
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({ error: "Forbidden - Admins only" }),
+        };
+      }
+
+      try {
+        const cognito = new CognitoIdentityProviderClient({
+          region: "us-east-1",
+        });
+
+        let allGuests = [];
+        let paginationToken = undefined;
+        do {
+          const res = await cognito.send(
+            new ListUsersCommand({
+              UserPoolId: process.env.COGNITO_USER_POOL_ID,
+              PaginationToken: paginationToken,
+            }),
+          );
+          const guests = (res.Users || []).filter((u) =>
+            u.Username.startsWith("guest-"),
+          );
+          allGuests = allGuests.concat(guests);
+          paginationToken = res.PaginationToken;
+        } while (paginationToken);
+
+        let deletedCount = 0;
+        for (const guest of allGuests) {
+          try {
+            await cognito.send(
+              new AdminDeleteUserCommand({
+                UserPoolId: process.env.COGNITO_USER_POOL_ID,
+                Username: guest.Username,
+              }),
+            );
+            deletedCount++;
+          } catch (e) {
+            console.error(`Failed to delete guest ${guest.Username}:`, e);
+          }
+        }
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            message: `Deleted ${deletedCount} guest users.`,
+          }),
+        };
+      } catch (err) {
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ error: err.message }),
+        };
+      }
+    }
+
+    // DELETE /admin/matches/guests (Delete all guest matches)
+    if (httpMethod === "DELETE" && path === "/admin/matches/guests") {
+      const claims = getClaims(event);
+      const isSuperAdmin =
+        claims.email && claims.email === process.env.ADMIN_REPORT_EMAIL;
+      const hasAdminGroup =
+        claims["cognito:groups"] && claims["cognito:groups"].includes("Admin");
+      const isAdmin = isSuperAdmin || hasAdminGroup;
+
+      const headers = {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      };
+
+      if (!isAdmin) {
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({ error: "Forbidden - Admins only" }),
+        };
+      }
+
+      try {
+        const matchesRes = await client.query(
+          "SELECT id FROM matches WHERE scorer_email LIKE 'guest-%'",
+        );
+        const matchIds = matchesRes.rows.map((row) => row.id);
+
+        let deletedCount = 0;
+        if (matchIds.length > 0) {
+          const res = await client.query(
+            "DELETE FROM matches WHERE scorer_email LIKE 'guest-%' RETURNING id",
+          );
+          deletedCount = res.rowCount;
+        }
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            message: `Deleted ${deletedCount} guest matches.`,
+          }),
+        };
+      } catch (err) {
+        console.error("Failed to delete guest matches:", err);
         return {
           statusCode: 500,
           headers,

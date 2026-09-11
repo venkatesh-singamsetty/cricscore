@@ -132,6 +132,74 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
+  const handleDeleteAllGuests = async () => {
+    if (
+      !window.confirm(
+        "Are you sure you want to permanently delete ALL guest users from the system?",
+      )
+    )
+      return;
+    setActionLoading("delete-all-guests");
+    setMessage("");
+    try {
+      const session = await fetchAuthSession();
+      const token = session.tokens?.idToken?.toString();
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/admin/users/guests`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      const data = await res.json();
+      if (!res.ok)
+        throw new Error(data.error || "Failed to delete guest users");
+      setMessage(`✅ ${data.message || "Success!"}`);
+      fetchUsers(); // Refresh the list
+    } catch (err: any) {
+      setMessage(`❌ Error: ${err.message}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDeleteAllGuestMatches = async () => {
+    if (
+      !window.confirm(
+        "Are you sure you want to permanently delete ALL guest matches from the database?",
+      )
+    )
+      return;
+    setActionLoading("delete-all-guest-matches");
+    setMessage("");
+    try {
+      const session = await fetchAuthSession();
+      const token = session.tokens?.idToken?.toString();
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/admin/matches/guests`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      const data = await res.json();
+      if (!res.ok)
+        throw new Error(data.error || "Failed to delete guest matches");
+      setMessage(`✅ ${data.message || "Success!"}`);
+      fetchMatches(); // Refresh the list
+    } catch (err: any) {
+      setMessage(`❌ Error: ${err.message}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   return (
     <div className="w-full">
       {/* Tabs */}
@@ -326,6 +394,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           <LiveScoreboard
             key={`hub-${hubKey}`}
             isAdmin={isAdmin}
+            showDeleteControls={true}
             initialMatchId={urlMatchId}
             onResumeMatch={undefined}
           />

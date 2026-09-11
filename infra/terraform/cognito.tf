@@ -17,6 +17,10 @@ resource "aws_cognito_user_pool" "pool" {
     allow_admin_create_user_only = false
   }
 
+  lambda_config {
+    pre_sign_up = aws_lambda_function.cognito_presignup.arn
+  }
+
   tags = {
     Project     = var.project_name
     Environment = var.environment

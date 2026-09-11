@@ -254,11 +254,36 @@ resource "aws_lambda_function" "chat_api" {
 
   environment {
     variables = {
-      DATABASE_URL = var.database_url
-      DB_SCHEMA    = var.environment
-      LLM_API_KEY  = var.llm_api_key
-      LLM_BASE_URL = var.llm_base_url
+      DATABASE_URL         = var.database_url
+      DB_SCHEMA            = var.environment
+      LLM_API_KEY          = var.llm_api_key
+      LLM_BASE_URL         = var.llm_base_url
+      COGNITO_USER_POOL_ID = aws_cognito_user_pool.pool.id
     }
+  }
+
+  tags = {
+    Project = var.project_name
+  }
+}
+
+# --- Cognito PreSignUp Lambda ---
+data "archive_file" "cognito_presignup_zip" {
+  type        = "zip"
+  source_dir  = "${path.module}/../../apps/backend/lambdas/cognito-presignup"
+  output_path = "${path.module}/cognito_presignup.zip"
+}
+
+resource "aws_lambda_function" "cognito_presignup" {
+  filename         = data.archive_file.cognito_presignup_zip.output_path
+  function_name    = "${var.project_name}-cognito-presignup"
+  role             = aws_iam_role.lambda_role.arn
+  handler          = "index.handler"
+  runtime          = "nodejs24.x"
+  source_code_hash = data.archive_file.cognito_presignup_zip.output_base64sha256
+
+  tracing_config {
+    mode = "Active"
   }
 
   tags = {

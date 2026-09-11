@@ -63,68 +63,163 @@ body {
 
 
 /* ============================================================
-   🎨 Amplify Authenticator — Dark Mode Styling
-   Scoped to [data-amplify-authenticator] only — does NOT
-   affect the rest of the app UI (viewer scoreboard etc.)
+   🎨 Amplify Authenticator — Premium Slate Dark Theme
    ============================================================ */
 [data-amplify-authenticator] {
-  --amplify-colors-background-primary: #0f172a; /* slate-900 */
-  --amplify-colors-background-secondary: #1e293b; /* slate-800 */
+  --amplify-colors-background-primary: #020617; /* slate-950 */
+  --amplify-colors-background-secondary: #0f172a; /* slate-900 */
   --amplify-colors-brand-primary-10: #e0e7ff;
-  --amplify-colors-brand-primary-80: #4f46e5; /* indigo-600 */
-  --amplify-colors-brand-primary-90: #4338ca; /* indigo-700 */
+  --amplify-colors-brand-primary-80: #6366f1; /* indigo-500 */
+  --amplify-colors-brand-primary-90: #4f46e5; /* indigo-600 */
   --amplify-colors-font-interactive: #ffffff;
   --amplify-colors-font-active: #ffffff;
   --amplify-colors-font-primary: #f8fafc;
   --amplify-colors-font-secondary: #94a3b8;
   --amplify-colors-border-primary: rgba(255, 255, 255, 0.1);
   --amplify-colors-border-secondary: rgba(255, 255, 255, 0.05);
-  --amplify-components-tabs-item-active-color: #818cf8; /* indigo-400 */
-  --amplify-components-tabs-item-active-border-color: #4f46e5;
+  --amplify-components-tabs-item-active-color: #818cf8;
+  --amplify-components-tabs-item-active-border-color: #6366f1;
   --amplify-components-button-primary-background-color: #4f46e5;
   --amplify-components-button-primary-hover-background-color: #4338ca;
   --amplify-components-button-primary-color: #ffffff;
-  --amplify-radii-small: 0.5rem;
+  --amplify-radii-small: 0.75rem;
   --amplify-radii-medium: 1rem;
   --amplify-radii-large: 1.5rem;
-  --amplify-shadows-medium: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
 
-  height: 100%;
-  width: 100%;
-}
-
-/* Only center and pad when the login form is present */
-[data-amplify-authenticator]:has([data-amplify-router]) {
+  background-color: #020617 !important;
+  color: #f8fafc !important;
+  min-height: calc(100vh - 3.5rem);
   display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 2rem;
+  justify-content: flex-start !important; /* keep both tabs top-aligned, no vertical jump */
+  align-items: flex-start !important;
+  padding-top: 0.25rem !important;
+  padding-bottom: 1rem !important;
+  overflow-y: auto !important;
 }
 
-/* Global Amplify Dark Mode Overrides for Inputs */
-.amplify-input, .amplify-select, .amplify-field-group__control {
-  background-color: var(--amplify-colors-background-secondary) !important;
-  color: var(--amplify-colors-font-primary) !important;
-  border-color: var(--amplify-colors-border-primary) !important;
+[data-amplify-authenticator] [data-amplify-router],
+.amplify-authenticator__router,
+.amplify-card {
+  background-color: #0f172a !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 1.5rem !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8) !important;
+  padding: 1.25rem !important;
+  min-height: 340px !important;   /* prevent height jump when switching sign-in ↔ register */
+  max-height: calc(100dvh - 4.5rem) !important;
+  overflow-y: auto !important;
+  width: 100% !important;
+  max-width: 440px !important;
 }
 
-.amplify-label {
-  color: var(--amplify-colors-font-secondary) !important;
+/* Tabs Dark Styling */
+[data-amplify-authenticator] .amplify-tabs,
+[data-amplify-authenticator] [role="tablist"] {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background-color: transparent !important;
 }
 
-.amplify-field__description {
+[data-amplify-authenticator] [role="tab"],
+[data-amplify-authenticator] .amplify-tabs__item {
   color: #94a3b8 !important;
-  font-size: 0.75rem !important;
-  margin-top: 0.25rem !important;
-  line-height: 1.3 !important;
+  font-weight: 700 !important;
+  font-size: 0.875rem !important;
+  border-bottom: 2px solid transparent !important;
+  background: transparent !important;
 }
 
-[data-amplify-authenticator] [data-amplify-router] {
-  border-radius: 1.5rem;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(16px);
-  background: #0f172a;
+[data-amplify-authenticator] [role="tab"][aria-selected="true"],
+[data-amplify-authenticator] .amplify-tabs__item--active {
+  color: #818cf8 !important; /* indigo-400 */
+  border-bottom-color: #6366f1 !important;
+  background: transparent !important;
+}
+
+/* Labels and Text */
+[data-amplify-authenticator] .amplify-label,
+[data-amplify-authenticator] label,
+[data-amplify-authenticator] .amplify-field-group__header {
+  color: #cbd5e1 !important; /* slate-300 */
+  font-size: 0.75rem !important;
+  font-weight: 800 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+}
+
+[data-amplify-authenticator] .amplify-heading,
+[data-amplify-authenticator] h3,
+[data-amplify-authenticator] legend,
+[data-amplify-authenticator] [data-amplify-heading] {
+  color: #f8fafc !important;
+  font-weight: 900 !important;
+}
+
+/* Inputs Dark Styling */
+[data-amplify-authenticator] .amplify-input,
+[data-amplify-authenticator] input,
+[data-amplify-authenticator] select {
+  background-color: #1e293b !important; /* slate-800 */
+  color: #f8fafc !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 0.75rem !important;
+  padding: 0.75rem 1rem !important;
+}
+
+[data-amplify-authenticator] .amplify-input:focus,
+[data-amplify-authenticator] input:focus {
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3) !important;
+}
+
+/* Submit Buttons Dark Styling */
+[data-amplify-authenticator] .amplify-button--primary,
+[data-amplify-authenticator] button[type="submit"] {
+  background: linear-gradient(to right, #4f46e5, #7c3aed) !important;
+  color: #ffffff !important;
+  font-weight: 900 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  border-radius: 0.75rem !important;
+  border: none !important;
+  padding: 0.875rem 1.5rem !important;
+  box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3) !important;
+  transition: all 0.2s ease-in-out !important;
+  width: 100% !important;
+}
+
+[data-amplify-authenticator] .amplify-button--primary:hover,
+[data-amplify-authenticator] button[type="submit"]:hover {
+  filter: brightness(1.1) !important;
+}
+
+/* Links & Secondary Buttons */
+[data-amplify-authenticator] .amplify-button--link,
+[data-amplify-authenticator] button[role="menuitem"] {
+  color: #818cf8 !important;
+  font-weight: 700 !important;
+}
+
+[data-amplify-authenticator] .amplify-button--link:hover {
+  color: #a5b4fc !important;
+}
+
+/* Password Field Show/Hide Eye Toggle Icon Fix */
+[data-amplify-authenticator] .amplify-field__show-password,
+[data-amplify-authenticator] .amplify-field-group__outer-end button,
+[data-amplify-authenticator] button.amplify-field__show-password {
+  color: #a5b4fc !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+[data-amplify-authenticator] .amplify-field__show-password svg,
+[data-amplify-authenticator] .amplify-field-group__outer-end button svg,
+[data-amplify-authenticator] [data-amplify-password-toggle] svg {
+  fill: #a5b4fc !important;
+  color: #a5b4fc !important;
+  opacity: 1 !important;
+  width: 1.25rem !important;
+  height: 1.25rem !important;
 }
 
 /* ============================================================

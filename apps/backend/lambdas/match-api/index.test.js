@@ -220,4 +220,97 @@ describe("match-api Lambda handler", () => {
     expect(response.statusCode).toBe(403);
     expect(response.body).toBe("Forbidden");
   });
+
+  it("should allow admin group member to delete any match", async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ scorer_email: "owner@example.com" }],
+    }); // Auth check — owner is different
+    mockQuery.mockResolvedValueOnce({ rowCount: 1 }); // Delete success
+
+    const event = {
+      httpMethod: "DELETE",
+      pathParameters: { matchId: "123" },
+      requestContext: {
+        authorizer: {
+          jwt: {
+            claims: {
+              email: "admin@example.com",
+              "cognito:groups": ["Admin"],
+            },
+          },
+        },
+      },
+    };
+
+    const response = await handler(event);
+    expect(response.statusCode).toBe(200);
+    expect(JSON.parse(response.body).message).toBe(
+      "Match deleted successfully",
+    );
+  });
+
+  it("should return 401 Unauthorized if POST /match has no JWT claims", async () => {
+    const event = {
+      httpMethod: "POST",
+      path: "/match",
+      requestContext: {
+        authorizer: { jwt: { claims: {} } }, // No email claim
+      },
+      body: JSON.stringify({
+        teamA: "India",
+        teamB: "Australia",
+        totalOvers: 20,
+        batFirstTeam: "India",
+        tossWinner: "India",
+        tossDecision: "BAT",
+        teamASquad: ["Player1"],
+        teamBSquad: ["Player2"],
+        scorerEmail: "notset@example.com",
+      }),
+    };
+
+    const response = await handler(event);
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("should return 403 if non-admin tries to purge DELETE /matches", async () => {
+    const event = {
+      httpMethod: "DELETE",
+      path: "/matches",
+      requestContext: {
+        authorizer: {
+          jwt: {
+            claims: {
+              email: "regular@example.com",
+              "cognito:groups": [],
+            },
+          },
+        },
+      },
+    };
+
+    const response = await handler(event);
+    expect(response.statusCode).toBe(403);
+  });
+
+  it("should return 403 if non-admin calls GET /admin/users", async () => {
+    const event = {
+      httpMethod: "GET",
+      path: "/admin/users",
+      requestContext: {
+        authorizer: {
+          jwt: {
+            claims: {
+              email: "regular@example.com",
+              "cognito:groups": [],
+            },
+          },
+        },
+      },
+    };
+
+    const response = await handler(event);
+    expect(response.statusCode).toBe(403);
+    expect(JSON.parse(response.body).error).toContain("Admins only");
+  });
 });
