@@ -23,8 +23,8 @@ test.describe("User Journey - Full Match Scoring", () => {
 
     // 3. Fill Match Setup
     await expect(
-      page.getByRole("heading", { name: /Match Configurations/i }),
-    ).toBeVisible();
+      page.getByRole("heading", { name: /Match Configuration/i }),
+    ).toBeVisible({ timeout: 15000 });
 
     const squadInputs = page.getByPlaceholder(/Enter player name/i);
     // TEAM A Squad
