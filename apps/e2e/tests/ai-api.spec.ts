@@ -43,7 +43,7 @@ test.describe("AI (Agentic RAG) API Integration Tests", () => {
 
     expect(response.status()).toBe(400);
     const body = await response.json();
-    expect(body.error).toBe("matchId is required");
+    expect(body.error).toBe("matchId or matchData is required");
   });
 
   test("should return 404 for POST /chat/summary for a non-existent match", async ({

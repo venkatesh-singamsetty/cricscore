@@ -16,11 +16,10 @@ test.describe("User Journey - Full Match Scoring", () => {
     // 2. Click Scorer mode
     await page.getByRole("button", { name: /SCORER/i }).click();
 
-    // Handle Authentication Modal
-    const emailInput = page.getByPlaceholder(/EMAIL ADDRESS\.\.\./i);
-    await expect(emailInput).toBeVisible();
-    await emailInput.fill("e2e.test@gmail.com");
-    await page.getByRole("button", { name: /CONTINUE/i }).click();
+    // Handle Authentication Modal (Use Guest Mode for E2E Tests)
+    const guestBtn = page.getByRole("button", { name: /Continue as Guest/i });
+    await expect(guestBtn).toBeVisible();
+    await guestBtn.click();
 
     // 3. Fill Match Setup
     await expect(
