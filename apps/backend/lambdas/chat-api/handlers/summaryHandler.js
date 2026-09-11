@@ -118,7 +118,13 @@ CRITICAL INSTRUCTIONS:
 1. Start directly with the toss details: "${tossWinner} won the toss and elected to ${tossDecision}."
 2. You MUST state the EXACT final team scores as provided in the Score 1 and Score 2 lines. Do NOT alter, recalculate, or invent any score, ball count, or wicket count. For example: "${score1Text}" and "${score2Text}".
 3. State the official match winner: "${matchWinner}".
-4. Name the "Man of the Match" based on top individual performances and state their exact stats in 1 sentence.
+4. Name the "Player of the Match" (POM) based on top individual performances and state their exact stats in 1 sentence.
+
+Respond with a JSON object in this exact format:
+{
+  "summary": "Your 4-paragraph summary...",
+  "playerOfTheMatch": "Name of the POM"
+}
 
 MATCH STATISTICS:
 Match: ${teamAName} vs ${teamBName}
@@ -137,13 +143,25 @@ ${topBowlersText}`;
         messages: [{ role: "user", content: prompt }],
         temperature: 0.0,
         max_tokens: 800,
+        response_format: { type: "json_object" },
       });
 
-      const summary = response.choices[0].message.content;
+      const rawContent = response.choices[0].message.content;
+      let resultJSON = {};
+      try {
+        resultJSON = JSON.parse(rawContent.trim());
+      } catch (e) {
+        console.error("Failed to parse LLM JSON:", e);
+        resultJSON = { summary: rawContent.trim(), playerOfTheMatch: null };
+      }
+
+      const summary = resultJSON.summary || rawContent.trim();
+      const playerOfTheMatch = resultJSON.playerOfTheMatch || null;
+
       return {
         statusCode: 200,
         headers: corsHeaders,
-        body: JSON.stringify({ summary }),
+        body: JSON.stringify({ summary, playerOfTheMatch }),
       };
     } catch (err) {
       console.error("Guest summaryHandler error:", err);
@@ -159,6 +177,7 @@ ${topBowlersText}`;
 
   const client = await pool.connect();
   let summary = "";
+  let playerOfTheMatch = null;
 
   try {
     await setSearchPath(client);
@@ -194,7 +213,10 @@ ${topBowlersText}`;
         return {
           statusCode: 200,
           headers: corsHeaders,
-          body: JSON.stringify({ summary: m.ai_summary }),
+          body: JSON.stringify({
+            summary: m.ai_summary,
+            playerOfTheMatch: m.player_of_the_match,
+          }),
         };
       }
     }
@@ -262,7 +284,13 @@ CRITICAL INSTRUCTIONS:
 1. Start directly with the toss details: "${m.toss_winner || m.team_a_name} won the toss and elected to ${m.toss_decision || "BAT"}."
 2. You MUST state the EXACT final team scores as provided in the Score 1 and Score 2 lines. Do NOT alter, recalculate, or invent any score, ball count, or wicket count. For example: "${score1Text}" and "${score2Text}".
 3. State the official match winner: "${m.match_winner || "Match Completed"}".
-4. Name the "Man of the Match" based on top individual performances and state their exact stats in 1 sentence.
+4. Name the "Player of the Match" (POM) based on top individual performances and state their exact stats in 1 sentence.
+
+Respond with a JSON object in this exact format:
+{
+  "summary": "Your 4-paragraph summary...",
+  "playerOfTheMatch": "Name of the POM"
+}
 
 MATCH STATISTICS:
 Match: ${m.team_a_name} vs ${m.team_b_name}
@@ -281,15 +309,26 @@ ${bowlersRes.rows.length > 0 ? bowlersRes.rows.map((b) => `- ${b.name} (${b.bowl
       messages: [{ role: "user", content: prompt }],
       temperature: 0.0,
       max_tokens: 800,
+      response_format: { type: "json_object" },
     });
 
-    summary = response.choices[0].message.content;
+    const rawContent = response.choices[0].message.content;
+    let resultJSON = {};
+    try {
+      resultJSON = JSON.parse(rawContent.trim());
+    } catch (e) {
+      console.error("Failed to parse LLM JSON:", e);
+      resultJSON = { summary: rawContent.trim(), playerOfTheMatch: null };
+    }
+
+    summary = resultJSON.summary || rawContent.trim();
+    playerOfTheMatch = resultJSON.playerOfTheMatch || null;
 
     // Cache the summary in the database for future requests
-    await client.query("UPDATE matches SET ai_summary = $1 WHERE id = $2", [
-      summary,
-      matchId,
-    ]);
+    await client.query(
+      "UPDATE matches SET ai_summary = $1, player_of_the_match = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3",
+      [summary, playerOfTheMatch, matchId],
+    );
   } catch (err) {
     console.error("summaryHandler error:", err);
     return {
@@ -304,7 +343,7 @@ ${bowlersRes.rows.length > 0 ? bowlersRes.rows.map((b) => `- ${b.name} (${b.bowl
   return {
     statusCode: 200,
     headers: corsHeaders,
-    body: JSON.stringify({ summary }),
+    body: JSON.stringify({ summary, playerOfTheMatch }),
   };
 }
 

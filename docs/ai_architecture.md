@@ -427,6 +427,14 @@ DELETE FROM matches RETURNING id
 Match setup now captures full toss information:
 
 - **Toss Winner**: Which team won the coin toss
-- **Toss Decision**: Whether they elected to Bat or Bowl
+  These fields are persisted to the `matches` table (`toss_winner`, `toss_decision` columns) and included in the AI post-match summary automatically.
 
-These fields are persisted to the `matches` table (`toss_winner`, `toss_decision` columns) and included in the AI post-match summary automatically.
+### Player of the Match (POM) Extraction
+
+The AI post-match summary prompt explicitly commands the model to identify the "Player of the Match" based on the statistics provided.
+To ensure this data is programmatically accessible:
+
+1. The LLM is instructed to respond with `response_format: { type: "json_object" }`.
+2. It returns a JSON object containing `{"summary": "...", "playerOfTheMatch": "..."}`.
+3. The `chat-api` backend parses this JSON, saves the summary to `matches.ai_summary`, and explicitly stores the extracted name to `matches.player_of_the_match`.
+4. This allows the Player of the Match to be prominently rendered in the Scoreboard UI and automated SES emails independently from the summary paragraph.

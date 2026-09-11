@@ -5,3 +5,5 @@
 10109	IGNORE	(Modern Web Application check)
 10049	IGNORE	(Storable/Cacheable content)
 10050	IGNORE	(Retrieved from Cache)
+10096	IGNORE	(Timestamp Disclosure - Unix)
+10027	IGNORE	(Information Disclosure - Suspicious Comments)
