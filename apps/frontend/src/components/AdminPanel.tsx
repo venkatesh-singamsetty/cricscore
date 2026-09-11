@@ -192,7 +192,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       if (!res.ok)
         throw new Error(data.error || "Failed to delete guest matches");
       setMessage(`✅ ${data.message || "Success!"}`);
-      fetchMatches(); // Refresh the list
     } catch (err: any) {
       setMessage(`❌ Error: ${err.message}`);
     } finally {

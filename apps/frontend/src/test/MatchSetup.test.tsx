@@ -145,7 +145,7 @@ describe("MatchSetup Component", () => {
           call[0].includes("/match") && call[1]?.method === "POST",
       );
       expect(fetchCall).toBeTruthy();
-      const fetchBody = JSON.parse(fetchCall[1].body);
+      const fetchBody = JSON.parse(fetchCall![1].body);
       expect(fetchBody.tossWinner).toBe("TEAM A");
       expect(fetchBody.tossDecision).toBe("BAT");
     });

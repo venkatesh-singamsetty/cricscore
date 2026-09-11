@@ -4,7 +4,7 @@ resource "aws_s3_bucket" "match_backups" {
   force_destroy = true
 
   tags = {
-    Project = var.project_name
+    Project     = var.project_name
     Environment = var.environment
   }
 }

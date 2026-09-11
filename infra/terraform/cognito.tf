@@ -34,13 +34,13 @@ resource "aws_cognito_user_pool_client" "client" {
   user_pool_id = aws_cognito_user_pool.pool.id
 
   generate_secret = false
-  
+
   supported_identity_providers = ["COGNITO"]
 
   allowed_oauth_flows_user_pool_client = true
   allowed_oauth_flows                  = ["code", "implicit"]
   allowed_oauth_scopes                 = ["email", "openid", "profile"]
-  
+
   callback_urls = ["http://localhost:5173/", "https://${var.domain_name}/"]
   logout_urls   = ["http://localhost:5173/", "https://${var.domain_name}/"]
 
