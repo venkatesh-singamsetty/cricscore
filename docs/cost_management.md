@@ -8,6 +8,7 @@ This document provides a breakdown of the estimated operational costs for the Cr
 
 - **Free Tier Limit**: 1,000,000 Requests AND 400,000 GB-Seconds per month.
 - **The Fan-Out Multiplier (3x)**: Every single ball event (1 click) triggers **3 Lambda invocations** (`score-update` -> `broadcaster` -> `storage-worker`).
+- **Cognito Pre-Signup Lambda**: A lightweight `cognito-presignup` Lambda is invoked on each new user registration. Guest accounts (`guest-*@cricscore.local`) auto-confirm; normal accounts go through standard Cognito email verification. This is negligible — well within free tier.
 - **Est. Max Load**: 1M requests / 3 lambdas = 333,333 ball events = **~1,350 Matches per month** remaining at absolutely $0 cost.
 - **Memory Optimization**: We upgraded lambdas to **256MB RAM** (consuming 2x GB-Seconds but preventing CPU throttling on the mTLS / PostgreSQL handshakes).
 
@@ -27,8 +28,9 @@ This document provides a breakdown of the estimated operational costs for the Cr
 
 ### 4. **Storage: Amazon S3 & DynamoDB**
 
-- **S3**: First 5GB of Standard Storage + 20,000 GET requests per month are **FREE**. (The React app is ~5MB).
+- **S3 (App Hosting)**: First 5GB of Standard Storage + 20,000 GET requests per month are **FREE**. (The React app is ~5MB).
 - **S3 Encryption**: Uses SSE-S3 (`AES256`) — AWS-managed, **$0/month**.
+- **S3 Match Backups** _(new)_: A dedicated `match-backups` bucket stores JSON snapshots of completed matches at the time of email report generation (triggered by `POST /match/{id}/email`). Each snapshot is ~5–15KB. 1,000 matches ≈ **15MB total** — well within the 5GB free tier. **Cost: $0/month**.
 - **DynamoDB**: 25GB of Storage + 2.5 Million Read/Write capacity per month. (Spectator connection tracking is negligible).
 
 ### 5. **Delivery: CloudFront & Route 53**
@@ -65,6 +67,14 @@ This document provides a breakdown of the estimated operational costs for the Cr
   - SQS → `sqs_managed_sse_enabled` — **$0**
 - **Saving**: ~$2.00/month eliminated with no reduction in encryption strength.
 
+### 11. **Identity: AWS Cognito User Pool** _(new)_
+
+- **Free Tier Limit**: **50,000 Monthly Active Users (MAUs)** per month, permanently free.
+- **What's included**: Sign-up, sign-in, token issuance (JWT), user pool storage, group management (`Admin` group), and pre-signup Lambda triggers.
+- **Guest accounts**: Each guest scorer creates a shadow Cognito account (`guest-*@cricscore.local`) that counts as 1 MAU per month. Admins can purge stale guest accounts via the Admin Panel or AI Chat to keep MAU count low.
+- **After free tier**: $0.0055 per MAU (e.g., 100,000 MAUs = $275/mo). For a small tournament platform this threshold is extremely unlikely to be reached.
+- **Cost for typical usage**: **$0/month**.
+
 ---
 
 ## 🗄️ Database (Aiven PostgreSQL)
@@ -89,7 +99,7 @@ CricScore is designed for **maximum profitability** on minimal infrastructure. B
 | **1 Month** | $0.500           | $0.00        | $0.160         | **~$0.660**    |
 | **1 Year**  | $6.000           | $0.00        | $2.000         | **~$8.000**    |
 
-_Note: Route 53 Hosted Zone is a fixed $0.50/mo. Domain costs vary ($2+ for .site/.me, ~$12 for .com). KMS CMK cost (~$2/mo) was eliminated in Sept 2026 by switching to free AWS-managed encryption._
+_Note: Route 53 Hosted Zone is a fixed $0.50/mo. Domain costs vary ($2+ for .site/.me, ~$12 for .com). KMS CMK cost (~$2/mo) was eliminated in Sept 2026 by switching to free AWS-managed encryption. Cognito User Pool is free for ≤50,000 MAUs/month._
 
 ---
 
@@ -108,7 +118,13 @@ For a standard **20-Overs Match** (120 balls per innings = **240 total events/ma
 - **Limit**: 1.0 GB Storage (Free Tier).
 - **Consumption**: One match (including metadata and 240 ball records) consumes ~50KB.
 - **Capacity**: 1,000,000 KB / 50 KB = **~20,000 historical matches**.
-- **Strategy**: Use the **Admin Global Purge** periodically to maintain this archive.
+- **Strategy**: Use the **Admin Panel → Database Cleanup** (or Admin AI Chat) periodically to purge old matches and guest data.
+
+### 3. **Identity (AWS Cognito)**
+
+- **Limit**: 50,000 MAUs/month free.
+- **Guest Account Growth**: If guest users are not purged, each guest counts as 1 MAU for the month. With typical usage (10–50 matches/month), guest MAU accumulation is negligible.
+- **Recommendation**: Admins should periodically delete stale guest accounts from the Admin Panel to stay well within the free tier.
 
 ---
 
@@ -119,8 +135,11 @@ For a standard **20-Overs Match** (120 balls per innings = **240 total events/ma
 3.  **Domain Selection**: Use low-cost TLDs (like `.site` or `.me`) to keep your yearly overhead under **$2.00**.
 4.  **Strict Zero-Cost Infrastructure**: We have explicitly disabled **S3 Versioning** and **DynamoDB Point-in-Time Recovery (PITR)** across the Terraform stack to guarantee $0 hidden backup costs.
 5.  **Avoid Customer Managed KMS Keys (CMKs)**: Each CMK costs $1.00/month regardless of usage. Use free AWS-managed alternatives: `AES256` for S3, `alias/aws/sns` for SNS, `sqs_managed_sse_enabled` for SQS.
+6.  **Purge Guest Cognito Accounts**: Guest shadow accounts (`guest-*@cricscore.local`) each count as 1 Cognito MAU/month. Use the Admin Panel or AI Chat (`delete all guest users`) to remove stale accounts before they accumulate.
+7.  **Match Backup Size**: S3 match backup snapshots are small (~5–15KB each) but grow over time. The Admin Panel cleanup also removes match records; pair it with periodic S3 lifecycle rules if needed.
 
 ## ⚖️ Total Monthly Estimated Cost
 
 - **Small-to-Medium Tournaments**: **~$0.66** (Route 53 + Amortized Domain Registration).
 - **Large-scale Public Launch**: **$10.00 - $25.00** (Only if you require high-availability RDS).
+- **Cognito**: **$0/month** for ≤50,000 MAUs. Scales to ~$275/mo at 100,000 MAUs (enterprise territory).

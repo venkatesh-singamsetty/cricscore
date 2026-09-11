@@ -109,6 +109,8 @@ graph TD
 | ------------------- | ------------------------------------ |
 | AWS Lambda          | Serverless backend execution         |
 | Amazon API Gateway  | REST API and WebSocket communication |
+| AWS Cognito         | Identity management and JWT auth     |
+| AWS Amplify Auth    | Frontend auth SDK (sign-up/sign-in)  |
 | Amazon SNS          | Event fan-out messaging              |
 | Amazon SQS          | Asynchronous worker queues           |
 | Node.js 24.x        | High performance runtime             |
@@ -177,6 +179,8 @@ The `chat-api` Lambda implements the **Model Context Protocol (MCP)** with two r
 | ------------------------- | --------------- | ------------------------------------------------------------------------------------------------- |
 | `execute_sql`             | Text-to-SQL RAG | Writes & executes READ-ONLY SQL to answer live score, player stats, and historical data questions |
 | `search_tournament_rules` | Vector RAG      | Embeds the user query and performs cosine-similarity search against the uploaded PDF rulebook     |
+| `delete_match`            | Admin Action    | Deletes one, multiple, or all matches from the database (Admin JWT required)                      |
+| `deleteGuestData`         | Admin Action    | Finds and deletes all Cognito guest accounts and their match records (Admin JWT required)         |
 
 ## AI File Structure
 
@@ -194,7 +198,9 @@ apps/backend/lambdas/chat-api/
     ├── server.js                 ← MCP Server (tool registry)
     └── tools/
         ├── executeSql.js         ← Text-to-SQL tool (READ ONLY, 3s timeout)
-        └── searchRules.js        ← Vector cosine-similarity search tool
+        ├── searchRules.js        ← Vector cosine-similarity search tool
+        ├── deleteMatch.js        ← Admin match deletion tool (JWT-gated)
+        └── deleteGuestData.js    ← Admin guest account purge tool (JWT-gated)
 ```
 
 ## Required Environment Variables
@@ -218,8 +224,9 @@ CricScore is engineered to demonstrate production-readiness across 6 core pillar
 ### 1. 🛡️ DevSecOps & Security
 
 **Zero-Trust Identity & Automated Scanning**
-We enforce a strict security posture using AWS IAM least-privilege policies, API Gateway WAF protections, and multi-tenant data isolation. The CI/CD pipeline acts as an automated gatekeeper, blocking PRs that fail GitLeaks, Trivy, Checkov, CodeQL, or OWASP ZAP.
+We enforce a strict security posture using **AWS Cognito JWT-based authentication**, API Gateway JWT Authorizers, and multi-tenant data isolation. The CI/CD pipeline acts as an automated gatekeeper, blocking PRs that fail GitLeaks, Trivy, Checkov, CodeQL, or OWASP ZAP.
 
+- 📖 **[Authentication & Authorization](./docs/auth.md)**: Cognito SSO flows, guest mode, admin user management, JWT validation, and cross-session identity guard.
 - 📖 **[Security Posture & Tradeoffs](./docs/security_posture.md)**: Defense in depth strategy, multi-tenant isolation, and encryption layers.
 - 📖 **[Branch Protection & Governance](./docs/branch_protection.md)**: Required status checks, CI/CD pipeline blockers, and administrator enforcement.
 
@@ -285,16 +292,3 @@ AI tools were used as productivity accelerators for:
 - Test creation assistance
 - Troubleshooting
 - Architecture brainstorming
-
-## AI Agents and Tools Used
-
-- **Antigravity / Gemini 3.1 Pro**: Used for autonomous agentic coding, writing Vitest mock tests, implementing the Model Context Protocol (MCP), debugging database connection isolation, and refactoring backend Lambdas.
-- **Claude 3.5 Sonnet**: Used for initial architecture planning and logic generation.
-
-Engineering decisions were reviewed manually including:
-
-- Cloud architecture
-- Security controls
-- Infrastructure design
-- Deployment strategy
-- Reliability patterns
