@@ -2,6 +2,20 @@
 
 This engineering trace documents the real-world resolutions for the CricScore backend integration.
 
+### 53. **AI Summary Stuck on "0/0" / "0 Balls" and Fixture Cards Displaying "0/0 (0.0)" Before Ball 1**
+
+- **Symptom**: AI match summaries stayed cached showing `0/0` or `0 balls` even after balls were scored, and match cards in "Latest Fixtures" displayed `0/0 (0.0)` for Team A before any balls had been bowled.
+- **Cause**:
+  1. `summaryHandler.js` only checked for stale cached summaries (`0/0`, `0 balls`, `currently live`, `yet to begin`) when `m.status === "COMPLETED"`. During `LIVE` matches, stale zero-ball summaries were returned from cache and never regenerated.
+  2. `storage-worker` and `match-api` did not set `ai_summary = NULL` when updating score metrics or completing matches, leaving stale cached summaries in the database.
+  3. `MatchList.tsx` rendered `0/0 (0.0)` for `leftTeamInnings` whenever an Innings 1 record existed, even if 0 overs, 0 balls, 0 runs, and 0 wickets were recorded.
+- **Fix**:
+  1. Updated `summaryHandler.js` to invalidate cached summaries containing live/zero-ball markers regardless of whether match status is `LIVE` or `COMPLETED`.
+  2. Updated `storage-worker` and `match-api` PostgreSQL `UPDATE matches m` statements to include `ai_summary = NULL`, invalidating cached summaries on every score update or match completion.
+  3. Updated `MatchList.tsx` to check if `overs > 0 || balls > 0 || total_runs > 0 || total_wickets > 0` before rendering scores; unstarted innings now render `—`.
+
+---
+
 ### 52. **AI Summary Showing "5 Balls" When Match Ended on Ball 6 (Complete Over)**
 
 - **Symptom**: The AI post-match summary showed "5 balls" for an innings that completed in exactly 1 over (6 legal balls). For example, a team that chased in the 6th ball (last ball of the over) would appear to have batted only 5 balls.

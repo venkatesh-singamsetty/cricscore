@@ -78,41 +78,65 @@ CricScore implements a high-performance **Event-Driven Architecture (EDA)** usin
 
 ---
 
+## 🔐 Authentication & Role Model
+
+> See [`docs/auth.md`](./auth.md) for the full authentication specification.
+
+CricScore uses **AWS Cognito User Pools** with a 4-tier role model:
+
+| Role          | Access                                                                 |
+| ------------- | ---------------------------------------------------------------------- |
+| **Viewer 🌍** | Public-only, no sign-in required                                       |
+| **Guest 🎮**  | Auto-provisioned Cognito shadow account (`guest-{ts}@cricscore.local`) |
+| **Scorer 🎮** | Full scorer access; owns their own matches                             |
+| **Admin ⚡**  | Full access — delete any match/user, user management                   |
+
+Authorization is enforced at two layers:
+
+1. **Frontend** — JWT presence and `cognito:groups` group check in React state
+2. **Backend** — API Gateway JWT Authorizer validates every token; Lambda checks ownership per resource
+
+---
+
 ## 🏛️ Component Breakdown
 
 ### **1. Official Scorer (The Implementation)**
 
-- **Match Registry**: Games are anchored to a unique, non-sequentially generated UUID provided by the **Aiven PostgreSQL** registry during initialization.
-- **score_update Lambda**: Acts as the scoring producer. Validates incoming ball-by-ball payloads and publishes them to the AWS SNS event hub for downstream fan-out.
-- **State Persistence**: ACID-compliant transactions ensure that innings, scores, and historical ball records are atomically committed.
+- **Match Registry**: Games are anchored to a unique UUID provided by **Aiven PostgreSQL** during initialization.
+- **score_update Lambda**: Validates ball-by-ball payloads and publishes them to AWS SNS for downstream fan-out.
+- **State Persistence**: ACID-compliant transactions ensure innings, scores, and ball records are atomically committed.
+- **Cross-Session Identity Guard**: A `prevEmailRef` ref in `App.tsx` detects user identity changes (e.g., guest → real account) and automatically clears all match state, preventing data bleed across sessions.
 
 ### **2. Managed Fan Hub (The Discovery Engine)**
 
-- **match_api Lambda**: The entry point for fans. Handles match discovery hub fetching and initial deep-link hydration to retrieve match state from Aiven PostgreSQL.
-- **broadcaster Lambda**: The heart of the fast-path. It consumes SNS events and performs a massive parallel push to all active spectator WebSocket tunnels by querying the DynamoDB Registry.
-- **WebSocket Lifecycle (onConnect/onDisconnect)**: These Lambdas manage the "who is watching now" registry in DynamoDB, ensuring zero-latency fan-out targeting.
-- **Deep-Link System**: Zero-friction URL-restoration logic for immediate spectator bypass-routing.
+- **match_api Lambda**: Handles match discovery, initial deep-link hydration, admin user management APIs, and all CRUD operations with per-resource auth checks.
+- **broadcaster Lambda**: Consumes SNS events and performs parallel pushes to active spectator WebSocket tunnels via DynamoDB Registry.
+- **WebSocket Lifecycle (onConnect/onDisconnect)**: Manage the "who is watching now" registry in DynamoDB.
+- **Admin Panel**: React component providing user management (list, promote, demote, delete) and database cleanup operations. Accessible only to users in the Cognito `Admin` group.
 
 ### **3. Reliability & Persistence (The Storage Buffer)**
 
-- **storage_worker Lambda**: Subscribed to the AWS SQS queue. It processes match events in reliable batches, ensuring that even during high-traffic bursts, database commits to Aiven PostgreSQL remain consistent and ordered.
+- **storage_worker Lambda**: Subscribed to AWS SQS. Processes match events in reliable batches ensuring consistent, ordered commits to Aiven PostgreSQL.
 
 ### **4. Security Strategy**
 
-- **Administrative Sovereignty**: Operations impacting global match state (e.g., `DELETE /match/{id}`) are restricted via **AWS Cognito Google SSO**, ensuring only the designated `ADMIN_EMAIL` can purge records and access the Admin Control Center.
+- **Cognito SSO Authentication**: All scorer and admin operations require a valid Cognito JWT. API Gateway uses a JWT Authorizer to validate tokens on every request.
+- **Per-Resource Authorization**: The `isAuthorized()` function in `match-api` checks that the requesting user is either the match owner, a super-admin email, or in the Cognito `Admin` group.
+- **Admin Group**: Managed in Cognito via Terraform. Admin users can perform privileged operations (delete any match, manage users) regardless of match ownership.
+- **Guest Isolation**: Guest accounts use shadow Cognito accounts (`guest-*@cricscore.local`) that can be cleaned up by Admins without affecting real user data.
 - **SSL Enforcement**: Mandatory for all Aiven PostgreSQL persistence sessions.
-- **Multi-Tenant Isolation**: Dual-scoped session logic ensures that scorer identities and match states are isolated by both Email and MatchID, preventing cross-tenant data leakage.
+- **Multi-Tenant Isolation**: Match states are isolated by `scorer_email` + `matchId`, preventing cross-tenant data leakage.
 - **Role-Based Access Hierarchy**:
   - **Viewer 🌍**: Public/No-Auth spectator access based solely on the sharable match UUID.
-  - **Scorer 🎮**: Secure/Google-SSO access for persistence and ball-by-ball updates. Can only manage matches they created.
-  - **Admin ⚡**: Protected/Google-SSO access restricted strictly to the designated `ADMIN_EMAIL` for global record purging and database maintenance.
+  - **Scorer 🎮**: Cognito-authenticated access for persistence and ball-by-ball updates. Can only manage matches they created.
+  - **Admin ⚡**: Cognito group membership required. Full access to global record management, user administration, and database maintenance.
 
 ### **5. Infrastructure Automation & CI/CD**
 
-- **Automated Bootstrapping**: `infra/scripts/setup.sh` provides intelligent OS-aware dependency installation (`node`, `terraform`, `jq`, `aws-cli`) across Mac and Linux.
-- **Dynamic Variable Hydration**: `infra/scripts/deploy.sh` bridges standard uppercase environment variables (`DOMAIN_NAME`) into strict Terraform formats (`TF_VAR_domain_name`), keeping `.env.local` clean.
-- **Non-Destructive Configuration**: Local deployment cleanly _appends_ live API Gateway and WebSocket URLs into `apps/frontend/.env` without wiping out manual configuration like `VITE_ADMIN_PIN`.
-- **Pipeline Dynamics**: The `.github/workflows/ci-cd.yml` utilizes GitHub Repository Variables (`${{ vars.DOMAIN_NAME }}`) rather than hardcoded URLs, ensuring perfectly portable CI/CD workflows across environments.
+- **Automated Bootstrapping**: `infra/scripts/setup.sh` provides intelligent OS-aware dependency installation.
+- **Dynamic Variable Hydration**: `deploy_local_dev.sh` bridges environment variables into Terraform format.
+- **Non-Destructive Configuration**: Local deployment cleanly appends live API Gateway and WebSocket URLs into `apps/frontend/.env`.
+- **Pipeline Dynamics**: `.github/workflows/ci-cd.yml` uses GitHub Repository Variables for perfectly portable CI/CD workflows.
 
 ---
 

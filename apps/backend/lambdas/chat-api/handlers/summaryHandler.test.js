@@ -34,12 +34,12 @@ describe("summaryHandler", () => {
     expect(res.statusCode).toBe(404);
   });
 
-  it("returns cached summary if ai_summary already exists", async () => {
+  it("returns cached summary if ai_summary already exists and is valid", async () => {
     querySpy.mockResolvedValueOnce({}).mockResolvedValueOnce({
       rows: [
         {
           id: "match-1",
-          ai_summary: "Cached text.",
+          ai_summary: "Valid summary text.",
           team_a_name: "A",
           team_b_name: "B",
           status: "COMPLETED",
@@ -49,6 +49,34 @@ describe("summaryHandler", () => {
     const res = await summaryHandler("match-1", corsHeaders);
     expect(res.statusCode).toBe(200);
     expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it("regenerates summary if cached ai_summary contains stale 0/0 marker during LIVE match", async () => {
+    querySpy
+      .mockResolvedValueOnce({}) // SET search_path
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "match-live-0",
+            ai_summary: "Match is currently live with score 0/0.",
+            team_a_name: "A",
+            team_b_name: "B",
+            status: "LIVE",
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [] }) // batters
+      .mockResolvedValueOnce({ rows: [] }) // bowlers
+      .mockResolvedValueOnce({ rows: [] }) // ball count query
+      .mockResolvedValueOnce({}); // UPDATE cache
+
+    mockCreate.mockResolvedValue({
+      choices: [{ message: { content: "Updated live summary." } }],
+    });
+
+    const res = await summaryHandler("match-live-0", corsHeaders);
+    expect(res.statusCode).toBe(200);
+    expect(mockCreate).toHaveBeenCalledTimes(1);
   });
 
   it("generates summary via LLM and caches it when no prior summary", async () => {

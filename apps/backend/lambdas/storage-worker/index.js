@@ -20,9 +20,14 @@ exports.handler = async (event) => {
     }
 
     for (const record of records) {
-      // Since raw_message_delivery is true on the SQS subscription,
-      // record.body is the actual message payload, not wrapped in SNS metadata
-      const matchEvent = JSON.parse(record.body);
+      let matchEvent = JSON.parse(record.body);
+      if (matchEvent.Message && typeof matchEvent.Message === "string") {
+        try {
+          matchEvent = JSON.parse(matchEvent.Message);
+        } catch (e) {
+          // record.body was raw JSON
+        }
+      }
 
       const {
         matchId,
@@ -180,6 +185,7 @@ exports.handler = async (event) => {
                     team_b_score = COALESCE((SELECT total_runs FROM innings WHERE match_id = m.id AND batting_team_name = m.team_b_name), 0),
                     team_b_wickets = COALESCE((SELECT total_wickets FROM innings WHERE match_id = m.id AND batting_team_name = m.team_b_name), 0),
                     team_b_overs = COALESCE((SELECT CONCAT(overs, '.', balls) FROM innings WHERE match_id = m.id AND batting_team_name = m.team_b_name), '0.0'),
+                    ai_summary = NULL,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = $1
             `,

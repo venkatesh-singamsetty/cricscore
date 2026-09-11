@@ -23,6 +23,7 @@ interface MatchMetadata {
 interface MatchListProps {
   onSelectMatch: (matchId: string) => void;
   isAdmin?: boolean;
+  showDeleteControls?: boolean; // Only show delete/purge in DB Management, not Viewer
   onResumeMatch?: (matchId: string) => void;
   refreshTrigger?: number;
   searchTerm?: string;
@@ -40,12 +41,14 @@ const getTimeAgo = (dateStr: string) => {
 const MatchList: React.FC<MatchListProps> = ({
   onSelectMatch,
   isAdmin,
+  showDeleteControls = false,
   onResumeMatch,
   refreshTrigger,
   searchTerm = "",
 }) => {
   const [matches, setMatches] = useState<MatchMetadata[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showGuestMatches, setShowGuestMatches] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{
     type: "DELETE_MATCH" | "PURGE_DB";
     matchId?: string;
@@ -142,6 +145,15 @@ const MatchList: React.FC<MatchListProps> = ({
   };
 
   const filteredMatches = matches.filter((m) => {
+    const isGuest =
+      m.scorer_email && m.scorer_email.includes("@cricscore.local");
+
+    // If we are in the admin Database Management view, separate real vs guest matches
+    if (showDeleteControls) {
+      if (showGuestMatches && !isGuest) return false;
+      if (!showGuestMatches && isGuest) return false;
+    }
+
     if (!searchTerm) return true;
     const s = searchTerm.toUpperCase();
     return (
@@ -190,7 +202,11 @@ const MatchList: React.FC<MatchListProps> = ({
       <div className="flex justify-between items-end px-1 border-t border-white/5 pt-6">
         <div>
           <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">
-            {searchTerm ? `SEARCHING: ${searchTerm}` : "LATEST FIXTURES"}
+            {searchTerm
+              ? `SEARCHING: ${searchTerm}`
+              : showGuestMatches
+                ? "GUEST FIXTURES"
+                : "LATEST FIXTURES"}
           </h3>
           <p className="text-[9px] font-black text-indigo-500/50 uppercase tracking-widest mt-1">
             {searchTerm
@@ -198,8 +214,19 @@ const MatchList: React.FC<MatchListProps> = ({
               : "Showing Active Database"}
           </p>
         </div>
-        {isAdmin && (
+        {showDeleteControls && (
           <div className="flex gap-4">
+            <button
+              onClick={() => setShowGuestMatches(!showGuestMatches)}
+              className={`flex flex-col items-center gap-1 group ${showGuestMatches ? "text-indigo-400" : "text-slate-500 hover:text-indigo-400"}`}
+            >
+              <span className="text-[9px] font-black uppercase tracking-tighter">
+                GUESTS
+              </span>
+              <span className="text-lg grayscale group-hover:grayscale-0 transition-all">
+                👻
+              </span>
+            </button>
             <button
               onClick={() => {
                 setConfirmAction({ type: "PURGE_DB" });
@@ -267,7 +294,7 @@ const MatchList: React.FC<MatchListProps> = ({
                       RESUME
                     </button>
                   )}
-                  {isAdmin && (
+                  {showDeleteControls && (
                     <button
                       type="button"
                       onClick={(e) => {
@@ -335,7 +362,11 @@ const MatchList: React.FC<MatchListProps> = ({
                             <h4 className="text-base font-black text-white uppercase tracking-tight italic group-hover:text-indigo-400 transition-colors">
                               {leftTeamName}
                             </h4>
-                            {leftTeamInnings ? (
+                            {leftTeamInnings &&
+                            (Number(leftTeamInnings.overs) > 0 ||
+                              Number(leftTeamInnings.balls) > 0 ||
+                              Number(leftTeamInnings.total_runs) > 0 ||
+                              Number(leftTeamInnings.total_wickets) > 0) ? (
                               <span className="text-xs font-black text-slate-400 tabular-nums">
                                 {Number(leftTeamInnings.total_runs)}/
                                 {Number(leftTeamInnings.total_wickets)}
@@ -359,7 +390,11 @@ const MatchList: React.FC<MatchListProps> = ({
                             <h4 className="text-base font-black text-white uppercase tracking-tight italic group-hover:text-indigo-400 transition-colors">
                               {rightTeamName}
                             </h4>
-                            {rightTeamInnings ? (
+                            {rightTeamInnings &&
+                            (Number(rightTeamInnings.overs) > 0 ||
+                              Number(rightTeamInnings.balls) > 0 ||
+                              Number(rightTeamInnings.total_runs) > 0 ||
+                              Number(rightTeamInnings.total_wickets) > 0) ? (
                               <span className="text-xs font-black text-slate-400 tabular-nums">
                                 {rightTeamInnings.total_runs}/
                                 {rightTeamInnings.total_wickets}

@@ -38,14 +38,14 @@ export const FielderSelectModal: React.FC<FielderSelectModalProps> = ({
           </div>
           <span className="text-2xl animate-bounce">🛡️</span>
         </div>
-        <div className="overflow-y-auto p-4 space-y-3 pb-8 scrollbar-hide flex-1">
+        <div className="overflow-y-auto p-4 space-y-1.5 pb-8 scrollbar-hide flex-1">
           {innings.bowlingOrder.map((id) => {
             const fielder = innings.bowlers[id];
             return (
               <button
                 key={id}
                 onClick={() => onSelect(fielder.name)}
-                className="w-full text-left px-5 py-4 bg-white/5 hover:bg-indigo-600 rounded-2xl flex justify-between items-center group transition-all active:scale-95 border border-white/5"
+                className="w-full text-left px-4 py-2.5 bg-white/5 hover:bg-amber-600 rounded-2xl flex justify-between items-center group transition-all active:scale-95 border border-white/5"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <span className="text-lg opacity-40 group-hover:opacity-100 transition-opacity">

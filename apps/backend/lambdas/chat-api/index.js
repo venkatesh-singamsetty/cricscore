@@ -33,7 +33,12 @@ exports.handler = async (event) => {
     // Route: AI Post-Match Summary
     if (path.includes("/chat/summary")) {
       const body = JSON.parse(event.body || "{}");
-      return await summaryHandler(body.matchId, corsHeaders);
+      return await summaryHandler(
+        body.matchId,
+        corsHeaders,
+        body.forceRefresh,
+        body.matchData,
+      );
     }
 
     // Route: List Tournament Rulebooks

@@ -9,7 +9,16 @@ const QUEUE_URL = process.env.STORAGE_BUFFER_QUEUE;
 const { Client } = require("pg");
 
 const getClaims = (event) => {
-  return event.requestContext?.authorizer?.jwt?.claims || {};
+  const claims =
+    event.requestContext?.authorizer?.jwt?.claims ||
+    event.requestContext?.authorizer?.claims ||
+    {};
+  const headers = event.headers || {};
+  const headerEmail = headers["x-scorer-email"] || headers["X-Scorer-Email"];
+  if (!claims.email && headerEmail) {
+    claims.email = headerEmail;
+  }
+  return claims;
 };
 
 exports.handler = async (event) => {
@@ -87,16 +96,22 @@ exports.handler = async (event) => {
       QueueUrl: QUEUE_URL,
       MessageBody: JSON.stringify(message),
       MessageGroupId: matchId, // Ensure strict FIFO ordering per match!
+      MessageDeduplicationId: `${matchId}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
     });
 
-    const [snsRes, sqsRes] = await Promise.all([
-      snsClient.send(snsCommand),
-      sqsClient.send(sqsCommand),
-    ]);
-
-    console.log(
-      `SNS Published: ${snsRes.MessageId}, SQS Sent: ${sqsRes.MessageId}`,
-    );
+    let snsRes, sqsRes;
+    try {
+      [snsRes, sqsRes] = await Promise.all([
+        snsClient.send(snsCommand),
+        sqsClient.send(sqsCommand),
+      ]);
+      console.log(
+        `SNS Published: ${snsRes?.MessageId}, SQS Sent: ${sqsRes?.MessageId}`,
+      );
+    } catch (sendErr) {
+      console.error("Error sending SNS/SQS events:", sendErr);
+      throw sendErr;
+    }
 
     return {
       statusCode: 200,
