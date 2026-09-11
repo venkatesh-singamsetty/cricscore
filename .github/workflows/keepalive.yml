@@ -14,12 +14,37 @@ jobs:
       - name: Install PostgreSQL Client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
 
-      - name: Execute Keep-Alive Query
+      - name: Validate Secret Exists
         env:
           DATABASE_URL: ${{ secrets.TF_DATABASE_URL }}
-        # The ?sslmode=require ensures the connection succeeds with Aiven's strict TLS requirements
         run: |
-          if [ -z "$DATABASE_URL" ]; then echo "Missing DATABASE_URL secret, skipping ping"; exit 0; fi
+          if [ -z "$DATABASE_URL" ]; then
+            echo "❌ TF_DATABASE_URL secret is missing or empty. Please set it in GitHub repo secrets."
+            exit 1
+          fi
+          echo "✅ DATABASE_URL secret is present."
+
+      - name: Execute Keep-Alive Query (with retry)
+        env:
+          DATABASE_URL: ${{ secrets.TF_DATABASE_URL }}
+        # Aiven free tier may take a moment to wake up — retry up to 3 times with 10s delay
+        run: |
           echo "Pinging database to prevent inactivity shutdown..."
-          psql "$DATABASE_URL" -c "SELECT 1 as keep_alive;"
-          echo "Database successfully pinged."
+          for i in 1 2 3; do
+            echo "Attempt $i of 3..."
+            if PGCONNECT_TIMEOUT=20 psql "$DATABASE_URL" \
+                -c "SELECT 1 AS keep_alive;" 2>&1; then
+              echo "✅ Database successfully pinged on attempt $i."
+              exit 0
+            fi
+            echo "⚠️ Attempt $i failed. Waiting 10 seconds before retry..."
+            sleep 10
+          done
+          echo "❌ All 3 ping attempts failed. The Aiven free-tier DB may be paused or the connection string may have changed."
+          echo ""
+          echo "👉 Next steps:"
+          echo "   1. Log in to https://console.aiven.io and check if the service is running."
+          echo "   2. If paused, restart the service manually from the Aiven console."
+          echo "   3. If the password changed, update the TF_DATABASE_URL secret in GitHub:"
+          echo "      Settings → Secrets and variables → Actions → TF_DATABASE_URL"
+          exit 1

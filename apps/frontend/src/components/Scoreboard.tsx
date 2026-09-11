@@ -245,7 +245,7 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
   );
 
   return (
-    <div className="fixed inset-0 bg-slate-950/80 z-[200] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-300">
+    <div className="fixed inset-0 bg-slate-950/80 z-[400] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-300">
       <div className="bg-slate-900 border border-white/10 rounded-[2.5rem] w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-in zoom-in-95 duration-500">
         {/* Header */}
         <div className="bg-slate-950 px-8 py-6 flex justify-between items-center shrink-0 border-b border-white/5">

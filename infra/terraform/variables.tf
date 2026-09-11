@@ -58,6 +58,18 @@ variable "llm_api_key" {
 
 variable "llm_base_url" {
   type        = string
-  description = "The base URL for the LLM provider"
+  description = "Base URL for OpenAI-compatible LLM endpoint"
   default     = "https://api.openai.com/v1"
+}
+
+variable "google_client_id" {
+  type        = string
+  description = "Google OAuth Client ID for Cognito Federation"
+  default     = "dummy-client-id" # Placeholder
+}
+
+variable "google_client_secret" {
+  type        = string
+  description = "Google OAuth Client Secret for Cognito Federation"
+  default     = "dummy-client-secret" # Placeholder
 }

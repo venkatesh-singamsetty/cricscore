@@ -75,11 +75,17 @@ echo "☁️ Applying AWS Infrastructure for $ENV_FILE environment..."
 echo "🔍 Querying Terraform outputs..."
 API_URL=$(cd infra/terraform && terraform output -raw http_api_url)
 WS_URL=$(cd infra/terraform && terraform output -raw websocket_url)
+COGNITO_USER_POOL_ID=$(cd infra/terraform && terraform output -raw cognito_user_pool_id)
+COGNITO_CLIENT_ID=$(cd infra/terraform && terraform output -raw cognito_client_id)
+COGNITO_DOMAIN=$(cd infra/terraform && terraform output -raw cognito_domain)
 
 echo "⚙️ Synchronizing frontend environment variables..."
-# Preserve existing variables (like VITE_ADMIN_PIN) by only filtering out old URLs
+# Preserve existing variables by only filtering out old auto-generated ones
 if [ -f apps/frontend/.env ]; then
-  grep -v "^VITE_API_URL=" apps/frontend/.env | grep -v "^VITE_WS_URL=" | grep -v "^VITE_APP_TITLE=" > apps/frontend/.env.tmp || true
+  grep -v "^VITE_API_URL=" apps/frontend/.env | \
+  grep -v "^VITE_WS_URL=" | \
+  grep -v "^VITE_APP_TITLE=" | \
+  grep -v "^VITE_COGNITO_" > apps/frontend/.env.tmp || true
   mv apps/frontend/.env.tmp apps/frontend/.env
 fi
 
@@ -94,11 +100,15 @@ cat <<EOF >> apps/frontend/.env
 VITE_API_URL=$API_URL
 VITE_WS_URL=$WS_URL
 VITE_APP_TITLE=$APP_TITLE
+VITE_COGNITO_REGION=us-east-1
+VITE_COGNITO_USER_POOL_ID=$COGNITO_USER_POOL_ID
+VITE_COGNITO_CLIENT_ID=$COGNITO_CLIENT_ID
+VITE_COGNITO_DOMAIN=$COGNITO_DOMAIN
 EOF
 
 # 4. Build the application with the correct variables
 echo "🚀 Building the frontend application..."
-(unset VITE_API_URL VITE_WS_URL VITE_ADMIN_PIN VITE_SCORER_PIN; cd apps/frontend && npm run build)
+(unset VITE_API_URL VITE_WS_URL VITE_COGNITO_USER_POOL_ID VITE_COGNITO_CLIENT_ID VITE_COGNITO_DOMAIN; cd apps/frontend && npm run build)
 
 # 5. Sync files to S3
 cd infra/terraform

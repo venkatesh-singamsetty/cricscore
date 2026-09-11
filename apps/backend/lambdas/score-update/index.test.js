@@ -7,6 +7,16 @@ import { handler } from "./index.js";
 import { SNSClient } from "@aws-sdk/client-sns";
 import { SQSClient } from "@aws-sdk/client-sqs";
 
+import pg from "pg";
+
+export const mockQuery = vi
+  .spyOn(pg.Client.prototype, "query")
+  .mockResolvedValue({ rows: [{ scorer_email: "scorer@test.com" }] });
+export const mockConnect = vi
+  .spyOn(pg.Client.prototype, "connect")
+  .mockResolvedValue();
+export const mockEnd = vi.spyOn(pg.Client.prototype, "end").mockResolvedValue();
+
 // Mock SNS Client using prototype
 export const mockSend = vi
   .spyOn(SNSClient.prototype, "send")
@@ -36,6 +46,9 @@ describe("score-update Lambda handler", () => {
 
   it("should publish STATE_SYNC event to SNS and return success", async () => {
     const event = {
+      requestContext: {
+        authorizer: { jwt: { claims: { email: "scorer@test.com" } } },
+      },
       body: JSON.stringify({
         matchId: "match_123",
         inningId: "inning_123",
@@ -53,6 +66,9 @@ describe("score-update Lambda handler", () => {
 
   it("should publish LIVE_SCORE_UPDATE event to SNS and return success", async () => {
     const event = {
+      requestContext: {
+        authorizer: { jwt: { claims: { email: "scorer@test.com" } } },
+      },
       body: JSON.stringify({
         matchId: "match_123",
         inningId: "inning_123",

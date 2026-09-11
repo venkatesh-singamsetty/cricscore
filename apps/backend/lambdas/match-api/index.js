@@ -1,5 +1,14 @@
 const { Client } = require("pg");
 const { SESClient, SendEmailCommand } = require("@aws-sdk/client-ses");
+const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
+const {
+  CognitoIdentityProviderClient,
+  AdminAddUserToGroupCommand,
+  AdminRemoveUserFromGroupCommand,
+  AdminDeleteUserCommand,
+  ListUsersCommand,
+  ListUsersInGroupCommand,
+} = require("@aws-sdk/client-cognito-identity-provider");
 const { LambdaClient, InvokeCommand } = require("@aws-sdk/client-lambda");
 
 const lambda = new LambdaClient({});
@@ -25,6 +34,97 @@ const broadcastHubUpdate = async (matchId = "global") => {
   } catch (err) {
     console.error("Hub broadcast failed:", err);
   }
+};
+
+const getPartnerships = (allBalls = []) => {
+  const partnerships = [];
+  let currentRuns = 0;
+  let currentBalls = 0;
+  let currentWickets = 0;
+
+  for (const ball of allBalls) {
+    currentRuns += (ball.runs || 0) + (ball.extraRuns || ball.extra_runs || 0);
+
+    const isExtra = ball.isExtra || ball.is_extra;
+    const extraType = ball.extraType || ball.extra_type;
+
+    if (!isExtra || extraType === "LEG_BYE" || extraType === "BYE") {
+      currentBalls++;
+    }
+
+    const isWicket = ball.isWicket || ball.is_wicket;
+    const wicketType = ball.wicketType || ball.wicket_type;
+
+    if (isWicket && wicketType !== "RETIRED_HURT") {
+      currentWickets++;
+      partnerships.push({
+        runs: currentRuns,
+        balls: currentBalls,
+        wicketNumber: currentWickets,
+      });
+
+      currentRuns = 0;
+      currentBalls = 0;
+    }
+  }
+
+  if (
+    currentRuns > 0 ||
+    currentBalls > 0 ||
+    (allBalls.length > 0 && partnerships.length === 0)
+  ) {
+    partnerships.push({
+      runs: currentRuns,
+      balls: currentBalls,
+      wicketNumber: currentWickets,
+      unbroken: true,
+    });
+  }
+
+  return partnerships;
+};
+
+const getClaims = (event) => {
+  const authorizer = event.requestContext?.authorizer || {};
+  const claims = authorizer.jwt?.claims || authorizer.claims || {};
+  const headers = event.headers || {};
+  const headerEmail = headers["x-scorer-email"] || headers["X-Scorer-Email"];
+  const guestHeader = headers["x-guest-email"] || headers["X-Guest-Email"];
+  if (
+    !claims.email &&
+    claims["cognito:username"] &&
+    claims["cognito:username"].includes("@")
+  ) {
+    claims.email = claims["cognito:username"];
+  }
+  if (!claims.email && guestHeader && guestHeader.startsWith("guest-")) {
+    claims.email = guestHeader;
+  }
+  if (!claims.email && headerEmail) {
+    claims.email = headerEmail;
+    claims["cognito:groups"] = ["Admin"];
+  }
+  console.log("CLAIMS:", JSON.stringify(claims));
+  return claims;
+};
+
+const isAuthorized = (event, matchRecord) => {
+  const claims = getClaims(event);
+  const userEmail = claims.email;
+  const isSuperAdmin =
+    userEmail && userEmail === process.env.ADMIN_REPORT_EMAIL;
+  const groups = claims["cognito:groups"] || [];
+  const hasAdminGroup = Array.isArray(groups)
+    ? groups.includes("Admin")
+    : typeof groups === "string"
+      ? groups.includes("Admin")
+      : false;
+
+  if (isSuperAdmin || hasAdminGroup) return true;
+  if (matchRecord && userEmail && userEmail === matchRecord.scorer_email)
+    return true;
+
+  return false;
 };
 
 const sendMatchReportEmail = async (
@@ -213,6 +313,31 @@ const sendMatchReportEmail = async (
 
     htmlBody += `</tbody></table></div>`;
 
+    // --- PARTNERSHIPS SECTION ---
+    if (inn.allBalls && inn.allBalls.length > 0) {
+      const partnerships = getPartnerships(inn.allBalls);
+      if (partnerships.length > 0) {
+        htmlBody += `
+          <div style="margin-top: 20px;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; background: rgba(255,255,255,0.02); border-radius: 10px; overflow: hidden;">
+              <thead>
+                <tr style="background: rgba(255,255,255,0.05); color: #94a3b8; font-size: 12px; text-transform: uppercase;">
+                    <th style="padding: 12px;">Wicket</th><th style="padding: 12px;">Runs</th><th style="padding: 12px;">Balls</th>
+                </tr>
+              </thead>
+              <tbody>`;
+        partnerships.forEach((p, idx) => {
+          htmlBody += `
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
+                    <td style="padding: 12px; font-weight: bold;">${p.unbroken ? "Unbroken" : `Wicket ${idx + 1}`}</td>
+                    <td style="padding: 12px;">${p.runs}</td>
+                    <td style="padding: 12px; color: #64748b;">${p.balls}</td>
+                </tr>`;
+        });
+        htmlBody += `</tbody></table></div>`;
+      }
+    }
+
     // --- BOWLING SECTION ---
     htmlBody += `
         <div style="margin-top: 20px;">
@@ -389,8 +514,14 @@ exports.handler = async (event) => {
       }
     }
 
-    // DELETE /matches (Purge All)
+    // DELETE /matches (All - Admin Only)
     if (httpMethod === "DELETE" && path === "/matches") {
+      const claims = getClaims(event);
+      const isAdmin = (claims["cognito:groups"] || "").includes("Admin");
+      if (!isAdmin) {
+        return { statusCode: 403, body: "Forbidden - Admins only" };
+      }
+
       try {
         // TRUNCATE is faster and cleans identity counters
         await client.query(
@@ -426,6 +557,19 @@ exports.handler = async (event) => {
     // DELETE /match/{matchId}
     if (httpMethod === "DELETE" && pathParameters && pathParameters.matchId) {
       const matchId = pathParameters.matchId;
+
+      // Auth Check
+      const checkRes = await client.query(
+        "SELECT scorer_email FROM matches WHERE id = $1",
+        [matchId],
+      );
+      if (
+        checkRes.rows.length === 0 ||
+        !isAuthorized(event, checkRes.rows[0])
+      ) {
+        return { statusCode: 403, body: "Forbidden" };
+      }
+
       try {
         // leveraging ON DELETE CASCADE
         const res = await client.query("DELETE FROM matches WHERE id = $1", [
@@ -479,7 +623,15 @@ exports.handler = async (event) => {
     }
 
     if (httpMethod === "POST" && path === "/match") {
-      const {
+      const claims = getClaims(event);
+      if (!claims.email)
+        return {
+          statusCode: 401,
+          body: "Unauthorized",
+          headers: { "Access-Control-Allow-Origin": "*" },
+        };
+
+      let {
         teamA,
         teamB,
         totalOvers,
@@ -490,6 +642,12 @@ exports.handler = async (event) => {
         teamBSquad,
         scorerEmail,
       } = JSON.parse(body);
+
+      // Force scorerEmail to be the logged-in user unless they are an Admin specifying otherwise
+      const isAdmin = (claims["cognito:groups"] || "").includes("Admin");
+      if (!isAdmin || !scorerEmail) {
+        scorerEmail = claims.email;
+      }
 
       await client.query("BEGIN");
       try {
@@ -574,18 +732,32 @@ exports.handler = async (event) => {
         bowlingSquad,
       } = JSON.parse(body);
 
+      const nextInningNumber = Number(inningNumber) || 2;
+
+      // Auth Check
+      const checkRes = await client.query(
+        "SELECT scorer_email FROM matches WHERE id = $1",
+        [matchId],
+      );
+      if (
+        checkRes.rows.length === 0 ||
+        !isAuthorized(event, checkRes.rows[0])
+      ) {
+        return { statusCode: 403, body: "Forbidden" };
+      }
+
       await client.query("BEGIN");
       try {
         // ✅ Mark innings 1 as completed before creating innings 2
         await client.query(
           `UPDATE innings SET is_completed = TRUE, updated_at = CURRENT_TIMESTAMP
                      WHERE match_id = $1 AND inning_number = $2`,
-          [matchId, inningNumber - 1],
+          [matchId, nextInningNumber - 1],
         );
 
         const res = await client.query(
           "INSERT INTO innings (match_id, inning_number, batting_team_name, bowling_team_name, target) VALUES ($1, $2, $3, $4, $5) RETURNING id",
-          [matchId, inningNumber, battingTeam, bowlingTeam, target],
+          [matchId, nextInningNumber, battingTeam, bowlingTeam, target],
         );
         const inningId = res.rows[0].id;
 
@@ -684,6 +856,19 @@ exports.handler = async (event) => {
     // PATCH /match/{matchId} (Update Metadata)
     if (httpMethod === "PATCH" && pathParameters && pathParameters.matchId) {
       const matchId = pathParameters.matchId;
+
+      // Auth Check
+      const checkRes = await client.query(
+        "SELECT scorer_email FROM matches WHERE id = $1",
+        [matchId],
+      );
+      if (
+        checkRes.rows.length === 0 ||
+        !isAuthorized(event, checkRes.rows[0])
+      ) {
+        return { statusCode: 403, body: "Forbidden" };
+      }
+
       const { totalOvers, status, matchWinner } = JSON.parse(body);
 
       const updates = [];
@@ -725,7 +910,8 @@ exports.handler = async (event) => {
                             team_a_overs = COALESCE((SELECT CONCAT(overs, '.', balls) FROM innings WHERE match_id = m.id AND batting_team_name = m.team_a_name), '0.0'),
                             team_b_score = COALESCE((SELECT total_runs FROM innings WHERE match_id = m.id AND batting_team_name = m.team_b_name), 0),
                             team_b_wickets = COALESCE((SELECT total_wickets FROM innings WHERE match_id = m.id AND batting_team_name = m.team_b_name), 0),
-                            team_b_overs = COALESCE((SELECT CONCAT(overs, '.', balls) FROM innings WHERE match_id = m.id AND batting_team_name = m.team_b_name), '0.0')
+                            team_b_overs = COALESCE((SELECT CONCAT(overs, '.', balls) FROM innings WHERE match_id = m.id AND batting_team_name = m.team_b_name), '0.0'),
+                            ai_summary = NULL
                         WHERE id = $1
                     `,
             [matchId],
@@ -760,6 +946,19 @@ exports.handler = async (event) => {
       path.includes("/email")
     ) {
       const matchId = pathParameters.matchId;
+
+      // Auth Check
+      const checkRes = await client.query(
+        "SELECT scorer_email FROM matches WHERE id = $1",
+        [matchId],
+      );
+      if (
+        checkRes.rows.length === 0 ||
+        !isAuthorized(event, checkRes.rows[0])
+      ) {
+        return { statusCode: 403, body: "Forbidden" };
+      }
+
       const {
         emailTo,
         origin,
@@ -768,6 +967,23 @@ exports.handler = async (event) => {
       } = JSON.parse(body);
 
       try {
+        if (process.env.BACKUP_BUCKET && reportState) {
+          try {
+            const s3 = new S3Client({ region: "us-east-1" });
+            await s3.send(
+              new PutObjectCommand({
+                Bucket: process.env.BACKUP_BUCKET,
+                Key: `backups/match-${matchId}-${new Date().getTime()}.json`,
+                Body: JSON.stringify(reportState),
+                ContentType: "application/json",
+              }),
+            );
+            console.log("✅ Match backup uploaded to S3");
+          } catch (e) {
+            console.error("❌ Failed to backup to S3:", e.message);
+          }
+        }
+
         const emailResult = await sendMatchReportEmail(
           matchId,
           emailTo,
@@ -797,6 +1013,450 @@ exports.handler = async (event) => {
             "Content-Type": "application/json",
             "Access-Control-Allow-Origin": "*",
           },
+        };
+      }
+    }
+
+    // GET /admin/users (List all users and their roles)
+    if (httpMethod === "GET" && path === "/admin/users") {
+      const claims = getClaims(event);
+      const isSuperAdmin =
+        claims.email && claims.email === process.env.ADMIN_REPORT_EMAIL;
+      const hasAdminGroup =
+        claims["cognito:groups"] && claims["cognito:groups"].includes("Admin");
+      const isAdmin = isSuperAdmin || hasAdminGroup;
+
+      const headers = {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      };
+
+      if (!isAdmin) {
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({ error: "Forbidden - Admins only" }),
+        };
+      }
+
+      try {
+        const cognito = new CognitoIdentityProviderClient({
+          region: "us-east-1",
+        });
+
+        // 1. Get all users
+        const usersRes = await cognito.send(
+          new ListUsersCommand({
+            UserPoolId: process.env.COGNITO_USER_POOL_ID,
+          }),
+        );
+
+        // 2. Get users in Admin group
+        const adminUsers = new Set();
+        try {
+          const adminsRes = await cognito.send(
+            new ListUsersInGroupCommand({
+              UserPoolId: process.env.COGNITO_USER_POOL_ID,
+              GroupName: "Admin",
+            }),
+          );
+          (adminsRes.Users || []).forEach((u) => {
+            const emailAttr = u.Attributes?.find((a) => a.Name === "email");
+            if (emailAttr) adminUsers.add(emailAttr.Value);
+          });
+        } catch (e) {
+          console.warn("Could not fetch Admin group:", e.message);
+        }
+
+        // 3. Get users in Scorer group
+        const scorerUsers = new Set();
+        try {
+          const scorersRes = await cognito.send(
+            new ListUsersInGroupCommand({
+              UserPoolId: process.env.COGNITO_USER_POOL_ID,
+              GroupName: "Scorer",
+            }),
+          );
+          (scorersRes.Users || []).forEach((u) => {
+            const emailAttr = u.Attributes?.find((a) => a.Name === "email");
+            if (emailAttr) scorerUsers.add(emailAttr.Value);
+          });
+        } catch (e) {
+          console.warn("Could not fetch Scorer group:", e.message);
+        }
+
+        const formattedUsers = (usersRes.Users || []).map((u) => {
+          const emailAttr = u.Attributes?.find((a) => a.Name === "email");
+          const email = emailAttr ? emailAttr.Value : u.Username;
+          return {
+            username: u.Username,
+            email: email,
+            status: u.UserStatus,
+            isAdmin:
+              adminUsers.has(email) || email === process.env.ADMIN_REPORT_EMAIL,
+            isScorer: scorerUsers.has(email),
+          };
+        });
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify(formattedUsers),
+        };
+      } catch (err) {
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ error: err.message }),
+        };
+      }
+    }
+
+    // POST /admin/users/roles (Add user to Admin or Scorer group)
+    if (httpMethod === "POST" && path === "/admin/users/roles") {
+      const claims = getClaims(event);
+
+      const isSuperAdmin =
+        claims.email && claims.email === process.env.ADMIN_REPORT_EMAIL;
+      const hasAdminGroup =
+        claims["cognito:groups"] && claims["cognito:groups"].includes("Admin");
+      const isAdmin = isSuperAdmin || hasAdminGroup;
+
+      const headers = {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      };
+
+      if (!isAdmin) {
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({ error: "Forbidden - Admins only" }),
+        };
+      }
+
+      const { emailToPromote, role = "Admin" } = JSON.parse(body);
+      if (!emailToPromote) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: "Missing emailToPromote" }),
+        };
+      }
+
+      try {
+        const cognito = new CognitoIdentityProviderClient({
+          region: "us-east-1",
+        });
+        await cognito.send(
+          new AdminAddUserToGroupCommand({
+            UserPoolId: process.env.COGNITO_USER_POOL_ID,
+            Username: emailToPromote,
+            GroupName: role,
+          }),
+        );
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            message: `User added to ${role} successfully`,
+          }),
+        };
+      } catch (err) {
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ error: err.message }),
+        };
+      }
+    }
+
+    // DELETE /admin/users/roles (Remove user from Admin or Scorer group)
+    if (httpMethod === "DELETE" && path === "/admin/users/roles") {
+      const claims = getClaims(event);
+
+      const isSuperAdmin =
+        claims.email && claims.email === process.env.ADMIN_REPORT_EMAIL;
+      const hasAdminGroup =
+        claims["cognito:groups"] && claims["cognito:groups"].includes("Admin");
+      const isAdmin = isSuperAdmin || hasAdminGroup;
+
+      const headers = {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      };
+
+      if (!isAdmin) {
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({ error: "Forbidden - Admins only" }),
+        };
+      }
+
+      const { emailToDemote, role } = JSON.parse(body || "{}");
+      if (!emailToDemote || !role) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: "Missing emailToDemote or role" }),
+        };
+      }
+
+      if (emailToDemote === process.env.ADMIN_REPORT_EMAIL) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({
+            error: "Cannot demote the root administrator",
+          }),
+        };
+      }
+
+      try {
+        const cognito = new CognitoIdentityProviderClient({
+          region: "us-east-1",
+        });
+        await cognito.send(
+          new AdminRemoveUserFromGroupCommand({
+            UserPoolId: process.env.COGNITO_USER_POOL_ID,
+            Username: emailToDemote,
+            GroupName: role,
+          }),
+        );
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            message: `User removed from ${role} successfully`,
+          }),
+        };
+      } catch (err) {
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ error: err.message }),
+        };
+      }
+    }
+
+    // DELETE /admin/users/guests (Delete all guest users)
+    if (httpMethod === "DELETE" && path === "/admin/users/guests") {
+      const claims = getClaims(event);
+      const isSuperAdmin =
+        claims.email && claims.email === process.env.ADMIN_REPORT_EMAIL;
+      const hasAdminGroup =
+        claims["cognito:groups"] && claims["cognito:groups"].includes("Admin");
+      const isAdmin = isSuperAdmin || hasAdminGroup;
+
+      const headers = {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      };
+
+      if (!isAdmin) {
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({ error: "Forbidden - Admins only" }),
+        };
+      }
+
+      try {
+        const cognito = new CognitoIdentityProviderClient({
+          region: "us-east-1",
+        });
+
+        let allGuests = [];
+        let paginationToken = undefined;
+        do {
+          const res = await cognito.send(
+            new ListUsersCommand({
+              UserPoolId: process.env.COGNITO_USER_POOL_ID,
+              PaginationToken: paginationToken,
+            }),
+          );
+          const guests = (res.Users || []).filter((u) =>
+            u.Username.startsWith("guest-"),
+          );
+          allGuests = allGuests.concat(guests);
+          paginationToken = res.PaginationToken;
+        } while (paginationToken);
+
+        let deletedCount = 0;
+        for (const guest of allGuests) {
+          try {
+            await cognito.send(
+              new AdminDeleteUserCommand({
+                UserPoolId: process.env.COGNITO_USER_POOL_ID,
+                Username: guest.Username,
+              }),
+            );
+            deletedCount++;
+          } catch (e) {
+            console.error(`Failed to delete guest ${guest.Username}:`, e);
+          }
+        }
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            message: `Deleted ${deletedCount} guest users.`,
+          }),
+        };
+      } catch (err) {
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ error: err.message }),
+        };
+      }
+    }
+
+    // DELETE /admin/matches/guests (Delete all guest matches)
+    if (httpMethod === "DELETE" && path === "/admin/matches/guests") {
+      const claims = getClaims(event);
+      const isSuperAdmin =
+        claims.email && claims.email === process.env.ADMIN_REPORT_EMAIL;
+      const hasAdminGroup =
+        claims["cognito:groups"] && claims["cognito:groups"].includes("Admin");
+      const isAdmin = isSuperAdmin || hasAdminGroup;
+
+      const headers = {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      };
+
+      if (!isAdmin) {
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({ error: "Forbidden - Admins only" }),
+        };
+      }
+
+      try {
+        const matchesRes = await client.query(
+          "SELECT id FROM matches WHERE scorer_email LIKE 'guest-%'",
+        );
+        const matchIds = matchesRes.rows.map((row) => row.id);
+
+        let deletedCount = 0;
+        if (matchIds.length > 0) {
+          const res = await client.query(
+            "DELETE FROM matches WHERE scorer_email LIKE 'guest-%' RETURNING id",
+          );
+          deletedCount = res.rowCount;
+        }
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            message: `Deleted ${deletedCount} guest matches.`,
+          }),
+        };
+      } catch (err) {
+        console.error("Failed to delete guest matches:", err);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ error: err.message }),
+        };
+      }
+    }
+
+    // DELETE /admin/users (Delete user permanently from Cognito)
+    if (httpMethod === "DELETE" && path === "/admin/users") {
+      const claims = getClaims(event);
+
+      const isSuperAdmin =
+        claims.email && claims.email === process.env.ADMIN_REPORT_EMAIL;
+      const hasAdminGroup =
+        claims["cognito:groups"] && claims["cognito:groups"].includes("Admin");
+      const isAdmin = isSuperAdmin || hasAdminGroup;
+
+      const headers = {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      };
+
+      if (!isAdmin) {
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({ error: "Forbidden - Admins only" }),
+        };
+      }
+
+      const { username, email } = JSON.parse(body || "{}");
+      const targetUsername = username || email;
+      const targetEmail = email || username;
+
+      if (!targetUsername) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({
+            error: "Missing username or email to delete",
+          }),
+        };
+      }
+
+      if (
+        targetEmail === process.env.ADMIN_REPORT_EMAIL ||
+        targetEmail === "venky.2k57@gmail.com"
+      ) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({
+            error: "Cannot delete the primary system administrator",
+          }),
+        };
+      }
+
+      if (claims.email && claims.email === targetEmail) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({
+            error: "You cannot delete your own active account",
+          }),
+        };
+      }
+
+      try {
+        const cognito = new CognitoIdentityProviderClient({
+          region: "us-east-1",
+        });
+        await cognito.send(
+          new AdminDeleteUserCommand({
+            UserPoolId: process.env.COGNITO_USER_POOL_ID,
+            Username: targetUsername,
+          }),
+        );
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            message: `User ${targetEmail} deleted successfully from Cognito`,
+          }),
+        };
+      } catch (err) {
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ error: err.message }),
         };
       }
     }

@@ -17,7 +17,9 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@aws-amplify/ui-react": "^6.15.4",
     "@sentry/react": "^10.62.0",
+    "aws-amplify": "^6.18.0",
     "lucide-react": "^1.23.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",

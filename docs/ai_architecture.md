@@ -19,7 +19,8 @@ sequenceDiagram
     participant APIGW as API Gateway (/chat)
     participant ChatAPI as chat-api Lambda (MCP Client)
     participant MCPServer as MCP Server (In-Memory)
-    participant LLM as External LLM (OpenRouter)
+    participant LLM as Chat LLM (OpenRouter)
+    participant EmbedLLM as Embedding LLM (text-embedding-3)
     participant Aiven_PG as Aiven PostgreSQL
 
     Viewer->>App: Sends Chat Message
@@ -57,8 +58,8 @@ sequenceDiagram
             Note right of ChatAPI: 2. Vector RAG Routing
             LLM-->>ChatAPI: Generate Tool Call: `search_tournament_rules`
             ChatAPI->>MCPServer: Delegate: Call `search_tournament_rules`
-            MCPServer->>OpenRouter: Request text-embedding-3-small
-            OpenRouter-->>MCPServer: Return Vector
+            MCPServer->>EmbedLLM: Request Embedding (text-embedding-3-small)
+            EmbedLLM-->>MCPServer: Return Vector (Embeddings)
             MCPServer->>Aiven_PG: SELECT chunk_text ORDER BY embedding <=> $1 LIMIT 3
             Aiven_PG-->>MCPServer: Return top 3 rule chunks
             MCPServer-->>ChatAPI: Return MCP Standard Response
@@ -83,7 +84,7 @@ CricScore natively implements the **Model Context Protocol (MCP)** to standardis
 
 Instead of tightly coupling database and vector logic directly into the LLM chat router loop, the `chat-api` Lambda operates using an **MCP Client-Server Architecture**:
 
-1. **MCP Server (`mcpServer.js`):** A standalone module that defines the tools (`execute_sql`, `search_tournament_rules`, `send_email`, `delete_match`) using the `@modelcontextprotocol/sdk`. It manages the database pooling and security parameters internally.
+1. **MCP Server (`mcpServer.js`):** A standalone module that defines the tools (`execute_sql`, `search_tournament_rules`) using the `@modelcontextprotocol/sdk`. It manages the database pooling and security parameters internally.
 2. **MCP Client (`index.js`):** The main Lambda handler instantiates an MCP Client, connects to the MCP Server via `InMemoryTransport`, and dynamically lists the tools. When the LLM decides to call a tool, the client simply delegates the call via the standardized `client.callTool()` interface.
 
 _Why use `InMemoryTransport`?_ Standard MCP typically runs over `stdio` or WebSockets/SSE for local IDE or distributed execution. By utilizing the `InMemoryTransport` within the Lambda, we achieve the perfect architectural decoupling and standardization of MCP without needing to provision expensive, long-running ECS/EC2 containers to host an SSE server!
@@ -103,7 +104,11 @@ We have extended the PostgreSQL database with the `pgvector` extension to serve 
 
 The backend is configured to use OpenAI API compatible endpoints. We previously utilized Groq, but due to rate limiting issues with large tool-calling schemas on free tiers, we have switched our primary inference engine to **OpenRouter**.
 
-Because Agentic Tool Calling requires high reasoning capabilities and stability, we route our requests through OpenRouter (e.g., defaulting to `gpt-4o-mini`).
+Because Agentic Tool Calling and Vector RAG require high reasoning capabilities and stability, we route our requests through OpenRouter.
+We explicitly use the following models:
+
+- **Chat & Tool Routing Model**: `gpt-4o-mini` (fast, cost-effective reasoning)
+- **Embedding Model**: `text-embedding-3-small` (generates the mathematical vectors for pgvector)
 
 The following secrets have been added to **GitHub Repository Secrets** for use in CI/CD, and in `.env.local` for local execution:
 
@@ -379,7 +384,7 @@ Administrators log in by typing a hidden slash command directly into the AI chat
 /login <pin>
 ```
 
-- If the PIN matches `VITE_ADMIN_PIN` (env variable, default `2403`), `sessionStorage` is updated with `auth_admin=true` and the page reloads in admin mode.
+- If logged in via Cognito SSO as the designated `ADMIN_EMAIL`, the UI reloads in admin mode.
 - If the PIN is wrong, the chatbot displays `❌ Invalid Admin PIN.` locally — no API call is ever made.
 
 ### Admin-Only MCP Tools

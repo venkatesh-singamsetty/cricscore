@@ -2,6 +2,7 @@ const { McpServer } = require("@modelcontextprotocol/sdk/server/mcp.js");
 const { z } = require("zod");
 const { executeSqlTool } = require("./tools/executeSql");
 const { searchRulesTool } = require("./tools/searchRules");
+const { deleteGuestDataTool } = require("./tools/deleteGuestData");
 
 /**
  * Creates and configures the CricScore MCP Server.
@@ -20,7 +21,7 @@ const { searchRulesTool } = require("./tools/searchRules");
  *
  * @returns {McpServer} Configured MCP server instance
  */
-function createCricScoreMcpServer() {
+function createCricScoreMcpServer(pool, isAdmin) {
   const server = new McpServer({
     name: "CricScore MCP Server",
     version: "2.0.0",
@@ -53,6 +54,15 @@ function createCricScoreMcpServer() {
     },
     searchRulesTool,
   );
+
+  if (isAdmin) {
+    server.tool(
+      "delete_guest_data",
+      "Delete all guest users and guest matches from the system. Guests are temporary shadow accounts. Use this when the admin asks to clear, delete, or prune guest data.",
+      {},
+      deleteGuestDataTool,
+    );
+  }
 
   return server;
 }

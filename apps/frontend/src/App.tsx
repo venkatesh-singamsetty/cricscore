@@ -9,81 +9,201 @@ import {
 } from "./types";
 import MatchSetup from "./components/MatchSetup";
 import MatchView from "./components/MatchView";
-import LiveScoreboard from "./components/LiveScoreboard"; // Added Phase 6
+import LiveScoreboard from "./components/LiveScoreboard";
+import AdminPanel from "./components/AdminPanel";
+import { Authenticator, useAuthenticator } from "@aws-amplify/ui-react";
+import {
+  fetchAuthSession,
+  signOut,
+  signUp,
+  signIn,
+  fetchUserAttributes,
+} from "aws-amplify/auth";
+import { Hub } from "aws-amplify/utils";
 import { ChatComponent } from "./components/ChatComponent";
 
 // Key helper for saving match state by email
 const getMatchStateKey = (email: string) =>
   `cric-match-state-${email.toLowerCase().trim()}`;
 
+const authFormFields = {
+  signUp: {
+    username: {
+      label: "Email (Username)",
+      placeholder: "your@email.com",
+      isRequired: true,
+      order: 1,
+    },
+    password: {
+      label: "Password",
+      placeholder: "Min 8 chars, upper+lower+number+special",
+      isRequired: true,
+      order: 2,
+    },
+    confirm_password: {
+      label: "Confirm Password",
+      placeholder: "Re-enter your password",
+      isRequired: true,
+      order: 3,
+    },
+    given_name: {
+      label: "First Name",
+      placeholder: "First name",
+      isRequired: true,
+      order: 4,
+    },
+    family_name: {
+      label: "Last Name",
+      placeholder: "Last name",
+      isRequired: true,
+      order: 5,
+    },
+  },
+  signIn: {
+    username: {
+      label: "Email (Username)",
+      placeholder: "your@email.com",
+    },
+    password: {
+      label: "Password",
+      placeholder: "Enter your password",
+    },
+  },
+};
+
 const App: React.FC = () => {
-  const [isAuthorized, setIsAuthorized] = useState<
-    Record<"SCORER" | "ADMIN", boolean>
-  >(() => ({
-    SCORER: sessionStorage.getItem("auth_scorer") === "true",
-    ADMIN: sessionStorage.getItem("auth_admin") === "true",
-  }));
+  const [userToken, setUserToken] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
-  const [authModal, setAuthModal] = useState<{
-    isOpen: boolean;
-    targetView: "SCORER" | "ADMIN" | null;
-  }>({ isOpen: false, targetView: null });
-
-  const [emailTo, setEmailTo] = useState(
-    sessionStorage.getItem("scorer_email") || "@gmail.com",
-  );
+  const [emailTo, setEmailTo] = useState("");
+  const [hasRestored, setHasRestored] = useState(false);
   const emailInputRef = React.useRef<HTMLInputElement>(null);
 
   const isRestoringRef = React.useRef(false);
   const isEndingInningsRef = React.useRef(false);
+  const prevEmailRef = React.useRef<string | null>(null); // track identity changes
 
   // Auto-position cursor before @gmail.com when modal opens
-  useEffect(() => {
-    if (
-      authModal.isOpen &&
-      authModal.targetView === "SCORER" &&
-      emailInputRef.current
-    ) {
-      const input = emailInputRef.current;
-      // Native focus might put cursor at end, we force it to 0
-      setTimeout(() => {
-        input.focus();
-        input.setSelectionRange(0, 0);
-      }, 100);
-    }
-  }, [authModal.isOpen, authModal.targetView]);
 
-  const [view, setView] = useState<"VIEWER" | "SCORER" | "ADMIN" | "CHAT">(
-    () => {
-      const savedView = sessionStorage.getItem("last_view") as any;
-      if (
-        savedView === "ADMIN" &&
-        sessionStorage.getItem("auth_admin") !== "true"
-      )
-        return "VIEWER";
-      if (
-        savedView === "SCORER" &&
-        sessionStorage.getItem("auth_scorer") !== "true"
-      )
-        return "VIEWER";
-      return savedView || "VIEWER";
-    },
-  );
+  const [view, setView] = useState<
+    "VIEWER" | "SCORER" | "ADMIN_PANEL" | "CHAT"
+  >(() => (sessionStorage.getItem("last_view") as any) || "VIEWER");
 
   // Security: Auto-open modal if unauthorized on a restricted view
   useEffect(() => {
-    if (view === "SCORER" && !isAuthorized.SCORER) {
-      setAuthModal({ isOpen: true, targetView: "SCORER" });
+    const checkSession = async () => {
+      try {
+        const session = await fetchAuthSession();
+        const token = session.tokens?.idToken?.toString();
+        if (token) {
+          setUserToken(token);
+          const payload = session.tokens?.idToken?.payload;
+          let emailStr = payload?.email?.toString() || "";
+
+          if (!emailStr) {
+            try {
+              const attributes = await fetchUserAttributes();
+              emailStr = attributes.email || "";
+            } catch (e) {
+              console.warn("Failed to fetch user attributes", e);
+            }
+          }
+
+          setUserEmail(emailStr || null);
+          const groups = (payload?.["cognito:groups"] as string[]) || [];
+
+          if (
+            emailStr.startsWith("guest-") &&
+            emailStr.endsWith("@cricscore.local")
+          ) {
+            setIsGuestScorer(true);
+          }
+          setIsAdmin(groups.includes("Admin"));
+          if (emailStr) {
+            setEmailTo(emailStr);
+          }
+        } else {
+          setUserToken(null);
+          setIsAdmin(false);
+          setUserEmail(null);
+        }
+      } catch (err) {
+        setUserToken(null);
+        setIsAdmin(false);
+        setUserEmail(null);
+      }
+    };
+
+    checkSession();
+    const unsubscribe = Hub.listen("auth", (data) => {
+      if (
+        data.payload.event === "signedIn" ||
+        data.payload.event === "signedOut"
+      ) {
+        checkSession();
+      }
+    });
+
+    return unsubscribe;
+  }, []);
+
+  // Reset match state when a DIFFERENT user logs in (e.g. guest → real account)
+  useEffect(() => {
+    const currentEmail = userEmail;
+    const prevEmail = prevEmailRef.current;
+
+    if (prevEmail !== null && currentEmail !== prevEmail) {
+      // User identity changed — clear all match state so stale data doesn't bleed across sessions
+      console.log(
+        `🔄 User changed from ${prevEmail} to ${currentEmail} — resetting match state`,
+      );
+      setMatchStatus(MatchStatus.SETUP);
+      setMatchId(null);
+      setTeamA(null);
+      setTeamB(null);
+      setCurrentInnings(null);
+      setPreviousInnings(undefined);
+      setHasSentAutoEmail(false);
+      setHasRestored(false);
+      setIsGuestScorer(
+        !!(
+          currentEmail?.startsWith("guest-") &&
+          currentEmail?.endsWith("@cricscore.local")
+        ),
+      );
+      setView("VIEWER");
+      setHubKey((k) => k + 1); // Force LiveScoreboard to refresh
     }
-    if (view === "ADMIN" && !isAuthorized.ADMIN) {
-      setAuthModal({ isOpen: true, targetView: "ADMIN" });
-    }
-  }, [view, isAuthorized]);
+    prevEmailRef.current = currentEmail;
+  }, [userEmail]);
   const [hubKey, setHubKey] = useState(0); // For forcing reset to list
   const [urlMatchId, setUrlMatchId] = useState<string | null>(null);
   const [matchStatus, setMatchStatus] = useState<MatchStatus>(
     MatchStatus.SETUP,
   );
+
+  const getAuthHeaders = async () => {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    let token = userToken;
+    if (!token) {
+      try {
+        const session = await fetchAuthSession();
+        token = session.tokens?.idToken?.toString() || null;
+      } catch (e) {
+        // Ignore session fetch error
+      }
+    }
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    if (userEmail && userEmail.startsWith("guest-")) {
+      headers["X-Guest-Email"] = userEmail;
+    }
+    return headers;
+  };
   const [currentInnings, setCurrentInnings] = useState<InningsState | null>(
     null,
   );
@@ -94,7 +214,7 @@ const App: React.FC = () => {
   // Match Config
   const [teamA, setTeamA] = useState<TeamData | null>(null);
   const [teamB, setTeamB] = useState<TeamData | null>(null);
-  const [totalOvers, setTotalOvers] = useState(15);
+  const [totalOvers, setTotalOvers] = useState(1);
   const [matchId, setMatchId] = useState<string | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [hasSentAutoEmail, setHasSentAutoEmail] = useState<boolean>(false);
@@ -103,7 +223,161 @@ const App: React.FC = () => {
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
 
+  const [isGuestScorer, setIsGuestScorer] = useState(false);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
+
+  const SignInFooter = () => {
+    const { toForgotPassword } = useAuthenticator();
+    return (
+      <div className="text-center space-y-3 pt-3 border-t border-slate-800/80 mt-3">
+        <div>
+          <button
+            type="button"
+            onClick={toForgotPassword}
+            className="text-xs font-bold text-indigo-400 hover:text-indigo-300 hover:underline transition-colors"
+          >
+            Forgot your password?
+          </button>
+        </div>
+        <div>
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                try {
+                  await signOut();
+                  // Give Amplify a moment to clear local storage tokens
+                  await new Promise((resolve) => setTimeout(resolve, 500));
+                } catch (e) {
+                  console.warn(
+                    "Sign out before guest login failed or no user:",
+                    e,
+                  );
+                }
+
+                // Generate a shadow account email
+                const guestEmail = `guest-${Date.now()}@cricscore.local`;
+                const guestPassword = "GuestPassword#12345";
+
+                await signUp({
+                  username: guestEmail,
+                  password: guestPassword,
+                  options: {
+                    userAttributes: { email: guestEmail },
+                  },
+                });
+
+                // Sign in immediately
+                try {
+                  await signIn({
+                    username: guestEmail,
+                    password: guestPassword,
+                  });
+                } catch (signInErr: any) {
+                  if (
+                    signInErr.name === "UserAlreadyAuthenticatedException" ||
+                    signInErr.message?.includes("already signed in")
+                  ) {
+                    console.warn(
+                      "User already signed in, forcing sign out and retrying...",
+                    );
+                    await signOut();
+                    await new Promise((resolve) => setTimeout(resolve, 1000));
+                    await signIn({
+                      username: guestEmail,
+                      password: guestPassword,
+                    });
+                  } else {
+                    throw signInErr;
+                  }
+                }
+
+                // Clear state
+                setMatchStatus(MatchStatus.SETUP);
+                setMatchId(null);
+                setTeamA(null);
+                setTeamB(null);
+                setCurrentInnings(null);
+                setPreviousInnings(undefined);
+                setIsGuestScorer(true);
+                setView("SCORER");
+              } catch (err: any) {
+                console.error("Guest login failed:", err);
+                setAlertMessage(
+                  `Failed to start guest session: ${err.message || JSON.stringify(err)}`,
+                );
+              }
+            }}
+            className="text-xs font-black text-indigo-400 hover:text-indigo-300 uppercase tracking-wider py-2 px-4 bg-slate-900/90 rounded-xl border border-indigo-500/30 hover:border-indigo-500/60 shadow-lg transition-all"
+          >
+            🎮 Continue as Guest (Start & Score Match)
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const authComponents = {
+    SignIn: {
+      Footer: SignInFooter,
+    },
+    SignUp: {
+      Footer() {
+        return (
+          <div className="text-center pt-3 border-t border-slate-800/80 mt-3">
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  try {
+                    await signOut();
+                  } catch (e) {
+                    // Ignore
+                  }
+
+                  // Generate a shadow account email
+                  const guestEmail = `guest-${Date.now()}@cricscore.local`;
+                  const guestPassword = "GuestPassword#12345";
+
+                  await signUp({
+                    username: guestEmail,
+                    password: guestPassword,
+                    options: {
+                      userAttributes: { email: guestEmail },
+                    },
+                  });
+
+                  // Sign in immediately
+                  await signIn({
+                    username: guestEmail,
+                    password: guestPassword,
+                  });
+
+                  // Clear state
+                  setMatchStatus(MatchStatus.SETUP);
+                  setMatchId(null);
+                  setTeamA(null);
+                  setTeamB(null);
+                  setCurrentInnings(null);
+                  setPreviousInnings(undefined);
+                  setIsGuestScorer(true);
+                  setView("SCORER");
+                } catch (err: any) {
+                  console.error("Guest login failed:", err);
+                  setAlertMessage(
+                    `Failed to start guest session: ${err.message || JSON.stringify(err)}`,
+                  );
+                }
+              }}
+              className="text-xs font-black text-indigo-400 hover:text-indigo-300 uppercase tracking-wider py-2 px-4 bg-slate-900/90 rounded-xl border border-indigo-500/30 hover:border-indigo-500/60 shadow-lg transition-all"
+            >
+              🎮 Continue as Guest (Start & Score Match)
+            </button>
+          </div>
+        );
+      },
+    },
+  };
 
   // Helper to load match state based on email
   const applyLoadedState = (saved: any) => {
@@ -119,17 +393,12 @@ const App: React.FC = () => {
       return;
     }
 
-    // ⏱️ TTL Logic: If match is COMPLETED and older than 5 minutes, RESET.
-    if (saved.matchStatus === MatchStatus.COMPLETED && saved.completedAt) {
-      const ageMinutes = (Date.now() - saved.completedAt) / 60000;
-      if (ageMinutes > 5) {
-        console.log(
-          "🕒 Match completion TTL expired (5m). Discarding old state.",
-        );
-        localStorage.removeItem(getMatchStateKey(emailTo));
-        applyLoadedState(null);
-        return;
-      }
+    // ✅ Never restore a COMPLETED match — always start fresh on next login.
+    if (saved.matchStatus === MatchStatus.COMPLETED) {
+      console.log("🏁 Previous match COMPLETED. Starting fresh session.");
+      localStorage.removeItem(getMatchStateKey(emailTo));
+      applyLoadedState(null);
+      return;
     }
 
     setMatchStatus(saved.matchStatus ?? MatchStatus.SETUP);
@@ -145,15 +414,17 @@ const App: React.FC = () => {
   // Restore on mount for Scorer if already authorized (session refresh)
   useEffect(() => {
     const init = async () => {
-      if (isAuthorized.SCORER) {
+      if (userToken && emailTo && !hasRestored) {
+        setHasRestored(true);
+        isRestoringRef.current = true;
         const savedRaw = localStorage.getItem(getMatchStateKey(emailTo));
         if (savedRaw) {
           try {
             const saved = JSON.parse(savedRaw);
             applyLoadedState(saved);
 
-            // 🔍 Double Check in Cloud: Did Admin delete this match?
             if (saved.matchId) {
+              setView("SCORER"); // Auto-resume view
               const API_URL = import.meta.env.VITE_API_URL || "";
               const res = await fetch(
                 `${API_URL}/match/${saved.matchId}/details`,
@@ -165,16 +436,21 @@ const App: React.FC = () => {
                 // Force Wipe Stale Local Data
                 localStorage.removeItem(getMatchStateKey(emailTo));
                 applyLoadedState(null);
+                setView("VIEWER"); // Revert if match deleted
               }
             }
           } catch (e) {
             console.error("Restore failed:", e);
           }
         }
+
+        setTimeout(() => {
+          isRestoringRef.current = false;
+        }, 500);
       }
     };
     init();
-  }, []);
+  }, [userToken, emailTo, hasRestored]);
 
   useEffect(() => {
     // Handle direct links to matches via URL ?matchId=xxx
@@ -184,26 +460,21 @@ const App: React.FC = () => {
       console.log("🔗 Deep Link Captured:", mId);
       setUrlMatchId(mId);
 
-      if (isAuthorized.SCORER) {
+      if (!!userToken) {
         // Scorers can also jump to a match directly
         resumeMatch(mId);
+        setView("SCORER");
       }
-
-      // CLEAN UP URL immediately so it doesn't haunt the session
+    } else if (window.location.search) {
       window.history.replaceState({}, "", window.location.pathname);
     }
-  }, [isAuthorized.SCORER]);
+  }, [userToken]);
 
   // Handle view persistence or role-based logic updates here if needed
 
   useEffect(() => {
     // Only save persistence if we are in Scorer view and NOT in the middle of a reset/restore
-    if (
-      isAuthorized.SCORER &&
-      emailTo &&
-      view === "SCORER" &&
-      !isRestoringRef.current
-    ) {
+    if (userToken && emailTo && view === "SCORER" && !isRestoringRef.current) {
       const stateToSave = {
         matchStatus,
         matchId,
@@ -231,7 +502,7 @@ const App: React.FC = () => {
     view,
     hasSentAutoEmail,
     emailTo,
-    isAuthorized.SCORER,
+    userToken,
   ]);
 
   // Persist the current view globally
@@ -367,11 +638,12 @@ const App: React.FC = () => {
       const API_URL = import.meta.env.VITE_API_URL || "";
 
       try {
+        const headers = await getAuthHeaders();
         const response = await fetch(
           `${API_URL}/match/${encodeURIComponent(matchId)}/innings`,
           {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers,
             body: JSON.stringify({
               matchId,
               inningNumber: 2,
@@ -418,9 +690,10 @@ const App: React.FC = () => {
                 ? "MATCH TIED"
                 : `${completedInnings.bowlingTeamName} WON BY ${runDiff} RUNS`;
           }
+          const headers = await getAuthHeaders();
           await fetch(`${API_URL}/match/${encodeURIComponent(matchId)}`, {
             method: "PATCH",
-            headers: { "Content-Type": "application/json" },
+            headers,
             body: JSON.stringify({
               status: MatchStatus.COMPLETED,
               matchWinner,
@@ -612,129 +885,27 @@ const App: React.FC = () => {
 
   const forceResetMatch = () => {
     resetMatch();
-    setAuthModal({ isOpen: false, targetView: null });
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      setUserToken(null);
+      setIsAdmin(false);
+      setUserEmail(null);
+      setView("VIEWER");
+    } catch (e) {
+      console.error("Sign out error", e);
+    }
   };
 
   const handleViewClick = (target: "VIEWER" | "SCORER" | "ADMIN" | "CHAT") => {
-    if (target === "VIEWER" || target === "CHAT") {
-      setView(target);
-      setHubKey((k) => k + 1);
-      return;
-    }
-
-    // Check if already authorized for this session
-    if (isAuthorized[target]) {
-      setView(target);
-      if (target === "ADMIN") setHubKey((k) => k + 1);
-      return;
-    }
-
-    // Open Auth Modal
-    setAuthModal({ isOpen: true, targetView: target });
-  };
-
-  const handleAuthSubmit = (value: string) => {
-    const target = authModal.targetView;
-    if (!target) return;
-
-    if (target === "SCORER") {
-      // Validate Email
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (emailRegex.test(value)) {
-        // 1. SIGNAL restoration phase (prevents persistence Effect from firing on STALE data)
-        isRestoringRef.current = true;
-
-        // 2. IMMEDIATELY reset workspace to prevent cross-contamination
-        applyLoadedState(null);
-
-        // 3. Set basic auth context
-        setEmailTo(value);
-        setIsAuthorized((prev) => ({ ...prev, SCORER: true }));
-        sessionStorage.setItem("auth_scorer", "true");
-        sessionStorage.setItem("scorer_email", value);
-
-        // 4. Try to restore THIS specific user's match
-        const savedRaw = localStorage.getItem(getMatchStateKey(value));
-        if (savedRaw) {
-          try {
-            const saved = JSON.parse(savedRaw);
-            applyLoadedState(saved);
-
-            // 🔍 Cloud Sync: Wipe local if deleted by Admin
-            if (saved.matchId) {
-              const API_URL = import.meta.env.VITE_API_URL || "";
-              fetch(
-                `${API_URL}/match/${encodeURIComponent(saved.matchId)}/details`,
-              ).then((res) => {
-                if (res.status === 404) {
-                  console.warn("RESTORED MATCH WAS DELETED BY ADMIN.");
-                  localStorage.removeItem(getMatchStateKey(value));
-                  applyLoadedState(null);
-                }
-              });
-            }
-          } catch (e) {}
-        }
-
-        // 5. Switch view and end restoration phase
-        setView("SCORER");
-        setAuthModal({ isOpen: false, targetView: null });
-
-        // Allow Effect to save again on next change
-        setTimeout(() => {
-          isRestoringRef.current = false;
-        }, 100);
-      } else {
-        setAlertMessage("❌ PLEASE ENTER A VALID EMAIL TO CONTINUE.");
-      }
+    if (target === "ADMIN") {
+      setView("ADMIN_PANEL");
     } else {
-      // ADMIN PIN logic
-      const ADMIN_PIN = import.meta.env.VITE_ADMIN_PIN || "2403";
-      if (value === ADMIN_PIN) {
-        setIsAuthorized((prev) => ({ ...prev, ADMIN: true, SCORER: true }));
-        sessionStorage.setItem("auth_admin", "true");
-        sessionStorage.setItem("auth_scorer", "true");
-
-        if (!emailTo || emailTo === "@gmail.com") {
-          setEmailTo("admin@cricscore.com");
-          sessionStorage.setItem("scorer_email", "admin@cricscore.com");
-        }
-
-        setView("ADMIN");
-        setHubKey((k) => k + 1);
-        setAuthModal({ isOpen: false, targetView: null });
-      } else {
-        setAlertMessage("❌ INCORRECT PIN. ACCESS DENIED.");
-      }
+      setView(target);
     }
-  };
-
-  const handleLogout = () => {
-    // Clear Auth tokens
-    setIsAuthorized({ SCORER: false, ADMIN: false });
-    sessionStorage.removeItem("auth_scorer");
-    sessionStorage.removeItem("auth_admin");
-    sessionStorage.removeItem("scorer_email");
-    sessionStorage.removeItem("last_view");
-
-    // 🛑 DO NOT WIPE the user's saved match state here anymore!
-    // We want them to be able to resume when they log back in.
-    // We only clear the shared, legacy key.
-    localStorage.removeItem("cricscore-live-innings");
-
-    // Clear in-memory workspace for the next user on this device
-    setMatchStatus(MatchStatus.SETUP);
-    setCurrentInnings(null);
-    setPreviousInnings(undefined);
-    setTeamA(null);
-    setTeamB(null);
-    setMatchId(null);
-    setHasSentAutoEmail(false);
-    setEmailTo("@gmail.com");
-
-    // Landing page: Always VIEWER on logout
-    window.history.replaceState({}, "", window.location.pathname);
-    setView("VIEWER");
+    setHubKey((k) => k + 1);
   };
 
   const updateMatchOvers = async (newOvers: number) => {
@@ -742,9 +913,10 @@ const App: React.FC = () => {
     setTotalOvers(newOvers);
     const API_URL = import.meta.env.VITE_API_URL || "";
     try {
+      const headers = await getAuthHeaders();
       await fetch(`${API_URL}/match/${encodeURIComponent(matchId)}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ totalOvers: newOvers }),
       });
       console.log("Match Overs Updated 📡");
@@ -789,11 +961,12 @@ const App: React.FC = () => {
         ],
       };
 
+      const headers = await getAuthHeaders();
       const response = await fetch(
         `${API_URL}/match/${encodeURIComponent(matchId)}/email`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify({
             emailTo,
             origin: window.location.origin,
@@ -838,15 +1011,25 @@ const App: React.FC = () => {
     }
   };
 
-  const handleGenerateAiSummary = async () => {
+  const handleGenerateAiSummary = async (forceRefresh: boolean = false) => {
     if (!matchId) return;
     setIsGeneratingAi(true);
+    setAiSummary(null); // Instantly clear stale text so loading indicator shows
     const API_URL = import.meta.env.VITE_API_URL || "";
     try {
+      const headers = await getAuthHeaders();
+      const matchData = {
+        teamAName: teamA?.name,
+        teamBName: teamB?.name,
+        previousInnings,
+        currentInnings,
+        winnerMessage: getWinnerMessage(),
+        status: matchStatus,
+      };
       const response = await fetch(`${API_URL}/chat/summary`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ matchId }),
+        headers,
+        body: JSON.stringify({ matchId, forceRefresh, matchData }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Failed to generate");
@@ -866,165 +1049,98 @@ const App: React.FC = () => {
       if (!hasSentAutoEmail && !hasSentAutoEmailRef.current) {
         hasSentAutoEmailRef.current = true;
         setHasSentAutoEmail(true);
-        // Generate AI Summary first, then send email so summary is included
-        // 🕰️ Wait 5.0 seconds to ensure the final ball's SQS message is fully processed by the database
-        setTimeout(() => {
-          handleGenerateAiSummary().finally(() => {
-            handleSendEmail(true, true); // Silent send with admin copy
-          });
-        }, 5000);
+        setAiSummary(null); // Instantly purge live 0/0 summary
+
+        const isGuest = !userToken && matchId?.startsWith("guest_");
+
+        if (isGuest) {
+          // Guest matches: generate AI summary locally (no DB), skip email
+          setTimeout(() => {
+            handleGenerateAiSummary(true).catch(() => {
+              setAiSummary(
+                "AI summary is only available for registered scorers. Sign up to unlock post-match analytics! 🎯",
+              );
+            });
+          }, 1000);
+        } else {
+          // 🕰️ Wait 3.0 seconds to ensure the final ball's SQS message is fully processed by the database
+          setTimeout(() => {
+            handleGenerateAiSummary(true).finally(() => {
+              // Wait 2 extra seconds for DB write to propagate before sending email
+              setTimeout(() => handleSendEmail(true, true), 2000);
+            });
+          }, 3000);
+        }
       }
     }
     if (matchStatus === MatchStatus.SETUP) {
       hasSentAutoEmailRef.current = false;
       setHasSentAutoEmail(false); // Reset for next match
+      setAiSummary(null);
     }
   }, [matchStatus, matchId, hasSentAutoEmail]);
 
   return (
     <div className="h-[100dvh] bg-slate-950 font-sans text-slate-100 flex flex-col overflow-hidden relative">
-      {/* Global Header Switcher */}
-      <div className="bg-slate-950 px-3 py-2 flex justify-between items-center shrink-0 border-b border-white/10 z-50 shadow-md">
-        <div className="flex items-center gap-4">
-          <div className="flex bg-slate-900 p-1 rounded-xl border border-white/5">
+      {/* Global Header Switcher - Always Visible & Clickable */}
+      <div className="bg-slate-950 px-2 py-1.5 md:px-4 md:py-2 flex justify-between items-center shrink-0 border-b border-white/10 z-[500] sticky top-0 shadow-md">
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none max-w-full">
+          <div className="flex bg-slate-900 p-1 rounded-xl border border-white/5 shrink-0">
             <button
-              onClick={() => handleViewClick("VIEWER")}
-              className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${view === "VIEWER" ? "bg-indigo-600 text-white shadow-lg" : "text-slate-500 hover:text-slate-300"}`}
+              onClick={() => setView("VIEWER")}
+              className={`px-2.5 py-1 md:px-4 md:py-1.5 font-bold text-[11px] md:text-xs tracking-wide transition-colors whitespace-nowrap ${view === "VIEWER" ? "text-blue-500 bg-slate-800/80 rounded-lg shadow-sm" : "text-gray-400 hover:text-blue-400"}`}
             >
-              Viewer 🌍
+              VIEWER 🌍
             </button>
             <button
-              onClick={() => handleViewClick("SCORER")}
-              className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${view === "SCORER" ? "bg-indigo-600 text-white shadow-lg" : "text-slate-500 hover:text-slate-300"}`}
+              onClick={() => setView("SCORER")}
+              className={`px-2.5 py-1 md:px-4 md:py-1.5 font-bold text-[11px] md:text-xs tracking-wide transition-colors whitespace-nowrap ${view === "SCORER" ? "text-green-500 bg-slate-800/80 rounded-lg shadow-sm" : "text-gray-400 hover:text-green-400"}`}
             >
-              Scorer 🎮
+              SCORER 🎮
             </button>
             <button
-              onClick={() => handleViewClick("CHAT")}
-              className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1 ${view === "CHAT" ? "bg-purple-600 text-white shadow-[0_0_15px_rgba(147,51,234,0.3)]" : "text-slate-500 hover:text-slate-300"}`}
+              onClick={() => setView("CHAT")}
+              className={`px-2.5 py-1 md:px-4 md:py-1.5 font-bold text-[11px] md:text-xs tracking-wide transition-colors whitespace-nowrap ${view === "CHAT" ? "text-amber-500 bg-slate-800/80 rounded-lg shadow-sm" : "text-gray-400 hover:text-amber-400"}`}
             >
-              AI Chat ✨
+              AI CHAT ✨
             </button>
+            {userToken && !isGuestScorer && (
+              <button
+                onClick={handleSignOut}
+                className="px-2.5 py-1 md:px-4 md:py-1.5 font-bold text-[11px] md:text-xs tracking-wide text-slate-400 hover:text-slate-200 transition-colors whitespace-nowrap"
+              >
+                SIGN OUT
+              </button>
+            )}
           </div>
 
-          {(isAuthorized.SCORER || isAuthorized.ADMIN) && (
-            <button
-              onClick={handleLogout}
-              className="px-3 py-1.5 bg-slate-800/50 border border-white/5 rounded-lg text-slate-400 hover:text-rose-500 text-[9px] font-black uppercase tracking-widest transition-all hover:bg-rose-500/10 active:scale-95"
-            >
-              Sign Out 🚪
-            </button>
+          {isAdmin && (
+            <div className="flex bg-slate-900 p-1 rounded-xl border border-white/5 shrink-0">
+              <button
+                onClick={() => setView("ADMIN_PANEL")}
+                title="Admin Control Center"
+                className={`px-3 py-1 font-bold text-sm tracking-wide transition-colors whitespace-nowrap ${view === "ADMIN_PANEL" ? "text-rose-400 bg-slate-800/80 rounded-lg shadow-sm" : "text-gray-400 hover:text-rose-400"}`}
+              >
+                ⚙️
+              </button>
+            </div>
           )}
         </div>
 
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => handleViewClick("ADMIN")}
-            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1 border ${view === "ADMIN" ? "bg-rose-600 text-white border-rose-500 shadow-[0_0_15px_rgba(225,29,72,0.3)]" : "bg-slate-800/50 text-slate-400 border-white/5 hover:bg-slate-700/50 hover:text-slate-300"}`}
-          >
-            Admin ⚡
-          </button>
-
+        <div className="flex items-center gap-2 shrink-0">
           {matchStatus !== MatchStatus.SETUP && view !== "VIEWER" && (
             <button
               onClick={() => setShowResetConfirm(true)}
-              className="px-4 py-1.5 bg-red-900/30 border border-red-500/20 rounded font-black text-[10px] uppercase tracking-wider text-red-500 hover:text-white transition-all hover:bg-red-600"
+              title="Reset Match"
+              className="w-7 h-7 flex items-center justify-center bg-red-900/30 border border-red-500/20 rounded-lg text-red-500 hover:text-white hover:bg-red-600 transition-all active:scale-95 text-xs font-black"
             >
-              RESET MATCH
+              ✖
             </button>
           )}
         </div>
       </div>
 
       <div className="flex-1 overflow-hidden relative">
-        {/* PIN Authentication Modal */}
-        {authModal.isOpen && (
-          <div className="fixed inset-0 bg-slate-950/90 flex items-center justify-center z-[300] p-4 backdrop-blur-md">
-            <div className="bg-slate-900 border border-white/5 rounded-[2.5rem] w-full max-w-sm shadow-2xl overflow-hidden p-8 text-center animate-in zoom-in-95 duration-200">
-              <div
-                className={`w-16 h-16 ${authModal.targetView === "ADMIN" ? "bg-rose-500/10 text-rose-500" : "bg-indigo-500/10 text-indigo-500"} rounded-full flex items-center justify-center mx-auto mb-6 border border-white/5`}
-              >
-                <span className="text-2xl">
-                  {authModal.targetView === "ADMIN" ? "⚡" : "🎮"}
-                </span>
-              </div>
-              <h3 className="text-xl font-black uppercase tracking-widest text-white mb-2 italic">
-                {authModal.targetView === "SCORER"
-                  ? "IDENTITY VERIFICATION"
-                  : "ADMIN ACCESS"}
-              </h3>
-              <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mb-4">
-                {authModal.targetView === "SCORER"
-                  ? "Identity Synchronization"
-                  : "Restricted Cloud Management"}
-              </p>
-
-              {authModal.targetView === "SCORER" && (
-                <p className="text-slate-400 text-[9px] font-medium leading-relaxed mb-8 px-4">
-                  Please enter your email to synchronize your scoring session
-                  and enable match tracking.
-                </p>
-              )}
-
-              <div className="space-y-4">
-                <input
-                  ref={emailInputRef}
-                  type={authModal.targetView === "SCORER" ? "text" : "password"}
-                  value={
-                    authModal.targetView === "SCORER" ? emailTo : undefined
-                  }
-                  onChange={(e) =>
-                    authModal.targetView === "SCORER" &&
-                    setEmailTo(e.target.value)
-                  }
-                  placeholder={
-                    authModal.targetView === "SCORER"
-                      ? "EMAIL ADDRESS..."
-                      : "ENTER PIN..."
-                  }
-                  className={`w-full bg-slate-800 border border-white/5 rounded-2xl py-4 px-6 text-center font-black text-white outline-none focus:border-indigo-500 transition-all placeholder:text-[10px] placeholder:tracking-widest placeholder:text-slate-700 ${authModal.targetView === "SCORER" ? "text-lg" : "text-2xl tracking-[0.5em]"}`}
-                  onFocus={(e) => {
-                    if (
-                      authModal.targetView === "SCORER" &&
-                      e.target.value === "@gmail.com"
-                    ) {
-                      const el = e.target;
-                      setTimeout(() => el.setSelectionRange(0, 0), 10);
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter")
-                      handleAuthSubmit((e.target as HTMLInputElement).value);
-                  }}
-                />
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() =>
-                      setAuthModal({ isOpen: false, targetView: null })
-                    }
-                    className="py-4 bg-slate-800 rounded-xl font-black text-[10px] uppercase tracking-widest text-slate-400 hover:text-white transition-all border border-white/5"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => {
-                      const input = document.querySelector(
-                        "input",
-                      ) as HTMLInputElement;
-                      handleAuthSubmit(input.value);
-                    }}
-                    className={`py-4 rounded-xl font-black text-[10px] uppercase tracking-widest text-white transition-all shadow-lg ${authModal.targetView === "ADMIN" ? "bg-rose-600 hover:bg-rose-500 shadow-rose-600/20" : "bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/20"}`}
-                  >
-                    {authModal.targetView === "SCORER"
-                      ? "CONTINUE 🎯"
-                      : "VERIFY 📡"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Custom Reset Confirmation Modal */}
         {showResetConfirm && (
           <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[200] p-4 backdrop-blur-sm">
@@ -1064,244 +1180,449 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {(view === "VIEWER" || view === "ADMIN") && (
+        {view === "VIEWER" && (
           <div className="h-full bg-slate-950 flex flex-col p-4 md:p-8 overflow-y-auto">
             <div className="max-w-4xl mx-auto w-full space-y-8 animate-in fade-in zoom-in-95 duration-500">
               <div className="text-center space-y-2">
                 <h1 className="text-4xl font-black text-white uppercase tracking-tighter italic">
-                  Match{" "}
-                  <span
-                    className={
-                      view === "ADMIN" ? "text-rose-500" : "text-indigo-500"
-                    }
-                  >
-                    {view === "ADMIN" ? "Control Center" : "Hub Center"}
-                  </span>
+                  Match <span className="text-indigo-500">Hub Center</span>
                 </h1>
                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em]">
-                  {view === "ADMIN"
-                    ? "Cloud Management & Database Pruning"
-                    : "Live Feeds & Historical Records"}
+                  Live Feeds & Historical Records
                 </p>
               </div>
-              <div className="bg-slate-900/50 border border-white/5 p-6 rounded-[2rem] backdrop-blur-3xl shadow-2xl">
-                <LiveScoreboard
-                  key={`hub-${hubKey}`}
-                  isAdmin={view === "ADMIN"}
-                  initialMatchId={urlMatchId || undefined}
-                  onResumeMatch={
-                    view !== "VIEWER"
-                      ? (id) => {
-                          resumeMatch(id);
-                          setView("SCORER");
-                        }
-                      : undefined
-                  }
-                />
-              </div>
+              <LiveScoreboard
+                key={`hub-${hubKey}`}
+                isAdmin={isAdmin}
+                initialMatchId={urlMatchId || undefined}
+                onResumeMatch={undefined}
+              />
             </div>
           </div>
         )}
 
-        {matchStatus === MatchStatus.SETUP &&
-          view === "SCORER" &&
-          isAuthorized.SCORER && (
-            <MatchSetup
-              onStartMatch={startMatch}
-              onResumeMatch={resumeMatch}
-              initialEmail={emailTo}
-              hideResume={true}
-              canDelete={false}
-            />
-          )}
-
-        {matchStatus === MatchStatus.LIVE &&
-          currentInnings &&
-          view === "SCORER" &&
-          isAuthorized.SCORER && (
-            <MatchView
-              initialState={currentInnings}
-              previousInnings={previousInnings}
-              totalOvers={totalOvers}
-              matchId={matchId!}
-              onInningsEnd={handleInningsEnd}
-              onResetMatch={() => setShowResetConfirm(true)}
-              onForceReset={forceResetMatch}
-              onUpdateOvers={updateMatchOvers}
-              onStateChange={(state) => setCurrentInnings(state)} // Sync ball-by-ball
-            />
-          )}
-
-        {matchStatus === MatchStatus.INNINGS_BREAK &&
-          currentInnings &&
-          previousInnings && (
-            <div className="h-full overflow-y-auto flex items-center justify-center p-4 bg-slate-950 selection:bg-indigo-500/30">
-              <div className="relative w-full max-w-2xl animate-in zoom-in-95 duration-500 text-center">
-                <div className="bg-slate-900 border border-white/5 p-10 rounded-[3rem] shadow-2xl relative overflow-hidden backdrop-blur-3xl">
-                  <h2 className="text-4xl font-black text-white uppercase tracking-tighter italic mb-4">
-                    Innings Break
-                  </h2>
-                  <p className="text-xl text-indigo-400 font-bold mb-8">
-                    Target: {currentInnings.target}
-                  </p>
-                  <button
-                    onClick={() => setMatchStatus(MatchStatus.LIVE)}
-                    className="w-full h-20 bg-indigo-600 text-white rounded-[1.5rem] font-black text-xl uppercase tracking-widest italic hover:bg-indigo-500 active:scale-[0.98] transition-all shadow-xl shadow-indigo-600/20 flex items-center justify-center gap-3"
-                  >
-                    START 2ND INNINGS
-                    <span className="text-2xl">🏏</span>
-                  </button>
+        {view === "ADMIN_PANEL" && (
+          <Authenticator
+            hideSignUp
+            formFields={authFormFields}
+            components={authComponents}
+          >
+            {() => (
+              <div className="h-full bg-slate-950 flex flex-col p-4 md:p-8 overflow-y-auto">
+                <div className="max-w-4xl mx-auto w-full space-y-8 animate-in fade-in zoom-in-95 duration-500">
+                  <div className="text-center space-y-2">
+                    <h1 className="text-4xl font-black text-white uppercase tracking-tighter italic">
+                      Match{" "}
+                      <span className="text-rose-500">Control Center</span>
+                    </h1>
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em]">
+                      Cloud Management & Database Pruning
+                    </p>
+                  </div>
+                  <div className="bg-slate-900/50 border border-white/5 p-6 rounded-[2rem] backdrop-blur-3xl shadow-2xl mb-8">
+                    {isAdmin ? (
+                      <AdminPanel hubKey={hubKey} isAdmin={isAdmin} />
+                    ) : (
+                      <div className="text-center text-white p-10 font-bold text-xl">
+                        Access Denied: You must be in the Admin group.
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </Authenticator>
+        )}
 
-        {matchStatus === MatchStatus.COMPLETED &&
-          currentInnings &&
-          view !== "CHAT" && (
-            <div className="h-full overflow-y-auto flex py-10 items-center justify-center p-4 bg-slate-950 selection:bg-indigo-500/30">
-              <div className="relative w-full max-w-2xl animate-in zoom-in-95 duration-500">
-                {/* Dramatic Glow Background */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-indigo-600/10 blur-[120px] rounded-full -z-10"></div>
+        {view === "SCORER" &&
+          (isGuestScorer || userToken ? (
+            <div className="h-full w-full flex flex-col">
+              {isGuestScorer && (
+                <div className="bg-slate-900/90 border-b border-indigo-500/20 px-4 py-2 flex justify-between items-center text-xs font-bold text-indigo-300 shrink-0">
+                  <span>🎮 GUEST SCORER MODE</span>
+                  <button
+                    onClick={async () => {
+                      setIsGuestScorer(false);
+                      try {
+                        await signOut();
+                      } catch (e) {}
+                    }}
+                    className="underline hover:text-white uppercase tracking-wider text-[10px]"
+                  >
+                    Sign In to Save
+                  </button>
+                </div>
+              )}
+              {matchStatus === MatchStatus.SETUP && (
+                <MatchSetup
+                  onStartMatch={startMatch}
+                  onResumeMatch={resumeMatch}
+                  initialEmail={userEmail || "guest@cricscore.local"}
+                  hideResume={true}
+                  canDelete={false}
+                  token={userToken || undefined}
+                />
+              )}
 
-                <div className="bg-slate-900 border border-white/5 p-10 rounded-[3rem] shadow-2xl relative overflow-hidden backdrop-blur-3xl">
-                  {/* Accent Header */}
-                  <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600"></div>
+              {matchStatus === MatchStatus.LIVE && currentInnings && (
+                <MatchView
+                  initialState={currentInnings}
+                  previousInnings={previousInnings}
+                  totalOvers={totalOvers}
+                  matchId={matchId!}
+                  userToken={userToken || undefined}
+                  onInningsEnd={handleInningsEnd}
+                  onResetMatch={() => setShowResetConfirm(true)}
+                  onForceReset={forceResetMatch}
+                  onUpdateOvers={updateMatchOvers}
+                  onStateChange={(state) => setCurrentInnings(state)}
+                />
+              )}
 
-                  <div className="text-center space-y-8">
-                    <div className="space-y-2">
-                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-500/10 border border-yellow-500/20 mb-4">
-                        <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span>
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-yellow-500">
-                          Official Result
-                        </span>
-                      </div>
-                      <div className="text-8xl animate-bounce">🏆</div>
-                      <h1 className="text-6xl font-black text-white uppercase tracking-tighter italic leading-none">
-                        Match
-                        <br />
-                        Concluded
-                      </h1>
-                    </div>
-
-                    <div className="bg-indigo-600/10 border border-indigo-500/20 rounded-3xl p-8 transform hover:scale-[1.02] transition-transform">
-                      <p className="text-4xl font-black text-indigo-400 uppercase tracking-tight italic drop-shadow-2xl">
-                        {getWinnerMessage()}
-                      </p>
-                    </div>
-
-                    <div className="space-y-4">
-                      <label className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-500">
-                        Final Scorecards
-                      </label>
-                      <div className="grid grid-cols-1 gap-2">
-                        {/* First Innings Summary */}
-                        <div className="bg-slate-800/50 border border-white/5 rounded-2xl p-5 flex justify-between items-center group hover:bg-slate-800 transition-colors">
-                          <div className="text-left">
-                            <span className="text-[10px] font-black text-slate-500 block mb-1 uppercase tracking-widest">
-                              Innings 1
-                            </span>
-                            <span className="text-xl font-black text-slate-300 uppercase tracking-tight italic">
-                              {previousInnings?.battingTeamName}
-                            </span>
-                          </div>
-                          <div className="text-4xl font-black text-white tabular-nums">
-                            {previousInnings?.totalRuns}
-                            <span className="text-slate-600 mx-1 text-2xl">
-                              /
-                            </span>
-                            {previousInnings?.totalWickets}
-                          </div>
-                        </div>
-
-                        {/* Second Innings Summary */}
-                        <div className="bg-indigo-600 border border-indigo-400 rounded-2xl p-5 flex justify-between items-center shadow-xl shadow-indigo-600/20">
-                          <div className="text-left">
-                            <span className="text-[10px] font-black text-indigo-100 block mb-1 uppercase tracking-widest">
-                              Innings 2
-                            </span>
-                            <span className="text-xl font-black text-white uppercase tracking-tight italic">
-                              {currentInnings.battingTeamName}
-                            </span>
-                          </div>
-                          <div className="text-4xl font-black text-white tabular-nums">
-                            {currentInnings.totalRuns}
-                            <span className="text-indigo-300 mx-1 text-2xl">
-                              /
-                            </span>
-                            {currentInnings.totalWickets}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* AI Summary Section */}
-                    <div className="w-full space-y-4 pt-6">
-                      {aiSummary ? (
-                        <div className="bg-slate-950/50 border border-indigo-500/30 rounded-3xl p-6 text-left shadow-2xl relative overflow-hidden">
-                          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl rounded-full pointer-events-none"></div>
-                          <h3 className="text-xl font-black text-indigo-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                            <span className="text-2xl">✨</span> AI Match
-                            Analysis
-                          </h3>
-                          <div className="prose prose-invert prose-indigo max-w-none text-slate-300 whitespace-pre-wrap">
-                            {aiSummary}
-                          </div>
-                        </div>
-                      ) : (
+              {matchStatus === MatchStatus.INNINGS_BREAK &&
+                currentInnings &&
+                previousInnings && (
+                  <div className="h-full overflow-y-auto flex items-center justify-center p-4 bg-slate-950 selection:bg-indigo-500/30">
+                    <div className="relative w-full max-w-2xl animate-in zoom-in-95 duration-500 text-center">
+                      <div className="bg-slate-900 border border-white/5 p-10 rounded-[3rem] shadow-2xl relative overflow-hidden backdrop-blur-3xl">
+                        <h2 className="text-4xl font-black text-white uppercase tracking-tighter italic mb-4">
+                          Innings Break
+                        </h2>
+                        <p className="text-xl text-indigo-400 font-bold mb-8">
+                          Target: {currentInnings.target}
+                        </p>
                         <button
-                          onClick={handleGenerateAiSummary}
-                          disabled={isGeneratingAi}
-                          className="w-full h-16 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-black text-lg uppercase tracking-widest hover:from-indigo-500 hover:to-purple-500 active:scale-[0.98] transition-all shadow-xl shadow-indigo-600/20 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                          onClick={() => setMatchStatus(MatchStatus.LIVE)}
+                          className="w-full h-20 bg-indigo-600 text-white rounded-[1.5rem] font-black text-xl uppercase tracking-widest italic hover:bg-indigo-500 active:scale-[0.98] transition-all shadow-xl shadow-indigo-600/20 flex items-center justify-center gap-3"
                         >
-                          {isGeneratingAi
-                            ? "GENERATING ANALYSIS..."
-                            : "✨ GENERATE AI REPORT"}
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="mt-12 w-full space-y-4">
-                      <div className="flex flex-col md:flex-row gap-4 w-full">
-                        <button
-                          onClick={copyMatchLink}
-                          className={`flex-1 h-20 rounded-[1.5rem] font-black text-xl uppercase tracking-widest italic transition-all shadow-xl flex items-center justify-center gap-3 ${copyFeedback ? "bg-emerald-600 text-white shadow-emerald-600/20" : "bg-indigo-600 text-white hover:bg-indigo-500 shadow-indigo-600/20 active:scale-[0.98]"}`}
-                        >
-                          {copyFeedback
-                            ? "LINK COPIED! ✅"
-                            : "SHARE SCORECARD 🔗"}
-                        </button>
-                        <button
-                          onClick={() => setShowResetConfirm(true)}
-                          className="flex-1 h-20 bg-slate-800 text-white rounded-[1.5rem] font-black text-xl uppercase tracking-widest italic hover:bg-slate-700 active:scale-[0.98] transition-all border border-white/10 shadow-2xl flex items-center justify-center gap-3"
-                        >
-                          {view === "SCORER"
-                            ? "START FRESH MATCH 🏏"
-                            : "RESET HUB 🔄"}
+                          START 2ND INNINGS
+                          <span className="text-2xl">🏏</span>
                         </button>
                       </div>
                     </div>
                   </div>
+                )}
+
+              {matchStatus === MatchStatus.COMPLETED && currentInnings && (
+                <div className="h-full overflow-y-auto flex py-10 items-center justify-center p-4 bg-slate-950 selection:bg-indigo-500/30">
+                  <div className="relative w-full max-w-2xl animate-in zoom-in-95 duration-500">
+                    {/* Dramatic Glow Background */}
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-indigo-600/10 blur-[120px] rounded-full -z-10"></div>
+
+                    <div className="bg-slate-900 border border-white/5 p-10 rounded-[3rem] shadow-2xl relative overflow-hidden backdrop-blur-3xl">
+                      {/* Accent Header */}
+                      <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600"></div>
+
+                      <div className="text-center space-y-8">
+                        <div className="space-y-2">
+                          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-500/10 border border-yellow-500/20 mb-4">
+                            <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span>
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-yellow-500">
+                              Official Result
+                            </span>
+                          </div>
+                          <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter italic">
+                            {getWinnerMessage()}
+                          </h2>
+                          <p className="text-xs font-black text-indigo-400 uppercase tracking-[0.3em]">
+                            Match {matchId ? `#${matchId.substring(0, 8)}` : ""}
+                          </p>
+                        </div>
+
+                        {/* Final Scorecard Comparison */}
+                        <div className="grid grid-cols-2 gap-4 bg-slate-950/60 p-6 rounded-3xl border border-white/5 shadow-inner">
+                          <div className="text-center border-r border-white/5 pr-4">
+                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">
+                              {previousInnings
+                                ? previousInnings.battingTeamName
+                                : currentInnings.battingTeamName}
+                            </span>
+                            <span className="text-2xl font-black text-white tracking-tighter tabular-nums">
+                              {previousInnings
+                                ? `${previousInnings.totalRuns}/${previousInnings.totalWickets}`
+                                : `${currentInnings.totalRuns}/${currentInnings.totalWickets}`}
+                            </span>
+                            <span className="text-[10px] font-bold text-slate-500 block">
+                              (
+                              {previousInnings
+                                ? `${previousInnings.overs}.${previousInnings.balls}`
+                                : `${currentInnings.overs}.${currentInnings.balls}`}{" "}
+                              Ovs)
+                            </span>
+                          </div>
+                          <div className="text-center pl-4">
+                            <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest block mb-1">
+                              {previousInnings
+                                ? currentInnings.battingTeamName
+                                : currentInnings.bowlingTeamName}
+                            </span>
+                            <span className="text-2xl font-black text-indigo-300 tracking-tighter tabular-nums">
+                              {previousInnings
+                                ? `${currentInnings.totalRuns}/${currentInnings.totalWickets}`
+                                : "N/A"}
+                            </span>
+                            <span className="text-[10px] font-bold text-indigo-400/60 block">
+                              (
+                              {previousInnings
+                                ? `${currentInnings.overs}.${currentInnings.balls}`
+                                : "0.0"}{" "}
+                              Ovs)
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* AI Summary Block */}
+                        <div className="mt-2">
+                          {isGeneratingAi ? (
+                            <div className="bg-slate-800/40 border border-indigo-500/20 rounded-2xl p-4 text-center animate-pulse">
+                              <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center justify-center gap-2">
+                                <span className="animate-spin">⏳</span>{" "}
+                                GENERATING AI SUMMARY...
+                              </span>
+                            </div>
+                          ) : aiSummary ? (
+                            <div className="bg-slate-800/50 border border-indigo-500/30 rounded-2xl p-4 text-left shadow-xl">
+                              <div className="flex justify-between items-center mb-3">
+                                <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">
+                                  <span>🤖</span> AI MATCH SUMMARY & MOTM
+                                </h4>
+                                <button
+                                  onClick={() => handleGenerateAiSummary(true)}
+                                  disabled={isGeneratingAi}
+                                  className="px-2 py-1 bg-indigo-600/20 hover:bg-indigo-600 text-indigo-400 hover:text-white rounded-lg font-black text-[9px] uppercase tracking-wider border border-indigo-500/30 transition-all disabled:opacity-50"
+                                >
+                                  🔄 REFRESH
+                                </button>
+                              </div>
+                              <div className="text-slate-300 text-xs leading-relaxed whitespace-pre-wrap">
+                                {aiSummary}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="bg-slate-800/30 border border-white/5 rounded-2xl p-4 text-center">
+                              <button
+                                onClick={() => handleGenerateAiSummary(true)}
+                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-lg"
+                              >
+                                ✨ GENERATE AI SUMMARY
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                          <button
+                            onClick={copyMatchLink}
+                            className={`flex-1 py-4 rounded-2xl font-black text-xs uppercase tracking-widest border transition-all flex items-center justify-center gap-2 ${
+                              copyFeedback
+                                ? "bg-emerald-600/20 text-emerald-400 border-emerald-500/40"
+                                : "bg-slate-800/80 text-white border-white/10 hover:bg-slate-800"
+                            }`}
+                          >
+                            {copyFeedback ? (
+                              <>
+                                <span>COPIED LINK!</span>
+                                <span className="text-sm">✅</span>
+                              </>
+                            ) : (
+                              <>
+                                <span>SHARE SCORECARD</span>
+                                <span className="text-sm">🔗</span>
+                              </>
+                            )}
+                          </button>
+                          <button
+                            onClick={() => setShowResetConfirm(true)}
+                            className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-600/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+                          >
+                            <span>START FRESH MATCH</span>
+                            <span className="text-sm">🏏</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-
-                {/* Footer Detail */}
-                <p className="mt-8 text-[10px] font-black text-slate-600 uppercase tracking-[0.5em] text-center italic opacity-50">
-                  CricScore Record Log #77291-LIVE
-                </p>
-              </div>
+              )}
             </div>
-          )}
+          ) : (
+            <Authenticator
+              signUpAttributes={["given_name", "family_name"]}
+              formFields={authFormFields}
+              components={authComponents}
+            >
+              {() => (
+                <div className="h-full w-full flex flex-col">
+                  {matchStatus === MatchStatus.SETUP && (
+                    <MatchSetup
+                      onStartMatch={startMatch}
+                      onResumeMatch={resumeMatch}
+                      initialEmail={userEmail || ""}
+                      hideResume={true}
+                      canDelete={false}
+                      token={userToken || undefined}
+                    />
+                  )}
+
+                  {matchStatus === MatchStatus.LIVE && currentInnings && (
+                    <MatchView
+                      initialState={currentInnings}
+                      previousInnings={previousInnings}
+                      totalOvers={totalOvers}
+                      matchId={matchId!}
+                      userToken={userToken || undefined}
+                      onInningsEnd={handleInningsEnd}
+                      onResetMatch={() => setShowResetConfirm(true)}
+                      onForceReset={forceResetMatch}
+                      onUpdateOvers={updateMatchOvers}
+                      onStateChange={(state) => setCurrentInnings(state)}
+                    />
+                  )}
+
+                  {matchStatus === MatchStatus.INNINGS_BREAK &&
+                    currentInnings &&
+                    previousInnings && (
+                      <div className="h-full overflow-y-auto flex items-center justify-center p-4 bg-slate-950 selection:bg-indigo-500/30">
+                        <div className="relative w-full max-w-2xl animate-in zoom-in-95 duration-500 text-center">
+                          <div className="bg-slate-900 border border-white/5 p-10 rounded-[3rem] shadow-2xl relative overflow-hidden backdrop-blur-3xl">
+                            <h2 className="text-4xl font-black text-white uppercase tracking-tighter italic mb-4">
+                              Innings Break
+                            </h2>
+                            <p className="text-xl text-indigo-400 font-bold mb-8">
+                              Target: {currentInnings.target}
+                            </p>
+                            <button
+                              onClick={() => setMatchStatus(MatchStatus.LIVE)}
+                              className="w-full h-20 bg-indigo-600 text-white rounded-[1.5rem] font-black text-xl uppercase tracking-widest italic hover:bg-indigo-500 active:scale-[0.98] transition-all shadow-xl shadow-indigo-600/20 flex items-center justify-center gap-3"
+                            >
+                              START 2ND INNINGS
+                              <span className="text-2xl">🏏</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                  {matchStatus === MatchStatus.COMPLETED && currentInnings && (
+                    <div className="h-full overflow-y-auto flex py-10 items-center justify-center p-4 bg-slate-950 selection:bg-indigo-500/30">
+                      <div className="relative w-full max-w-2xl animate-in zoom-in-95 duration-500">
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-indigo-600/10 blur-[120px] rounded-full -z-10"></div>
+
+                        <div className="bg-slate-900 border border-white/5 p-10 rounded-[3rem] shadow-2xl relative overflow-hidden backdrop-blur-3xl">
+                          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600"></div>
+
+                          <div className="text-center space-y-8">
+                            <div className="space-y-2">
+                              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-500/10 border border-yellow-500/20 mb-4">
+                                <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span>
+                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-yellow-500">
+                                  Official Result
+                                </span>
+                              </div>
+                              <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter italic">
+                                {getWinnerMessage()}
+                              </h2>
+                              <p className="text-xs font-black text-indigo-400 uppercase tracking-[0.3em]">
+                                Match{" "}
+                                {matchId ? `#${matchId.substring(0, 8)}` : ""}
+                              </p>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4 bg-slate-950/60 p-6 rounded-3xl border border-white/5 shadow-inner">
+                              <div className="text-center border-r border-white/5 pr-4">
+                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">
+                                  {previousInnings
+                                    ? previousInnings.battingTeamName
+                                    : currentInnings.battingTeamName}
+                                </span>
+                                <span className="text-2xl font-black text-white tracking-tighter tabular-nums">
+                                  {previousInnings
+                                    ? `${previousInnings.totalRuns}/${previousInnings.totalWickets}`
+                                    : `${currentInnings.totalRuns}/${currentInnings.totalWickets}`}
+                                </span>
+                                <span className="text-[10px] font-bold text-slate-500 block">
+                                  (
+                                  {previousInnings
+                                    ? `${previousInnings.overs}.${previousInnings.balls}`
+                                    : `${currentInnings.overs}.${currentInnings.balls}`}{" "}
+                                  Ovs)
+                                </span>
+                              </div>
+                              <div className="text-center pl-4">
+                                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest block mb-1">
+                                  {previousInnings
+                                    ? currentInnings.battingTeamName
+                                    : currentInnings.bowlingTeamName}
+                                </span>
+                                <span className="text-2xl font-black text-indigo-300 tracking-tighter tabular-nums">
+                                  {previousInnings
+                                    ? `${currentInnings.totalRuns}/${currentInnings.totalWickets}`
+                                    : "N/A"}
+                                </span>
+                                <span className="text-[10px] font-bold text-indigo-400/60 block">
+                                  (
+                                  {previousInnings
+                                    ? `${currentInnings.overs}.${currentInnings.balls}`
+                                    : "0.0"}{" "}
+                                  Ovs)
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                              <button
+                                onClick={copyMatchLink}
+                                className={`flex-1 py-4 rounded-2xl font-black text-xs uppercase tracking-widest border transition-all flex items-center justify-center gap-2 ${
+                                  copyFeedback
+                                    ? "bg-emerald-600/20 text-emerald-400 border-emerald-500/40"
+                                    : "bg-slate-800/80 text-white border-white/10 hover:bg-slate-800"
+                                }`}
+                              >
+                                {copyFeedback ? (
+                                  <>
+                                    <span>COPIED LINK!</span>
+                                    <span className="text-sm">✅</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span>SHARE SCORECARD</span>
+                                    <span className="text-sm">🔗</span>
+                                  </>
+                                )}
+                              </button>
+                              <button
+                                onClick={() => setShowResetConfirm(true)}
+                                className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-600/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+                              >
+                                <span>START FRESH MATCH</span>
+                                <span className="text-sm">🏏</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        <p className="mt-8 text-[10px] font-black text-slate-600 uppercase tracking-[0.5em] text-center italic opacity-50">
+                          CricScore Record Log #77291-LIVE
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </Authenticator>
+          ))}
+        {view === "CHAT" && (
+          <div className="h-full bg-slate-950 flex flex-col p-4 md:p-8 overflow-y-auto">
+            <ChatComponent
+              matchId={matchId}
+              apiUrl={import.meta.env.VITE_API_URL}
+              isAdmin={isAdmin}
+              setAlertMessage={setAlertMessage}
+            />
+          </div>
+        )}
       </div>
-
-      {view === "CHAT" && (
-        <ChatComponent
-          matchId={matchId}
-          apiUrl={import.meta.env.VITE_API_URL}
-          isAdmin={isAuthorized.ADMIN}
-          setAlertMessage={setAlertMessage}
-        />
-      )}
-
       {alertMessage && (
         <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[400] p-4 backdrop-blur-md">
           <div className="bg-slate-900 border border-slate-700/50 rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden p-6 text-center text-slate-100 animate-in zoom-in-95 duration-200">

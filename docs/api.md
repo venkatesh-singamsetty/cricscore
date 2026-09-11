@@ -50,7 +50,7 @@ This endpoint triggers the **SNS Fan-Out Protocol**. It instantly publishes the 
 
 Restricted endpoint for match management. Purges the record and all child ball events via `CASCADE DELETE`.
 
-- **Requirement**: Must include the correct `VITE_ADMIN_PIN` in the request header or body logic.
+- **Requirement**: Must include a valid **AWS Cognito JWT** in the Authorization header belonging to the match owner or an Admin.
 
 ---
 
