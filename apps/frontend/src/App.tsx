@@ -1241,7 +1241,7 @@ const App: React.FC = () => {
   }, [matchStatus, matchId, hasSentAutoEmail]);
 
   return (
-    <div className="h-[100dvh] bg-slate-950 font-sans text-slate-100 flex flex-col overflow-hidden relative">
+    <div className="fixed inset-0 bg-slate-950 font-sans text-slate-100 flex flex-col overflow-hidden">
       {/* Global Header Switcher - Always Visible & Clickable */}
       <div className="bg-slate-950 px-2 py-1.5 md:px-4 md:py-2 flex justify-between items-center shrink-0 border-b border-white/10 z-[500] sticky top-0 shadow-md">
         <div className="flex items-center gap-2 overflow-x-auto scrollbar-none max-w-full">

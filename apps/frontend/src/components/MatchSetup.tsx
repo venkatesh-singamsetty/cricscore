@@ -360,7 +360,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                 </div>
               </div>
             )}
-            <div className="flex-1 bg-slate-900/50 border border-indigo-500/20 p-4 rounded-[2rem] flex flex-col gap-3 min-h-0 overflow-hidden shadow-2xl">
+            <div className="flex-1 bg-slate-900/50 border border-indigo-500/20 p-4 rounded-[2rem] flex flex-col gap-3 min-h-0 overflow-y-auto scrollbar-hide shadow-2xl">
               <input
                 type="text"
                 className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-base font-black text-white focus:ring-2 focus:ring-indigo-500 outline-none uppercase text-center placeholder:opacity-30 shrink-0"
@@ -408,7 +408,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                 vs <span className="text-indigo-400">{teamAName}</span>
               </p>
             </div>
-            <div className="flex-1 bg-slate-900/50 border border-purple-500/20 p-4 rounded-[2rem] flex flex-col gap-3 min-h-0 overflow-hidden shadow-2xl">
+            <div className="flex-1 bg-slate-900/50 border border-purple-500/20 p-4 rounded-[2rem] flex flex-col gap-3 min-h-0 overflow-y-auto scrollbar-hide shadow-2xl">
               <input
                 type="text"
                 className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-base font-black text-white focus:ring-2 focus:ring-purple-500 outline-none uppercase text-center placeholder:opacity-30 shrink-0"
@@ -623,7 +623,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
           )}
           <div className="flex-1 grid grid-cols-2 gap-3 min-h-0">
             <div className="relative group flex flex-col flex-1 min-h-0">
-              <div className="relative flex-1 bg-slate-900/50 border border-white/5 p-4 rounded-[2rem] flex flex-col space-y-3 backdrop-blur-sm shadow-2xl overflow-hidden min-h-[220px]">
+              <div className="relative flex-1 bg-slate-900/50 border border-white/5 p-4 rounded-[2rem] flex flex-col space-y-3 backdrop-blur-sm shadow-2xl overflow-y-auto scrollbar-hide min-h-[220px]">
                 <div className="shrink-0 text-center">
                   <label className="text-[9px] font-black uppercase tracking-[0.3em] text-indigo-400 mb-1 block">
                     Team Name
@@ -647,7 +647,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
               </div>
             </div>
             <div className="relative group flex flex-col flex-1 min-h-0">
-              <div className="relative flex-1 bg-slate-900/50 border border-white/5 p-4 rounded-[2rem] flex flex-col space-y-3 backdrop-blur-sm shadow-2xl overflow-hidden min-h-[220px]">
+              <div className="relative flex-1 bg-slate-900/50 border border-white/5 p-4 rounded-[2rem] flex flex-col space-y-3 backdrop-blur-sm shadow-2xl overflow-y-auto scrollbar-hide min-h-[220px]">
                 <div className="shrink-0 text-center">
                   <label className="text-[9px] font-black uppercase tracking-[0.3em] text-purple-400 mb-1 block">
                     Team Name
