@@ -1016,7 +1016,20 @@ const App: React.FC = () => {
     window.history.replaceState({}, "", window.location.pathname);
   };
 
-  const forceResetMatch = () => {
+  const forceResetMatch = async () => {
+    if (matchId && matchStatus !== MatchStatus.COMPLETED) {
+      try {
+        const API_URL = import.meta.env.VITE_API_URL || "";
+        const headers = await getAuthHeaders();
+        // Fire and forget delete so UI isn't blocked by network
+        fetch(`${API_URL}/match/${encodeURIComponent(matchId)}`, {
+          method: "DELETE",
+          headers,
+        }).catch((e) => console.error("Failed to delete abandoned match", e));
+      } catch (err) {
+        console.error(err);
+      }
+    }
     resetMatch();
   };
 
