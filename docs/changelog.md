@@ -1,3 +1,18 @@
+## [4.1.2](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.1.1...v4.1.2) (2026-09-12)
+
+
+### Bug Fixes
+
+* actively delete abandoned matches from backend when resetting ([bc4b2fc](https://github.com/venkatesh-singamsetty/cricscore/commit/bc4b2fc8468f5abcac6c5a5a72609ba9311ba428))
+* add auto-scroll to AI Chat and prevent container overflow ([052f706](https://github.com/venkatesh-singamsetty/cricscore/commit/052f706f56eeaa149901756f1e5e9396b95f3716))
+* add POM info to frontend summary, fix desktop authenticator layout ([0aad44f](https://github.com/venkatesh-singamsetty/cricscore/commit/0aad44f43530297a44ec528c75609ee666cf5063))
+* correct players/bowlers object to array mapping for email scoreboard ([fa790c9](https://github.com/venkatesh-singamsetty/cricscore/commit/fa790c9aa17382865acaabc3b0a107017493c59a))
+* ensure AI summary and POM are saved to DB for email generation ([13672eb](https://github.com/venkatesh-singamsetty/cricscore/commit/13672eb4d898bc160d01bdd0127e45930daa1fb1))
+* lock app root to fixed inset-0 and make MatchSetup inputs scrollable to prevent mobile keyboard shifting viewport ([47099ac](https://github.com/venkatesh-singamsetty/cricscore/commit/47099acae56c09a2b82c26be3841e89942756458))
+* lock viewport scrolling to prevent mobile address bar jumping ([9970854](https://github.com/venkatesh-singamsetty/cricscore/commit/99708547a29e53fd5274ad5b162b258bd474f45f))
+* use handleViewClick on nav buttons to ensure components remount when clicking current tab ([42c8776](https://github.com/venkatesh-singamsetty/cricscore/commit/42c877678a2090b416c39f49c2c165ed23bf8e7e))
+* viewer uses canonical match_winner and listens to LIVE_SCORE_UPDATE ([e594d4b](https://github.com/venkatesh-singamsetty/cricscore/commit/e594d4bc538a65cee77dc09eb943f0f2e05d5955))
+
 ## [4.1.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.1.0...v4.1.1) (2026-09-12)
 
 
