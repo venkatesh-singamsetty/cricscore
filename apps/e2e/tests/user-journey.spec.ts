@@ -177,7 +177,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       page.getByRole("heading", { name: /Additional Runs/i }),
     ).toBeVisible();
     await page
-      .locator(".fixed.z-\[200\]")
+      .locator(".backdrop-blur-md")
       .getByRole("button", { name: "0", exact: true })
       .click();
     await page.waitForTimeout(1000);
@@ -220,7 +220,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       page.getByRole("heading", { name: /Additional Runs/i }),
     ).toBeVisible();
     await page
-      .locator(".fixed.z-\[200\]")
+      .locator(".backdrop-blur-md")
       .getByRole("button", { name: "0", exact: true })
       .click();
     await page.waitForTimeout(1000);
@@ -234,7 +234,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       page.getByRole("heading", { name: /Additional Runs/i }),
     ).toBeVisible();
     await page
-      .locator(".fixed.z-\[200\]")
+      .locator(".backdrop-blur-md")
       .getByRole("button", { name: "1", exact: true })
       .click();
     await page.waitForTimeout(1000);
@@ -301,7 +301,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       page.getByRole("heading", { name: /Additional Runs/i }),
     ).toBeVisible();
     await page
-      .locator(".fixed.z-\[200\]")
+      .locator(".backdrop-blur-md")
       .getByRole("button", { name: "1", exact: true })
       .click();
     await page.waitForTimeout(1000);
@@ -407,7 +407,7 @@ test.describe("User Journey - Full Match Scoring", () => {
     await page.getByRole("button", { name: /RUN OUT/i }).click();
     await expect(page.getByText(/Runs completed before/i)).toBeVisible();
     await page
-      .locator(".fixed.z-\[200\]")
+      .locator(".backdrop-blur-md")
       .getByRole("button", { name: "1", exact: true })
       .click();
     await expect(page.getByText(/Who was Run Out/i)).toBeVisible();
@@ -451,7 +451,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       .click({ force: true });
     // Wait for modal overlay to fully dismiss (CSS animate-in fade-in 300ms)
     await page
-      .waitForSelector(".fixed.inset-0.z-\[200\]", {
+      .waitForSelector(".backdrop-blur-md", {
         state: "hidden",
         timeout: 5000,
       })
@@ -522,7 +522,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       .click({ force: true });
     // Wait for modal overlay to fully dismiss
     await page
-      .waitForSelector(".fixed.inset-0.z-\[200\]", {
+      .waitForSelector(".backdrop-blur-md", {
         state: "hidden",
         timeout: 5000,
       })
