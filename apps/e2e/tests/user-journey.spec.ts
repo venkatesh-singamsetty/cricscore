@@ -46,7 +46,9 @@ test.describe("User Journey - Full Match Scoring", () => {
 
     // Set Toss: TEAM B wins toss and elects to BAT (so TEAM B bats first)
     // The Toss Winner buttons appear first; click TEAM B
-    const tossWinnerButtons = desktopLayout.getByRole("button", { name: "TEAM B" });
+    const tossWinnerButtons = desktopLayout.getByRole("button", {
+      name: "TEAM B",
+    });
     await tossWinnerButtons.first().click();
     // Decision is already defaulted to BAT — no change needed
 
@@ -175,7 +177,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       page.getByRole("heading", { name: /Additional Runs/i }),
     ).toBeVisible();
     await page
-      .locator(".fixed")
+      .locator(".fixed.z-\[200\]")
       .getByRole("button", { name: "0", exact: true })
       .click();
     await page.waitForTimeout(1000);
@@ -218,7 +220,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       page.getByRole("heading", { name: /Additional Runs/i }),
     ).toBeVisible();
     await page
-      .locator(".fixed")
+      .locator(".fixed.z-\[200\]")
       .getByRole("button", { name: "0", exact: true })
       .click();
     await page.waitForTimeout(1000);
@@ -232,7 +234,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       page.getByRole("heading", { name: /Additional Runs/i }),
     ).toBeVisible();
     await page
-      .locator(".fixed")
+      .locator(".fixed.z-\[200\]")
       .getByRole("button", { name: "1", exact: true })
       .click();
     await page.waitForTimeout(1000);
@@ -299,7 +301,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       page.getByRole("heading", { name: /Additional Runs/i }),
     ).toBeVisible();
     await page
-      .locator(".fixed")
+      .locator(".fixed.z-\[200\]")
       .getByRole("button", { name: "1", exact: true })
       .click();
     await page.waitForTimeout(1000);
@@ -405,7 +407,7 @@ test.describe("User Journey - Full Match Scoring", () => {
     await page.getByRole("button", { name: /RUN OUT/i }).click();
     await expect(page.getByText(/Runs completed before/i)).toBeVisible();
     await page
-      .locator(".fixed")
+      .locator(".fixed.z-\[200\]")
       .getByRole("button", { name: "1", exact: true })
       .click();
     await expect(page.getByText(/Who was Run Out/i)).toBeVisible();
@@ -449,7 +451,10 @@ test.describe("User Journey - Full Match Scoring", () => {
       .click({ force: true });
     // Wait for modal overlay to fully dismiss (CSS animate-in fade-in 300ms)
     await page
-      .waitForSelector(".fixed.inset-0", { state: "hidden", timeout: 5000 })
+      .waitForSelector(".fixed.inset-0.z-\[200\]", {
+        state: "hidden",
+        timeout: 5000,
+      })
       .catch(() => {});
     await page.waitForTimeout(500);
 
@@ -457,9 +462,14 @@ test.describe("User Journey - Full Match Scoring", () => {
     // Add retry loop because React state transitions are swallowing the click
     let clicked6 = false;
     for (let i = 0; i < 5; i++) {
-      await expect(page.getByRole("button", { name: "6", exact: true }).first()).toBeEnabled();
-      await page.getByRole("button", { name: "6", exact: true }).first().click();
-      
+      await expect(
+        page.getByRole("button", { name: "6", exact: true }).first(),
+      ).toBeEnabled();
+      await page
+        .getByRole("button", { name: "6", exact: true })
+        .first()
+        .click();
+
       // Wait to see if score updates to 11
       try {
         await expect(page.getByText(/11\/2/)).toBeVisible({ timeout: 1000 });
@@ -477,14 +487,14 @@ test.describe("User Journey - Full Match Scoring", () => {
     await expect(
       page.getByRole("button", { name: "0", exact: true }).first(),
     ).toBeEnabled();
-    await page
-      .getByRole("button", { name: "0", exact: true })
-      .first()
-      .click();
+    await page.getByRole("button", { name: "0", exact: true }).first().click();
     await page.waitForTimeout(1000);
 
     // End of Over 1. Select New Bowler.
-    await page.screenshot({ path: "test-results/debug-missing-ball.png", fullPage: true });
+    await page.screenshot({
+      path: "test-results/debug-missing-ball.png",
+      fullPage: true,
+    });
     await expect(
       page.getByRole("heading", { name: /Next Bowler/i }),
     ).toBeVisible();
@@ -512,7 +522,10 @@ test.describe("User Journey - Full Match Scoring", () => {
       .click({ force: true });
     // Wait for modal overlay to fully dismiss
     await page
-      .waitForSelector(".fixed.inset-0", { state: "hidden", timeout: 5000 })
+      .waitForSelector(".fixed.inset-0.z-\[200\]", {
+        state: "hidden",
+        timeout: 5000,
+      })
       .catch(() => {});
     await page.waitForTimeout(500);
 
@@ -520,9 +533,14 @@ test.describe("User Journey - Full Match Scoring", () => {
     // Add retry loop because React state transitions are swallowing the click
     let clicked2 = false;
     for (let i = 0; i < 5; i++) {
-      await expect(page.getByRole("button", { name: "2", exact: true }).first()).toBeEnabled();
-      await page.getByRole("button", { name: "2", exact: true }).first().click();
-      
+      await expect(
+        page.getByRole("button", { name: "2", exact: true }).first(),
+      ).toBeEnabled();
+      await page
+        .getByRole("button", { name: "2", exact: true })
+        .first()
+        .click();
+
       try {
         await expect(page.getByText(/13\/3/)).toBeVisible({ timeout: 1000 });
         clicked2 = true;
@@ -535,44 +553,39 @@ test.describe("User Journey - Full Match Scoring", () => {
     await page.waitForTimeout(1000);
 
     // Ball 2.2: 4 runs (Score: 15)
-    await expect(page.getByRole("button", { name: "4", exact: true }).first()).toBeEnabled();
-    await page
-      .getByRole("button", { name: "4", exact: true })
-      .first()
-      .click();
+    await expect(
+      page.getByRole("button", { name: "4", exact: true }).first(),
+    ).toBeEnabled();
+    await page.getByRole("button", { name: "4", exact: true }).first().click();
     await page.waitForTimeout(1000);
 
     // Ball 2.3: 1 run (Score: 16)
-    await expect(page.getByRole("button", { name: "1", exact: true }).first()).toBeEnabled();
-    await page
-      .getByRole("button", { name: "1", exact: true })
-      .first()
-      .click();
+    await expect(
+      page.getByRole("button", { name: "1", exact: true }).first(),
+    ).toBeEnabled();
+    await page.getByRole("button", { name: "1", exact: true }).first().click();
     await page.waitForTimeout(1000);
 
     // Ball 2.4: 1 run (Score: 17)
-    await expect(page.getByRole("button", { name: "1", exact: true }).first()).toBeEnabled();
-    await page
-      .getByRole("button", { name: "1", exact: true })
-      .first()
-      .click();
+    await expect(
+      page.getByRole("button", { name: "1", exact: true }).first(),
+    ).toBeEnabled();
+    await page.getByRole("button", { name: "1", exact: true }).first().click();
     await page.waitForTimeout(1000);
 
     // Ball 2.5: 1 run (Score: 18)
-    await expect(page.getByRole("button", { name: "1", exact: true }).first()).toBeEnabled();
-    await page
-      .getByRole("button", { name: "1", exact: true })
-      .first()
-      .click();
+    await expect(
+      page.getByRole("button", { name: "1", exact: true }).first(),
+    ).toBeEnabled();
+    await page.getByRole("button", { name: "1", exact: true }).first().click();
     await page.waitForTimeout(1000);
 
     // Target is 26, score is 20. They need 6 runs off 1 ball.
     // Ball 2.6: 6 runs! MATCH WON.
-    await expect(page.getByRole("button", { name: "6", exact: true }).first()).toBeEnabled();
-    await page
-      .getByRole("button", { name: "6", exact: true })
-      .first()
-      .click();
+    await expect(
+      page.getByRole("button", { name: "6", exact: true }).first(),
+    ).toBeEnabled();
+    await page.getByRole("button", { name: "6", exact: true }).first().click();
     await page.waitForTimeout(2000);
 
     // Assert Chicago Spartans won
