@@ -1151,18 +1151,27 @@ const App: React.FC = () => {
     const API_URL = import.meta.env.VITE_API_URL || "";
     try {
       const headers = await getAuthHeaders();
-      const matchData = {
-        teamAName: teamA?.name,
-        teamBName: teamB?.name,
-        previousInnings,
-        currentInnings,
-        winnerMessage: getWinnerMessage(),
-        status: matchStatus,
-      };
+
+      const isGuest = !userToken && matchId?.startsWith("guest_");
+      let requestBody: any = { matchId, forceRefresh };
+
+      // ONLY send local matchData if it's a guest match, so the backend doesn't try to query the DB for guest data.
+      // For registered matches, the backend MUST query the DB directly so it can save the summary to the matches table (for email usage).
+      if (isGuest) {
+        requestBody.matchData = {
+          teamAName: teamA?.name,
+          teamBName: teamB?.name,
+          previousInnings,
+          currentInnings,
+          winnerMessage: getWinnerMessage(),
+          status: matchStatus,
+        };
+      }
+
       const response = await fetch(`${API_URL}/chat/summary`, {
         method: "POST",
         headers,
-        body: JSON.stringify({ matchId, forceRefresh, matchData }),
+        body: JSON.stringify(requestBody),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Failed to generate");
