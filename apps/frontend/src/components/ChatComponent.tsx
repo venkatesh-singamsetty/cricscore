@@ -35,6 +35,11 @@ export function ChatComponent({
   const [uploadedDocs, setUploadedDocs] = useState<string[]>([]);
   const [showDocsDropdown, setShowDocsDropdown] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading]);
 
   React.useEffect(() => {
     if (isAdmin) {
@@ -172,7 +177,7 @@ export function ChatComponent({
   };
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-120px)] w-full max-w-4xl mx-auto bg-slate-900 rounded-xl border border-white/10 shadow-2xl overflow-hidden mt-6 mb-6">
+    <div className="flex flex-col h-full w-full max-w-4xl mx-auto bg-slate-900 rounded-xl border border-white/10 shadow-2xl overflow-hidden">
       <div className="p-4 bg-slate-800 border-b border-white/10 flex items-center justify-between">
         <h3 className="text-xl font-bold text-white flex items-center gap-2">
           <Bot className="text-indigo-400" />
@@ -287,6 +292,7 @@ export function ChatComponent({
             </div>
           </div>
         )}
+        <div ref={messagesEndRef} />
       </div>
 
       <div className="p-4 bg-slate-800 border-t border-white/10">
