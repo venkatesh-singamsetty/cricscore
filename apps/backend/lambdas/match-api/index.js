@@ -248,8 +248,16 @@ const sendMatchReportEmail = async (
     const safeWickets = escapeHtml(wickets);
     const safeOvers = escapeHtml(`${ov}.${balls}`);
 
-    let players = Array.isArray(inn.players) ? inn.players : [];
-    let bowlers = Array.isArray(inn.bowlers) ? inn.bowlers : [];
+    let players = inn.players
+      ? Array.isArray(inn.players)
+        ? inn.players
+        : Object.values(inn.players)
+      : [];
+    let bowlers = inn.bowlers
+      ? Array.isArray(inn.bowlers)
+        ? inn.bowlers
+        : Object.values(inn.bowlers)
+      : [];
 
     if (players.length === 0) {
       const pR = await client.query(
