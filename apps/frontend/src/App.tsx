@@ -1247,19 +1247,19 @@ const App: React.FC = () => {
         <div className="flex items-center gap-2 overflow-x-auto scrollbar-none max-w-full">
           <div className="flex bg-slate-900 p-1 rounded-xl border border-white/5 shrink-0">
             <button
-              onClick={() => setView("VIEWER")}
+              onClick={() => handleViewClick("VIEWER")}
               className={`px-2.5 py-1 md:px-4 md:py-1.5 font-bold text-[11px] md:text-xs tracking-wide transition-colors whitespace-nowrap ${view === "VIEWER" ? "text-blue-500 bg-slate-800/80 rounded-lg shadow-sm" : "text-gray-400 hover:text-blue-400"}`}
             >
               VIEWER 🌍
             </button>
             <button
-              onClick={() => setView("SCORER")}
+              onClick={() => handleViewClick("SCORER")}
               className={`px-2.5 py-1 md:px-4 md:py-1.5 font-bold text-[11px] md:text-xs tracking-wide transition-colors whitespace-nowrap ${view === "SCORER" ? "text-green-500 bg-slate-800/80 rounded-lg shadow-sm" : "text-gray-400 hover:text-green-400"}`}
             >
               SCORER 🎮
             </button>
             <button
-              onClick={() => setView("CHAT")}
+              onClick={() => handleViewClick("CHAT")}
               className={`px-2.5 py-1 md:px-4 md:py-1.5 font-bold text-[11px] md:text-xs tracking-wide transition-colors whitespace-nowrap ${view === "CHAT" ? "text-amber-500 bg-slate-800/80 rounded-lg shadow-sm" : "text-gray-400 hover:text-amber-400"}`}
             >
               AI CHAT ✨
@@ -1277,7 +1277,7 @@ const App: React.FC = () => {
           {isAdmin && (
             <div className="flex bg-slate-900 p-1 rounded-xl border border-white/5 shrink-0">
               <button
-                onClick={() => setView("ADMIN_PANEL")}
+                onClick={() => handleViewClick("ADMIN")}
                 title="Admin Control Center"
                 className={`px-3 py-1 font-bold text-sm tracking-wide transition-colors whitespace-nowrap ${view === "ADMIN_PANEL" ? "text-rose-400 bg-slate-800/80 rounded-lg shadow-sm" : "text-gray-400 hover:text-rose-400"}`}
               >
