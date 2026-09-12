@@ -1166,7 +1166,12 @@ const App: React.FC = () => {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Failed to generate");
-      setAiSummary(data.summary);
+
+      const finalSummary = data.playerOfTheMatch
+        ? `${data.summary}\n\n🏆 Player of the Match: ${data.playerOfTheMatch}`
+        : data.summary;
+
+      setAiSummary(finalSummary);
     } catch (error) {
       console.error(error);
       setAlertMessage("Failed to generate AI summary.");
