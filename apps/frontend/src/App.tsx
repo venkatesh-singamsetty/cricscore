@@ -1801,7 +1801,7 @@ const App: React.FC = () => {
             </Authenticator>
           ))}
         {view === "CHAT" && (
-          <div className="h-full bg-slate-950 flex flex-col p-4 md:p-8 overflow-y-auto">
+          <div className="flex-1 flex flex-col h-full bg-slate-950 pt-[72px] p-4 md:p-8">
             <ChatComponent
               matchId={matchId}
               apiUrl={import.meta.env.VITE_API_URL}
