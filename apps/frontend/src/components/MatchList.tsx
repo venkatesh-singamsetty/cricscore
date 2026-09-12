@@ -100,7 +100,7 @@ const MatchList: React.FC<MatchListProps> = ({
             t === "HUB_UPDATE" ||
             t === "MATCH_CREATED" ||
             t === "MATCH_UPDATED" ||
-            t === "SCORE_UPDATE"
+            t === "LIVE_SCORE_UPDATE"
           ) {
             console.log("MatchList received WS event", t);
             fetchMatches();
@@ -120,6 +120,7 @@ const MatchList: React.FC<MatchListProps> = ({
   }, [WS_URL]);
 
   const calculateResult = (match: any) => {
+    if (match.match_winner) return match.match_winner;
     if (!match.innings || match.innings.length < 2) return null;
 
     const i1 = match.innings[0];
