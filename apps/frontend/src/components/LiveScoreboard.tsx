@@ -416,15 +416,20 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                   <div className="bg-slate-800/80 p-5 rounded-3xl border border-white/5 flex justify-between items-center relative overflow-hidden shadow-xl">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl -z-10"></div>
                     <div className="flex flex-col flex-1">
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                          {currentInnings.battingTeamName}
-                        </span>
-                        <span className="text-[8px] text-slate-600 italic">
-                          vs
-                        </span>
-                        <span className="text-[10px] font-black text-indigo-500/80 uppercase tracking-widest">
-                          {currentInnings.bowlingTeamName}
+                      <div className="flex flex-col mb-1.5 gap-0.5">
+                        <div className="flex items-center gap-2 opacity-60">
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                            {currentInnings.battingTeamName}
+                          </span>
+                          <span className="text-[8px] text-slate-600 italic">
+                            vs
+                          </span>
+                          <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">
+                            {currentInnings.bowlingTeamName}
+                          </span>
+                        </div>
+                        <span className="text-xs font-black text-indigo-400 uppercase tracking-widest">
+                          {currentInnings.battingTeamName} INNINGS
                         </span>
                       </div>
 
@@ -476,7 +481,12 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                   {/* Batsmen */}
                   <div className="bg-white/5 rounded-2xl border border-white/5 p-4 space-y-3">
                     <div className="grid grid-cols-[1fr_auto_auto] gap-4 text-[9px] font-black text-slate-500 uppercase tracking-widest pb-2 border-b border-white/5">
-                      <span>Batter</span>
+                      <div className="flex flex-col">
+                        <span className="text-[7px] text-indigo-400 mb-0.5 tracking-[0.2em]">
+                          {currentInnings.battingTeamName}
+                        </span>
+                        <span>Batter</span>
+                      </div>
                       <span className="text-right w-10">R</span>
                       <span className="text-right w-10 text-slate-600">B</span>
                     </div>
