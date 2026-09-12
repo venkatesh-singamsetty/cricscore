@@ -1,3 +1,10 @@
+## [4.1.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.1.0...v4.1.1) (2026-09-12)
+
+
+### Bug Fixes
+
+* POM display, UI updates for match setup, delete modal theme ([35db347](https://github.com/venkatesh-singamsetty/cricscore/commit/35db347c9a363f57cbfe97533586dcb0c9a0574c))
+
 # [4.1.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.0.1...v4.1.0) (2026-09-11)
 
 
