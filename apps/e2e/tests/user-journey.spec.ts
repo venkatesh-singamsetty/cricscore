@@ -148,12 +148,12 @@ test.describe("User Journey - Full Match Scoring", () => {
       page.getByRole("button", { name: "2", exact: true }).first(),
     ).toBeEnabled();
     await page.getByRole("button", { name: "2", exact: true }).first().click();
-    await expect(page.getByText(/2\/0/)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(/2\/0/).first()).toBeVisible({ timeout: 5000 });
 
     console.log("Clicking Undo...");
     await expect(page.getByRole("button", { name: "Undo" })).toBeEnabled();
     await page.getByRole("button", { name: "Undo" }).click();
-    await expect(page.getByText(/0\/0/)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(/0\/0/).first()).toBeVisible({ timeout: 5000 });
 
     console.log("Starting actual over...");
     // Ball 1.1: 2 runs
@@ -167,7 +167,9 @@ test.describe("User Journey - Full Match Scoring", () => {
         .first()
         .click();
       try {
-        await expect(page.getByText(/2\/0/)).toBeVisible({ timeout: 1000 });
+        await expect(page.getByText(/2\/0/).first()).toBeVisible({
+          timeout: 1000,
+        });
         clicked1_1 = true;
         break;
       } catch (e) {
