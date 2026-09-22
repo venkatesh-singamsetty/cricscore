@@ -52,9 +52,6 @@ jobs:
   validate_frontend:
     name: Lint & Test
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/frontend
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -63,7 +60,7 @@ jobs:
         with:
           node-version: '24'
           cache: 'npm'
-          cache-dependency-path: apps/frontend/package-lock.json
+          cache-dependency-path: package-lock.json
       - name: Install dependencies
         run: npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
       - name: Run Trivy vulnerability scanner (fs)
@@ -76,10 +73,13 @@ jobs:
           exit-code: '1'
           severity: 'HIGH,CRITICAL'
       - name: TypeScript type-check & lint
+        working-directory: apps/frontend
         run: npm run lint
       - name: Run unit tests
+        working-directory: apps/frontend
         run: npm run test
       - name: Build production bundle (Dry-Run)
+        working-directory: apps/frontend
         run: npm run build
 
   validate_backend:
