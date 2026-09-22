@@ -1352,9 +1352,12 @@ exports.handler = async (event) => {
               PaginationToken: paginationToken,
             }),
           );
-          const guests = (res.Users || []).filter((u) =>
-            u.Username.startsWith("guest-"),
-          );
+          const guests = (res.Users || []).filter((u) => {
+            const emailAttr = (u.Attributes || []).find(
+              (a) => a.Name === "email",
+            );
+            return emailAttr && emailAttr.Value.startsWith("guest-");
+          });
           allGuests = allGuests.concat(guests);
           paginationToken = res.PaginationToken;
         } while (paginationToken);

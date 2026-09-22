@@ -18,7 +18,7 @@ graph TD
     G --> H
     H --> D
     D -- Regular User --> I[Scorer View]
-    D -- Admin Group --> J[Admin Panel + Scorer View]
+    D -- Admin Group --> J[Settings (Admin Panel) + Scorer View]
     D -- No token --> K[Viewer Only]
 ```
 
@@ -53,7 +53,7 @@ graph TD
 4. Immediately signed in with `signIn()`
 5. `isGuestScorer = true` state is set; user gets full Scorer functionality
 6. Guest matches are tracked by their `scorer_email` (the guest email)
-7. Guest accounts can be deleted by Admins via the Admin Panel or AI Chat
+7. Guest accounts can be deleted by Admins via the Settings (Admin Panel) or AI Chat
 
 ### Sign Out
 
@@ -112,7 +112,7 @@ const isAuthorized = (event, matchRecord) => {
 
 ## 👥 Admin User Management
 
-The Admin Panel provides full user lifecycle management:
+The Settings tab (Admin Panel) provides full user lifecycle management:
 
 ### List Users (`GET /admin/users`)
 

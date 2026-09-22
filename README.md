@@ -6,6 +6,8 @@
 
 👉 **Deployment Details:** **[Full Deployment Guide](./docs/deployment.md)**
 
+---
+
 ## 🎯 Project Vision
 
 CricScore demonstrates how a production-style real-time sports platform
@@ -24,65 +26,6 @@ The project models a live cricket platform with:
 
 This repository is a practical production-style reference implementation for
 cloud-native app delivery, AI integration, and operational discipline.
-
-## 🚀 Deployment
-
-Use the canonical deployer for each environment:
-
-```bash
-# Development
-./infra/scripts/deploy.sh --env dev
-
-# Production
-./infra/scripts/deploy.sh --env prod
-```
-
-This script applies the correct Terraform environment, regenerates the frontend
-runtime values from live AWS outputs, builds the app, uploads it to S3, and
-invalidates CloudFront so the dev and prod sites stay isolated.
-
-### 🔐 One-Time Setup for a Fresh Clone
-
-Before the first deployment, make sure you have the required local values ready:
-
-- AWS credentials configured for the target account
-- Terraform installed locally
-- Aiven PostgreSQL connection string for the environment you want to deploy
-- OpenRouter or OpenAI API key for the LLM layer
-- SES sender email and admin email configured in the environment variables
-- A hosted domain or Route 53 zone already created if you plan to use the public
-  site URLs
-
-A typical local setup is:
-
-```bash
-cp .env.local.example .env.local
-# fill in the required AWS / database / LLM values before running the deploy script
-```
-
-If your repo does not include a `.env.local.example`, use the values already
-referenced by the infra scripts and Terraform variables as the source of truth.
-
-### 💰 Cost Notes
-
-The recurring cost is expected to stay very low for normal usage. In practice, the
-main fixed monthly expense is typically the Route 53 hosted zone, while most other
-services are event-driven or usage-based. If you are not actively testing the dev
-site, you can destroy or pause it to keep costs near the minimum possible level.
-
-### 🤖 AI & RAG
-
-CricScore includes a production-style **AI Chat Assistant** powered by:
-
-| Capability | Implementation |
-| --------- | -------------- |
-| **MCP tools** | Secure tool execution with credentials kept inside the backend |
-| **Text-to-SQL** | LLM-generated read-only SQL for live match and stats questions |
-| **Vector RAG** | `pgvector` search over uploaded tournament rule PDFs |
-| **LLM provider** | OpenRouter with `gpt-4o-mini` and `text-embedding-3-small` |
-| **Environment isolation** | `DB_SCHEMA` keeps dev and prod data separated |
-
-A lightweight AI evaluation baseline is included under `evals/` to monitor tool choice, safety, and answer quality for the chat assistant.
 
 ---
 
@@ -133,6 +76,67 @@ graph TD
     Fan -.->|Handshake| WS_GW
     Scorer((Scorer)) -.->|Post| REST_POST
 ```
+
+---
+
+## 🚀 Deployment
+
+Use the canonical deployer for each environment:
+
+```bash
+# Development
+./infra/scripts/deploy.sh --env dev
+
+# Production
+./infra/scripts/deploy.sh --env prod
+```
+
+This script applies the correct Terraform environment, regenerates the frontend
+runtime values from live AWS outputs, builds the app, uploads it to S3, and
+invalidates CloudFront so the dev and prod sites stay isolated.
+
+### 🔐 One-Time Setup for a Fresh Clone
+
+Before the first deployment, make sure you have the required local values ready:
+
+- AWS credentials configured for the target account
+- Terraform installed locally
+- Aiven PostgreSQL connection string for the environment you want to deploy
+- OpenRouter or OpenAI API key for the LLM layer
+- SES sender email and admin email configured in the environment variables
+- A hosted domain or Route 53 zone already created if you plan to use the public
+  site URLs
+
+A typical local setup is:
+
+```bash
+cp .env.local.example .env.local
+# fill in the required AWS / database / LLM values before running the deploy script
+```
+
+If your repo does not include a `.env.local.example`, use the values already
+referenced by the infra scripts and Terraform variables as the source of truth.
+
+### 💰 Cost Notes
+
+The recurring cost is expected to stay very low for normal usage. In practice, the
+main fixed monthly expense is typically the Route 53 hosted zone, while most other
+services are event-driven or usage-based. If you are not actively testing the dev
+site, you can destroy or pause it to keep costs near the minimum possible level.
+
+### 🤖 AI & RAG
+
+CricScore includes a production-style **AI Chat Assistant** powered by:
+
+| Capability                | Implementation                                                 |
+| ------------------------- | -------------------------------------------------------------- |
+| **MCP tools**             | Secure tool execution with credentials kept inside the backend |
+| **Text-to-SQL**           | LLM-generated read-only SQL for live match and stats questions |
+| **Vector RAG**            | `pgvector` search over uploaded tournament rule PDFs           |
+| **LLM provider**          | OpenRouter with `gpt-4o-mini` and `text-embedding-3-small`     |
+| **Environment isolation** | `DB_SCHEMA` keeps dev and prod data separated                  |
+
+A lightweight AI evaluation baseline is included under `evals/` to monitor tool choice, safety, and answer quality for the chat assistant.
 
 ---
 
