@@ -10,7 +10,7 @@
       "expected_tool": "execute_sql",
       "ok": false,
       "status": 404,
-      "elapsedMs": 62,
+      "elapsedMs": 44,
       "replyPreview": ""
     },
     {
@@ -20,7 +20,7 @@
       "expected_tool": "search_tournament_rules",
       "ok": false,
       "status": 404,
-      "elapsedMs": 4,
+      "elapsedMs": 3,
       "replyPreview": ""
     },
     {
@@ -30,7 +30,7 @@
       "expected_tool": null,
       "ok": false,
       "status": 404,
-      "elapsedMs": 2,
+      "elapsedMs": 3,
       "replyPreview": ""
     },
     {
@@ -40,7 +40,7 @@
       "expected_tool": null,
       "ok": false,
       "status": 404,
-      "elapsedMs": 2,
+      "elapsedMs": 3,
       "replyPreview": ""
     }
   ]
