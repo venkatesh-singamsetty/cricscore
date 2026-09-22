@@ -17,9 +17,9 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@aws-amplify/ui-react": "^6.15.4",
+    "@aws-amplify/ui-react": "^6.15.6",
     "@sentry/react": "^10.74.0",
-    "aws-amplify": "^6.18.0",
+    "aws-amplify": "^6.20.0",
     "lucide-react": "^1.45.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
@@ -27,7 +27,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@testing-library/dom": "^10.4.1",
+    "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",
@@ -37,7 +37,7 @@
     "@typescript-eslint/eslint-plugin": "^8.70.0",
     "@typescript-eslint/parser": "^8.59.4",
     "@vitejs/plugin-react": "^6.1.1",
-    "@vitest/coverage-v8": "^4.1.11",
+    "@vitest/coverage-v8": "^5.0.1",
     "eslint": "^10.10.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
@@ -45,6 +45,6 @@
     "jsdom": "^30.0.1",
     "typescript": "~7.0.2",
     "vite": "^8.3.0",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.1"
   }
 }
