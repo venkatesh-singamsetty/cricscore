@@ -206,6 +206,18 @@ const MatchView: React.FC<MatchViewProps> = ({
 
   const middleContainerRef = useRef<HTMLDivElement>(null);
 
+  const actionQueueRef = useRef<(() => Promise<void>)[]>([]);
+
+  const processQueue = async () => {
+    console.log("processQueue called", actionQueueRef.current.length);
+    if (actionQueueRef.current.length > 0 && !isProcessingRef.current) {
+      const nextAction = actionQueueRef.current.shift();
+      if (nextAction) {
+        await nextAction();
+      }
+    }
+  };
+
   // Save live match state incrementally (Unique per match)
   useEffect(() => {
     const liveState = {
@@ -277,10 +289,14 @@ const MatchView: React.FC<MatchViewProps> = ({
 
   const handleUndo = async () => {
     if (history.length === 0) return;
+    if (isProcessingRef.current) {
+      actionQueueRef.current.push(() => handleUndo());
+      return;
+    }
+    isProcessingRef.current = true;
+    setIsProcessing(true);
     const previousState = history[history.length - 1];
     setHistory((prev) => prev.slice(0, -1));
-    isProcessingRef.current = false;
-    setIsProcessing(false);
     setInnings(previousState);
     setModalView("NONE");
     setPendingExtra(ExtraType.NONE);
@@ -295,28 +311,36 @@ const MatchView: React.FC<MatchViewProps> = ({
     const bBalls =
       previousState.bowlers[previousState.currentBowlerId]?.balls || 0;
 
-    if (matchId.startsWith("guest_") || !userToken) return;
-
-    const headers = await getAuthHeaders();
-    fetch(`${API_URL}/update-score`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        matchId,
-        inningId: previousState.id,
-        strikerName: s,
-        nonStrikerName: ns,
-        bowlerName: b,
-        totalOvers: previousState.overs,
-        totalBalls: previousState.balls,
-        totalRuns: previousState.totalRuns,
-        totalWickets: previousState.totalWickets,
-        bowlerOvers: bOvers,
-        bowlerBalls: bBalls,
-        syncOnly: true,
-        undo: true, // Tell backend to delete the most recent ball row
-      }),
-    }).catch((err) => console.error("Undo Sync Failed:", err));
+    try {
+      if (!matchId.startsWith("guest_") && userToken) {
+        const headers = await getAuthHeaders();
+        await fetch(`${API_URL}/update-score`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            matchId,
+            inningId: previousState.id,
+            strikerName: s,
+            nonStrikerName: ns,
+            bowlerName: b,
+            totalOvers: previousState.overs,
+            totalBalls: previousState.balls,
+            totalRuns: previousState.totalRuns,
+            totalWickets: previousState.totalWickets,
+            bowlerOvers: bOvers,
+            bowlerBalls: bBalls,
+            syncOnly: true,
+            undo: true, // Tell backend to delete the most recent ball row
+          }),
+        });
+      }
+    } catch (err) {
+      console.error("Undo Sync Failed:", err);
+    } finally {
+      isProcessingRef.current = false;
+      setIsProcessing(false);
+      processQueue();
+    }
   };
 
   const generateSimpleCommentary = (ball: BallEvent): string => {
@@ -583,7 +607,12 @@ const MatchView: React.FC<MatchViewProps> = ({
     fielderName?: string,
     outBatterId?: string,
   ) => {
-    if ((isProcessing || isProcessingRef.current) && !fielderName) return;
+    if (isProcessingRef.current && !fielderName) {
+      actionQueueRef.current.push(() =>
+        handleScore(runs, isWicket, wicketType, fielderName, outBatterId),
+      );
+      return;
+    }
 
     // Check if we need a fielder first
     if (
@@ -806,6 +835,7 @@ const MatchView: React.FC<MatchViewProps> = ({
     if (!isMatchEnding) {
       isProcessingRef.current = false;
       setIsProcessing(false);
+      processQueue();
     }
 
     setPendingExtra(ExtraType.NONE);
@@ -1401,7 +1431,7 @@ const MatchView: React.FC<MatchViewProps> = ({
           <div className="grid grid-cols-4 border-b border-white/5">
             <button
               onClick={handleUndo}
-              disabled={history.length === 0}
+              disabled={history.length === 0 || isProcessing}
               className="py-2 md:py-1.5 flex flex-col items-center justify-center gap-0.5 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white hover:bg-white/5 transition-all border-r border-white/5 disabled:opacity-10"
             >
               <span className="text-xl text-indigo-400">↺</span>

@@ -19,7 +19,9 @@
     "prepare": "husky"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
     "husky": "^9.1.7",
+    "jsdom": "^29.1.1",
     "lint-staged": "^17.5.1",
     "prettier": "^3.9.8"
   },
