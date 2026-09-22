@@ -51,7 +51,7 @@ const MatchList: React.FC<MatchListProps> = ({
   const [loading, setLoading] = useState(true);
   const [showGuestMatches, setShowGuestMatches] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{
-    type: "DELETE_MATCH" | "PURGE_DB";
+    type: "DELETE_MATCH";
     matchId?: string;
     matchName?: string;
   } | null>(null);
@@ -229,19 +229,7 @@ const MatchList: React.FC<MatchListProps> = ({
                 👻
               </span>
             </button>
-            <button
-              onClick={() => {
-                setConfirmAction({ type: "PURGE_DB" });
-              }}
-              className="flex flex-col items-center gap-1 group"
-            >
-              <span className="text-[9px] font-black text-rose-500 group-hover:text-rose-400 uppercase tracking-tighter">
-                PURGE DB
-              </span>
-              <span className="text-lg grayscale group-hover:grayscale-0 transition-all">
-                🧨
-              </span>
-            </button>
+
             <button
               onClick={fetchMatches}
               className="flex flex-col items-center gap-1 group"
@@ -446,115 +434,61 @@ const MatchList: React.FC<MatchListProps> = ({
       {confirmAction && (
         <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[300] p-4 backdrop-blur-md">
           <div className="bg-slate-900 border border-slate-700/50 rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden p-6 text-center text-slate-100 animate-in zoom-in-95 duration-200">
-            {confirmAction.type === "PURGE_DB" ? (
-              <>
-                <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20">
-                  <span className="text-3xl">🧨</span>
-                </div>
-                <h3 className="text-xl font-black uppercase tracking-widest text-white mb-2 italic">
-                  Purge Database?
-                </h3>
-                <p className="text-slate-400 text-sm font-medium mb-8 leading-relaxed">
-                  This will clear everything from the cloud. All historical
-                  records will be gone.
-                  <br />
-                  <br />
-                  <strong className="text-white uppercase tracking-wider text-xs block">
-                    Do you want to continue?
-                  </strong>
-                </p>
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setConfirmAction(null)}
-                    className="flex-1 py-4 bg-slate-800 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] text-slate-300 hover:text-white hover:bg-slate-700 transition-all border border-slate-700/50 active:scale-95"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      setConfirmAction(null);
-                      try {
-                        const session = await fetchAuthSession();
-                        const token = session.tokens?.idToken?.toString();
-                        const res = await fetch(`${API_URL}/matches`, {
-                          method: "DELETE",
-                          headers: {
-                            Authorization: `Bearer ${token}`,
-                          },
-                        });
-                        if (!res.ok) throw new Error("Purge failed");
-                        fetchMatches();
-                      } catch (err: any) {
-                        setAlertMessage(`Purge failed!\n${err.message}`);
-                      }
-                    }}
-                    className="flex-1 py-4 bg-red-600 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] text-white hover:bg-red-500 transition-all shadow-lg shadow-red-600/20 active:scale-95"
-                  >
-                    Purge All
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20">
-                  <span className="text-3xl">🚨</span>
-                </div>
-                <h3 className="text-xl font-black uppercase tracking-widest text-white mb-2 italic">
-                  Delete Match?
-                </h3>
-                <p className="text-slate-400 text-sm font-medium mb-8 leading-relaxed">
-                  This record{" "}
-                  <span className="text-indigo-400 font-bold">
-                    ({confirmAction.matchName})
-                  </span>{" "}
-                  will be permanently removed.
-                  <br />
-                  <br />
-                  <strong className="text-white uppercase tracking-wider text-xs block">
-                    Do you want to continue?
-                  </strong>
-                </p>
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setConfirmAction(null)}
-                    className="flex-1 py-4 bg-slate-800 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] text-slate-300 hover:text-white hover:bg-slate-700 transition-all border border-slate-700/50 active:scale-95"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const matchId = confirmAction.matchId!;
-                      setConfirmAction(null);
-                      setMatches((prev) =>
-                        prev.filter((m) => m.id !== matchId),
-                      );
-                      try {
-                        const session = await fetchAuthSession();
-                        const token = session.tokens?.idToken?.toString();
-                        const res = await fetch(`${API_URL}/match/${matchId}`, {
-                          method: "DELETE",
-                          headers: {
-                            Authorization: `Bearer ${token}`,
-                          },
-                        });
-                        if (!res.ok) throw new Error("Delete failed");
-                        fetchMatches();
-                      } catch (err: any) {
-                        setAlertMessage(`Delete failed!\n${err.message}`);
-                        fetchMatches();
-                      }
-                    }}
-                    className="flex-1 py-4 bg-red-600 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] text-white hover:bg-red-500 transition-all shadow-lg shadow-red-600/20 active:scale-95"
-                  >
-                    Delete Match
-                  </button>
-                </div>
-              </>
-            )}
+            <>
+              <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/20">
+                <span className="text-3xl">🚨</span>
+              </div>
+              <h3 className="text-xl font-black uppercase tracking-widest text-white mb-2 italic">
+                Delete Match?
+              </h3>
+              <p className="text-slate-400 text-sm font-medium mb-8 leading-relaxed">
+                This record{" "}
+                <span className="text-indigo-400 font-bold">
+                  ({confirmAction.matchName})
+                </span>{" "}
+                will be permanently removed.
+                <br />
+                <br />
+                <strong className="text-white uppercase tracking-wider text-xs block">
+                  Do you want to continue?
+                </strong>
+              </p>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setConfirmAction(null)}
+                  className="flex-1 py-4 bg-slate-800 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] text-slate-300 hover:text-white hover:bg-slate-700 transition-all border border-slate-700/50 active:scale-95"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const matchId = confirmAction.matchId!;
+                    setConfirmAction(null);
+                    setMatches((prev) => prev.filter((m) => m.id !== matchId));
+                    try {
+                      const session = await fetchAuthSession();
+                      const token = session.tokens?.idToken?.toString();
+                      const res = await fetch(`${API_URL}/match/${matchId}`, {
+                        method: "DELETE",
+                        headers: {
+                          Authorization: `Bearer ${token}`,
+                        },
+                      });
+                      if (!res.ok) throw new Error("Delete failed");
+                      fetchMatches();
+                    } catch (err: any) {
+                      setAlertMessage(`Delete failed!\n${err.message}`);
+                      fetchMatches();
+                    }
+                  }}
+                  className="flex-1 py-4 bg-red-600 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] text-white hover:bg-red-500 transition-all shadow-lg shadow-red-600/20 active:scale-95"
+                >
+                  Delete Match
+                </button>
+              </div>
+            </>
           </div>
         </div>
       )}

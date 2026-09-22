@@ -375,20 +375,13 @@ This AI architecture is specifically designed to be **Serverless** and **Pay-Per
 
 ---
 
-## 🔐 Admin Tools & Secret Login
+## 🔐 Admin Tools
 
-The Admin Tab has been intentionally **removed** from the public navigation bar to prevent unauthorized users from discovering administrative capabilities.
+The Admin features have been securely integrated into the authenticated layout.
 
-### Secret Login via Chatbot
+### Admin Access
 
-Administrators log in by typing a hidden slash command directly into the AI chatbot:
-
-```
-/login <pin>
-```
-
-- If logged in via Cognito SSO as the designated `ADMIN_EMAIL`, the UI reloads in admin mode.
-- If the PIN is wrong, the chatbot displays `❌ Invalid Admin PIN.` locally — no API call is ever made.
+Administrators log in via the Cognito Hosted UI. Once logged in as a designated admin, they can click the **Settings (⚙️)** icon in the navigation bar to access the Admin Panel, which provides tools for managing matches, users, and bulk database cleanups.
 
 ### Admin-Only MCP Tools
 

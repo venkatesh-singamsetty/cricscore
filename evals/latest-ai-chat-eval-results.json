@@ -10,7 +10,7 @@
       "expected_tool": "execute_sql",
       "ok": false,
       "status": 404,
-      "elapsedMs": 36,
+      "elapsedMs": 62,
       "replyPreview": ""
     },
     {
@@ -40,7 +40,7 @@
       "expected_tool": null,
       "ok": false,
       "status": 404,
-      "elapsedMs": 4,
+      "elapsedMs": 2,
       "replyPreview": ""
     }
   ]

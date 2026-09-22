@@ -1241,7 +1241,7 @@ const App: React.FC = () => {
   }, [matchStatus, matchId, hasSentAutoEmail]);
 
   return (
-    <div className="fixed inset-0 bg-slate-950 font-sans text-slate-100 flex flex-col overflow-hidden">
+    <div className="h-[100dvh] w-full bg-slate-950 font-sans text-slate-100 flex flex-col">
       {/* Global Header Switcher - Always Visible & Clickable */}
       <div className="bg-slate-950 px-2 py-1.5 md:px-4 md:py-2 flex justify-between items-center shrink-0 border-b border-white/10 z-[500] sticky top-0 shadow-md">
         <div className="flex items-center gap-2 overflow-x-auto scrollbar-none max-w-full">
@@ -1426,7 +1426,7 @@ const App: React.FC = () => {
                 </div>
               )}
               {isGuestScorer && (
-                <div className="bg-slate-900/90 border-b border-indigo-500/20 px-4 py-2 flex justify-between items-center text-xs font-bold text-indigo-300 shrink-0">
+                <div className="bg-slate-900/90 border-b border-indigo-500/20 px-4 py-2 flex justify-between items-center text-xs font-bold text-indigo-300 shrink-0 relative z-[100]">
                   <span>🎮 GUEST SCORER MODE</span>
                   <button
                     onClick={async () => {
@@ -1435,7 +1435,7 @@ const App: React.FC = () => {
                         await signOut();
                       } catch (e) {}
                     }}
-                    className="underline hover:text-white uppercase tracking-wider text-[10px]"
+                    className="underline hover:text-white uppercase tracking-wider text-[10px] relative z-[110] px-2 py-1 bg-indigo-500/10 rounded border border-indigo-500/20 hover:bg-indigo-500/20 active:scale-95 transition-all"
                   >
                     Sign In to Save
                   </button>

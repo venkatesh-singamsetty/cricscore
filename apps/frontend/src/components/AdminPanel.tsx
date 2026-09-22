@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { fetchAuthSession } from "aws-amplify/auth";
 import LiveScoreboard from "./LiveScoreboard";
 
@@ -27,6 +28,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [message, setMessage] = useState("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [pendingDeleteUser, setPendingDeleteUser] = useState<User | null>(null);
+
+  // Custom Modals for Bulk Actions
+  const [pendingBulkAction, setPendingBulkAction] = useState<
+    | "delete-all-guests"
+    | "delete-all-guest-matches"
+    | "delete-all-matches"
+    | null
+  >(null);
+  const [purgeConfirmText, setPurgeConfirmText] = useState("");
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -127,14 +137,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
-  const handleDeleteAllGuests = async () => {
-    if (
-      !window.confirm(
-        "Are you sure you want to permanently delete ALL guest users from the system?",
-      )
-    )
-      return;
+  const executeDeleteAllGuests = async () => {
     setActionLoading("delete-all-guests");
+    setPendingBulkAction(null);
     setMessage("");
     try {
       const session = await fetchAuthSession();
@@ -161,14 +166,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
-  const handleDeleteAllGuestMatches = async () => {
-    if (
-      !window.confirm(
-        "Are you sure you want to permanently delete ALL guest matches from the database?",
-      )
-    )
-      return;
+  const executeDeleteAllGuestMatches = async () => {
     setActionLoading("delete-all-guest-matches");
+    setPendingBulkAction(null);
     setMessage("");
     try {
       const session = await fetchAuthSession();
@@ -187,6 +187,33 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       if (!res.ok)
         throw new Error(data.error || "Failed to delete guest matches");
       setMessage(`✅ ${data.message || "Success!"}`);
+    } catch (err: any) {
+      setMessage(`❌ Error: ${err.message}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const executeDeleteAllMatches = async () => {
+    if (purgeConfirmText !== "DELETE") return;
+
+    setActionLoading("delete-all-matches");
+    setPendingBulkAction(null);
+    setPurgeConfirmText("");
+    setMessage("");
+    try {
+      const session = await fetchAuthSession();
+      const token = session.tokens?.idToken?.toString();
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/matches`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to delete matches");
+      setMessage(`✅ ${data.message || "All matches deleted successfully!"}`);
     } catch (err: any) {
       setMessage(`❌ Error: ${err.message}`);
     } finally {
@@ -383,56 +410,195 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         </div>
       )}
 
-      {pendingDeleteUser && (
-        <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[300] p-4 backdrop-blur-md">
-          <div className="bg-slate-900 border border-indigo-500/30 rounded-3xl w-full max-w-sm shadow-2xl shadow-indigo-500/20 overflow-hidden p-6 text-center text-slate-100 animate-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 bg-rose-500/15 rounded-full flex items-center justify-center mx-auto mb-4 border border-rose-400/30">
-              <span className="text-3xl">🚨</span>
+      {pendingDeleteUser &&
+        createPortal(
+          <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[300] p-4 backdrop-blur-md">
+            <div className="bg-slate-900 border border-indigo-500/30 rounded-3xl w-full max-w-sm shadow-2xl shadow-indigo-500/20 overflow-hidden p-6 text-center text-slate-100 animate-in zoom-in-95 duration-200">
+              <div className="w-16 h-16 bg-rose-500/15 rounded-full flex items-center justify-center mx-auto mb-4 border border-rose-400/30">
+                <span className="text-3xl">🚨</span>
+              </div>
+              <h3 className="text-xl font-black uppercase tracking-widest text-white mb-2 italic">
+                Delete User?
+              </h3>
+              <p className="text-slate-400 text-sm font-medium mb-8 leading-relaxed">
+                Permanently remove{" "}
+                <span className="text-indigo-300 font-bold">
+                  {pendingDeleteUser.email}
+                </span>{" "}
+                from Cognito.
+                <br />
+                <br />
+                This action cannot be undone.
+              </p>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setPendingDeleteUser(null)}
+                  className="flex-1 py-3 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleDeleteUser(pendingDeleteUser)}
+                  className="flex-1 py-3 px-4 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold shadow-lg shadow-red-500/25 transition-all"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
-            <h3 className="text-xl font-black uppercase tracking-widest text-white mb-2 italic">
-              Delete User?
-            </h3>
-            <p className="text-slate-400 text-sm font-medium mb-8 leading-relaxed">
-              Permanently remove{" "}
-              <span className="text-indigo-300 font-bold">
-                {pendingDeleteUser.email}
-              </span>{" "}
-              from Cognito.
-              <br />
-              <br />
-              <strong className="text-indigo-300 uppercase tracking-wider text-xs block">
-                Continue?
-              </strong>
-            </p>
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => setPendingDeleteUser(null)}
-                className="flex-1 py-4 bg-slate-800 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] text-slate-300 hover:text-white hover:bg-slate-700 transition-all border border-slate-700/50 active:scale-95"
+          </div>,
+          document.body,
+        )}
+
+      {pendingBulkAction &&
+        createPortal(
+          <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[300] p-4 backdrop-blur-md">
+            <div className="bg-slate-900 border border-rose-500/30 rounded-3xl w-full max-w-sm shadow-2xl shadow-rose-500/20 overflow-hidden p-6 text-center text-slate-100 animate-in zoom-in-95 duration-200">
+              <div className="w-16 h-16 bg-rose-500/15 rounded-full flex items-center justify-center mx-auto mb-4 border border-rose-400/30">
+                <span className="text-3xl">⚠️</span>
+              </div>
+              <h3 className="text-xl font-black uppercase tracking-widest text-white mb-2 italic">
+                Confirm Action
+              </h3>
+
+              {pendingBulkAction === "delete-all-guests" && (
+                <p className="text-slate-400 text-sm font-medium mb-8 leading-relaxed">
+                  Are you sure you want to permanently delete ALL guest users
+                  from Cognito and the database? This cannot be undone.
+                </p>
+              )}
+
+              {pendingBulkAction === "delete-all-guest-matches" && (
+                <p className="text-slate-400 text-sm font-medium mb-8 leading-relaxed">
+                  Are you sure you want to permanently delete ALL guest matches
+                  from the database? This cannot be undone.
+                </p>
+              )}
+
+              {pendingBulkAction === "delete-all-matches" && (
+                <div className="mb-6">
+                  <p className="text-red-400 text-sm font-bold mb-4 leading-relaxed">
+                    DANGER: This will permanently delete ALL matches in the
+                    database.
+                  </p>
+                  <input
+                    type="text"
+                    placeholder='Type "DELETE" to confirm'
+                    value={purgeConfirmText}
+                    onChange={(e) => setPurgeConfirmText(e.target.value)}
+                    className="w-full bg-slate-950 border border-red-500/30 rounded-xl px-4 py-3 text-center text-white font-bold tracking-widest placeholder:text-slate-600 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all"
+                  />
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setPendingBulkAction(null);
+                    setPurgeConfirmText("");
+                  }}
+                  className="flex-1 py-3 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    if (pendingBulkAction === "delete-all-guests")
+                      executeDeleteAllGuests();
+                    else if (pendingBulkAction === "delete-all-guest-matches")
+                      executeDeleteAllGuestMatches();
+                    else if (pendingBulkAction === "delete-all-matches")
+                      executeDeleteAllMatches();
+                  }}
+                  disabled={
+                    pendingBulkAction === "delete-all-matches" &&
+                    purgeConfirmText !== "DELETE"
+                  }
+                  className="flex-1 py-3 px-4 bg-red-600 hover:bg-red-500 disabled:opacity-50 disabled:hover:bg-red-600 text-white rounded-xl font-bold shadow-lg shadow-red-500/25 transition-all"
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {activeTab === "MATCHES" && (
+        <div className="space-y-6 animate-in fade-in duration-300">
+          <div className="bg-slate-900/50 border border-white/5 p-6 rounded-[2rem] backdrop-blur-3xl shadow-2xl">
+            <h2 className="text-xl font-black text-white uppercase tracking-wider italic mb-4">
+              Bulk Actions
+            </h2>
+
+            {message && (
+              <div
+                className={`mb-6 p-4 rounded-xl text-sm font-bold ${message.startsWith("✅") ? "bg-green-500/10 text-green-400 border border-green-500/20" : "bg-red-500/10 text-red-400 border border-red-500/20"}`}
               >
-                Cancel
+                {message}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <button
+                onClick={() => setPendingBulkAction("delete-all-guests")}
+                disabled={!!actionLoading}
+                className="p-4 bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all group disabled:opacity-50"
+              >
+                <span className="text-2xl group-hover:scale-110 transition-transform">
+                  👤
+                </span>
+                <span className="text-xs font-black text-slate-300 uppercase tracking-widest text-center">
+                  {actionLoading === "delete-all-guests"
+                    ? "Deleting..."
+                    : "Delete All Guest Users"}
+                </span>
               </button>
+
               <button
-                type="button"
-                onClick={() => handleDeleteUser(pendingDeleteUser)}
-                className="flex-1 py-4 bg-gradient-to-r from-rose-500 to-red-600 rounded-xl font-black text-[11px] uppercase tracking-[0.2em] text-white hover:from-red-500 hover:to-rose-500 transition-all shadow-lg shadow-rose-600/20 active:scale-95"
+                onClick={() => setPendingBulkAction("delete-all-guest-matches")}
+                disabled={!!actionLoading}
+                className="p-4 bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all group disabled:opacity-50"
               >
-                Delete User
+                <span className="text-2xl group-hover:scale-110 transition-transform">
+                  🏏
+                </span>
+                <span className="text-xs font-black text-slate-300 uppercase tracking-widest text-center">
+                  {actionLoading === "delete-all-guest-matches"
+                    ? "Deleting..."
+                    : "Delete Guest Matches"}
+                </span>
+              </button>
+
+              <button
+                onClick={() => setPendingBulkAction("delete-all-matches")}
+                disabled={!!actionLoading}
+                className="p-4 bg-red-900/20 hover:bg-red-900/40 border border-red-500/30 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all group disabled:opacity-50"
+              >
+                <span className="text-2xl group-hover:scale-110 transition-transform">
+                  🔥
+                </span>
+                <span className="text-xs font-black text-red-400 uppercase tracking-widest text-center">
+                  {actionLoading === "delete-all-matches"
+                    ? "Deleting..."
+                    : "Delete All Matches"}
+                </span>
               </button>
             </div>
           </div>
-        </div>
-      )}
 
-      {activeTab === "MATCHES" && (
-        <div className="bg-slate-900/50 border border-white/5 p-6 rounded-[2rem] backdrop-blur-3xl shadow-2xl animate-in fade-in duration-300">
-          <LiveScoreboard
-            key={`hub-${hubKey}`}
-            isAdmin={isAdmin}
-            showDeleteControls={true}
-            initialMatchId={urlMatchId}
-            onResumeMatch={undefined}
-          />
+          <div className="bg-slate-900/50 border border-white/5 p-6 rounded-[2rem] backdrop-blur-3xl shadow-2xl">
+            <h2 className="text-xl font-black text-white uppercase tracking-wider italic mb-4">
+              Individual Match Management
+            </h2>
+            <LiveScoreboard
+              key={`hub-${hubKey}`}
+              isAdmin={isAdmin}
+              showDeleteControls={true}
+              initialMatchId={urlMatchId}
+              onResumeMatch={undefined}
+            />
+          </div>
         </div>
       )}
     </div>
