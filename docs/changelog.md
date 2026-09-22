@@ -1,3 +1,21 @@
+# [4.2.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.1.2...v4.2.0) (2026-09-22)
+
+
+### Bug Fixes
+
+* add @testing-library/jest-dom to tsconfig types to resolve TS2339 errors ([8594504](https://github.com/venkatesh-singamsetty/cricscore/commit/8594504847b05b7d52e7ce9718ceb762cde8048a))
+* add vitest.d.ts triple-slash reference for @testing-library/jest-dom types ([8a0b92a](https://github.com/venkatesh-singamsetty/cricscore/commit/8a0b92ad23626e3a12b624acff58796b18c2c911))
+* import @testing-library/jest-dom/vitest for Vitest assertion types ([a6ac693](https://github.com/venkatesh-singamsetty/cricscore/commit/a6ac693616f7f7b2972cb1f4277986da955bfa2f))
+* resolve E2E test stuck at 'Starting actual over' after Undo ([1445a1a](https://github.com/venkatesh-singamsetty/cricscore/commit/1445a1a382f79ec62abb0f9659b9681a2549c55c))
+* resolve jsdom resolution and workspace install in CI ([9988dab](https://github.com/venkatesh-singamsetty/cricscore/commit/9988dab85012948a21f978ffdcd78c00002d49d8))
+* Revert frontend dependencies to fix invalid hook call and eslint conflicts ([390a86b](https://github.com/venkatesh-singamsetty/cricscore/commit/390a86b3a0a391f7a8682fe8af21ce1481a8cbff))
+* Revert typescript to 6.x to resolve eslint peer dependency conflicts ([10add0c](https://github.com/venkatesh-singamsetty/cricscore/commit/10add0c2cb5e1059488b978a913a7f58577b1a50))
+
+
+### Features
+
+* Bug fixes and UI improvements for Admin Panel and Mobile Layout ([0df22e6](https://github.com/venkatesh-singamsetty/cricscore/commit/0df22e6c74bdee41636ca9a2c00d8074cc51bb46))
+
 ## [4.1.2](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.1.1...v4.1.2) (2026-09-12)
 
 
