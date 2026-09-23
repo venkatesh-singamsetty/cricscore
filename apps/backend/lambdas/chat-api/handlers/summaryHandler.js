@@ -165,6 +165,30 @@ ${topBowlersText}`;
       const summary = stripPomSentenceFromSummary(rawSummary);
       const playerOfTheMatch = resultJSON.playerOfTheMatch || null;
 
+      // Save summary and Player of the Match to DB for registered matches
+      if (matchId && !String(matchId).startsWith("guest_")) {
+        try {
+          const client = await pool.connect();
+          try {
+            await setSearchPath(client);
+            await client.query(
+              "UPDATE matches SET ai_summary = $1, player_of_the_match = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3",
+              [summary, playerOfTheMatch, matchId],
+            );
+            console.log(
+              `✅ Cached ai_summary & POM (${playerOfTheMatch}) in DB for match ${matchId}`,
+            );
+          } finally {
+            client.release();
+          }
+        } catch (dbErr) {
+          console.error(
+            "Failed to update matches table with ai_summary:",
+            dbErr,
+          );
+        }
+      }
+
       return {
         statusCode: 200,
         headers: corsHeaders,
