@@ -226,6 +226,9 @@ test.describe("User Journey - Full Match Scoring", () => {
       .getByRole("button", { name: "W", exact: true })
       .first()
       .click({ force: true });
+    await expect(page.getByRole("button", { name: /BOWLED/i })).toBeVisible({
+      timeout: 5000,
+    });
     await page.getByRole("button", { name: /BOWLED/i }).click({ force: true });
     await expect(
       page.getByText(/Select (New Batter|Striker|Non-Striker)/i),
@@ -292,6 +295,9 @@ test.describe("User Journey - Full Match Scoring", () => {
       .getByRole("button", { name: "W", exact: true })
       .first()
       .click({ force: true });
+    await expect(page.getByRole("button", { name: /CAUGHT/i })).toBeVisible({
+      timeout: 5000,
+    });
     await page.getByRole("button", { name: /CAUGHT/i }).click({ force: true });
     await expect(
       page.getByRole("heading", { name: /Who took the catch\?/i }),
@@ -314,6 +320,9 @@ test.describe("User Journey - Full Match Scoring", () => {
       .getByRole("button", { name: "W", exact: true })
       .first()
       .click({ force: true });
+    await expect(page.getByRole("button", { name: /LBW/i })).toBeVisible({
+      timeout: 5000,
+    });
     await page.getByRole("button", { name: /LBW/i }).click({ force: true });
     await expect(
       page.getByText(/Select (New Batter|Striker|Non-Striker)/i),
@@ -343,7 +352,11 @@ test.describe("User Journey - Full Match Scoring", () => {
       .getByRole("button", { name: "W", exact: true })
       .first()
       .click({ force: true });
+    await expect(page.getByRole("button", { name: /STUMPED/i })).toBeVisible({
+      timeout: 5000,
+    });
     await page.getByRole("button", { name: /STUMPED/i }).click({ force: true });
+
     await expect(
       page.getByRole("heading", { name: /Who performed the stumping\?/i }),
     ).toBeVisible();
