@@ -42,9 +42,12 @@ jobs:
       - name: Terraform Plan (Detailed Exitcode)
         # -detailed-exitcode returns 0 if no changes, 1 if error, 2 if there are changes (drift)
         env:
+          TF_IN_AUTOMATION: "true"
           TF_VAR_environment: ${{ matrix.environment }}
           TF_VAR_aws_region: ${{ vars.AWS_REGION }}
           TF_VAR_ses_source_email: ${{ secrets.TF_SES_SOURCE_EMAIL }}
           TF_VAR_database_url: ${{ secrets.TF_DATABASE_URL }}
           TF_VAR_admin_email: ${{ vars.ADMIN_EMAIL }}
-        run: terraform plan -detailed-exitcode -var-file="environments/${{ matrix.environment }}.tfvars"
+          TF_VAR_llm_api_key: ${{ secrets.OPENROUTER_API_KEY }}
+          TF_VAR_llm_base_url: "https://openrouter.ai/api/v1"
+        run: terraform plan -input=false -detailed-exitcode -var-file="environments/${{ matrix.environment }}.tfvars"

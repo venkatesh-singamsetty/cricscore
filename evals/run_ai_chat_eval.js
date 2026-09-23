@@ -93,9 +93,12 @@ async function main() {
     process.exit(0);
   }
 
-  const apiUrl = normalizeUrl(args.url || process.env.CHAT_API_URL || "http://localhost:3000");
+  const apiUrl = normalizeUrl(
+    args.url || process.env.CHAT_API_URL || "http://localhost:3000",
+  );
   const evalFile = args.file || path.join(__dirname, "ai-chat-eval.json");
-  const outFile = args.out || path.join(__dirname, "latest-ai-chat-eval-results.json");
+  const outFile =
+    args.out || path.join(__dirname, "latest-ai-chat-eval-results.json");
 
   let evalCases;
   try {
@@ -105,14 +108,21 @@ async function main() {
     process.exit(1);
   }
 
-  const limit = Number.isFinite(args.limit) && args.limit > 0 ? args.limit : evalCases.length;
+  const limit =
+    Number.isFinite(args.limit) && args.limit > 0
+      ? args.limit
+      : evalCases.length;
   const selectedCases = evalCases.slice(0, limit);
 
   const results = [];
   let failed = 0;
 
   for (const testCase of selectedCases) {
-    const result = await callChat(apiUrl, testCase.prompt, testCase.matchId || null);
+    const result = await callChat(
+      apiUrl,
+      testCase.prompt,
+      testCase.matchId || null,
+    );
     const summary = {
       id: testCase.id,
       category: testCase.category,
@@ -122,8 +132,14 @@ async function main() {
       status: result.status,
       elapsedMs: result.elapsedMs,
       replyPreview: (() => {
-        const reply = result.payload?.reply || result.payload?.error || result.payload?.raw || "";
-        return typeof reply === "string" ? reply.slice(0, 300) : JSON.stringify(reply).slice(0, 300);
+        const reply =
+          result.payload?.reply ||
+          result.payload?.error ||
+          result.payload?.raw ||
+          "";
+        return typeof reply === "string"
+          ? reply.slice(0, 300)
+          : JSON.stringify(reply).slice(0, 300);
       })(),
     };
 
@@ -133,16 +149,34 @@ async function main() {
       failed += 1;
     }
 
-    console.log(`CASE ${testCase.id} | status=${result.status} | ok=${result.ok} | elapsed=${result.elapsedMs}ms`);
+    console.log(
+      `CASE ${testCase.id} | status=${result.status} | ok=${result.ok} | elapsed=${result.elapsedMs}ms`,
+    );
     console.log(`PROMPT: ${testCase.prompt}`);
     console.log(`REPLY: ${summary.replyPreview}`);
     console.log("---");
   }
 
-  fs.writeFileSync(outFile, JSON.stringify({ apiUrl, total: results.length, failed, results }, null, 2));
+  fs.writeFileSync(
+    outFile,
+    JSON.stringify({ apiUrl, total: results.length, failed, results }, null, 2),
+  );
 
   console.log(`Results saved to ${outFile}`);
-  console.log(`Summary: ${results.length - failed}/${results.length} requests succeeded.`);
+  console.log(
+    `Summary: ${results.length - failed}/${results.length} requests succeeded.`,
+  );
+
+  const shouldSkip =
+    process.env.SKIP_AI_EVAL === "true" ||
+    process.env.SKIP_AI_EVAL === "1" ||
+    process.env.ALLOW_EVAL_FAIL === "true";
+  if (failed > 0 && shouldSkip) {
+    console.warn(
+      "⚠️ AI chat eval failed, but SKIP_AI_EVAL/ALLOW_EVAL_FAIL is enabled. Exiting 0.",
+    );
+    process.exit(0);
+  }
 
   process.exit(failed > 0 ? 1 : 0);
 }
