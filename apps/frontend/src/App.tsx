@@ -1165,21 +1165,20 @@ const App: React.FC = () => {
     try {
       const headers = await getAuthHeaders();
 
-      const isGuest = !userToken && matchId?.startsWith("guest_");
-      let requestBody: any = { matchId, forceRefresh };
-
-      // ONLY send local matchData if it's a guest match, so the backend doesn't try to query the DB for guest data.
-      // For registered matches, the backend MUST query the DB directly so it can save the summary to the matches table (for email usage).
-      if (isGuest) {
-        requestBody.matchData = {
+      // ALWAYS send matchData so summaryHandler receives exact, instant final stats (no SQS lag)
+      const requestBody: any = {
+        matchId,
+        forceRefresh,
+        matchData: {
           teamAName: teamA?.name,
           teamBName: teamB?.name,
+          tossWinner: teamA?.name,
           previousInnings,
           currentInnings,
           winnerMessage: getWinnerMessage(),
           status: matchStatus,
-        };
-      }
+        },
+      };
 
       const response = await fetch(`${API_URL}/chat/summary`, {
         method: "POST",
@@ -1194,9 +1193,11 @@ const App: React.FC = () => {
         : data.summary;
 
       setAiSummary(finalSummary);
+      return data;
     } catch (error) {
       console.error(error);
       setAlertMessage("Failed to generate AI summary.");
+      throw error;
     } finally {
       setIsGeneratingAi(false);
     }
@@ -1223,13 +1224,25 @@ const App: React.FC = () => {
             });
           }, 1000);
         } else {
-          // 🕰️ Wait 3.0 seconds to ensure the final ball's SQS message is fully processed by the database
+          // 🕰️ Wait 2 seconds to ensure backend state is settled, then generate AI summary
+          // AND ONLY AFTER AI summary finishes & saves to DB, dispatch the report email!
           setTimeout(() => {
-            handleGenerateAiSummary(true).finally(() => {
-              // Wait 2 extra seconds for DB write to propagate before sending email
-              setTimeout(() => handleSendEmail(true, true), 2000);
-            });
-          }, 3000);
+            handleGenerateAiSummary(true)
+              .then(() => {
+                console.log(
+                  "✅ AI Summary generated & saved to DB. Dispatching report email...",
+                );
+                return handleSendEmail(true, true);
+              })
+              .catch((err) => {
+                console.error(
+                  "AI Summary generation failed before email dispatch:",
+                  err,
+                );
+                // Fallback: send report email even if AI summary generation failed
+                handleSendEmail(true, true);
+              });
+          }, 2000);
         }
       }
     }

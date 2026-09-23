@@ -406,6 +406,25 @@ const sendMatchReportEmail = async (
     htmlBody += `</tbody></table></div>`;
   }
 
+  // Re-check matches table for ai_summary if not loaded initially
+  if (!matchRecord.ai_summary) {
+    try {
+      const aiRes = await client.query(
+        "SELECT ai_summary, player_of_the_match FROM matches WHERE id = $1",
+        [matchId],
+      );
+      if (aiRes.rows.length > 0 && aiRes.rows[0].ai_summary) {
+        matchRecord.ai_summary = aiRes.rows[0].ai_summary;
+        matchRecord.player_of_the_match = aiRes.rows[0].player_of_the_match;
+      }
+    } catch (e) {
+      console.warn(
+        "Could not re-fetch ai_summary for report email:",
+        e.message,
+      );
+    }
+  }
+
   if (matchRecord.ai_summary) {
     const safeAiSummary = escapeHtml(matchRecord.ai_summary);
     const safePomName = escapeHtml(matchRecord.player_of_the_match || "");
