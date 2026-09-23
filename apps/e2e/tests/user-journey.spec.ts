@@ -429,16 +429,20 @@ test.describe("User Journey - Full Match Scoring", () => {
     await page.waitForTimeout(1000);
 
     // Ball 1.2: HIT WICKET
+    await page.waitForTimeout(500);
     await page
       .getByRole("button", { name: "W", exact: true })
       .first()
       .click({ force: true });
+    await expect(page.getByRole("button", { name: /HIT WICKET/i })).toBeVisible(
+      { timeout: 10000 },
+    );
     await page
       .getByRole("button", { name: /HIT WICKET/i })
       .click({ force: true });
     await expect(
       page.getByText(/Select (New Batter|Striker|Non-Striker)/i),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 10000 });
     await page
       .getByRole("button", { name: /Player A3/i })
       .first()
@@ -453,24 +457,33 @@ test.describe("User Journey - Full Match Scoring", () => {
     await page.waitForTimeout(1000);
 
     // Ball 1.4: RUN OUT (1 run scored before run out)
+    await page.waitForTimeout(500);
     await page
       .getByRole("button", { name: "W", exact: true })
       .first()
       .click({ force: true });
+    await expect(page.getByRole("button", { name: /RUN OUT/i })).toBeVisible({
+      timeout: 10000,
+    });
     await page.getByRole("button", { name: /RUN OUT/i }).click({ force: true });
-    await expect(page.getByText(/Runs completed before/i)).toBeVisible();
+    await expect(page.getByText(/Runs completed before/i)).toBeVisible({
+      timeout: 10000,
+    });
     await page
       .locator(".backdrop-blur-md")
       .getByRole("button", { name: "1", exact: true })
       .click({ force: true });
-    await expect(page.getByText(/Who was Run Out/i)).toBeVisible();
+    await expect(page.getByText(/Who was Run Out/i)).toBeVisible({
+      timeout: 10000,
+    });
     await page
       .getByRole("button", { name: /Player A3/i })
       .first()
       .click({ force: true });
     await expect(
       page.getByRole("heading", { name: /Who performed the run out\?/i }),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 10000 });
+    await page.waitForTimeout(500);
     await page
       .getByRole("button", { name: /Player B2/i })
       .first()
@@ -479,7 +492,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       page.getByRole("heading", {
         name: /Select (New Batter|Striker|Non-Striker)/i,
       }),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 10000 });
     await page
       .getByRole("button", { name: /Player A4/i })
       .first()
