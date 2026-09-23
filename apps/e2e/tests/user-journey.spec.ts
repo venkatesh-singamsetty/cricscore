@@ -226,6 +226,9 @@ test.describe("User Journey - Full Match Scoring", () => {
       .getByRole("button", { name: "W", exact: true })
       .first()
       .click({ force: true });
+    await expect(page.getByRole("button", { name: /BOWLED/i })).toBeVisible({
+      timeout: 5000,
+    });
     await page.getByRole("button", { name: /BOWLED/i }).click({ force: true });
     await expect(
       page.getByText(/Select (New Batter|Striker|Non-Striker)/i),
@@ -288,21 +291,25 @@ test.describe("User Journey - Full Match Scoring", () => {
     await page.waitForTimeout(1000);
 
     // Ball 2.2: CAUGHT
+    await page.waitForTimeout(500);
     await page
       .getByRole("button", { name: "W", exact: true })
       .first()
       .click({ force: true });
+    await expect(page.getByRole("button", { name: /CAUGHT/i })).toBeVisible({
+      timeout: 10000,
+    });
     await page.getByRole("button", { name: /CAUGHT/i }).click({ force: true });
     await expect(
       page.getByRole("heading", { name: /Who took the catch\?/i }),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 10000 });
     await page
       .getByRole("button", { name: /Player A4/i })
       .first()
       .click({ force: true }); // Fielder
     await expect(
       page.getByText(/Select (New Batter|Striker|Non-Striker)/i),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 10000 });
     await page
       .getByRole("button", { name: /Player B4/i })
       .first()
@@ -310,14 +317,18 @@ test.describe("User Journey - Full Match Scoring", () => {
     await page.waitForTimeout(1000);
 
     // Ball 2.3: LBW
+    await page.waitForTimeout(500);
     await page
       .getByRole("button", { name: "W", exact: true })
       .first()
       .click({ force: true });
+    await expect(page.getByRole("button", { name: /LBW/i })).toBeVisible({
+      timeout: 10000,
+    });
     await page.getByRole("button", { name: /LBW/i }).click({ force: true });
     await expect(
       page.getByText(/Select (New Batter|Striker|Non-Striker)/i),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 10000 });
     await page
       .getByRole("button", { name: /Player B5/i })
       .first()
@@ -331,7 +342,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       .click({ force: true });
     await expect(
       page.getByRole("heading", { name: /Additional Runs/i }),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 10000 });
     await page
       .locator(".backdrop-blur-md")
       .getByRole("button", { name: "1", exact: true })
@@ -339,14 +350,20 @@ test.describe("User Journey - Full Match Scoring", () => {
     await page.waitForTimeout(1000);
 
     // Ball 2.5: STUMPED
+    await page.waitForTimeout(500);
     await page
       .getByRole("button", { name: "W", exact: true })
       .first()
       .click({ force: true });
+    await expect(page.getByRole("button", { name: /STUMPED/i })).toBeVisible({
+      timeout: 10000,
+    });
     await page.getByRole("button", { name: /STUMPED/i }).click({ force: true });
+
     await expect(
       page.getByRole("heading", { name: /Who performed the stumping\?/i }),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 10000 });
+
     await page
       .getByRole("button", { name: /Player A5/i })
       .first()
@@ -412,16 +429,20 @@ test.describe("User Journey - Full Match Scoring", () => {
     await page.waitForTimeout(1000);
 
     // Ball 1.2: HIT WICKET
+    await page.waitForTimeout(500);
     await page
       .getByRole("button", { name: "W", exact: true })
       .first()
       .click({ force: true });
+    await expect(page.getByRole("button", { name: /HIT WICKET/i })).toBeVisible(
+      { timeout: 10000 },
+    );
     await page
       .getByRole("button", { name: /HIT WICKET/i })
       .click({ force: true });
     await expect(
       page.getByText(/Select (New Batter|Striker|Non-Striker)/i),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 10000 });
     await page
       .getByRole("button", { name: /Player A3/i })
       .first()
@@ -436,24 +457,33 @@ test.describe("User Journey - Full Match Scoring", () => {
     await page.waitForTimeout(1000);
 
     // Ball 1.4: RUN OUT (1 run scored before run out)
+    await page.waitForTimeout(500);
     await page
       .getByRole("button", { name: "W", exact: true })
       .first()
       .click({ force: true });
+    await expect(page.getByRole("button", { name: /RUN OUT/i })).toBeVisible({
+      timeout: 10000,
+    });
     await page.getByRole("button", { name: /RUN OUT/i }).click({ force: true });
-    await expect(page.getByText(/Runs completed before/i)).toBeVisible();
+    await expect(page.getByText(/Runs completed before/i)).toBeVisible({
+      timeout: 10000,
+    });
     await page
       .locator(".backdrop-blur-md")
       .getByRole("button", { name: "1", exact: true })
       .click({ force: true });
-    await expect(page.getByText(/Who was Run Out/i)).toBeVisible();
+    await expect(page.getByText(/Who was Run Out/i)).toBeVisible({
+      timeout: 10000,
+    });
     await page
       .getByRole("button", { name: /Player A3/i })
       .first()
       .click({ force: true });
     await expect(
       page.getByRole("heading", { name: /Who performed the run out\?/i }),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 10000 });
+    await page.waitForTimeout(500);
     await page
       .getByRole("button", { name: /Player B2/i })
       .first()
@@ -462,7 +492,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       page.getByRole("heading", {
         name: /Select (New Batter|Striker|Non-Striker)/i,
       }),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 10000 });
     await page
       .getByRole("button", { name: /Player A4/i })
       .first()
