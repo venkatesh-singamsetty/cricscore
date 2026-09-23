@@ -1,3 +1,15 @@
+## [4.2.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.2.0...v4.2.1) (2026-09-23)
+
+
+### Bug Fixes
+
+* **ci:** pass required LLM variables and non-interactive flags to terraform drift workflow ([3c73aae](https://github.com/venkatesh-singamsetty/cricscore/commit/3c73aaef892950e438f768890efcb7302627b5e8))
+* **ci:** pass required LLM variables and non-interactive flags to terraform drift workflow ([aa03006](https://github.com/venkatesh-singamsetty/cricscore/commit/aa0300685e83af6c358a298abd769e0cfc061851))
+* **e2e:** await visibility of wicket modal buttons before clicking to prevent test flakes ([a1e911e](https://github.com/venkatesh-singamsetty/cricscore/commit/a1e911e464bab89dc533af8089541537ee7e253f))
+* **e2e:** increase modal visibility timeout to 10s and pause 500ms before wicket clicks for high-latency CI environments ([5fe77a7](https://github.com/venkatesh-singamsetty/cricscore/commit/5fe77a71b6b3df11a992ba8fbdbd330c23fbbe82))
+* **e2e:** update all remaining wicket modal assertions with 10s timeouts and 500ms transition pauses ([afefb52](https://github.com/venkatesh-singamsetty/cricscore/commit/afefb5253c076b4d1dcf20a1fb91374b10c736b3))
+* ensure AI summary & POM are generated, saved to DB, and included in completion email ([bf034c6](https://github.com/venkatesh-singamsetty/cricscore/commit/bf034c6670995c01a97aba7bbc0da63bf1a4f88f))
+
 # [4.2.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.1.2...v4.2.0) (2026-09-22)
 
 
