@@ -93,6 +93,8 @@ When a PR is opened, GitHub Actions automatically executes the required status c
 3. **`Analyze Code (CodeQL)`** — SAST security scanning
 4. **`Lint & Test`** — Vitest unit tests and code formatting checks
 5. **`Backend & Terraform Validation`** — Lambda unit tests & Terraform IaC checks
+6. **`AI Chat Evaluation`** — AI dataset schema validation & chat handler unit tests
+7. **`Syft SBOM Generation`** — SPDX Software Bill of Materials check
 
 All status checks must pass before the PR can be merged.
 
