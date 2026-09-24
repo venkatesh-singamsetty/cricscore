@@ -14,6 +14,8 @@ dist-ssr/
 
 # Static site generators or other build artifacts
 .cache/
+test-results/
+playwright-report/
 
 # ==============================================================================
 # Terraform & Infrastructure

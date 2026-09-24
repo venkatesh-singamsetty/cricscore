@@ -6,6 +6,8 @@
 
 👉 **Deployment Details:** **[Full Deployment Guide](./docs/deployment.md)**
 
+🛠️ **Developer Workflow:** **[Contributing & PR Guide](./CONTRIBUTING.md)**
+
 ---
 
 ## 🎯 Project Vision
@@ -278,7 +280,8 @@ The platform is designed around **AWS Cognito JWT-based authentication**, API Ga
 
 - 📖 **[Authentication & Authorization](./docs/auth.md)**: Cognito SSO flows, guest mode, admin user management, JWT validation, and cross-session identity guard.
 - 📖 **[Security Posture & Tradeoffs](./docs/security_posture.md)**: Defense in depth strategy, multi-tenant isolation, and encryption layers.
-- 📖 **[Branch Protection & Governance](./docs/branch_protection.md)**: Required status checks, CI/CD pipeline blockers, and administrator enforcement.
+- 📖 **[Branch Protection & Governance](./docs/branch_protection.md)**: Strict 8 required status checks, zero direct pushes to `main`, and administrator enforcement.
+- 📖 **[Contributing & Developer Workflow](./CONTRIBUTING.md)**: Step-by-step feature branch workflow, conventional commits, and local testing commands (`npm run test:all`, `npm run test:e2e`).
 
 ### 2. 🔭 Observability & Logging
 

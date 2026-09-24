@@ -28,14 +28,14 @@ git checkout -b fix/auth-token-refresh
 Before committing, make sure your changes pass all local verification scripts:
 
 ```bash
-# Run unit tests across workspaces
-npm test
-
-# Run code formatters and linters
+# Ensure code formatting and TypeScript types match project standards
 npm run lint
 
-# Run Playwright E2E browser tests (if UI changes were made)
-npx playwright test
+# Run unit tests across workspaces (Frontend & Backend)
+npm run test:all
+
+# Run Playwright E2E browser tests against deployed environment
+npm run test:e2e
 ```
 
 ---
@@ -90,9 +90,12 @@ When a PR is opened, GitHub Actions automatically executes the required status c
 
 1. **`GitLeaks Scan`** — Scans diff for secrets/keys
 2. **`playwright-tests`** — Runs End-to-End browser UI tests
-3. **`Analyze Code (CodeQL)`** — SAST security scanning
+3. **`Analyze Code (javascript-typescript)`** — SAST security scanning for JS/TS
 4. **`Lint & Test`** — Vitest unit tests and code formatting checks
 5. **`Backend & Terraform Validation`** — Lambda unit tests & Terraform IaC checks
+6. **`CodeQL`** — SAST status check wrapper
+7. **`Syft SBOM Generation`** — SPDX Software Bill of Materials check
+8. **`AI Chat Evaluation`** — AI dataset schema validation & chat handler unit tests
 
 All status checks must pass before the PR can be merged.
 
@@ -137,7 +140,7 @@ Once all CI checks turn green:
 | **Direct pushes to `main`**    | ❌ Blocked by Branch Protection     |
 | **Bypassing failing CI tests** | ❌ Blocked (`enforce_admins: true`) |
 | **Force pushing to `main`**    | ❌ Disabled                         |
-| **PR Status Checks Required**  | ✅ Must pass all 5 CI checks        |
+| **PR Status Checks Required**  | ✅ Must pass all 8 CI checks        |
 
 ---
 
