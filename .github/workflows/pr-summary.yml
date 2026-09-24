@@ -7,6 +7,7 @@ on:
 permissions:
   pull-requests: write
   contents: write
+  checks: read
 
 jobs:
   summarize:
@@ -38,6 +39,13 @@ jobs:
               repo: context.repo.repo,
               pull_number: pr.number,
             });
+
+            // Preserve existing user checkmarks from current PR body
+            const existingBody = pr.body || '';
+            const lintChecked = /\[x\]\s*Code formatting/i.test(existingBody);
+            const testChecked = /\[x\]\s*Unit test/i.test(existingBody);
+            const secretChecked = /\[x\]\s*Secret scanning/i.test(existingBody);
+            const ciChecked = /\[x\]\s*Automated CI/i.test(existingBody);
 
             // Clean commit headline helper
             function cleanMsg(msg) {
@@ -101,10 +109,10 @@ jobs:
             body += `| ⚙️ **CI/CD & Workflows** | ${cicd.length > 0 ? '📝 Modified (' + cicd.length + ' files)' : '➖ Unchanged'} | ${cicd.length} |\n\n`;
 
             body += `## Verification Checklist\n`;
-            body += `- [ ] Code formatting and linters verified (\`npm run lint\`)\n`;
-            body += `- [ ] Unit test suites executed (\`npm run test:all\`)\n`;
-            body += `- [ ] Secret scanning verified (\`gitleaks protect -v\`)\n`;
-            body += `- [ ] Automated CI status checks passing\n\n`;
+            body += `- [${lintChecked ? 'x' : ' '}] Code formatting and linters verified (\`npm run lint\`)\n`;
+            body += `- [${testChecked ? 'x' : ' '}] Unit test suites executed (\`npm run test:all\`)\n`;
+            body += `- [${secretChecked ? 'x' : ' '}] Secret scanning verified (\`gitleaks protect -v\`)\n`;
+            body += `- [${ciChecked ? 'x' : ' '}] Automated CI status checks passing\n\n`;
 
             body += `---\n*Auto-generated PR Description by CricScore CI/CD Pipeline.*`;
 
