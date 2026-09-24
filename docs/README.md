@@ -25,7 +25,7 @@ Welcome to the CricScore documentation directory. This folder contains all archi
 
 ## 🛠️ Engineering & Development
 
-- [**Contributing & Developer Workflow**](./contributing.md) — Step-by-step feature branch and PR workflow guide.
+- [**Contributing & Developer Workflow**](../CONTRIBUTING.md) — Step-by-step feature branch and PR workflow guide.
 - [**Testing Strategy**](./testing.md) — E2E tests via Playwright, unit tests, and security tests.
 - [**Node.js Guidelines**](./nodejs_guide.md) — Best practices and configuration for the Lambda backend.
 - [**Troubleshooting Log**](./troubleshooting.md) — Detailed engineering traces of bugs, race conditions, and their resolutions.
