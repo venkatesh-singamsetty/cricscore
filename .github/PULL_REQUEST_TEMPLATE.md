@@ -15,9 +15,10 @@
 
 ## Verification
 
-- [ ] I have run local tests (`npm run test:all`)
-- [ ] I have formatted the code (`npm run format`)
-- [ ] I have verified there are no secret leaks locally (`gitleaks detect`)
+- [ ] I have verified linting and formatting (`npm run lint`)
+- [ ] I have run unit tests (`npm run test:all`)
+- [ ] I have verified E2E browser tests locally if UI changed (`npm run test:e2e`)
+- [ ] I have verified there are no secret leaks locally (`gitleaks protect -v`)
 - [ ] I have run `terraform validate` (if infrastructure was changed)
 
 ## Screenshots / Evidence (if applicable)
