@@ -101,10 +101,10 @@ jobs:
             body += `| ⚙️ **CI/CD & Workflows** | ${cicd.length > 0 ? '📝 Modified (' + cicd.length + ' files)' : '➖ Unchanged'} | ${cicd.length} |\n\n`;
 
             body += `## Verification Checklist\n`;
-            body += `- [x] Code formatting and linters verified (\`npm run lint\`)\n`;
-            body += `- [x] Unit test suites executed (\`npm run test:all\`)\n`;
-            body += `- [x] Secret scanning verified (\`gitleaks protect -v\`)\n`;
-            body += `- [x] Automated CI status checks passing\n\n`;
+            body += `- [ ] Code formatting and linters verified (\`npm run lint\`)\n`;
+            body += `- [ ] Unit test suites executed (\`npm run test:all\`)\n`;
+            body += `- [ ] Secret scanning verified (\`gitleaks protect -v\`)\n`;
+            body += `- [ ] Automated CI status checks passing\n\n`;
 
             body += `---\n*Auto-generated PR Description by CricScore CI/CD Pipeline.*`;
 
