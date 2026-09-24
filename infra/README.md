@@ -19,15 +19,13 @@ infra/
 
 ## Environments
 
-| Environment | Description           | Deployed By                                   |
-| ----------- | --------------------- | --------------------------------------------- |
-| `dev`       | Staging / development | `./infra/scripts/deploy.sh --env dev` or CI   |
+| Environment | Description           | Deployed By                                  |
+| ----------- | --------------------- | -------------------------------------------- |
+| `dev`       | Staging / development | `./infra/scripts/deploy.sh --env dev` or CI  |
 | `prod`      | Live production       | `./infra/scripts/deploy.sh --env prod` or CI |
-
 
 ## Quick Links
 
-- 📖 [Terraform Details](./terraform/README.md)
-- 📖 [Database Schema](./database/README.md)
-- 📖 [Scripts Reference](./scripts/README.md)
 - 📖 [Full Deployment Guide](../docs/deployment.md)
+- 📖 [Aiven PostgreSQL Setup](../docs/aiven.md)
+- 📖 [AWS Resources Dashboard](../docs/aws_resources_dashboard.md)
