@@ -39,14 +39,20 @@ jobs:
               pull_number: pr.number,
             });
 
-            // Categorize commit messages
+            // Clean commit headline helper
+            function cleanMsg(msg) {
+              let clean = msg.replace(/^(feat|fix|docs|ci|chore|refactor|test|style)(\([^)]+\))?:\s*/i, '');
+              return clean.charAt(0).toUpperCase() + clean.slice(1);
+            }
+
+            // Extract unique cleaned commit messages per type
             const commitMsgs = commits.map(c => c.commit.message.split('\n')[0]);
             
-            const feats = commitMsgs.filter(m => m.startsWith('feat'));
-            const fixes = commitMsgs.filter(m => m.startsWith('fix'));
-            const docs = commitMsgs.filter(m => m.startsWith('docs'));
-            const cis = commitMsgs.filter(m => m.startsWith('ci') || m.startsWith('chore(ci)'));
-            const chores = commitMsgs.filter(m => m.startsWith('chore') || m.startsWith('refactor') || m.startsWith('style'));
+            const feats = [...new Set(commitMsgs.filter(m => /^feat/i.test(m)).map(cleanMsg))];
+            const fixes = [...new Set(commitMsgs.filter(m => /^fix/i.test(m)).map(cleanMsg))];
+            const docs = [...new Set(commitMsgs.filter(m => /^docs/i.test(m)).map(cleanMsg))];
+            const cis = [...new Set(commitMsgs.filter(m => /^(ci|chore\(ci\))/i.test(m)).map(cleanMsg))];
+            const chores = [...new Set(commitMsgs.filter(m => /^(chore|refactor|style)/i.test(m) && !/^chore\(ci\)/i.test(m)).map(cleanMsg))];
 
             // Categorize changed files
             const frontend = files.filter(f => f.filename.startsWith('apps/frontend/'));
@@ -55,24 +61,34 @@ jobs:
             const docFiles = files.filter(f => f.filename.startsWith('docs/') || f.filename.endsWith('.md'));
             const cicd = files.filter(f => f.filename.startsWith('.github/'));
 
+            // Build dynamic high-level description
+            const domains = [];
+            if (frontend.length > 0) domains.push('Frontend App');
+            if (backend.length > 0) domains.push('Backend Lambdas');
+            if (infra.length > 0) domains.push('Terraform Infrastructure');
+            if (docFiles.length > 0) domains.push('Documentation');
+            if (cicd.length > 0) domains.push('CI/CD Pipelines');
+
             let body = `## Description\n`;
-            body += `This Pull Request updates the codebase based on **${commits.length} commit(s)** across **${files.length} changed file(s)**.\n\n`;
+            body += `This Pull Request updates **${domains.join(', ')}** based on **${commits.length} commit(s)** across **${files.length} changed file(s)**.\n\n`;
 
             body += `## Key Changes Included\n`;
             if (feats.length > 0) {
-              body += `- 🚀 **Features**:\n` + feats.map(m => `  - ${m}`).join('\n') + `\n`;
+              body += `- 🚀 **Features & Enhancements**:\n` + feats.map(m => `  - ${m}`).join('\n') + `\n`;
             }
             if (fixes.length > 0) {
               body += `- 🐛 **Bug Fixes**:\n` + fixes.map(m => `  - ${m}`).join('\n') + `\n`;
             }
             if (docs.length > 0 || docFiles.length > 0) {
-              body += `- 📚 **Documentation & Guides**:\n` + (docs.length > 0 ? docs.map(m => `  - ${m}`).join('\n') : `  - Updated ${docFiles.length} documentation files`) + `\n`;
+              const list = docs.length > 0 ? docs : [`Updated ${docFiles.length} documentation files`];
+              body += `- 📚 **Documentation & Guides**:\n` + list.map(m => `  - ${m}`).join('\n') + `\n`;
             }
             if (cis.length > 0 || cicd.length > 0) {
-              body += `- 🛡️ **Governance & CI/CD**:\n` + (cis.length > 0 ? cis.map(m => `  - ${m}`).join('\n') : `  - Configured ${cicd.length} pipeline files`) + `\n`;
+              const list = cis.length > 0 ? cis : [`Configured ${cicd.length} pipeline files`];
+              body += `- 🛡️ **Governance & CI/CD Pipelines**:\n` + list.map(m => `  - ${m}`).join('\n') + `\n`;
             }
             if (chores.length > 0) {
-              body += `- 🧰 **Maintenance & Refactoring**:\n` + chores.map(m => `  - ${m}`).join('\n') + `\n`;
+              body += `- 🧰 **Maintenance & Infrastructure Refactoring**:\n` + chores.map(m => `  - ${m}`).join('\n') + `\n`;
             }
 
             body += `\n## Component Change Matrix\n`;
