@@ -153,8 +153,8 @@ We recommend a small evaluation baseline under the `evals/` folder that includes
 
 Suggested files:
 
-- `evals/README.md`
 - `evals/ai-chat-eval.json`
+- `evals/run_ai_chat_eval.js` (see [AI Architecture Guide](./ai_architecture.md))
 
 Example evaluation dimensions:
 
