@@ -12,6 +12,7 @@ Welcome to the CricScore documentation directory. This folder contains all archi
 ## 🚀 Deployment & Infrastructure
 
 - [**Full Deployment Guide**](./deployment.md) — Step-by-step tutorial to deploy CricScore to AWS from scratch.
+- [**Terraform Infrastructure Guide & Tutorial**](./terraform_guide.md) — Comprehensive HCL architecture walkthrough and hands-on tutorial.
 - [**GitHub Actions CI/CD**](./github_actions.md) — Explains the automated pipeline that runs on every push.
 - [**Aiven PostgreSQL**](./aiven.md) — How to set up and manage the primary database.
 
