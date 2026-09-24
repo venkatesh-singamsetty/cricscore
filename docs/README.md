@@ -12,6 +12,8 @@ Welcome to the CricScore documentation directory. This folder contains all archi
 ## 🚀 Deployment & Infrastructure
 
 - [**Full Deployment Guide**](./deployment.md) — Step-by-step tutorial to deploy CricScore to AWS from scratch.
+- [**Terraform Infrastructure Guide & Tutorial**](./terraform_guide.md) — Comprehensive HCL architecture walkthrough and hands-on tutorial.
+- [**Real-Time WebSockets & Event Fan-Out Tutorial**](./websocket_tutorial.md) — Architecture and implementation guide for live score streaming.
 - [**GitHub Actions CI/CD**](./github_actions.md) — Explains the automated pipeline that runs on every push.
 - [**Aiven PostgreSQL**](./aiven.md) — How to set up and manage the primary database.
 
@@ -25,7 +27,7 @@ Welcome to the CricScore documentation directory. This folder contains all archi
 
 ## 🛠️ Engineering & Development
 
-- [**Contributing & Developer Workflow**](./contributing.md) — Step-by-step feature branch and PR workflow guide.
+- [**Contributing & Developer Workflow**](../CONTRIBUTING.md) — Step-by-step feature branch and PR workflow guide.
 - [**Testing Strategy**](./testing.md) — E2E tests via Playwright, unit tests, and security tests.
 - [**Node.js Guidelines**](./nodejs_guide.md) — Best practices and configuration for the Lambda backend.
 - [**Troubleshooting Log**](./troubleshooting.md) — Detailed engineering traces of bugs, race conditions, and their resolutions.
