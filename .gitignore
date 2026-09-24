@@ -133,3 +133,16 @@ cricscore-sbom.json
 e2e_prod_log.txt
 e2e_dev_log.txt
 *.e2e_log.txt
+
+# ==============================================================================
+# Ephemeral & Scratch Files
+# ==============================================================================
+# AI eval results (regenerated in CI)
+evals/latest-ai-chat-eval-results.json
+
+# One-off scratch files
+tmp_*.tsx
+*.orig
+*.rej
+patch*.diff
+merge_prs.sh
