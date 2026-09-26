@@ -109,6 +109,19 @@ Instead of tightly coupling database and vector logic directly into the LLM chat
 
 _Why use `InMemoryTransport`?_ Standard MCP typically runs over `stdio` or WebSockets/SSE for local IDE or distributed execution. By utilizing the `InMemoryTransport` within the Lambda, we achieve the perfect architectural decoupling and standardization of MCP without needing to provision expensive, long-running ECS/EC2 containers to host an SSE server!
 
+### ⏳ The Serverless Execution Lifecycle
+
+Because the MCP Client and Server run on AWS Lambda via `InMemoryTransport`, their execution speed is determined by the Serverless lifecycle:
+
+1. **The "Cold Start" (The first question in a while)**
+   If no questions have been asked for ~15 minutes, AWS terminates the container to save money. When a new question arrives, AWS spins up a new micro-container and boots Node.js. Because the MCP Client & Server are just JavaScript classes in memory, they initialize in just **~2 to 5 milliseconds**. The entire boot process takes roughly **500ms to 1 second** before sending the prompt to the LLM.
+
+2. **The "Warm Start" (Subsequent questions)**
+   If another question is asked shortly after, AWS reuses the "frozen" container. The Node.js environment, database connection pool, and **MCP Client/Server are already initialized and waiting in memory**. The boot time is **~0 milliseconds**, and the prompt is instantly routed to the LLM.
+
+**How long does the MCP Server stay alive?**
+It stays alive exactly as long as the Lambda container stays alive. Between questions, AWS freezes the container (you do not pay for frozen time). After roughly 15 to 45 minutes of complete inactivity, AWS destroys the container and the MCP Server with it, returning your AWS bill to $0.00.
+
 ## 📚 Vector RAG: Multi-Document PDF Tournament Rules
 
 We have extended the PostgreSQL database with the `pgvector` extension to serve as a native Vector Database alongside our relational data. This completely removes the need for a third-party vector database (like Pinecone).
