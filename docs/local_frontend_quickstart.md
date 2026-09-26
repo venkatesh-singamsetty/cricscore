@@ -4,54 +4,47 @@ If you are an interviewer or a developer who just wants to evaluate the CricScor
 
 By following these steps, you will run the React frontend locally on your laptop, but it will seamlessly connect to the **live, cloud-hosted DEV backend** (AWS API Gateway, Lambda, Cognito, and Aiven PostgreSQL).
 
-## 🚀 3-Minute Setup
+## 🚀 5-Minute Setup (Copy & Paste)
 
-### 1. Clone the Repository
+Ensure you have **Node.js 20+** installed.
+<details>
+<summary><b>Don't have Node.js installed? Click here</b></summary>
+<br/>
+You can install it instantly via terminal:
+<code>curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash && nvm install 20</code>
+Or download the official installer from <a href="https://nodejs.org/">nodejs.org</a>.
+</details>
+
+Then, open your terminal and paste this entire block:
 
 ```bash
+# 1. Clone & enter the repository
 git clone https://github.com/venkatesh-singamsetty/cricscore.git
-cd cricscore/apps/frontend
-```
+cd cricscore
 
-### 2. Configure Environment Variables
+# 2. Install monorepo dependencies
+npm install
 
-In the `apps/frontend/` directory, create a `.env` file. We will configure it to point to the live Development environment.
-
-Create `.env` and paste the following values:
-
-```env
-# Point to the live AWS API Gateway and WebSockets
+# 3. Configure frontend to point to the live AWS Cloud
+cd apps/frontend
+cat << 'EOF' > .env
 VITE_API_URL=https://api.cricscoredev.venkateshsingamsetty.com
 VITE_WS_URL=wss://ws.cricscoredev.venkateshsingamsetty.com
-
-# Connect to the live AWS Cognito User Pool for Authentication
 VITE_COGNITO_USER_POOL_ID=us-east-1_InxzxljX7
 VITE_COGNITO_CLIENT_ID=1n4m9rm96nhkd1vnqpnfsr1eg9
 VITE_COGNITO_DOMAIN=cricscoredev-auth-dev
 VITE_COGNITO_REGION=us-east-1
-
-# Standard App Config
 VITE_APP_TITLE=CricScore (Local against Cloud Backend)
-VITE_ADMIN_PIN=1234 # Replace with the actual DEV pin if you need admin access
-```
+VITE_ADMIN_PIN=1234
+EOF
 
-### 3. Install Dependencies
-
-Make sure you have Node.js 20+ installed.
-
-```bash
-npm install
-```
-
-### 4. Start the Application
-
-```bash
+# 4. Start the application
 npm run dev
 ```
 
-That's it!
+That's literally it!
 
-The application will start at `http://localhost:5173`.
+The application will start at `http://localhost:3000`.
 
 - **Authentication**: You can sign up for a new account. The confirmation emails will be handled by the live AWS Cognito service.
 - **Match Scoring**: If you view a match, your local frontend will receive live updates via AWS API Gateway WebSockets from the cloud backend.
@@ -61,7 +54,7 @@ The application will start at `http://localhost:5173`.
 
 ## ❓ Why does this work?
 
-CricScore is designed with a strict **Serverless Microservices** architecture. Because the frontend (React/Vite) is completely decoupled from the backend (AWS API Gateway / Lambda), the frontend doesn't care whether it is hosted on S3/CloudFront or running on your local `localhost:5173`. As long as the `VITE_API_URL` environment variables are pointing to valid backend endpoints, the app will function identically to production.
+CricScore is designed with a strict **Serverless Microservices** architecture. Because the frontend (React/Vite) is completely decoupled from the backend (AWS API Gateway / Lambda), the frontend doesn't care whether it is hosted on S3/CloudFront or running on your local `localhost:3000`. As long as the `VITE_API_URL` environment variables are pointing to valid backend endpoints, the app will function identically to production.
 
 ## 🔒 Security Note: The VITE_ADMIN_PIN Backdoor
 
