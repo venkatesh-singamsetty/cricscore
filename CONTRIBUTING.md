@@ -25,17 +25,14 @@ git checkout -b fix/auth-token-refresh
 
 ### 2. Make & Test Your Changes Locally
 
-Before committing, make sure your changes pass all local verification scripts:
+Before committing, you can run the full local verification script which perfectly mirrors the CI/CD pipeline. This script includes Linting, Unit Tests, `npm audit`, Terraform formatting, DynamoDB lock checks, Trivy security scans, and Playwright E2E tests:
 
 ```bash
-# Ensure code formatting and TypeScript types match project standards
-npm run lint
+# Run the full validation suite (takes 1-3 minutes)
+./infra/scripts/validate_local.sh
 
-# Run unit tests across workspaces (Frontend & Backend)
-npm run test:all
-
-# Run Playwright E2E browser tests against deployed environment
-npm run test:e2e
+# Run the validation suite but skip the heavy Playwright tests
+./infra/scripts/validate_local.sh --skip-e2e
 ```
 
 ---
@@ -68,6 +65,8 @@ Push your topic branch to the remote repository:
 ```bash
 git push -u origin fix/auth-token-refresh
 ```
+
+> **Note:** The repository uses a Git `pre-push` hook. Every time you push, it will automatically run `./infra/scripts/validate_local.sh --skip-e2e`. If any unit tests, formatting checks, security audits, or Terraform state locks fail, your push will be blocked!
 
 _(Note: Direct pushes to `main` will be rejected by GitHub Branch Protection rules)_
 
