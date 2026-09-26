@@ -1,149 +1,34 @@
-name: CricScore CI/CD
+name: Deploy PROD
 
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    tags:
+      - 'v*'
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to deploy (e.g. v1.2.3)'
+        required: true
+        type: string
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: deploy-prod-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: read
 
-env:
-  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
-  AWS_REGION: us-east-1
-
 jobs:
-  validate_ai:
-    name: AI Chat Evaluation
+  deploy_and_test_prod:
+    name: Deploy, Test & OWASP ZAP PROD
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-      - name: Install backend dependencies
-        run: |
-          set -e
-          (cd apps/backend && npm install --ignore-scripts)
-          for d in apps/backend/lambdas/*; do
-            if [ -f "$d/package.json" ]; then
-              (cd "$d" && npm install --ignore-scripts)
-            fi
-          done
-      - name: Validate AI eval dataset
-        run: |
-          node -e "JSON.parse(require('fs').readFileSync('evals/ai-chat-eval.json','utf8')); console.log('AI eval dataset is valid JSON');"
-      - name: Run AI chat unit tests
-        env:
-          LLM_API_KEY: "dummy"
-          OPENAI_API_KEY: "dummy"
-        run: |
-          cd apps/backend
-          npx vitest run lambdas/chat-api/handlers/chatHandler.test.js
-
-  validate_frontend:
-    name: Lint & Test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
-      - name: Install dependencies
-        run: npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
-      - name: Run Trivy vulnerability scanner (fs)
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'fs'
-          scan-ref: 'apps/frontend'
-          ignore-unfixed: true
-          format: 'table'
-          exit-code: '1'
-          severity: 'HIGH,CRITICAL'
-      - name: TypeScript type-check & lint
-        working-directory: apps/frontend
-        run: npm run lint
-      - name: Run unit tests
-        working-directory: apps/frontend
-        run: npm run test
-      - name: Build production bundle (Dry-Run)
-        working-directory: apps/frontend
-        run: npm run build
-
-  validate_backend:
-    name: Backend & Terraform Validation
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-      - name: Install Lambda dependencies
-        run: |
-          set -e
-          (cd apps/backend && npm install --ignore-scripts)
-          for d in apps/backend/lambdas/*; do
-            if [ -f "$d/package.json" ]; then
-              (cd "$d" && npm install --ignore-scripts)
-            fi
-          done
-      - name: Run Backend Unit Tests
-        env:
-          LLM_API_KEY: "dummy"
-          OPENAI_API_KEY: "dummy"
-        run: |
-          cd apps/backend
-          npm test
-      - name: Run Trivy vulnerability scanner (fs)
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'fs'
-          scan-ref: 'apps/backend/lambdas'
-          ignore-unfixed: true
-          format: 'table'
-          exit-code: '1'
-          severity: 'HIGH,CRITICAL'
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: '~1.9'
-      - name: Terraform Format Check
-        run: terraform fmt -check -recursive
-        working-directory: infra/terraform
-      - name: Terraform Init (no backend)
-        run: terraform init -backend=false
-        working-directory: infra/terraform
-      - name: Terraform Validate
-        run: terraform validate
-        working-directory: infra/terraform
-
-
-  deploy_and_test_dev:
-    name: Deploy, Test & OWASP ZAP DEV
-    needs: [validate_ai, validate_frontend, validate_backend]
-    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    environment: dev
+    environment: prod
     permissions:
       issues: write
       contents: read
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
-      TF_VAR_environment: dev
+      TF_VAR_environment: prod
       TF_VAR_aws_region: ${{ vars.AWS_REGION }}
       TF_VAR_ses_source_email: ${{ secrets.TF_SES_SOURCE_EMAIL }}
       TF_VAR_database_url: ${{ secrets.TF_DATABASE_URL }}
@@ -160,6 +45,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
       
       - name: Validate AWS_REGION secret
         run: |
@@ -186,7 +73,7 @@ jobs:
         run: |
           cd infra/database
           chmod +x migrate.sh
-          ./migrate.sh "${{ secrets.TF_DATABASE_URL }}" "dev"
+          ./migrate.sh "${{ secrets.TF_DATABASE_URL }}" "prod"
 
       # --- BACKEND DEPLOYMENT ---
       - name: Install Lambda dependencies
@@ -205,11 +92,11 @@ jobs:
       
       - name: Terraform Init
         working-directory: infra/terraform
-        run: terraform init -backend-config="key=cricscore/dev/terraform.tfstate"
+        run: terraform init -backend-config="key=cricscore/prod/terraform.tfstate"
       
       - name: Terraform Plan
         working-directory: infra/terraform
-        run: terraform plan -var-file="environments/dev.tfvars" -out=tfplan
+        run: terraform plan -var-file="environments/prod.tfvars" -out=tfplan
       
       - name: Terraform Apply
         working-directory: infra/terraform
@@ -222,6 +109,7 @@ jobs:
           echo "COGNITO_CLIENT_ID=$(terraform output -raw cognito_client_id)" >> $GITHUB_ENV
           echo "COGNITO_DOMAIN=$(terraform output -raw cognito_domain)" >> $GITHUB_ENV
 
+      # --- FRONTEND DEPLOYMENT ---
       - name: Install Frontend dependencies
         working-directory: apps/frontend
         run: npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
@@ -229,7 +117,7 @@ jobs:
       - name: Build production bundle
         working-directory: apps/frontend
         env:
-          VITE_APP_TITLE: CricScoreDev
+          VITE_APP_TITLE: CricScore
           VITE_API_URL: https://api.${{ vars.DOMAIN_NAME }}
           VITE_WS_URL: wss://ws.${{ vars.DOMAIN_NAME }}
           VITE_ADMIN_PIN: ${{ secrets.VITE_ADMIN_PIN }}
@@ -263,7 +151,7 @@ jobs:
         working-directory: ./apps/e2e
         run: npx playwright install --with-deps
       
-      - name: Run Playwright tests against DEV
+      - name: Run Playwright tests against PROD
         working-directory: ./apps/e2e
         env:
           BASE_URL: https://${{ vars.DOMAIN_NAME }}
@@ -274,18 +162,16 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: playwright-report-dev
+          name: playwright-report-prod
           path: apps/e2e/playwright-report/
 
       # --- DAST SCAN ---
       - name: Fix workspace permissions for ZAP Docker
         run: chmod -R 777 ${{ github.workspace }}
       
-      - name: Run OWASP ZAP Baseline Scan against DEV
+      - name: Run OWASP ZAP Baseline Scan against PROD
         uses: zaproxy/action-baseline@v0.15.0
         with:
           target: 'https://${{ vars.DOMAIN_NAME }}'
           rules_file_name: '.zap/rules.tsv'
           fail_action: false
-
-

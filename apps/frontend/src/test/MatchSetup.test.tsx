@@ -1,5 +1,11 @@
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  act,
+} from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import MatchSetup from "../components/MatchSetup";
 
@@ -16,7 +22,9 @@ describe("MatchSetup Component", () => {
   });
 
   it("renders correctly with default teams", async () => {
-    render(<MatchSetup onStartMatch={vi.fn()} onResumeMatch={vi.fn()} />);
+    await act(async () => {
+      render(<MatchSetup onStartMatch={vi.fn()} onResumeMatch={vi.fn()} />);
+    });
 
     // Both mobile and desktop layouts render the team name inputs
     // Use getAllByDisplayValue since both layouts are in the DOM
@@ -39,7 +47,9 @@ describe("MatchSetup Component", () => {
   });
 
   it("shows validation error if squad has less than 2 players", async () => {
-    render(<MatchSetup onStartMatch={vi.fn()} onResumeMatch={vi.fn()} />);
+    await act(async () => {
+      render(<MatchSetup onStartMatch={vi.fn()} onResumeMatch={vi.fn()} />);
+    });
 
     // Clear squad textareas
     const squadInputs = screen.getAllByPlaceholderText(/Enter player name/i);
@@ -67,9 +77,11 @@ describe("MatchSetup Component", () => {
       json: async () => [], // Initial fetch recent matches
     });
 
-    render(
-      <MatchSetup onStartMatch={mockStartMatch} onResumeMatch={vi.fn()} />,
-    );
+    await act(async () => {
+      render(
+        <MatchSetup onStartMatch={mockStartMatch} onResumeMatch={vi.fn()} />,
+      );
+    });
 
     // Click the first Submit button found (desktop layout)
     const submitBtns = screen.getAllByRole("button", {
@@ -107,14 +119,16 @@ describe("MatchSetup Component", () => {
         json: async () => ({ matchId: "123", inningId: "inn1" }), // Match POST response
       });
 
-    render(
-      <MatchSetup
-        onStartMatch={mockStartMatch}
-        onResumeMatch={vi.fn()}
-        token="test-jwt-token"
-        initialEmail="scorer@example.com"
-      />,
-    );
+    await act(async () => {
+      render(
+        <MatchSetup
+          onStartMatch={mockStartMatch}
+          onResumeMatch={vi.fn()}
+          token="test-jwt-token"
+          initialEmail="scorer@example.com"
+        />,
+      );
+    });
 
     const submitBtns = screen.getAllByRole("button", {
       name: /Start Fresh Match/i,

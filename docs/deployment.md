@@ -20,7 +20,7 @@ You need three things before touching any code.
 
 ### 1. A Domain Name
 
-Buy a domain from [GoDaddy](https://godaddy.com) or [Namecheap](https://namecheap.com)
+Buy a domain from [Spaceship](https://www.spaceship.com/), [Porkbun](https://porkbun.com/), [Cloudflare](https://www.cloudflare.com/products/registrar/), or [GoDaddy](https://godaddy.com).
 
 ### 2. An AWS Account
 
@@ -272,11 +272,11 @@ gh auth login
 
 ### 6b. How the pipeline works
 
-| Event               | What Happens                                                                |
-| ------------------- | --------------------------------------------------------------------------- |
-| **Open/Update PR**  | Runs formatters, security scans, unit tests, and E2E tests. No deployment.  |
-| **Merge to `main`** | Deploys to `dev` first, then sequentially to `prod`.                        |
-| **Manual trigger**  | Go to GitHub Actions → workflow → `Run workflow` to target `dev` or `prod`. |
+| Event               | What Happens                                                                     |
+| ------------------- | -------------------------------------------------------------------------------- |
+| **Open/Update PR**  | Runs formatters, security scans, unit tests, and E2E tests. No deployment.       |
+| **Merge to `main`** | Deploys strictly to **DEV**, runs E2E, and auto-generates semantic version tags. |
+| **Tag Push `v*`**   | Deploys to **PROD** after a manual GitHub Environment approval step.             |
 
 ---
 
