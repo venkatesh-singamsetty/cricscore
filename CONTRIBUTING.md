@@ -43,7 +43,7 @@ Because CricScore is a strict Serverless application, we **do not** emulate AWS 
 
 1. **Deploy backend to your sandbox:** Push your local backend changes to the live AWS `dev` environment:
    ```bash
-   ./infra/scripts/deploy.sh dev
+   ./infra/scripts/deploy.sh --env dev --use-local-env
    ```
 2. **Run frontend locally:** Start your local React app and point it to the `dev` endpoints:
    ```bash
@@ -51,7 +51,7 @@ Because CricScore is a strict Serverless application, we **do not** emulate AWS 
    npm run dev
    ```
 
-Your local frontend is now communicating with the exact AWS backend code you just modified.
+Your local frontend will start at **http://localhost:3000** and is now communicating with the exact AWS backend code you just modified!
 
 ---
 
