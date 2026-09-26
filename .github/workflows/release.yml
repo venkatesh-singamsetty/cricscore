@@ -34,7 +34,7 @@ jobs:
 
       - name: Semantic Release
         run: |
-          npm install -g semantic-release@23 @semantic-release/git @semantic-release/changelog conventional-changelog-conventionalcommits
+          npm install -g semantic-release @semantic-release/git @semantic-release/changelog conventional-changelog-conventionalcommits
           npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
