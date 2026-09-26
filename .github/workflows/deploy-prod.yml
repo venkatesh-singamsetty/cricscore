@@ -1,9 +1,11 @@
 name: Deploy PROD
 
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_run:
+    workflows: ["Semantic Release"]
+    types:
+      - completed
+    branches: [main]
   workflow_dispatch:
     inputs:
       tag:
@@ -21,6 +23,7 @@ permissions:
 jobs:
   deploy_and_test_prod:
     name: Deploy, Test & OWASP ZAP PROD
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     environment: prod
     permissions:
