@@ -43,6 +43,20 @@ echo "👉 Checking Terraform Formatting..."
 echo "👉 Validating Terraform Logic..."
 ./infra/scripts/terraform.sh validate
 
+echo "👉 Checking for active Terraform State Locks..."
+DYNAMO_TABLE=$(grep 'dynamodb_table' infra/terraform/providers.tf | awk -F '"' '{print $2}' | head -n 1)
+if [ -n "$DYNAMO_TABLE" ]; then
+  ACTIVE_LOCKS=$(aws dynamodb scan --table-name "$DYNAMO_TABLE" --projection-expression "LockID" --output text 2>/dev/null | grep '^LOCKID' | awk '{print $2}' | grep -v '\-md5$' || true)
+  if [ -n "$ACTIVE_LOCKS" ]; then
+    echo "❌ ERROR: Active Terraform state locks found in DynamoDB table '$DYNAMO_TABLE'!"
+    echo "Locks found:"
+    echo "$ACTIVE_LOCKS"
+    echo "Please force-unlock using 'terraform force-unlock <LOCK_ID>' before pushing."
+    exit 1
+  fi
+  echo "✅ No active state locks found."
+fi
+
 echo ""
 echo "-----------------------------------"
 echo "🌐 4. End-to-End Testing (Playwright)..."
