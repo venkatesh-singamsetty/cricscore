@@ -643,7 +643,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                 Restoring secure records...
               </span>
             </div>
-          ) : matchDetails ? (
+          ) : matchDetails && matchMeta?.status === "COMPLETED" ? (
             (() => {
               const i1 = matchDetails.innings[0];
               const i2 = matchDetails.innings[1];
