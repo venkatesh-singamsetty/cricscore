@@ -17,7 +17,7 @@ The CricScore fan-facing and scorer-facing Single Page Application (SPA).
 ```bash
 cd apps/frontend
 npm install
-npm run dev       # Start Vite dev server at http://localhost:5173
+npm run dev       # Start Vite dev server at http://localhost:3000
 ```
 
 ## Environment Variables
