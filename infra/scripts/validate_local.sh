@@ -24,6 +24,9 @@ echo "-----------------------------------"
   echo "👉 Running Unit Tests..."
   npm run test
   
+  echo "👉 Running NPM Security Audit..."
+  npm audit --audit-level=high
+
   echo "👉 Verifying Production Build..."
   npm run build
 )
@@ -36,6 +39,9 @@ echo "-----------------------------------"
   cd apps/backend
   echo "👉 Running Backend Unit Tests..."
   npm test
+
+  echo "👉 Running NPM Security Audit..."
+  npm audit --audit-level=high
 )
 
 echo ""
