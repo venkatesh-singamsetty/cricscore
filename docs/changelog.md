@@ -1,3 +1,9 @@
+## [4.3.2](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.3.1...v4.3.2) (2026-09-26)
+
+### 🐛 Bug Fixes
+
+* solve WebSocket and DB eventual consistency race condition ([#208](https://github.com/venkatesh-singamsetty/cricscore/issues/208)) ([ccc1273](https://github.com/venkatesh-singamsetty/cricscore/commit/ccc1273e0a9cdb9f418a69b60cb043ddd52395e0))
+
 ## [4.3.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.3.0...v4.3.1) (2026-09-26)
 
 ### 🐛 Bug Fixes
