@@ -26,7 +26,8 @@ GitHub enforces extremely strict directory constraints for its automated service
     ├── pr-summary.yml
     ├── release.yml
     ├── sbom.yml
-    └── secrets.yml
+    ├── secrets.yml
+    └── terraform-unlock.yml
 ```
 
 ## 2. Naming Conventions & Logical Grouping
@@ -103,3 +104,4 @@ These pipelines run asynchronously on schedules or specific deployment events.
 - `keepalive.yml`: Scheduled CRON job that pings the Aiven Database to prevent inactivity pauses.
 - `drift.yml`: Nightly scheduled Terraform Drift Detection. Runs as a matrix check across both `dev` and `prod` environments, using environment-specific state keys and loading the correct environment secrets/variables to detect manual infrastructure modifications.
 - `release.yml`: Triggered automatically on merge to `main` to generate Semantic Versions and changelogs.
+- `terraform-unlock.yml`: Manual workflow triggered via `workflow_dispatch` to safely force unlock stuck Terraform state files for specific environments.

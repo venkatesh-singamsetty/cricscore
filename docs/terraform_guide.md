@@ -181,13 +181,14 @@ To prevent simultaneous deployments from corrupting the Terraform state file, Te
 
 ### How to Force Unlock (Emergency Cleanup)
 
-If a CI/CD job crashes or network drops mid-deployment, the lock may remain active.
+If a CI/CD job crashes or network drops mid-deployment, the lock may remain active. You can safely unlock the environment via the GitHub Actions dashboard:
 
-1. Note the **Lock ID** from the error message (e.g. `e-12345678-abcd`).
-2. Run the force-unlock command:
-   ```bash
-   terraform force-unlock <lock-id>
-   ```
+1. Navigate to the GitHub repository **Actions** tab.
+2. Select the **Terraform Force Unlock** workflow on the left.
+3. Click **Run workflow**, select the stuck environment (`dev` or `prod`), and paste the **Lock ID** from the error logs.
+4. Click **Run workflow** to execute the unlock.
+
+_(Alternatively, if running locally, you can use `terraform force-unlock <lock-id>` inside the `infra/terraform` directory)._
 
 ---
 
