@@ -1,3 +1,36 @@
+## [4.2.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.1.2...v4.2.0) (2026-09-26)
+
+### 🚀 Features
+
+* Bug fixes and UI improvements for Admin Panel and Mobile Layout ([0df22e6](https://github.com/venkatesh-singamsetty/cricscore/commit/0df22e6c74bdee41636ca9a2c00d8074cc51bb46))
+* restructure CI/CD for tag-based PROD deployment and comprehensive documentation audit ([#199](https://github.com/venkatesh-singamsetty/cricscore/issues/199)) ([5a0d4e3](https://github.com/venkatesh-singamsetty/cricscore/commit/5a0d4e37193773cd72dc420f70f7df509fb767a5))
+
+### 🐛 Bug Fixes
+
+* **ci:** add missing LLM variables and non-interactive mode to drift workflow ([2c82ee0](https://github.com/venkatesh-singamsetty/cricscore/commit/2c82ee06d7ad7d4727a4e129a7bfa05e50d65b08))
+* downgrade semantic release action to Node 20 ([#200](https://github.com/venkatesh-singamsetty/cricscore/issues/200)) ([d8768b0](https://github.com/venkatesh-singamsetty/cricscore/commit/d8768b007fe75a7ac03736f8cb1b3a36e96fdcd9))
+* harden E2E assertions and ensure AI summary is included in match emails ([dac34e2](https://github.com/venkatesh-singamsetty/cricscore/commit/dac34e251f5458b523fe5c3a0b32eaaffda5227d))
+* prefix active score with team name and update semantic-release ([#204](https://github.com/venkatesh-singamsetty/cricscore/issues/204)) ([ddc4625](https://github.com/venkatesh-singamsetty/cricscore/commit/ddc46258292b0f46dd4d087d920d7433ae42dffd))
+* prevent premature scoreboard results and restore semantic-release ([#203](https://github.com/venkatesh-singamsetty/cricscore/issues/203)) ([93c9bad](https://github.com/venkatesh-singamsetty/cricscore/commit/93c9badf6b58018f70b55afc3e22e1c8c6d14dce))
+* resolve test framework configuration for Vitest, jsdom, and E2E stability ([103eca1](https://github.com/venkatesh-singamsetty/cricscore/commit/103eca1c44a68eb15a80300d5ab2900cf530f307))
+* Revert frontend dependencies to fix invalid hook call and eslint conflicts ([390a86b](https://github.com/venkatesh-singamsetty/cricscore/commit/390a86b3a0a391f7a8682fe8af21ce1481a8cbff))
+* Revert typescript to 6.x to resolve eslint peer dependency conflicts ([10add0c](https://github.com/venkatesh-singamsetty/cricscore/commit/10add0c2cb5e1059488b978a913a7f58577b1a50))
+
+### 📚 Documentation
+
+* add contributing and developer workflow guide ([#196](https://github.com/venkatesh-singamsetty/cricscore/issues/196)) ([bdb798e](https://github.com/venkatesh-singamsetty/cricscore/commit/bdb798e356958de555b412a3db93eae9bf62a069))
+* enterprise governance, CONTRIBUTING guide, and documentation cleanup ([#197](https://github.com/venkatesh-singamsetty/cricscore/issues/197)) ([6a6bc83](https://github.com/venkatesh-singamsetty/cricscore/commit/6a6bc83a0d9916b6f2bac6659a00f23d120f3be7))
+
+### 🧰 Maintenance & Dependencies
+
+* **release:** 4.2.0 [skip ci] ([109115f](https://github.com/venkatesh-singamsetty/cricscore/commit/109115f83fa6faa595473bc8b6a45b746b0b093c))
+* remove stale files and update .gitignore ([d218185](https://github.com/venkatesh-singamsetty/cricscore/commit/d218185c9e089d14ac329eec41d6462269e94a64))
+
+### 🧪 Tests
+
+* Fix Playwright strict mode violation by using .first() on score text checks ([7f5fb11](https://github.com/venkatesh-singamsetty/cricscore/commit/7f5fb1140ba2db8df156321f0869d77b40a7ba46))
+* Fix swallowed clicks in Playwright E2E test due to UI state transitions around Undo ([549a486](https://github.com/venkatesh-singamsetty/cricscore/commit/549a486cd1cdb610c5a39a386aac531294c93b55))
+
 # [Unreleased] (2026-09-26)
 
 ### Features
