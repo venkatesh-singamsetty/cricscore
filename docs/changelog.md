@@ -1,3 +1,9 @@
+## [4.3.3](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.3.2...v4.3.3) (2026-09-26)
+
+### 🐛 Bug Fixes
+
+* apply optimistic UI updates and correct match result logic ([#209](https://github.com/venkatesh-singamsetty/cricscore/issues/209)) ([cf21587](https://github.com/venkatesh-singamsetty/cricscore/commit/cf21587626f748a88c418bcdd8ec38d9607079fa))
+
 ## [4.3.2](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.3.1...v4.3.2) (2026-09-26)
 
 ### 🐛 Bug Fixes
