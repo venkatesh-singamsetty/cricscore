@@ -40,6 +40,7 @@ We chose Aiven because it perfectly aligns with CricScore's **Zero-Cost Architec
      TF_DATABASE_URL='postgres://avnadmin:[PASSWORD]@[HOST]:[PORT]/defaultdb?sslmode=require'
      ```
    - **Environment Isolation Note**: Both the `dev` and `prod` environments will share this exact same connection string! CricScore isolates the data by instructing the Lambdas to query different PostgreSQL **schemas** (e.g., `SET search_path TO dev` vs `prod`).
+     - _Architectural Decision:_ While it is possible to create two completely separate databases inside the same Aiven instance, the Free Tier imposes strict **Connection Limits**. Because AWS Lambdas can scale aggressively and open many concurrent connections, using a single database with multiple schemas allows the connection pooler to operate far more efficiently. Splitting into two databases risks exhausting the connection pool and crashing the backend under load.
 
 5. **Deploy**:
    - The database is now ready to use! When you run `./infra/scripts/deploy.sh --use-local-env --env dev`, Terraform will automatically deploy the tables (into the `dev` schema) and configure the AWS Lambda functions to securely communicate with this database.

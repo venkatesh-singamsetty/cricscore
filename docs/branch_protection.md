@@ -11,7 +11,7 @@ Before any Pull Request can be merged into `main`, it must successfully pass the
 | Check Name                                 | Purpose                                                                                                                                      | Workflow Source                 |
 | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
 | **`GitLeaks Scan`**                        | Scans the PR diff for over 150 types of secrets (AWS Keys, Admin PINs, Passwords). Blocks the merge if any hardcoded secret is detected.     | `.github/workflows/secrets.yml` |
-| **`playwright-tests`**                     | Executes the End-to-End UI browser testing suite against the live production environment.                                                    | `.github/workflows/e2e.yml`     |
+| **`playwright-tests`**                     | A placeholder check ensuring E2E tests are acknowledged; actual execution is deferred to the CI/CD deployment pipelines (Dev and Prod).      | `.github/workflows/e2e.yml`     |
 | **`Analyze Code (javascript-typescript)`** | Runs GitHub CodeQL Static Application Security Testing (SAST) for JS/TS code.                                                                | `.github/workflows/codeql.yml`  |
 | **`Lint & Test`**                          | Executes the `vitest` unit testing suite and `prettier` code formatter for the frontend application. Prevents broken UI code from deploying. | `.github/workflows/ci-cd.yml`   |
 | **`Backend & Terraform Validation`**       | Runs `npm test` on lambdas, `trivy` container scanning, `terraform validate`, and Checkov static analysis for AWS IaC.                       | `.github/workflows/ci-cd.yml`   |
@@ -29,7 +29,7 @@ CricScore explicitly disables this bypass:
 ## 3. Strict Branch Updating
 
 - **`strict: true`**: "Require branches to be up to date before merging".
-  If another developer merges a PR before you, your PR will block merging until you pull the latest `main` branch into your code and re-run all 5 status checks against the newest codebase. This prevents merge conflicts from breaking the live site.
+  If another developer merges a PR before you, your PR will block merging until you pull the latest `main` branch into your code and re-run all 8 status checks against the newest codebase. This prevents merge conflicts from breaking the live site.
 
 ## 4. History Preservation
 

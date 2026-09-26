@@ -106,7 +106,7 @@ gh pr create --title "fix(auth): resolve JWT expiration handling on session refr
 When a PR is opened, GitHub Actions automatically executes the required status checks:
 
 1. **`GitLeaks Scan`** — Scans diff for secrets/keys
-2. **`playwright-tests`** — Runs End-to-End browser UI tests
+2. **`playwright-tests`** — Placeholder check acknowledging E2E is deferred to deployment pipelines
 3. **`Analyze Code (javascript-typescript)`** — SAST security scanning for JS/TS
 4. **`Lint & Test`** — Vitest unit tests and code formatting checks
 5. **`Backend & Terraform Validation`** — Lambda unit tests & Terraform IaC checks

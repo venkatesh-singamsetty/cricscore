@@ -12,10 +12,13 @@ Welcome to the CricScore documentation directory. This folder contains all archi
 ## 🚀 Deployment & Infrastructure
 
 - [**Full Deployment Guide**](./deployment.md) — Step-by-step tutorial to deploy CricScore to AWS from scratch.
+- [**Deployment Checklist**](./deployment_checklist.md) — Quick clone-to-deploy checklist for experienced users.
+- [**Local Frontend Quickstart**](./local_frontend_quickstart.md) — How to run the React app locally against the live cloud endpoints.
 - [**Terraform Infrastructure Guide & Tutorial**](./terraform_guide.md) — Comprehensive HCL architecture walkthrough and hands-on tutorial.
 - [**Real-Time WebSockets & Event Fan-Out Tutorial**](./websocket_tutorial.md) — Architecture and implementation guide for live score streaming.
 - [**GitHub Actions CI/CD**](./github_actions.md) — Explains the automated pipeline that runs on every push.
 - [**Aiven PostgreSQL**](./aiven.md) — How to set up and manage the primary database.
+- [**Domain Migration Log**](./domain_migration.md) — Historical log of the Route 53 and SES domain migration.
 
 ## 🛡️ Operations & Security
 

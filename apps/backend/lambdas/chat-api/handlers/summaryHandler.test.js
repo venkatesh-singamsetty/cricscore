@@ -21,6 +21,7 @@ describe("summaryHandler", () => {
     vi.spyOn(Pool.prototype, "query").mockImplementation(querySpy);
 
     mockCreate = vi.spyOn(openai.chat.completions, "create");
+    vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
   it("returns 400 if matchId is not provided", async () => {
@@ -71,7 +72,16 @@ describe("summaryHandler", () => {
       .mockResolvedValueOnce({}); // UPDATE cache
 
     mockCreate.mockResolvedValue({
-      choices: [{ message: { content: "Updated live summary." } }],
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              summary: "Updated live summary.",
+              playerOfTheMatch: "Player A",
+            }),
+          },
+        },
+      ],
     });
 
     const res = await summaryHandler("match-live-0", corsHeaders);
@@ -130,7 +140,16 @@ describe("summaryHandler", () => {
       .mockResolvedValueOnce({}); // UPDATE cache
 
     mockCreate.mockResolvedValue({
-      choices: [{ message: { content: "Thrilling match." } }],
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              summary: "Thrilling match.",
+              playerOfTheMatch: "Rohit",
+            }),
+          },
+        },
+      ],
     });
 
     const res = await summaryHandler("m2", corsHeaders);

@@ -57,6 +57,6 @@ This pushed the updated `DOMAIN_NAME`, `ZONE_DOMAIN`, and `TF_SES_SOURCE_EMAIL` 
 
 ## 8. Documentation Updates
 
-- Updated all hardcoded `.site` URLs in `README.md` and `docs/terraform_guide.md` to `.com`.
+- Updated all hardcoded `.site` URLs in `README.md`, `docs/terraform_guide.md`, and `docs/aws_resources_dashboard.md` to `.com`.
 - Introduced a dedicated `infra/terraform/bootstrap` folder to cleanly manage the core Terraform state bucket and Route 53 zone.
 - Updated `docs/deployment.md` to guide new users on how to run the bootstrap folder first.

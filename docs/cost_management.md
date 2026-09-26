@@ -10,7 +10,7 @@ This document provides a breakdown of the estimated operational costs for the Cr
 - **The Fan-Out Multiplier (3x)**: Every single ball event (1 click) triggers **3 Lambda invocations** (`score-update` -> `broadcaster` -> `storage-worker`).
 - **Cognito Pre-Signup Lambda**: A lightweight `cognito-presignup` Lambda is invoked on each new user registration. Guest accounts (`guest-*@cricscore.local`) auto-confirm; normal accounts go through standard Cognito email verification. This is negligible — well within free tier.
 - **Est. Max Load**: 1M requests / 3 lambdas = 333,333 ball events = **~1,350 Matches per month** remaining at absolutely $0 cost.
-- **Memory Optimization**: We upgraded lambdas to **256MB RAM** (consuming 2x GB-Seconds but preventing CPU throttling on the mTLS / PostgreSQL handshakes).
+- **Memory Optimization**: Core routing lambdas run at **256MB RAM** (preventing CPU throttling on PostgreSQL handshakes). The AI `chat-api` runs at **1024MB RAM** to handle heavy `pdf-parse` operations. Because AWS bills by GB-seconds, running the 1024MB container for 2 seconds is cheaper than thrashing a 128MB container for 30 seconds.
 
 ### 2. **Real-time: WebSocket API Gateway**
 
@@ -140,7 +140,7 @@ For a standard **20-Overs Match** (120 balls per innings = **240 total events/ma
 
 1.  **Match Lifecycle Management**: Set a matches `status` to `COMPLETED` to stop unnecessary WebSocket polling.
 2.  **Log Retention**: Configure CloudWatch logs for 7-day retention to avoid storage creep.
-3.  **Domain Selection**: Use low-cost TLDs (like `.site` or `.me`) to keep your yearly overhead under **$2.00**.
+3.  **Domain Selection**: Use low-cost TLDs (like `.site` or `.me`) via registrars like **Spaceship** or **Porkbun** to keep your yearly overhead under **$2.00**.
 4.  **Strict Zero-Cost Infrastructure**: We have explicitly disabled **S3 Versioning** and **DynamoDB Point-in-Time Recovery (PITR)** across the Terraform stack to guarantee $0 hidden backup costs.
 5.  **Avoid Customer Managed KMS Keys (CMKs)**: Each CMK costs $1.00/month regardless of usage. Use free AWS-managed alternatives: `AES256` for S3, `alias/aws/sns` for SNS, `sqs_managed_sse_enabled` for SQS.
 6.  **Purge Guest Cognito Accounts**: Guest shadow accounts (`guest-*@cricscore.local`) each count as 1 Cognito MAU/month. Use the Admin Panel or AI Chat (`delete all guest users`) to remove stale accounts before they accumulate.

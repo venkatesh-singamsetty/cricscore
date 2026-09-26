@@ -1,59 +1,70 @@
-# [4.2.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.1.2...v4.2.0) (2026-09-22)
-
-
-### Bug Fixes
-
-* add @testing-library/jest-dom to tsconfig types to resolve TS2339 errors ([8594504](https://github.com/venkatesh-singamsetty/cricscore/commit/8594504847b05b7d52e7ce9718ceb762cde8048a))
-* add vitest.d.ts triple-slash reference for @testing-library/jest-dom types ([8a0b92a](https://github.com/venkatesh-singamsetty/cricscore/commit/8a0b92ad23626e3a12b624acff58796b18c2c911))
-* import @testing-library/jest-dom/vitest for Vitest assertion types ([a6ac693](https://github.com/venkatesh-singamsetty/cricscore/commit/a6ac693616f7f7b2972cb1f4277986da955bfa2f))
-* resolve E2E test stuck at 'Starting actual over' after Undo ([1445a1a](https://github.com/venkatesh-singamsetty/cricscore/commit/1445a1a382f79ec62abb0f9659b9681a2549c55c))
-* resolve jsdom resolution and workspace install in CI ([9988dab](https://github.com/venkatesh-singamsetty/cricscore/commit/9988dab85012948a21f978ffdcd78c00002d49d8))
-* Revert frontend dependencies to fix invalid hook call and eslint conflicts ([390a86b](https://github.com/venkatesh-singamsetty/cricscore/commit/390a86b3a0a391f7a8682fe8af21ce1481a8cbff))
-* Revert typescript to 6.x to resolve eslint peer dependency conflicts ([10add0c](https://github.com/venkatesh-singamsetty/cricscore/commit/10add0c2cb5e1059488b978a913a7f58577b1a50))
-
+# [Unreleased] (2026-09-26)
 
 ### Features
 
-* Bug fixes and UI improvements for Admin Panel and Mobile Layout ([0df22e6](https://github.com/venkatesh-singamsetty/cricscore/commit/0df22e6c74bdee41636ca9a2c00d8074cc51bb46))
+- **ci/cd:** restructure pipeline for tag-based PROD deployment to enable instant push-button rollbacks.
+- **docs:** create comprehensive enterprise governance, security policy, and contributing guide.
+- **docs:** recommend Spaceship and Porkbun as cost-effective domain registrars.
+- **docs:** convert CI/CD architecture text into modern Mermaid flowcharts.
+- **docs:** link local frontend quickstart guide in README for streamlined local development.
+- **infra:** add automated PR summary generator workflow and enforce 8 required status checks.
+
+### Bug Fixes
+
+- **tests:** resolve `act(...)` test warnings in Vitest frontend test suite.
+- **tests:** fix LLM mock JSON parsing issues in backend unit tests.
+- **build:** replace deprecated `__dirname` with `import.meta.dirname` in Vite config.
+
+# [4.2.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.1.2...v4.2.0) (2026-09-22)
+
+### Bug Fixes
+
+- add @testing-library/jest-dom to tsconfig types to resolve TS2339 errors ([8594504](https://github.com/venkatesh-singamsetty/cricscore/commit/8594504847b05b7d52e7ce9718ceb762cde8048a))
+- add vitest.d.ts triple-slash reference for @testing-library/jest-dom types ([8a0b92a](https://github.com/venkatesh-singamsetty/cricscore/commit/8a0b92ad23626e3a12b624acff58796b18c2c911))
+- import @testing-library/jest-dom/vitest for Vitest assertion types ([a6ac693](https://github.com/venkatesh-singamsetty/cricscore/commit/a6ac693616f7f7b2972cb1f4277986da955bfa2f))
+- resolve E2E test stuck at 'Starting actual over' after Undo ([1445a1a](https://github.com/venkatesh-singamsetty/cricscore/commit/1445a1a382f79ec62abb0f9659b9681a2549c55c))
+- resolve jsdom resolution and workspace install in CI ([9988dab](https://github.com/venkatesh-singamsetty/cricscore/commit/9988dab85012948a21f978ffdcd78c00002d49d8))
+- Revert frontend dependencies to fix invalid hook call and eslint conflicts ([390a86b](https://github.com/venkatesh-singamsetty/cricscore/commit/390a86b3a0a391f7a8682fe8af21ce1481a8cbff))
+- Revert typescript to 6.x to resolve eslint peer dependency conflicts ([10add0c](https://github.com/venkatesh-singamsetty/cricscore/commit/10add0c2cb5e1059488b978a913a7f58577b1a50))
+
+### Features
+
+- Bug fixes and UI improvements for Admin Panel and Mobile Layout ([0df22e6](https://github.com/venkatesh-singamsetty/cricscore/commit/0df22e6c74bdee41636ca9a2c00d8074cc51bb46))
 
 ## [4.1.2](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.1.1...v4.1.2) (2026-09-12)
 
-
 ### Bug Fixes
 
-* actively delete abandoned matches from backend when resetting ([bc4b2fc](https://github.com/venkatesh-singamsetty/cricscore/commit/bc4b2fc8468f5abcac6c5a5a72609ba9311ba428))
-* add auto-scroll to AI Chat and prevent container overflow ([052f706](https://github.com/venkatesh-singamsetty/cricscore/commit/052f706f56eeaa149901756f1e5e9396b95f3716))
-* add POM info to frontend summary, fix desktop authenticator layout ([0aad44f](https://github.com/venkatesh-singamsetty/cricscore/commit/0aad44f43530297a44ec528c75609ee666cf5063))
-* correct players/bowlers object to array mapping for email scoreboard ([fa790c9](https://github.com/venkatesh-singamsetty/cricscore/commit/fa790c9aa17382865acaabc3b0a107017493c59a))
-* ensure AI summary and POM are saved to DB for email generation ([13672eb](https://github.com/venkatesh-singamsetty/cricscore/commit/13672eb4d898bc160d01bdd0127e45930daa1fb1))
-* lock app root to fixed inset-0 and make MatchSetup inputs scrollable to prevent mobile keyboard shifting viewport ([47099ac](https://github.com/venkatesh-singamsetty/cricscore/commit/47099acae56c09a2b82c26be3841e89942756458))
-* lock viewport scrolling to prevent mobile address bar jumping ([9970854](https://github.com/venkatesh-singamsetty/cricscore/commit/99708547a29e53fd5274ad5b162b258bd474f45f))
-* use handleViewClick on nav buttons to ensure components remount when clicking current tab ([42c8776](https://github.com/venkatesh-singamsetty/cricscore/commit/42c877678a2090b416c39f49c2c165ed23bf8e7e))
-* viewer uses canonical match_winner and listens to LIVE_SCORE_UPDATE ([e594d4b](https://github.com/venkatesh-singamsetty/cricscore/commit/e594d4bc538a65cee77dc09eb943f0f2e05d5955))
+- actively delete abandoned matches from backend when resetting ([bc4b2fc](https://github.com/venkatesh-singamsetty/cricscore/commit/bc4b2fc8468f5abcac6c5a5a72609ba9311ba428))
+- add auto-scroll to AI Chat and prevent container overflow ([052f706](https://github.com/venkatesh-singamsetty/cricscore/commit/052f706f56eeaa149901756f1e5e9396b95f3716))
+- add POM info to frontend summary, fix desktop authenticator layout ([0aad44f](https://github.com/venkatesh-singamsetty/cricscore/commit/0aad44f43530297a44ec528c75609ee666cf5063))
+- correct players/bowlers object to array mapping for email scoreboard ([fa790c9](https://github.com/venkatesh-singamsetty/cricscore/commit/fa790c9aa17382865acaabc3b0a107017493c59a))
+- ensure AI summary and POM are saved to DB for email generation ([13672eb](https://github.com/venkatesh-singamsetty/cricscore/commit/13672eb4d898bc160d01bdd0127e45930daa1fb1))
+- lock app root to fixed inset-0 and make MatchSetup inputs scrollable to prevent mobile keyboard shifting viewport ([47099ac](https://github.com/venkatesh-singamsetty/cricscore/commit/47099acae56c09a2b82c26be3841e89942756458))
+- lock viewport scrolling to prevent mobile address bar jumping ([9970854](https://github.com/venkatesh-singamsetty/cricscore/commit/99708547a29e53fd5274ad5b162b258bd474f45f))
+- use handleViewClick on nav buttons to ensure components remount when clicking current tab ([42c8776](https://github.com/venkatesh-singamsetty/cricscore/commit/42c877678a2090b416c39f49c2c165ed23bf8e7e))
+- viewer uses canonical match_winner and listens to LIVE_SCORE_UPDATE ([e594d4b](https://github.com/venkatesh-singamsetty/cricscore/commit/e594d4bc538a65cee77dc09eb943f0f2e05d5955))
 
 ## [4.1.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.1.0...v4.1.1) (2026-09-12)
 
-
 ### Bug Fixes
 
-* POM display, UI updates for match setup, delete modal theme ([35db347](https://github.com/venkatesh-singamsetty/cricscore/commit/35db347c9a363f57cbfe97533586dcb0c9a0574c))
+- POM display, UI updates for match setup, delete modal theme ([35db347](https://github.com/venkatesh-singamsetty/cricscore/commit/35db347c9a363f57cbfe97533586dcb0c9a0574c))
 
 # [4.1.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.0.1...v4.1.0) (2026-09-11)
 
-
 ### Features
 
-* complete AI security hardening and ci-cd optimizations ([baf3fcd](https://github.com/venkatesh-singamsetty/cricscore/commit/baf3fcd48531e818ba47705e3fa7e95c09e62841))
+- complete AI security hardening and ci-cd optimizations ([baf3fcd](https://github.com/venkatesh-singamsetty/cricscore/commit/baf3fcd48531e818ba47705e3fa7e95c09e62841))
 
 ## [4.0.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.0.0...v4.0.1) (2026-09-11)
 
-
 ### Bug Fixes
 
-* **ci:** fix typescript compile errors and terraform formatting ([3af55be](https://github.com/venkatesh-singamsetty/cricscore/commit/3af55beae8b4ab33e76821fa6cf9c81794970440))
-* **ci:** restore live domain names in tfvars ([451c1e2](https://github.com/venkatesh-singamsetty/cricscore/commit/451c1e21018a126da4279dc45f128ae0d09c322c))
-* **e2e:** Refactor Playwright clicks to prevent swallowed clicks during React state transitions ([2973142](https://github.com/venkatesh-singamsetty/cricscore/commit/2973142ce25429cf32138bc7496d7fbca6c4d059))
-* guard missing Cognito config for guest mode ([8c820d6](https://github.com/venkatesh-singamsetty/cricscore/commit/8c820d6e70ddd8d13bd677ecdadc3bd59ae2a6ea))
+- **ci:** fix typescript compile errors and terraform formatting ([3af55be](https://github.com/venkatesh-singamsetty/cricscore/commit/3af55beae8b4ab33e76821fa6cf9c81794970440))
+- **ci:** restore live domain names in tfvars ([451c1e2](https://github.com/venkatesh-singamsetty/cricscore/commit/451c1e21018a126da4279dc45f128ae0d09c322c))
+- **e2e:** Refactor Playwright clicks to prevent swallowed clicks during React state transitions ([2973142](https://github.com/venkatesh-singamsetty/cricscore/commit/2973142ce25429cf32138bc7496d7fbca6c4d059))
+- guard missing Cognito config for guest mode ([8c820d6](https://github.com/venkatesh-singamsetty/cricscore/commit/8c820d6e70ddd8d13bd677ecdadc3bd59ae2a6ea))
 
 # [4.0.0] - 2026-09-11
 

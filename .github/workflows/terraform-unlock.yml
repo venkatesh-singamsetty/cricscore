@@ -1,0 +1,52 @@
+name: Terraform Force Unlock
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to unlock'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
+      lock_id:
+        description: 'The Terraform Lock ID to force unlock (e.g., e-12345678-abcd)'
+        required: true
+        type: string
+
+permissions:
+  id-token: write # needed for AWS OIDC authentication
+  contents: read
+
+jobs:
+  force-unlock:
+    name: Force Unlock Terraform State
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.0"
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Terraform Init & Force Unlock
+        working-directory: infra/terraform
+        run: |
+          echo "Initializing Terraform backend for environment: ${{ inputs.environment }}"
+          terraform init -backend-config="key=cricscore/${{ inputs.environment }}/terraform.tfstate"
+          
+          echo "Executing Force Unlock for Lock ID: ${{ inputs.lock_id }}"
+          terraform force-unlock -force "${{ inputs.lock_id }}"

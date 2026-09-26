@@ -8,18 +8,18 @@ CricScore provides a RESTful interface for scoring actions and a real-time WebSo
 
 **Base URL**: `https://<api-id>.execute-api.us-east-1.amazonaws.com` (Dynamically injected as `VITE_API_URL` by `infra/scripts/deploy.sh`)
 
-| Endpoint              | Method   | Role                                | Auth Required |
-| :-------------------- | :------- | :---------------------------------- | :------------ |
-| `/match`              | `POST`   | Initialize fresh match UUID         | None          |
-| `/match/{id}`         | `GET`    | Fetch basic match metadata          | None          |
-| `/match/{id}`         | `PATCH`  | Update match metadata (overs)       | None          |
-| `/match/{id}`         | `DELETE` | Permanent Match Cleanup             | **Admin PIN** |
-| `/match/{id}/details` | `GET`    | **Deep-Link Recovery**              | None          |
-| `/match/{id}/innings` | `POST`   | Register 2nd Innings                | None          |
-| `/match/{id}/email`   | `POST`   | Trigger SES Match Report            | None          |
-| `/matches`            | `GET`    | Discovery Hub (Browse active games) | None          |
-| `/matches`            | `DELETE` | **Global Purge** (All matches)      | **Admin PIN** |
-| `/update-score`       | `POST`   | SNS Fan-Out Producer                | None          |
+| Endpoint              | Method   | Role                                | Auth Required   |
+| :-------------------- | :------- | :---------------------------------- | :-------------- |
+| `/match`              | `POST`   | Initialize fresh match UUID         | None            |
+| `/match/{id}`         | `GET`    | Fetch basic match metadata          | None            |
+| `/match/{id}`         | `PATCH`  | Update match metadata (overs)       | **Cognito JWT** |
+| `/match/{id}`         | `DELETE` | Permanent Match Cleanup             | **Cognito JWT** |
+| `/match/{id}/details` | `GET`    | **Deep-Link Recovery**              | None            |
+| `/match/{id}/innings` | `POST`   | Register 2nd Innings                | **Cognito JWT** |
+| `/match/{id}/email`   | `POST`   | Trigger SES Match Report            | **Cognito JWT** |
+| `/matches`            | `GET`    | Discovery Hub (Browse active games) | None            |
+| `/matches`            | `DELETE` | **Global Purge** (All matches)      | **Cognito JWT** |
+| `/update-score`       | `POST`   | SNS Fan-Out Producer                | None            |
 
 ---
 

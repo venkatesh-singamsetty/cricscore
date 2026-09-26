@@ -203,5 +203,5 @@ Production testing is strictly limited to passive observability and lightweight,
 
 Our GitHub Actions pipelines automatically enforce this entire testing pyramid on all Pull Requests and merges to the `main` branch.
 
-- **Frontend & Backend CI**: `.github/workflows/ci-cd.yml` automatically executes all Unit, API, and Integration tests in parallel before deploying to DEV and PROD environments.
-- **E2E CI**: `.github/workflows/e2e.yml` runs the complete Smoke and E2E User Journey test suite against the deployed environment to prevent production regressions.
+- **DEV & PROD Deployment CI**: `.github/workflows/ci-cd.yml` (for DEV) and `.github/workflows/deploy-prod.yml` (for PROD) automatically execute all Unit, API, Integration, and E2E tests during their respective deployment phases to prevent regressions.
+- **Pull Request E2E CI**: `.github/workflows/e2e.yml` acts as a placeholder check for Pull Requests, as actual E2E execution is deferred to the deployment workflows.
