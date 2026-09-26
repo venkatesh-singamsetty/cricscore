@@ -1,5 +1,5 @@
 environment      = "dev"
 project_name     = "cricscoredev"
-domain_name      = "cricscoredev.venkateshsingamsetty.site"
-zone_domain      = "venkateshsingamsetty.site"
+domain_name      = "cricscoredev.venkateshsingamsetty.com"
+zone_domain      = "venkateshsingamsetty.com"
 subdomain_prefix = "cricscoredev"
