@@ -43,6 +43,9 @@ graph TD
         REST_POST[API Gateway: POST] --> score_update[score-upd Lambda]
         score_update --> SNS{AWS SNS Topic}
 
+        %% Agentic AI
+        REST_AI[API Gateway: Chat] --> chat_api[chat-api Lambda]
+
         %% Consumer logic
         SNS -->|Reliability| SQS[[AWS SQS Queue]]
         SQS --> storage_worker[storage-worker Lambda]
@@ -60,18 +63,26 @@ graph TD
         WS_GW -->|4. Stream| Fan
     end
 
-    %% Data Hub vertically stacked for clear routing
+    %% Data Hub
     subgraph Aiven [Aiven Managed Data Hub]
         PG[(Aiven PostgreSQL)]
+    end
+
+    %% External AI Models
+    subgraph AI [LLM Providers]
+        LLM[OpenRouter / OpenAI]
     end
 
     %% Explicit data routing
     match_api -->|Initial Setup| PG
     storage_worker -->|ACID Commit| PG
+    chat_api -->|pgvector / Text-to-SQL| PG
+    chat_api <-->|MCP RAG Prompts| LLM
 
     %% User Interaction Labels
     Fan((Fan)) -.->|Request| REST_GET
     Fan -.->|Handshake| WS_GW
+    Fan -.->|Ask Question| REST_AI
     Scorer((Scorer)) -.->|Post| REST_POST
 ```
 
