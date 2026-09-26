@@ -2,8 +2,7 @@ import { test, expect } from "@playwright/test";
 
 // Define the API URL
 const API_URL =
-  process.env.API_URL ||
-  "https://ispht71fh0.execute-api.us-east-1.amazonaws.com";
+  process.env.API_URL || "https://api.cricscoredev.venkateshsingamsetty.com";
 
 test.describe("CricScore API Integration Tests", () => {
   test("should return healthy DB status from /health endpoint", async ({

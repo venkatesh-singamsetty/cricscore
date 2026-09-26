@@ -7,8 +7,7 @@ import {
 } from "@aws-sdk/client-apigatewaymanagementapi";
 
 process.env.TABLE_NAME = "mock-table";
-process.env.WEBSOCKET_URL =
-  "wss://mock-api.execute-api.us-east-1.amazonaws.com";
+process.env.WEBSOCKET_URL = "wss://ws.cricscoredev.venkateshsingamsetty.com";
 
 const dynamoMock = mockClient(DynamoDBClient);
 const apiMock = mockClient(ApiGatewayManagementApiClient);

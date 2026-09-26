@@ -468,7 +468,7 @@ const MatchView: React.FC<MatchViewProps> = ({
 
   const API_URL =
     import.meta.env.VITE_API_URL ||
-    "https://ispht71fh0.execute-api.us-east-1.amazonaws.com";
+    "https://api.cricscoredev.venkateshsingamsetty.com";
 
   const syncMatchState = async () => {
     if (matchId.startsWith("guest_") || !userToken) return;
