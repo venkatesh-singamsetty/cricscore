@@ -227,8 +227,8 @@ jobs:
         working-directory: apps/frontend
         env:
           VITE_APP_TITLE: CricScoreDev
-          VITE_API_URL: https://${{ env.API_GATEWAY_ID }}.execute-api.${{ env.AWS_REGION }}.amazonaws.com
-          VITE_WS_URL: wss://${{ env.WS_API_GATEWAY_ID }}.execute-api.${{ env.AWS_REGION }}.amazonaws.com/prod
+          VITE_API_URL: https://api.${{ vars.DOMAIN_NAME }}
+          VITE_WS_URL: wss://ws.${{ vars.DOMAIN_NAME }}
           VITE_ADMIN_PIN: ${{ secrets.VITE_ADMIN_PIN }}
           VITE_COGNITO_USER_POOL_ID: ${{ env.COGNITO_USER_POOL_ID }}
           VITE_COGNITO_CLIENT_ID: ${{ env.COGNITO_CLIENT_ID }}
@@ -247,7 +247,7 @@ jobs:
 
       - name: Run AI chat evaluation against deployed API
         env:
-          CHAT_API_URL: https://${{ env.API_GATEWAY_ID }}.execute-api.${{ env.AWS_REGION }}.amazonaws.com
+          CHAT_API_URL: https://api.${{ vars.DOMAIN_NAME }}
         run: |
           npm run test:ai -- --url "$CHAT_API_URL" --limit 4
 
@@ -264,7 +264,7 @@ jobs:
         working-directory: ./apps/e2e
         env:
           BASE_URL: https://${{ vars.DOMAIN_NAME }}
-          API_URL: https://${{ env.API_GATEWAY_ID }}.execute-api.${{ env.AWS_REGION }}.amazonaws.com
+          API_URL: https://api.${{ vars.DOMAIN_NAME }}
         run: npx playwright test
       
       - name: Upload Playwright Report
@@ -381,8 +381,8 @@ jobs:
         working-directory: apps/frontend
         env:
           VITE_APP_TITLE: CricScore
-          VITE_API_URL: https://${{ env.API_GATEWAY_ID }}.execute-api.${{ env.AWS_REGION }}.amazonaws.com
-          VITE_WS_URL: wss://${{ env.WS_API_GATEWAY_ID }}.execute-api.${{ env.AWS_REGION }}.amazonaws.com/prod
+          VITE_API_URL: https://api.${{ vars.DOMAIN_NAME }}
+          VITE_WS_URL: wss://ws.${{ vars.DOMAIN_NAME }}
           VITE_ADMIN_PIN: ${{ secrets.VITE_ADMIN_PIN }}
           VITE_COGNITO_USER_POOL_ID: ${{ env.COGNITO_USER_POOL_ID }}
           VITE_COGNITO_CLIENT_ID: ${{ env.COGNITO_CLIENT_ID }}
@@ -401,7 +401,7 @@ jobs:
 
       - name: Run AI chat evaluation against deployed API
         env:
-          CHAT_API_URL: https://${{ env.API_GATEWAY_ID }}.execute-api.${{ env.AWS_REGION }}.amazonaws.com
+          CHAT_API_URL: https://api.${{ vars.DOMAIN_NAME }}
         run: |
           npm run test:ai -- --url "$CHAT_API_URL" --limit 4
 
@@ -418,7 +418,7 @@ jobs:
         working-directory: ./apps/e2e
         env:
           BASE_URL: https://${{ vars.DOMAIN_NAME }}
-          API_URL: https://${{ env.API_GATEWAY_ID }}.execute-api.${{ env.AWS_REGION }}.amazonaws.com
+          API_URL: https://api.${{ vars.DOMAIN_NAME }}
         run: npx playwright test
       
       - name: Upload Playwright Report
