@@ -82,6 +82,26 @@ sequenceDiagram
 
 CricScore natively implements the **Model Context Protocol (MCP)** to standardise and decouple its AI tooling.
 
+To understand why it is designed this way, think of it like a **Manager (the LLM)** and an **Executive Assistant (the MCP Server)**:
+
+- The LLM is very smart, but it has no hands. It cannot touch your database.
+- The MCP Server is not smart, but it holds the keys to the database and can execute commands securely.
+
+### The Exact Flow: Answering a Fan's Question
+
+When a fan asks a question (e.g., _"Who scored the most runs today?"_), the following strictly separated execution occurs:
+
+1. **The Question Arrives:** API Gateway triggers the `chat-api` Lambda.
+2. **The MCP Client Checks Tools:** Inside the Lambda, the MCP Client asks the local MCP Server (also inside the Lambda): _"What tools do you have?"_ The server responds with schemas for tools like `execute_sql`.
+3. **The LLM "Thinks" (External Call):** The MCP Client sends the question and the tool schemas across the internet to the OpenRouter LLM. The LLM thinks: _"I don't know the answer, but I can use `execute_sql` to find out!"_ The LLM replies with a request to execute a specific SQL query.
+4. **The MCP Server "Acts" (Local Execution):** The MCP Client receives this request and turns to the local MCP Server. The MCP Server uses its secret `DATABASE_URL`, connects to Aiven PostgreSQL, executes the query, and gets the JSON result.
+5. **The LLM Answers:** The MCP Client sends the raw database JSON back to the LLM. The LLM reads it and generates a friendly, natural response (e.g., _"Virat was the top scorer with 85 runs!"_).
+6. **The Response:** The final friendly answer is returned to the Fan.
+
+**Why is this brilliant?** The LLM never connected to your database. Your `DATABASE_URL` password never left your AWS cloud. The LLM is strictly kept in a "sandbox" where it can only _request_ that actions be taken, while the MCP Server acts as the secure bouncer.
+
+### Technical Implementation
+
 Instead of tightly coupling database and vector logic directly into the LLM chat router loop, the `chat-api` Lambda operates using an **MCP Client-Server Architecture**:
 
 1. **MCP Server (`mcpServer.js`):** A standalone module that defines the tools (`execute_sql`, `search_tournament_rules`) using the `@modelcontextprotocol/sdk`. It manages the database pooling and security parameters internally.
