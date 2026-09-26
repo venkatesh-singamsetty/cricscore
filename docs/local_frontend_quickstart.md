@@ -62,3 +62,12 @@ The application will start at `http://localhost:5173`.
 ## ❓ Why does this work?
 
 CricScore is designed with a strict **Serverless Microservices** architecture. Because the frontend (React/Vite) is completely decoupled from the backend (AWS API Gateway / Lambda), the frontend doesn't care whether it is hosted on S3/CloudFront or running on your local `localhost:5173`. As long as the `VITE_API_URL` environment variables are pointing to valid backend endpoints, the app will function identically to production.
+
+## 🔒 Security Note: The VITE_ADMIN_PIN Backdoor
+
+You may notice the `VITE_ADMIN_PIN` in the configuration. If you type `/login 1234` inside the AI Chat window, the frontend UI will instantly grant you "admin" buttons (such as the ability to delete matches or update scores) without needing to create a full AWS Cognito account.
+
+However, this is purely a **frontend visual toggle**. If a guest tries to actually click "Delete Match" or attempts to ask the LLM to delete a match, the operation will **fail**:
+
+1. **API Gateway Blocking**: Real destructive actions like `DELETE /matches` require a valid AWS Cognito JWT token. Without one, AWS API Gateway will block the request with a `401 Unauthorized` before it ever reaches the database.
+2. **LLM Sandboxing**: Even if the guest tells the AI Agent to delete a match, the AI's PostgreSQL connection (via the `execute_sql` MCP tool) is strictly hardcoded to use `BEGIN READ ONLY;`. The database itself will reject any `DELETE` or `UPDATE` commands attempted by the AI!
