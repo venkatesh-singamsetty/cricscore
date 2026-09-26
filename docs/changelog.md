@@ -1,3 +1,9 @@
+## [4.3.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.2.2...v4.3.0) (2026-09-26)
+
+### 🚀 Features
+
+* add Antigravity agent skills, rules, and documentation guide ([#205](https://github.com/venkatesh-singamsetty/cricscore/issues/205)) ([292415e](https://github.com/venkatesh-singamsetty/cricscore/commit/292415e7e2d3cea5b847abb50ac3ad62f4f8a58b))
+
 ## [4.2.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.1.2...v4.2.0) (2026-09-26)
 
 ### 🚀 Features
