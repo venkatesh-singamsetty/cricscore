@@ -1,3 +1,13 @@
+## [4.3.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.3.0...v4.3.1) (2026-09-26)
+
+### 🐛 Bug Fixes
+
+* correct score update payload keys for DB sync ([#206](https://github.com/venkatesh-singamsetty/cricscore/issues/206)) ([d63972f](https://github.com/venkatesh-singamsetty/cricscore/commit/d63972f72d5cad16b343478c79bbe2a516bb382c))
+
+### ⚙️ CI/CD Pipelines
+
+* trigger deploy-prod on release completion ([#207](https://github.com/venkatesh-singamsetty/cricscore/issues/207)) ([4bd02a9](https://github.com/venkatesh-singamsetty/cricscore/commit/4bd02a99d43246ee2be6c3fca558280a46ecdcaa))
+
 ## [4.3.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.2.2...v4.3.0) (2026-09-26)
 
 ### 🚀 Features
