@@ -44,7 +44,13 @@ graph TD
         score_update --> SNS{AWS SNS Topic}
 
         %% Agentic AI
-        REST_AI[API Gateway: Chat] --> chat_api[chat-api Lambda]
+        REST_AI[API Gateway: Chat] --> MCP_C
+
+        subgraph chat_api [chat-api Lambda]
+            MCP_C[MCP Client]
+            MCP_S[MCP Server & Tools]
+            MCP_C <-->|Local execution| MCP_S
+        end
 
         %% Consumer logic
         SNS -->|Reliability| SQS[[AWS SQS Queue]]
@@ -76,8 +82,8 @@ graph TD
     %% Explicit data routing
     match_api -->|Initial Setup| PG
     storage_worker -->|ACID Commit| PG
-    chat_api -->|pgvector / Text-to-SQL| PG
-    chat_api <-->|MCP RAG Prompts| LLM
+    MCP_S -->|pgvector / Text-to-SQL| PG
+    MCP_C <-->|Prompt & Tool Calls| LLM
 
     %% User Interaction Labels
     Fan((Fan)) -.->|Request| REST_GET
