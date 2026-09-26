@@ -23,7 +23,7 @@ The `main` branch is entirely locked down. Administrators cannot force-push, and
 Our GitHub Actions pipelines automatically enforce 5 layers of security scanning on every Pull Request:
 
 - **GitLeaks**: Deep historical scanning blocks hardcoded API keys and AWS tokens.
-- **Trivy**: Scans NPM and OS dependencies for known CVEs.
+- **Trivy & npm audit**: Native `npm audit` provides instant local dependency checks, while Trivy comprehensively scans NPM and OS dependencies for known CVEs.
 - **Checkov**: Statically analyzes Terraform logic to prevent IaC misconfigurations (e.g., public S3 buckets).
 - **CodeQL**: Deep SAST analysis to detect logical vulnerabilities in our TypeScript code.
 - **Syft**: Automatically generates a Software Bill of Materials (SBOM) on every release for supply-chain transparency.
@@ -95,8 +95,8 @@ Our GitHub Actions pipelines automatically enforce 5 layers of security scanning
 **Status:** 🛡️ Strictly Enforced
 **The Strategy:** We deliberately duplicate security scans (like `gitleaks` for secrets and `vitest` for code integrity) across three layers to prevent local bypasses:
 
-1. **Pre-Commit (First Line of Defense)**: Hooks stop secrets from ever entering your local `.git` history instantly.
-2. **Pre-Push (Safety Net)**: Hooks catch secrets/failing tests locally before network transmission, saving developer time.
+1. **Pre-Commit (First Line of Defense)**: Hooks stop secrets (`gitleaks`) from ever entering your local `.git` history instantly.
+2. **Pre-Push (Safety Net)**: Hooks catch secrets, failing tests, NPM vulnerabilities (`npm audit`), and active Terraform state locks locally before network transmission, saving developer time.
 3. **GitHub Actions (Ultimate Gatekeeper)**: Because local hooks can fail (e.g., missing dependencies) or be intentionally bypassed (`--no-verify`), GitHub Actions run in a centralized environment. They serve as an un-bypassable lock protecting the `main` branch from regressions and leaks.
 
 ---

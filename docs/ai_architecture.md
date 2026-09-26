@@ -82,12 +82,45 @@ sequenceDiagram
 
 CricScore natively implements the **Model Context Protocol (MCP)** to standardise and decouple its AI tooling.
 
+To understand why it is designed this way, think of it like a **Manager (the LLM)** and an **Executive Assistant (the MCP Server)**:
+
+- The LLM is very smart, but it has no hands. It cannot touch your database.
+- The MCP Server is not smart, but it holds the keys to the database and can execute commands securely.
+
+### The Exact Flow: Answering a Fan's Question
+
+When a fan asks a question (e.g., _"Who scored the most runs today?"_), the following strictly separated execution occurs:
+
+1. **The Question Arrives:** API Gateway triggers the `chat-api` Lambda.
+2. **The MCP Client Checks Tools:** Inside the Lambda, the MCP Client asks the local MCP Server (also inside the Lambda): _"What tools do you have?"_ The server responds with schemas for tools like `execute_sql`.
+3. **The LLM "Thinks" (External Call):** The MCP Client sends the question and the tool schemas across the internet to the OpenRouter LLM. The LLM thinks: _"I don't know the answer, but I can use `execute_sql` to find out!"_ The LLM replies with a request to execute a specific SQL query.
+4. **The MCP Server "Acts" (Local Execution):** The MCP Client receives this request and turns to the local MCP Server. The MCP Server uses its secret `DATABASE_URL`, connects to Aiven PostgreSQL, executes the query, and gets the JSON result.
+5. **The LLM Answers:** The MCP Client sends the raw database JSON back to the LLM. The LLM reads it and generates a friendly, natural response (e.g., _"Virat was the top scorer with 85 runs!"_).
+6. **The Response:** The final friendly answer is returned to the Fan.
+
+**Why is this brilliant?** The LLM never connected to your database. Your `DATABASE_URL` password never left your AWS cloud. The LLM is strictly kept in a "sandbox" where it can only _request_ that actions be taken, while the MCP Server acts as the secure bouncer.
+
+### Technical Implementation
+
 Instead of tightly coupling database and vector logic directly into the LLM chat router loop, the `chat-api` Lambda operates using an **MCP Client-Server Architecture**:
 
 1. **MCP Server (`mcpServer.js`):** A standalone module that defines the tools (`execute_sql`, `search_tournament_rules`) using the `@modelcontextprotocol/sdk`. It manages the database pooling and security parameters internally.
 2. **MCP Client (`index.js`):** The main Lambda handler instantiates an MCP Client, connects to the MCP Server via `InMemoryTransport`, and dynamically lists the tools. When the LLM decides to call a tool, the client simply delegates the call via the standardized `client.callTool()` interface.
 
 _Why use `InMemoryTransport`?_ Standard MCP typically runs over `stdio` or WebSockets/SSE for local IDE or distributed execution. By utilizing the `InMemoryTransport` within the Lambda, we achieve the perfect architectural decoupling and standardization of MCP without needing to provision expensive, long-running ECS/EC2 containers to host an SSE server!
+
+### ⏳ The Serverless Execution Lifecycle
+
+Because the MCP Client and Server run on AWS Lambda via `InMemoryTransport`, their execution speed is determined by the Serverless lifecycle:
+
+1. **The "Cold Start" (The first question in a while)**
+   If no questions have been asked for ~15 minutes, AWS terminates the container to save money. When a new question arrives, AWS spins up a new micro-container and boots Node.js. Because the MCP Client & Server are just JavaScript classes in memory, they initialize in just **~2 to 5 milliseconds**. The entire boot process takes roughly **500ms to 1 second** before sending the prompt to the LLM.
+
+2. **The "Warm Start" (Subsequent questions)**
+   If another question is asked shortly after, AWS reuses the "frozen" container. The Node.js environment, database connection pool, and **MCP Client/Server are already initialized and waiting in memory**. The boot time is **~0 milliseconds**, and the prompt is instantly routed to the LLM.
+
+**How long does the MCP Server stay alive?**
+It stays alive exactly as long as the Lambda container stays alive. Between questions, AWS freezes the container (you do not pay for frozen time). After roughly 15 to 45 minutes of complete inactivity, AWS destroys the container and the MCP Server with it, returning your AWS bill to $0.00.
 
 ## 📚 Vector RAG: Multi-Document PDF Tournament Rules
 

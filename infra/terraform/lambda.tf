@@ -12,6 +12,7 @@ resource "aws_lambda_function" "match_api" {
   handler          = "index.handler"
   runtime          = "nodejs24.x"
   source_code_hash = data.archive_file.match_api_zip.output_base64sha256
+  timeout          = 30
 
   tracing_config {
     mode = "Active"
