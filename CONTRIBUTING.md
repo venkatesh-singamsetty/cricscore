@@ -37,7 +37,25 @@ Before committing, you can run the full local verification script which perfectl
 
 ---
 
-### 3. Commit Using Conventional Commit Format
+### 3. Test Full-Stack Changes in the Cloud Sandbox
+
+Because CricScore is a strict Serverless application, we **do not** emulate AWS API Gateway or Lambdas on localhost. To test your frontend and backend changes together before committing:
+
+1. **Deploy backend to your sandbox:** Push your local backend changes to the live AWS `dev` environment:
+   ```bash
+   ./infra/scripts/deploy.sh dev
+   ```
+2. **Run frontend locally:** Start your local React app and point it to the `dev` endpoints:
+   ```bash
+   cd apps/frontend
+   npm run dev
+   ```
+
+Your local frontend is now communicating with the exact AWS backend code you just modified.
+
+---
+
+### 4. Commit Using Conventional Commit Format
 
 Follow the [Conventional Commits](https://www.conventionalcommits.org/) specification for commit messages:
 
