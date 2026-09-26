@@ -75,10 +75,11 @@ This document provides quick-access UI links to view the live AWS resources, tel
 
 AWS X-Ray visualizes the request path between API Gateway, Lambda, and SNS, helping identify latency bottlenecks or 5xx failures.
 
-- [**Custom Mission Control Dashboard**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#dashboards/dashboard/cricscoredev-mission-control): A unified, custom Terraform-provisioned dashboard showing API traffic, Lambda invocations, and SQS queue depths in one place.
+- [**CloudWatch Log Groups**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups): Structured JSON logs for all Lambda functions.
+- [**CloudWatch Metrics**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#metricsV2): View API traffic, Lambda invocations, and SQS queue depths individually (free alternative to a paid dashboard).
 - [**X-Ray Service Map**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#xray:service-map/map): A visual node-graph of all interacting services.
 - [**X-Ray Traces Dashboard**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#xray:traces/query): Detailed timelines of individual HTTP requests.
-- [**CloudWatch Alarms Dashboard**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#alarmsV2:): View active alarms for API 5XX errors and Lambda timeouts.
+- [**CloudWatch Alarms Dashboard**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#alarmsV2:): View active alarms for Match API and Score Update Lambda errors.
 
 ---
 
