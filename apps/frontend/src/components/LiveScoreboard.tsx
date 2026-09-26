@@ -229,9 +229,74 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
             prev ? { ...prev, totalOvers: data.matchTotalOvers } : null,
           );
         }
-        if (targetMatchId) {
-          // Delay by 1s to allow SQS storage-worker to update PostgreSQL before reading
-          setTimeout(() => fetchMatchDetails(targetMatchId, true), 1000);
+
+        // OPTIMISTIC UPDATE: Eliminate lag and eventual consistency issues
+        if (data.explicitTotalRuns !== undefined) {
+          setMatchDetails((prev: any) => {
+            if (!prev) return prev;
+            const updatedInnings = [...prev.innings];
+            const targetInningIndex = updatedInnings.findIndex(
+              (i: any) => i.id === data.inningId,
+            );
+            if (targetInningIndex > -1) {
+              const inn = { ...updatedInnings[targetInningIndex] };
+              inn.totalRuns = data.explicitTotalRuns;
+              inn.totalWickets = data.explicitTotalWickets;
+              inn.overs = data.currentOvers;
+              inn.balls = data.currentBalls;
+
+              if (data.strikerName && data.runs !== undefined) {
+                const striker = Object.values(inn.players).find(
+                  (p: any) => p.name === data.strikerName,
+                ) as any;
+                if (striker) {
+                  striker.runs = data.runs;
+                  striker.ballsFaced = data.ballsFaced;
+                  striker.fours = data.fours;
+                  striker.sixes = data.sixes;
+                } else {
+                  const id = "p_" + Date.now();
+                  inn.players[id] = {
+                    id,
+                    name: data.strikerName,
+                    runs: data.runs,
+                    ballsFaced: data.ballsFaced,
+                    fours: data.fours,
+                    sixes: data.sixes,
+                  };
+                }
+              }
+
+              if (data.strikerName) {
+                const s = Object.values(inn.players).find(
+                  (p: any) => p.name === data.strikerName,
+                ) as any;
+                if (s) inn.strikerId = s.id;
+                else inn.striker_name = data.strikerName; // Fallback for find() later
+              }
+              if (data.nonStrikerName) {
+                const ns = Object.values(inn.players).find(
+                  (p: any) => p.name === data.nonStrikerName,
+                ) as any;
+                if (ns) inn.nonStrikerId = ns.id;
+                else inn.non_striker_name = data.nonStrikerName;
+              }
+              if (data.bowlerName) {
+                let b = Object.values(inn.bowlers).find(
+                  (b: any) => b.name === data.bowlerName,
+                ) as any;
+                if (!b) {
+                  const id = "b_" + Date.now();
+                  inn.bowlers[id] = { id, name: data.bowlerName };
+                  b = inn.bowlers[id];
+                }
+                inn.currentBowlerId = b.id;
+              }
+
+              updatedInnings[targetInningIndex] = inn;
+            }
+            return { ...prev, innings: updatedInnings };
+          });
         }
       } else {
         console.warn("❌ Match id mismatch. Ignoring.");
@@ -239,7 +304,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
     } else if (lastMessage?.type === "HUB_UPDATE") {
       setHubUpdateTrigger((prev) => prev + 1);
       if (targetMatchId) {
-        setTimeout(() => fetchMatchDetails(targetMatchId, true), 1000);
+        fetchMatchDetails(targetMatchId, true);
       }
     }
   }, [lastMessage, targetMatchId, fetchMatchDetails]);
@@ -656,10 +721,15 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
               const i2 = matchDetails.innings[1];
               const result = i2
                 ? (() => {
-                    if (i2.totalRuns > i1.totalRuns)
-                      return `${i2.battingTeamName} WON BY ${10 - i2.totalWickets} WICKETS`;
-                    if (i1.totalRuns > i2.totalRuns)
-                      return `${i1.battingTeamName} WON BY ${i1.totalRuns - i2.totalRuns} RUNS`;
+                    const i1Runs = Number(i1.totalRuns || 0);
+                    const i2Runs = Number(i2.totalRuns || 0);
+                    const i2Wickets = Number(i2.totalWickets || 0);
+
+                    if (i2Runs > i1Runs) {
+                      return `${i2.battingTeamName} WON BY ${10 - i2Wickets} WICKETS`;
+                    } else if (i1Runs > i2Runs) {
+                      return `${i1.battingTeamName} WON BY ${i1Runs - i2Runs} RUNS`;
+                    }
                     return "MATCH TIED";
                   })()
                 : "MATCH COMPLETED";
