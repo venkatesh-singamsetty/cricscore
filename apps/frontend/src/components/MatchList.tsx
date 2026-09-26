@@ -134,13 +134,23 @@ const MatchList: React.FC<MatchListProps> = ({
 
     if (i2Runs > i1Runs) {
       return `${i2.batting_team_name} WON BY ${10 - i2Wickets} WICKETS`;
-    } else if (i1Runs > i2Runs) {
+    } else if (i1Runs > i2Runs && (i2Overs >= totalOvers || i2Wickets >= 10)) {
+      // Team 1 wins only if Team 2 is all out or ran out of overs
       return `${i1.batting_team_name} WON BY ${i1Runs - i2Runs} RUNS`;
     } else if (
       i1Runs === i2Runs &&
       (i2Overs >= totalOvers || i2Wickets >= 10)
     ) {
       return "MATCH TIED";
+    }
+
+    // Match is completed but condition wasn't met (e.g. DLS, admin manual end)
+    if (match.status === "COMPLETED") {
+      return i1Runs > i2Runs
+        ? `${i1.batting_team_name} WON BY ${i1Runs - i2Runs} RUNS`
+        : i2Runs > i1Runs
+          ? `${i2.batting_team_name} WON BY ${10 - i2Wickets} WICKETS`
+          : "MATCH TIED";
     }
 
     return null;
