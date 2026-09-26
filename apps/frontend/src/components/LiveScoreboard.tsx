@@ -449,6 +449,9 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                         )}
 
                         <div className="flex items-baseline gap-2">
+                          <span className="text-xl font-black text-slate-300 uppercase tracking-tighter mr-2">
+                            {currentInnings.battingTeamName}:
+                          </span>
                           <span className="text-4xl font-black text-white tabular-nums tracking-tighter italic">
                             {currentInnings.totalRuns}
                             <span className="text-slate-600 mx-1">/</span>
