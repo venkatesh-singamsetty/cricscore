@@ -2,8 +2,7 @@ import { test, expect } from "@playwright/test";
 
 // Define the API URL (matching the core API setup)
 const API_URL =
-  process.env.API_URL ||
-  "https://ispht71fh0.execute-api.us-east-1.amazonaws.com";
+  process.env.API_URL || "https://api.cricscoredev.venkateshsingamsetty.com";
 
 test.describe("AI (Agentic RAG) API Integration Tests", () => {
   test("should return successful response for OPTIONS request on /chat", async ({

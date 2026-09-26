@@ -195,10 +195,10 @@ If a CI/CD job crashes or network drops mid-deployment, the lock may remain acti
 
 CricScore maintains strict environment isolation using **Terraform Workspaces & Variable Files**:
 
-| Environment | State Key                          | Variable File              | Domain Name                              |
-| :---------- | :--------------------------------- | :------------------------- | :--------------------------------------- |
-| **Dev**     | `cricscore/dev/terraform.tfstate`  | `environments/dev.tfvars`  | `cricscoredev.venkateshsingamsetty.site` |
-| **Prod**    | `cricscore/prod/terraform.tfstate` | `environments/prod.tfvars` | `cricscore.venkateshsingamsetty.site`    |
+| Environment | State Key                          | Variable File              | Domain Name                             |
+| :---------- | :--------------------------------- | :------------------------- | :-------------------------------------- |
+| **Dev**     | `cricscore/dev/terraform.tfstate`  | `environments/dev.tfvars`  | `cricscoredev.venkateshsingamsetty.com` |
+| **Prod**    | `cricscore/prod/terraform.tfstate` | `environments/prod.tfvars` | `cricscore.venkateshsingamsetty.com`    |
 
 Both environments share the exact same `.tf` files in `infra/terraform/`, ensuring 100% environment parity.
 

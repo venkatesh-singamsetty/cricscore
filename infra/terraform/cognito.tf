@@ -41,8 +41,8 @@ resource "aws_cognito_user_pool_client" "client" {
   allowed_oauth_flows                  = ["code", "implicit"]
   allowed_oauth_scopes                 = ["email", "openid", "profile"]
 
-  callback_urls = ["http://localhost:5173/", "https://${var.domain_name}/"]
-  logout_urls   = ["http://localhost:5173/", "https://${var.domain_name}/"]
+  callback_urls = ["http://localhost:3000/", "https://${var.domain_name}/"]
+  logout_urls   = ["http://localhost:3000/", "https://${var.domain_name}/"]
 
   explicit_auth_flows = [
     "ALLOW_USER_PASSWORD_AUTH",

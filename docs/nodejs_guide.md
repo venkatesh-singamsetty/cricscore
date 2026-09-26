@@ -63,3 +63,26 @@ In modern frontend development (using Vite), there are three primary commands yo
 - **What it does:** It acts as a local "dry run" for your production code. It boots up a fast local web server that reads directly from the optimized `dist/` folder that `npm run build` just created.
 - **Special Powers:** Lets you test the exact, minified code that your end-users will experience to ensure the optimizer didn't accidentally break any CSS or logic.
 - **When to use it:** Right before you push code to `main`, just to verify that the squished production bundle looks exactly the same as your development sandbox.
+
+---
+
+## 4. Dependency Security (`npm audit`)
+
+Because `node_modules` pulls in code written by thousands of strangers on the internet, it is entirely possible that a hacker discovers a vulnerability (like a backdoor or data leak) in one of those third-party libraries.
+
+To protect against this, NPM has a built-in security scanner:
+
+### 🛡️ `npm audit`
+
+- **What it does:** It cross-references the exact versions of every library in your `package-lock.json` against the global GitHub Advisory Database of known vulnerabilities (CVEs).
+- **When to use it:** We actually automated this! It runs automatically via our `./infra/scripts/validate_local.sh` script every time you type `git push`. If it finds a `High` or `Critical` vulnerability, it will intentionally block your push.
+
+### 🔧 How to fix a vulnerability
+
+If `npm audit` ever blocks your push by flagging a vulnerable package, you can almost always fix it instantly by running:
+
+```bash
+npm audit fix
+```
+
+This tells NPM to automatically upgrade the compromised package to the newest, safe version patched by the community.

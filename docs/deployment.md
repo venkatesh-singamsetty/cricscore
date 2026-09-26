@@ -146,13 +146,37 @@ VITE_SENTRY_DSN=
 
 This creates the S3 bucket and DynamoDB table that store your Terraform state, plus the Route 53 hosted zone for your domain. **Run this once.**
 
-### 3a. Update `infra/terraform/providers.tf`
+### 3a. Configure and Run Bootstrap
 
-Open `infra/terraform/providers.tf` and set your state bucket name (must be globally unique):
+The bootstrap creates the S3 state bucket, DynamoDB lock table, and Route 53 hosted zone.
+
+1. Navigate to the bootstrap folder:
+
+```bash
+cd infra/terraform/bootstrap
+```
+
+2. Copy the example variables file:
+
+```bash
+cp terraform.tfvars.example terraform.tfvars
+```
+
+3. Open `terraform.tfvars` and fill in your desired bucket name and domain name.
+4. Apply the configuration:
+
+```bash
+terraform init
+terraform apply
+```
+
+### 3b. Update `infra/terraform/providers.tf`
+
+Now that your bucket exists, tell the main infrastructure where to store its state. Open `infra/terraform/providers.tf` and match the exact bucket name you just used in the bootstrap:
 
 ```hcl
 backend "s3" {
-  bucket         = "yourname-cricscore-state"   # Pick a unique name
+  bucket         = "yourname-cricscore-state"   # Match the bootstrap bucket name
   key            = "cricscore/terraform.tfstate"
   region         = "us-east-1"
   dynamodb_table = "terraform-state-locking"
@@ -160,17 +184,7 @@ backend "s3" {
 }
 ```
 
-Then in `infra/terraform/bootstrap/` apply the bootstrap config:
-
-```bash
-cd infra/terraform/bootstrap
-terraform init
-terraform apply
-```
-
-This creates the S3 state bucket, DynamoDB lock table, and Route 53 hosted zone.
-
-### 3b. Point your domain to AWS
+### 3c. Point your domain to AWS
 
 After the bootstrap runs, AWS gives you 4 nameservers:
 
@@ -180,7 +194,7 @@ After the bootstrap runs, AWS gives you 4 nameservers:
 4. Replace the default nameservers with your 4 AWS nameservers
 5. Wait **15–60 minutes** for DNS propagation
 
-### 3c. Verify SES email
+### 3d. Verify SES email
 
 1. Go to **AWS Console → SES → Verified Identities → Create Identity**
 2. Enter `yourdomain.com` and verify ownership via the DNS TXT record shown

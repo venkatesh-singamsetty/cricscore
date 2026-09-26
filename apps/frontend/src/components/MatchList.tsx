@@ -58,7 +58,7 @@ const MatchList: React.FC<MatchListProps> = ({
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const API_URL =
     import.meta.env.VITE_API_URL ||
-    "https://ispht71fh0.execute-api.us-east-1.amazonaws.com";
+    "https://api.cricscoredev.venkateshsingamsetty.com";
   const WS_URL = import.meta.env.VITE_WS_URL || "";
 
   const fetchMatches = async () => {

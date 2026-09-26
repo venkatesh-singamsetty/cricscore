@@ -27,9 +27,9 @@ output "s3_bucket_name" {
 }
 
 output "http_api_url" {
-  value = "https://${aws_apigatewayv2_api.http_api.id}.execute-api.${var.aws_region}.amazonaws.com"
+  value = "https://${aws_apigatewayv2_domain_name.http_api.domain_name}"
 }
 
 output "websocket_url" {
-  value = "wss://${aws_apigatewayv2_api.websocket_api.id}.execute-api.${var.aws_region}.amazonaws.com/prod"
+  value = "wss://${aws_apigatewayv2_domain_name.ws_api.domain_name}"
 }

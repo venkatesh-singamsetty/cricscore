@@ -25,22 +25,37 @@ git checkout -b fix/auth-token-refresh
 
 ### 2. Make & Test Your Changes Locally
 
-Before committing, make sure your changes pass all local verification scripts:
+Before committing, you can run the full local verification script which perfectly mirrors the CI/CD pipeline. This script includes Linting, Unit Tests, `npm audit`, Terraform formatting, DynamoDB lock checks, Trivy security scans, and Playwright E2E tests:
 
 ```bash
-# Ensure code formatting and TypeScript types match project standards
-npm run lint
+# Run the full validation suite (takes 1-3 minutes)
+./infra/scripts/validate_local.sh
 
-# Run unit tests across workspaces (Frontend & Backend)
-npm run test:all
-
-# Run Playwright E2E browser tests against deployed environment
-npm run test:e2e
+# Run the validation suite but skip the heavy Playwright tests
+./infra/scripts/validate_local.sh --skip-e2e
 ```
 
 ---
 
-### 3. Commit Using Conventional Commit Format
+### 3. Test Full-Stack Changes in the Cloud Sandbox
+
+Because CricScore is a strict Serverless application, we **do not** emulate AWS API Gateway or Lambdas on localhost. To test your frontend and backend changes together before committing:
+
+1. **Deploy backend to your sandbox:** Push your local backend changes to the live AWS `dev` environment:
+   ```bash
+   ./infra/scripts/deploy.sh --env dev --use-local-env
+   ```
+2. **Run frontend locally:** Start your local React app and point it to the `dev` endpoints:
+   ```bash
+   cd apps/frontend
+   npm run dev
+   ```
+
+Your local frontend will start at **http://localhost:3000** and is now communicating with the exact AWS backend code you just modified!
+
+---
+
+### 4. Commit Using Conventional Commit Format
 
 Follow the [Conventional Commits](https://www.conventionalcommits.org/) specification for commit messages:
 
@@ -68,6 +83,8 @@ Push your topic branch to the remote repository:
 ```bash
 git push -u origin fix/auth-token-refresh
 ```
+
+> **Note:** The repository uses a Git `pre-push` hook. Every time you push, it will automatically run `./infra/scripts/validate_local.sh --skip-e2e`. If any unit tests, formatting checks, security audits, or Terraform state locks fail, your push will be blocked!
 
 _(Note: Direct pushes to `main` will be rejected by GitHub Branch Protection rules)_
 

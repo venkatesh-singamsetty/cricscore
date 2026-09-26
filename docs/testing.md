@@ -135,7 +135,7 @@ Because E2E tests require specific browser binaries, you must run them directly 
 > By default, `npx playwright test` targets the live production URL. Do not run this command locally unless you intend to create test records in your production database! To test against a local server, specify the `BASE_URL`:
 >
 > ```bash
-> BASE_URL=http://localhost:5173 npx playwright test
+> BASE_URL=http://localhost:3000 npx playwright test
 > ```
 
 ---

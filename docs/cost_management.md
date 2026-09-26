@@ -45,20 +45,28 @@ This document provides a breakdown of the estimated operational costs for the Cr
 
 ### 7. **Monitoring: AWS CloudWatch Alarms**
 
-- **Cost**: First 10 custom alarms per month are **FREE**.
-- **Usage**: The platform uses 2 alarms (Match API and Score Update errors). $0/month.
+- **Cost**: First **10 alarms** per month are **FREE**.
+- **Usage**: The platform provisions 2 alarms (`match-api-errors`, `score-update-errors`). **$0/month**.
+- **Includes SNS email alerts** — SNS topic and email subscription are both within the SNS free tier.
 
 ### 8. **Distributed Tracing: AWS X-Ray**
 
 - **Cost**: First 100,000 traces recorded per month are **FREE**.
 - **Usage**: A strict 5% Sampling Rule is enforced in `infra/terraform/xray.tf`. Even at 1,000,000 API requests, we will only trace ~50,000 requests, guaranteeing $0/month cost.
 
-### 9. **CI/CD Automation: GitHub Actions**
+### 9. **CloudWatch Dashboard** _(removed — paid)_
+
+- **Cost**: **$3.00/month** per dashboard. No free tier.
+- **Decision**: The Terraform-provisioned `aws_cloudwatch_dashboard` (Mission Control) was removed in Sept 2026 to maintain a strict $0 observability footprint.
+- **Alternative**: All the same metrics (Lambda errors, API traffic, SQS depth) are still accessible individually in the [CloudWatch Metrics console](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#metricsV2) at no cost — just not aggregated into a single screen.
+- **Saving**: **$3.00/month** eliminated.
+
+### 10. **CI/CD Automation: GitHub Actions**
 
 - **Cost**: First 2,000 execution minutes per month are **FREE** for private repositories (Unlimited for public).
 - **Usage**: CI/CD checks, Semantic Releases, Drift Detection, and E2E Tests use a fraction of these minutes. $0/month.
 
-### 10. **Encryption: AWS KMS** _(removed)_
+### 11. **Encryption: AWS KMS** _(removed)_
 
 - **Previously**: A Customer Managed Key (CMK) was used to encrypt S3, SNS, and SQS resources, costing **$1.00/month** per key + API call charges (~$2/month total).
 - **Now**: All resources use free AWS-managed encryption:
@@ -67,7 +75,7 @@ This document provides a breakdown of the estimated operational costs for the Cr
   - SQS → `sqs_managed_sse_enabled` — **$0**
 - **Saving**: ~$2.00/month eliminated with no reduction in encryption strength.
 
-### 11. **Identity: AWS Cognito User Pool** _(new)_
+### 12. **Identity: AWS Cognito User Pool** _(new)_
 
 - **Free Tier Limit**: **50,000 Monthly Active Users (MAUs)** per month, permanently free.
 - **What's included**: Sign-up, sign-in, token issuance (JWT), user pool storage, group management (`Admin` group), and pre-signup Lambda triggers.
@@ -99,7 +107,7 @@ CricScore is designed for **maximum profitability** on minimal infrastructure. B
 | **1 Month** | $0.500           | $0.00        | $0.160         | **~$0.660**    |
 | **1 Year**  | $6.000           | $0.00        | $2.000         | **~$8.000**    |
 
-_Note: Route 53 Hosted Zone is a fixed $0.50/mo. Domain costs vary ($2+ for .site/.me, ~$12 for .com). KMS CMK cost (~$2/mo) was eliminated in Sept 2026 by switching to free AWS-managed encryption. Cognito User Pool is free for ≤50,000 MAUs/month._
+_Note: Route 53 Hosted Zone is a fixed $0.50/mo. Domain costs vary ($2+ for .site/.me, ~$12 for .com). KMS CMK cost (~$2/mo) eliminated Sept 2026 by switching to free AWS-managed encryption. CloudWatch Dashboard ($3/mo) eliminated Sept 2026 — removed from Terraform. Cognito User Pool is free for ≤50,000 MAUs/month._
 
 ---
 

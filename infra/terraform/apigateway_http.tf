@@ -261,3 +261,63 @@ resource "aws_lambda_permission" "api_gw_chat" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.http_api.execution_arn}/*/*"
 }
+
+# --- Custom Domain for HTTP API ---
+resource "aws_acm_certificate" "http_api" {
+  domain_name       = "api.${var.domain_name}"
+  validation_method = "DNS"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_route53_record" "http_api_cert_validation" {
+  for_each = {
+    for dvo in aws_acm_certificate.http_api.domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    }
+  }
+
+  allow_overwrite = true
+  name            = each.value.name
+  records         = [each.value.record]
+  ttl             = 60
+  type            = each.value.type
+  zone_id         = data.aws_route53_zone.selected.zone_id
+}
+
+resource "aws_acm_certificate_validation" "http_api" {
+  certificate_arn         = aws_acm_certificate.http_api.arn
+  validation_record_fqdns = [for record in aws_route53_record.http_api_cert_validation : record.fqdn]
+}
+
+resource "aws_apigatewayv2_domain_name" "http_api" {
+  domain_name = "api.${var.domain_name}"
+
+  domain_name_configuration {
+    certificate_arn = aws_acm_certificate_validation.http_api.certificate_arn
+    endpoint_type   = "REGIONAL"
+    security_policy = "TLS_1_2"
+  }
+}
+
+resource "aws_apigatewayv2_api_mapping" "http_api" {
+  api_id      = aws_apigatewayv2_api.http_api.id
+  domain_name = aws_apigatewayv2_domain_name.http_api.id
+  stage       = aws_apigatewayv2_stage.default.id
+}
+
+resource "aws_route53_record" "http_api" {
+  name    = aws_apigatewayv2_domain_name.http_api.domain_name
+  type    = "A"
+  zone_id = data.aws_route53_zone.selected.zone_id
+
+  alias {
+    name                   = aws_apigatewayv2_domain_name.http_api.domain_name_configuration[0].target_domain_name
+    zone_id                = aws_apigatewayv2_domain_name.http_api.domain_name_configuration[0].hosted_zone_id
+    evaluate_target_health = false
+  }
+}
