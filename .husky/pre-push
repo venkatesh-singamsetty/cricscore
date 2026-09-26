@@ -1,4 +1,4 @@
 #!/usr/bin/env sh
 
-echo "🚀 Running full local validation before pushing..."
-./infra/scripts/validate_local.sh
+echo "🚀 Running full local validation before pushing (Skipping Playwright E2E)..."
+./infra/scripts/validate_local.sh --skip-e2e

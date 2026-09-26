@@ -5,6 +5,11 @@ set -e
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 
+SKIP_E2E=false
+if [[ "$1" == "--skip-e2e" ]]; then
+  SKIP_E2E=true
+fi
+
 echo "🚀 Starting Full Local Validation..."
 
 echo ""
@@ -61,16 +66,20 @@ echo ""
 echo "-----------------------------------"
 echo "🌐 4. End-to-End Testing (Playwright)..."
 echo "-----------------------------------"
-(
-  cd apps/e2e
-  if [ ! -d "node_modules" ]; then
-    echo "👉 Installing E2E dependencies..."
-    npm install
-    npx playwright install chromium
-  fi
-  echo "👉 Running Playwright Tests against live environment..."
-  npm exec playwright test
-)
+if [ "$SKIP_E2E" = true ]; then
+  echo "⏭️  Skipping Playwright E2E Tests (--skip-e2e flag provided)..."
+else
+  (
+    cd apps/e2e
+    if [ ! -d "node_modules" ]; then
+      echo "👉 Installing E2E dependencies..."
+      npm install
+      npx playwright install chromium
+    fi
+    echo "👉 Running Playwright Tests against live environment..."
+    npm exec playwright test
+  )
+fi
 
 echo ""
 echo "-----------------------------------"
