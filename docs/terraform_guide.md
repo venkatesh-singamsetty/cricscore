@@ -149,7 +149,7 @@ Review the output:
 Apply the saved execution plan to provision resources in AWS:
 
 ```bash
-terraform apply auto-approve tfplan
+terraform apply tfplan
 ```
 
 ---

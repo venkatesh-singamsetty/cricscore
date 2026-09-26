@@ -19,9 +19,11 @@ GitHub enforces extremely strict directory constraints for its automated service
 └── workflows/               <-- Flat folder structure
     ├── ci-cd.yml
     ├── codeql.yml
+    ├── deploy-prod.yml
     ├── drift.yml
     ├── e2e.yml
     ├── keepalive.yml
+    ├── pr-summary.yml
     ├── release.yml
     ├── sbom.yml
     └── secrets.yml
@@ -33,47 +35,57 @@ Because we are forced to keep all workflow files completely flat inside the `.gi
 
 ### Core CI/CD (Triggered on Push to `main`)
 
-These pipelines validate, deploy, and verify the application end-to-end. On every push to `main`, the **Backend & Infrastructure CI/CD** pipeline runs as the authoritative deployment gate:
+These pipelines validate, deploy, and verify the application end-to-end on the DEV environment.
 
+```mermaid
+graph TD
+    Push[Push to 'main'] --> Validate
+    Validate[1. Validate<br>Unit tests, Checkov, TF Lint] --> DeployDev
+
+    DeployDev[2. Deploy DEV<br>Terraform Apply (Backend)] --> E2E
+    DeployDev -.->|Parallel| DeployDevFront[2b. Deploy DEV Frontend<br>React Build & S3 Sync]
+    DeployDevFront --> E2E
+
+    E2E[3. Playwright E2E<br>Test against live DEV site] --> Release
+    Release[4. Semantic Release<br>Auto-generates tag e.g. v2.0.0]
+
+    style Push fill:#2c3e50,stroke:#fff
+    style Release fill:#27ae60,stroke:#fff
 ```
-push to main
-  │
-  ▼
-[1] validate          — Backend unit tests + Terraform format/validate + Checkov
-  │
-  ▼
-[2] deploy_dev        — Terraform apply to DEV AWS environment (backend + lambdas)
-  │ (parallel)
-  └──▶ Frontend deploy_dev — Build React bundle → upload to DEV S3 + CloudFront
-  │
-  ▼
-[3] e2e_dev           — Playwright E2E against DEV site (TEAM A vs TEAM B match)
-                        ✅ Match is preserved in DEV DB for manual visual verification
-  │
-  │  (blocked if e2e_dev fails — PROD will NOT be deployed)
-  ▼
-[4] deploy_backend_prod   — Requires manual approval in GitHub (environment: prod)
-                        Once approved: Terraform apply to PROD AWS environment
-  │ (sequential)
-  └──▶ deploy_frontend_prod — Build React bundle → upload to PROD S3 + CloudFront
-  │
-  ▼
-[5] e2e_prod          — Playwright E2E against PROD site (TEAM A vs TEAM B match)
-                        ✅ Match is preserved in PROD DB for manual visual verification
-  │
-  └──▶ dast_prod            — OWASP ZAP Baseline Security Scan against PROD
+
+### PROD Deployment (Triggered on Tag Push)
+
+PROD deployments are strictly tied to semantic version tags, allowing immediate rollbacks to previous versions.
+
+```mermaid
+graph TD
+    TagPush[Push tag 'v*'] --> Approval
+    Approval{Manual Approval<br>GitHub Environments} -->|Approved| DeployProd
+
+    DeployProd[1. Deploy PROD<br>Terraform Apply (Backend)] --> E2EProd
+    DeployProd -.->|Parallel| DeployProdFront[1b. Deploy PROD Frontend<br>React Build & S3 Sync]
+    DeployProdFront --> E2EProd
+
+    E2EProd[2. Playwright E2E<br>Test against live PROD site]
+    DeployProdFront --> ZAP
+    ZAP[2b. DAST ZAP Scan<br>Security scan against PROD]
+
+    style TagPush fill:#2c3e50,stroke:#fff
+    style Approval fill:#f39c12,stroke:#fff
+    style ZAP fill:#c0392b,stroke:#fff
 ```
 
 **Key gates:**
 
-- **DEV E2E must pass** before PROD deployment is even attempted
-- **A SINGLE Manual approval is required** before any PROD deployment runs (GitHub environment protection on `deploy_backend_prod`)
-- **E2E matches are preserved** in both DEV and PROD after each run so you can visually verify the scoreboard, live scoring, and UI before signing off
+- **DEV E2E must pass** before a semantic version tag is created.
+- **A SINGLE Manual approval is required** before any PROD deployment runs (GitHub environment protection on `deploy_prod`).
+- **Rollbacks are instant** by manually triggering the `Deploy PROD` workflow and providing an older tag.
 
 **Workflows:**
 
-- `ci-cd.yml`: Runs the fully unified pipeline above (validate frontend & backend → deploy_dev → dast_dev → e2e_dev → deploy_prod → dast_prod → e2e_prod). Also runs validation-only on PRs.
-- `e2e.yml`: Runs Playwright E2E on **pull requests only** against the DEV environment for pre-merge validation.
+- `ci-cd.yml`: Validates code, deploys to DEV, runs ZAP & E2E against DEV.
+- `deploy-prod.yml`: Deploys a specific tag to PROD, runs ZAP & E2E against PROD.
+- `e2e.yml`: A placeholder check for pull requests; actual E2E execution is deferred to the DEV and PROD deployment workflows.
 
 ### Security & Governance (Triggered on Pull Request)
 
@@ -82,6 +94,7 @@ These pipelines perform deep static analysis and compliance checks.
 - `codeql.yml`: GitHub Native Static Application Security Testing (SAST).
 - `secrets.yml`: GitLeaks detection for hardcoded AWS keys or passwords.
 - `sbom.yml`: Generates the SPDX Software Bill of Materials.
+- `pr-summary.yml`: AI-powered workflow that automatically generates a summary of the PR and tracks status check completions.
 
 ### Automated Operations (CRON / Triggers)
 

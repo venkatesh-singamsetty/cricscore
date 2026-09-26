@@ -66,7 +66,25 @@ In modern frontend development (using Vite), there are three primary commands yo
 
 ---
 
-## 4. Dependency Security (`npm audit`)
+## 4. Local Code Quality & Testing
+
+Before you push your code to GitHub and wait for the CI/CD pipeline to analyze it, you can (and should!) run these quality checks locally on your own machine.
+
+### 🧪 `npm run test` (The Test Suite)
+
+- **What it does:** Runs **Vitest** to execute the entire suite of automated unit tests.
+- **Special Powers:** You can use `npm run test:watch` to keep the test runner open. Every time you save a file, it will instantly re-run only the tests related to that specific file!
+- **When to use it:** While writing new logic, or right before pushing a branch to ensure you haven't broken any existing features.
+
+### 🧹 `npm run lint` (The Code Police)
+
+- **What it does:** Runs the TypeScript Compiler (`tsc --noEmit`) to verify that all of your data types are perfectly aligned across the entire application without actually building the app.
+- **Special Powers:** We also have `npm run lint:eslint` which sweeps through your files and enforces strict coding standards (like preventing unused variables or bad React hooks).
+- **When to use it:** If you want to make absolutely sure the GitHub Actions pipeline won't reject your code for a silly typo.
+
+---
+
+## 5. Dependency Security (`npm audit`)
 
 Because `node_modules` pulls in code written by thousands of strangers on the internet, it is entirely possible that a hacker discovers a vulnerability (like a backdoor or data leak) in one of those third-party libraries.
 

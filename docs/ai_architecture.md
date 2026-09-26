@@ -453,7 +453,9 @@ DELETE FROM matches RETURNING id
 Match setup now captures full toss information:
 
 - **Toss Winner**: Which team won the coin toss
-  These fields are persisted to the `matches` table (`toss_winner`, `toss_decision` columns) and included in the AI post-match summary automatically.
+- **Toss Decision**: Whether they chose to bat or bowl
+
+These fields are persisted to the `matches` table (`toss_winner`, `toss_decision` columns) and included in the AI post-match summary automatically.
 
 ### Player of the Match (POM) Extraction
 

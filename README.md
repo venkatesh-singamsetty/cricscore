@@ -12,18 +12,18 @@
 
 ## 🎯 Project Vision
 
-CricScore demonstrates how a production-style real-time sports platform can be designed using modern cloud-native, DevOps, security, and reliability engineering practices while maintaining a cost-optimized architecture.
+CricScore demonstrates how a high-performance, real-time sports platform can be designed using modern **Multi-Cloud**, **Serverless**, and **Event-Driven** architecture. By combining AWS services with Aiven managed databases, the project maintains an enterprise-grade, cost-optimized footprint.
 
-The project models a live cricket platform with:
+The project models a live cricket platform featuring:
 
-- fans viewing match updates in real time
-- authorized scorers recording ball-by-ball events
-- event-driven backend processing
-- Terraform-managed cloud infrastructure
-- security and observability built into deployment
-- CI/CD automation for repeatable releases
+- **Serverless Compute**: Fully managed AWS Lambda backends.
+- **Event-Driven Architecture**: Fan-out messaging via SNS and SQS for fault-tolerant state processing.
+- **Agentic AI**: Autonomous RAG capabilities with Text-to-SQL and Vector Search.
+- **Multi-Cloud Infrastructure**: Terraform-managed deployments bridging AWS and Aiven PostgreSQL.
+- **Real-Time Streaming**: WebSocket API Gateway for instant, low-latency score updates.
+- **DevSecOps Governance**: End-to-end CI/CD automation with automated security and compliance scanning.
 
-This repository is a practical production-style reference implementation for cloud-native app delivery, AI integration, and operational discipline.
+This repository serves as a practical, production-style reference implementation for modern cloud engineering, AI integration, and rigorous operational discipline.
 
 ---
 
@@ -101,7 +101,7 @@ CricScore is structured to demonstrate production-oriented engineering practices
 ### 1. 🛡️ DevSecOps & Security
 
 **Zero-Trust Identity & Automated Scanning**
-The platform is designed around **AWS Cognito JWT-based authentication**, API Gateway JWT Authorizers, and multi-tenant data isolation. The CI/CD pipeline acts as an automated gatekeeper, blocking PRs that fail GitLeaks, Trivy, Checkov, CodeQL, OWASP ZAP, or native NPM Audits.
+The platform is designed around **AWS Cognito JWT-based authentication**, API Gateway JWT Authorizers, and multi-tenant data isolation. The CI/CD pipeline acts as an automated gatekeeper, blocking PRs that fail GitLeaks, Trivy, Checkov, CodeQL, or native NPM Audits (OWASP ZAP actively scans the deployed environments post-merge).
 
 - 📖 **[Authentication & Authorization](./docs/auth.md)**: Cognito SSO flows, guest mode, admin user management, JWT validation, and cross-session identity guard.
 - 📖 **[Security Posture & Tradeoffs](./docs/security_posture.md)**: Defense in depth strategy, multi-tenant isolation, and encryption layers.
@@ -148,42 +148,16 @@ The AWS infrastructure is codified in Terraform. Changes can be planned, validat
 **Production-style AI with MCP Security Boundaries**
 CricScore includes a production-style **AI Chat Assistant**. The system implements the Model Context Protocol to enforce a clear security boundary between the LLM and the database. Tool execution, credential access, and query validation remain strictly inside the MCP server boundary rather than being exposed directly to the LLM provider.
 
-- 📖 **[AI Architecture](./docs/ai_architecture.md)**: Full Agentic RAG design, MCP architecture diagram, troubleshooting log (13 documented bugs & fixes), educational AI concepts, and cost breakdown.
+- 📖 **[AI Architecture](./docs/ai_architecture.md)**: Full Agentic RAG design, MCP architecture diagram, troubleshooting log (18 documented bugs & fixes), educational AI concepts, and cost breakdown.
 
 ### 7. 🚀 CI/CD Automation
 
-**Pipeline Governance**
-Merge requests to `main` require passing status checks. The deployment pipeline automatically builds the Vite frontend, synchronizes S3 buckets, invalidates CloudFront caches, packages Lambdas, and executes semantic version releases in a controlled, repeatable way.
+**Tag-Based Pipeline Governance**
+Merge requests to `main` require passing status checks. The main pipeline deploys strictly to the **dev** environment and runs Playwright/ZAP E2E tests. Upon success, semantic versioning automatically generates a release tag (e.g., `v1.2.3`). A completely separate production deployment workflow is then triggered by these tags, allowing for instant, push-button rollbacks if needed.
 
 - 📖 **[GitHub Actions Architecture](./docs/github_actions.md)**: CI/CD Directory structure constraints and pipeline organization.
 - 📖 **[Automated Releases](./docs/release_process.md)**: Semantic release and Conventional Commit specifications.
 - 📖 **[Full Project Log](./docs/changelog.md)**: Release records and development timeline.
-
----
-
-## 🤖 AI Architecture Deep-Dive
-
-CricScore's AI assistant is powered by OpenRouter (`gpt-4o-mini` and `text-embedding-3-small`) and features advanced RAG (Retrieval-Augmented Generation) capabilities:
-
-| Capability                | Implementation                                                 |
-| ------------------------- | -------------------------------------------------------------- |
-| **MCP tools**             | Secure tool execution with credentials kept inside the backend |
-| **Text-to-SQL**           | LLM-generated read-only SQL for live match and stats questions |
-| **Vector RAG**            | `pgvector` search over uploaded tournament rule PDFs           |
-| **Environment isolation** | `DB_SCHEMA` keeps dev and prod data separated                  |
-
-### MCP Tools Registry
-
-The `chat-api` Lambda implements the **Model Context Protocol (MCP)** with the following registered tools:
-
-| Tool                      | Type            | Purpose                                                                                           |
-| ------------------------- | --------------- | ------------------------------------------------------------------------------------------------- |
-| `execute_sql`             | Text-to-SQL RAG | Writes & executes READ-ONLY SQL to answer live score, player stats, and historical data questions |
-| `search_tournament_rules` | Vector RAG      | Embeds the user query and performs cosine-similarity search against the uploaded PDF rulebook     |
-| `delete_match`            | Admin Action    | Deletes one, multiple, or all matches from the database (Admin JWT required)                      |
-| `deleteGuestData`         | Admin Action    | Finds and deletes all Cognito guest accounts and their match records (Admin JWT required)         |
-
-> **Security Note:** All credentials (like `DATABASE_URL` and `LLM_API_KEY`) are loaded strictly inside the MCP Server layer. The LLM provider **never** receives these secrets — it only sees the tool schemas and the execution results.
 
 ---
 
@@ -268,6 +242,11 @@ To deploy CricScore to your own AWS account, use the canonical deployer scripts:
 ```
 
 This script applies the correct Terraform environment, regenerates the frontend runtime values from live AWS outputs, builds the app, uploads it to S3, and invalidates CloudFront so the dev and prod sites stay isolated.
+
+### 💻 Local Development
+
+Want to just run the React frontend locally (`localhost:3000`) against the live cloud backend without deploying infrastructure?
+📖 **[See the Local Frontend Quickstart Guide](./docs/local_frontend_quickstart.md)**.
 
 ### 🔐 One-Time Setup for a Fresh Clone
 
