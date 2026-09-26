@@ -230,13 +230,17 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
           );
         }
         if (targetMatchId) {
-          fetchMatchDetails(targetMatchId, true);
+          // Delay by 1s to allow SQS storage-worker to update PostgreSQL before reading
+          setTimeout(() => fetchMatchDetails(targetMatchId, true), 1000);
         }
       } else {
         console.warn("❌ Match id mismatch. Ignoring.");
       }
     } else if (lastMessage?.type === "HUB_UPDATE") {
       setHubUpdateTrigger((prev) => prev + 1);
+      if (targetMatchId) {
+        setTimeout(() => fetchMatchDetails(targetMatchId, true), 1000);
+      }
     }
   }, [lastMessage, targetMatchId, fetchMatchDetails]);
 
