@@ -111,11 +111,11 @@ The platform is designed around **AWS Cognito JWT-based authentication**, API Ga
 ### 2. 🔭 Observability & Logging
 
 **Total System Visibility**
-The platform is instrumented to stream structured JSON logs to CloudWatch. AWS X-Ray is used for distributed tracing across API Gateway, SNS, SQS, and Lambda to pinpoint latency bottlenecks. Critical failure metrics trigger automated SNS alerts.
+The platform streams structured JSON logs to CloudWatch Logs across all 8 Lambda functions. AWS X-Ray (5% sampling) provides distributed tracing across API Gateway, SNS, SQS, and Lambda to pinpoint latency bottlenecks. CloudWatch Alarms fire SNS email alerts when critical Lambda error rates exceed zero.
 
-- 📖 **[Observability Suite](./docs/observability.md)**: CloudWatch Dashboards, X-Ray Tracing, Sentry Crash Reporting, and Uptime monitors.
-- 📖 **[Cost & Performance](./docs/cost_management.md)**: Free-tier monitoring strategy and architecture scale limits.
-- 📖 **[AWS Resources Dashboard](./docs/aws_resources_dashboard.md)**: Automatically generated, real-time index of every deployed AWS resource with deep-links to the console.
+- 📖 **[Observability Suite](./docs/observability.md)**: CloudWatch Logs, X-Ray Tracing, CloudWatch Alarms + SNS Alerts, and optional Sentry/Uptime setup — all within the AWS free tier.
+- 📖 **[Cost & Performance](./docs/cost_management.md)**: Free-tier monitoring strategy, removed paid resources (Dashboard, KMS), and architecture scale limits.
+- 📖 **[AWS Resources Dashboard](./docs/aws_resources_dashboard.md)**: Script-generated index of every deployed AWS resource with deep-links directly into the AWS Console.
 
 ### 3. ✅ Rigorous Testing
 
