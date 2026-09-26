@@ -12,10 +12,7 @@
 
 ## 🎯 Project Vision
 
-CricScore demonstrates how a production-style real-time sports platform
-can be designed using modern cloud-native, DevOps, security, and
-reliability engineering practices while maintaining a cost-optimized
-architecture.
+CricScore demonstrates how a production-style real-time sports platform can be designed using modern cloud-native, DevOps, security, and reliability engineering practices while maintaining a cost-optimized architecture.
 
 The project models a live cricket platform with:
 
@@ -26,8 +23,7 @@ The project models a live cricket platform with:
 - security and observability built into deployment
 - CI/CD automation for repeatable releases
 
-This repository is a practical production-style reference implementation for
-cloud-native app delivery, AI integration, and operational discipline.
+This repository is a practical production-style reference implementation for cloud-native app delivery, AI integration, and operational discipline.
 
 ---
 
@@ -81,70 +77,102 @@ graph TD
 
 ---
 
-## 🚀 Deployment
+## 🏢 Enterprise-Grade Standards & Technical Documentation
 
-Use the canonical deployer for each environment:
+CricScore is structured to demonstrate production-oriented engineering practices across 7 core pillars of enterprise architecture. All technical decisions, tradeoffs, and deep-dives are documented in their respective guides below.
 
-```bash
-# Development
-./infra/scripts/deploy.sh --env dev
+### 1. 🛡️ DevSecOps & Security
 
-# Production
-./infra/scripts/deploy.sh --env prod
-```
+**Zero-Trust Identity & Automated Scanning**
+The platform is designed around **AWS Cognito JWT-based authentication**, API Gateway JWT Authorizers, and multi-tenant data isolation. The CI/CD pipeline acts as an automated gatekeeper, blocking PRs that fail GitLeaks, Trivy, Checkov, CodeQL, OWASP ZAP, or native NPM Audits.
 
-This script applies the correct Terraform environment, regenerates the frontend
-runtime values from live AWS outputs, builds the app, uploads it to S3, and
-invalidates CloudFront so the dev and prod sites stay isolated.
+- 📖 **[Authentication & Authorization](./docs/auth.md)**: Cognito SSO flows, guest mode, admin user management, JWT validation, and cross-session identity guard.
+- 📖 **[Security Posture & Tradeoffs](./docs/security_posture.md)**: Defense in depth strategy, multi-tenant isolation, and encryption layers.
+- 📖 **[Branch Protection & Governance](./docs/branch_protection.md)**: Strict required status checks, zero direct pushes to `main`, and administrator enforcement.
+- 📖 **[Contributing & Developer Workflow](./CONTRIBUTING.md)**: Step-by-step feature branch workflow, Git Hooks (`pre-push`), and full local validation commands (`validate_local.sh`).
 
-### 🔐 One-Time Setup for a Fresh Clone
+### 2. 🔭 Observability & Logging
 
-Before the first deployment, make sure you have the required local values ready:
+**Total System Visibility**
+The platform is instrumented to stream structured JSON logs to CloudWatch. AWS X-Ray is used for distributed tracing across API Gateway, SNS, SQS, and Lambda to pinpoint latency bottlenecks. Critical failure metrics trigger automated SNS alerts.
 
-- AWS credentials configured for the target account
-- Terraform installed locally
-- Aiven PostgreSQL connection string for the environment you want to deploy
-- OpenRouter or OpenAI API key for the LLM layer
-- SES sender email and admin email configured in the environment variables
-- A hosted domain or Route 53 zone already created if you plan to use the public
-  site URLs
+- 📖 **[Observability Suite](./docs/observability.md)**: CloudWatch Dashboards, X-Ray Tracing, Sentry Crash Reporting, and Uptime monitors.
+- 📖 **[Cost & Performance](./docs/cost_management.md)**: Free-tier monitoring strategy and architecture scale limits.
+- 📖 **[AWS Resources Dashboard](./docs/aws_resources_dashboard.md)**: Automatically generated, real-time index of every deployed AWS resource with deep-links to the console.
 
-A typical local setup is:
+### 3. ✅ Rigorous Testing
 
-```bash
-cp .env.local.example .env.local
-# fill in the required AWS / database / LLM values before running the deploy script
-```
+**Multi-Layer Test Pyramid**
+Code is validated at every tier: Unit tests evaluate isolated Lambda functions, API tests validate REST contracts, and Playwright executes E2E user journey tests against the staging environment.
 
-If your repo does not include a `.env.local.example`, use the values already
-referenced by the infra scripts and Terraform variables as the source of truth.
+- 📖 **[Testing Guide](./docs/testing.md)**: Vitest and Playwright test commands, Availability Testing (Chaos/DR), and E2E structures.
+- 📖 **[Toolchain & Security Stack](./docs/tools.md)**: Master list of all CI/CD, IaC, and AppSec tools used in the pipeline.
 
-### 💰 Cost Notes
+### 4. ♾️ High Availability & Reliability
 
-The recurring cost is expected to stay very low for normal usage. In practice, the
-main fixed monthly expense is typically the Route 53 hosted zone, while most other
-services are event-driven or usage-based. If you are not actively testing the dev
-site, you can destroy or pause it to keep costs near the minimum possible level.
+**Fault-Tolerant Event-Driven Design**
+The architecture decouples the frontend from backend persistence using SNS fan-out and SQS queuing. If the database experiences downtime, the queue-based pattern retains and replays work with retry and dead-letter handling.
 
-### 🤖 AI & RAG
+- 📖 **[Detailed Architecture](./docs/architecture.md)**: System design, sequence flows, and EDA logic.
+- 📖 **[API Guide](./docs/api.md)**: REST & WebSocket contract specifications.
+- 📖 **[Aiven Managed Services](./docs/aiven.md)**: PostgreSQL database configuration and keep-alive strategy.
+- 📖 **[Node.js Guide](./docs/nodejs_guide.md)**: ESM vs CommonJS standardizations and dependency security.
 
-CricScore includes a production-style **AI Chat Assistant** powered by:
+### 5. 🏗️ Infrastructure as Code (IaC)
+
+**Immutable & Reproducible Environments**
+The AWS infrastructure is codified in Terraform. Changes can be planned, validated for security drift by Checkov, and applied through GitHub Actions or the deploy script to reduce manual click-ops errors.
+
+- 📖 **[Full Deployment & Infrastructure](./docs/deployment.md)**: Local preview, bootstrap foundations, and AWS/Aiven Setup.
+- 📖 **[Troubleshooting](./docs/troubleshooting.md)**: Setup fixes and identity verification help.
+
+### 6. 🤖 Agentic AI & RAG
+
+**Production-style AI with MCP Security Boundaries**
+CricScore includes a production-style **AI Chat Assistant**. The system implements the Model Context Protocol to enforce a clear security boundary between the LLM and the database. Tool execution, credential access, and query validation remain strictly inside the MCP server boundary rather than being exposed directly to the LLM provider.
+
+- 📖 **[AI Architecture](./docs/ai_architecture.md)**: Full Agentic RAG design, MCP architecture diagram, troubleshooting log (13 documented bugs & fixes), educational AI concepts, and cost breakdown.
+
+### 7. 🚀 CI/CD Automation
+
+**Pipeline Governance**
+Merge requests to `main` require passing status checks. The deployment pipeline automatically builds the Vite frontend, synchronizes S3 buckets, invalidates CloudFront caches, packages Lambdas, and executes semantic version releases in a controlled, repeatable way.
+
+- 📖 **[GitHub Actions Architecture](./docs/github_actions.md)**: CI/CD Directory structure constraints and pipeline organization.
+- 📖 **[Automated Releases](./docs/release_process.md)**: Semantic release and Conventional Commit specifications.
+- 📖 **[Full Project Log](./docs/changelog.md)**: Release records and development timeline.
+
+---
+
+## 🤖 AI Architecture Deep-Dive
+
+CricScore's AI assistant is powered by OpenRouter (`gpt-4o-mini` and `text-embedding-3-small`) and features advanced RAG (Retrieval-Augmented Generation) capabilities:
 
 | Capability                | Implementation                                                 |
 | ------------------------- | -------------------------------------------------------------- |
 | **MCP tools**             | Secure tool execution with credentials kept inside the backend |
 | **Text-to-SQL**           | LLM-generated read-only SQL for live match and stats questions |
 | **Vector RAG**            | `pgvector` search over uploaded tournament rule PDFs           |
-| **LLM provider**          | OpenRouter with `gpt-4o-mini` and `text-embedding-3-small`     |
 | **Environment isolation** | `DB_SCHEMA` keeps dev and prod data separated                  |
 
-A lightweight AI evaluation baseline is included under `evals/` to monitor tool choice, safety, and answer quality for the chat assistant.
+### MCP Tools Registry
+
+The `chat-api` Lambda implements the **Model Context Protocol (MCP)** with the following registered tools:
+
+| Tool                      | Type            | Purpose                                                                                           |
+| ------------------------- | --------------- | ------------------------------------------------------------------------------------------------- |
+| `execute_sql`             | Text-to-SQL RAG | Writes & executes READ-ONLY SQL to answer live score, player stats, and historical data questions |
+| `search_tournament_rules` | Vector RAG      | Embeds the user query and performs cosine-similarity search against the uploaded PDF rulebook     |
+| `delete_match`            | Admin Action    | Deletes one, multiple, or all matches from the database (Admin JWT required)                      |
+| `deleteGuestData`         | Admin Action    | Finds and deletes all Cognito guest accounts and their match records (Admin JWT required)         |
+
+> **Security Note:** All credentials (like `DATABASE_URL` and `LLM_API_KEY`) are loaded strictly inside the MCP Server layer. The LLM provider **never** receives these secrets — it only sees the tool schemas and the execution results.
 
 ---
 
-# 🛠️ Technology Stack
+## 🛠️ Technology Stack
 
-## Frontend
+### Frontend
 
 | Technology   | Purpose                                       |
 | ------------ | --------------------------------------------- |
@@ -153,9 +181,7 @@ A lightweight AI evaluation baseline is included under `evals/` to monitor tool 
 | Vite         | Frontend build tooling and development server |
 | HTML5 / CSS3 | UI structure and styling                      |
 
----
-
-## Backend & APIs
+### Backend & APIs
 
 | Technology          | Purpose                              |
 | ------------------- | ------------------------------------ |
@@ -169,9 +195,7 @@ A lightweight AI evaluation baseline is included under `evals/` to monitor tool 
 | OpenRouter / OpenAI | Foundation Models for Agentic RAG    |
 | MCP SDK             | Model Context Protocol architecture  |
 
----
-
-## Database
+### Database
 
 | Technology       | Purpose                                              |
 | ---------------- | ---------------------------------------------------- |
@@ -180,9 +204,7 @@ A lightweight AI evaluation baseline is included under `evals/` to monitor tool 
 | pgvector         | Vector similarity search extension for RAG           |
 | HNSW Index       | High-performance approximate nearest-neighbor search |
 
----
-
-## Infrastructure & Cloud
+### Infrastructure & Cloud
 
 | Technology | Purpose                        |
 | ---------- | ------------------------------ |
@@ -193,9 +215,7 @@ A lightweight AI evaluation baseline is included under `evals/` to monitor tool 
 | Route53    | DNS management                 |
 | ACM        | SSL/TLS certificate management |
 
----
-
-## DevSecOps & Security
+### DevSecOps & Security
 
 | Tool            | Purpose                               |
 | --------------- | ------------------------------------- |
@@ -203,13 +223,12 @@ A lightweight AI evaluation baseline is included under `evals/` to monitor tool 
 | Checkov         | Terraform security scanning           |
 | GitLeaks        | Secret detection                      |
 | Trivy           | Dependency and vulnerability scanning |
+| npm audit       | Native Node.js vulnerability scanning |
 | OWASP ZAP       | Dynamic application security testing  |
 | Dependabot      | Dependency vulnerability monitoring   |
 | SBOM Generation | Software supply chain visibility      |
 
----
-
-## Testing
+### Testing
 
 | Tool                  | Purpose                       |
 | --------------------- | ----------------------------- |
@@ -219,124 +238,47 @@ A lightweight AI evaluation baseline is included under `evals/` to monitor tool 
 
 ---
 
-# 🤖 AI Architecture
+## 🚀 Getting Started & Deployment
 
-See the **[Full AI Architecture Guide](./docs/ai_architecture.md)** for a complete deep-dive.
+To deploy CricScore to your own AWS account, use the canonical deployer scripts:
 
-## MCP Tools
+```bash
+# Development
+./infra/scripts/deploy.sh --env dev
 
-The `chat-api` Lambda implements the **Model Context Protocol (MCP)** with two registered tools:
-
-| Tool                      | Type            | Purpose                                                                                           |
-| ------------------------- | --------------- | ------------------------------------------------------------------------------------------------- |
-| `execute_sql`             | Text-to-SQL RAG | Writes & executes READ-ONLY SQL to answer live score, player stats, and historical data questions |
-| `search_tournament_rules` | Vector RAG      | Embeds the user query and performs cosine-similarity search against the uploaded PDF rulebook     |
-| `delete_match`            | Admin Action    | Deletes one, multiple, or all matches from the database (Admin JWT required)                      |
-| `deleteGuestData`         | Admin Action    | Finds and deletes all Cognito guest accounts and their match records (Admin JWT required)         |
-
-## AI File Structure
-
-```
-apps/backend/lambdas/chat-api/
-├── index.js                      ← Thin Lambda router (entry point)
-├── config/
-│   ├── db.js                     ← Shared PostgreSQL pool + setSearchPath (dev/prod aware)
-│   └── llm.js                    ← Shared OpenAI client, model & embedding config
-├── handlers/
-│   ├── chatHandler.js            ← Agentic MCP chat loop (main AI pipeline)
-│   ├── summaryHandler.js         ← AI post-match summary generation
-│   └── uploadRulesHandler.js     ← PDF text extraction + batch embedding ingestion
-└── mcp/
-    ├── server.js                 ← MCP Server (tool registry)
-    └── tools/
-        ├── executeSql.js         ← Text-to-SQL tool (READ ONLY, 3s timeout)
-        ├── searchRules.js        ← Vector cosine-similarity search tool
-        ├── deleteMatch.js        ← Admin match deletion tool (JWT-gated)
-        └── deleteGuestData.js    ← Admin guest account purge tool (JWT-gated)
+# Production
+./infra/scripts/deploy.sh --env prod
 ```
 
-## Required Environment Variables
+This script applies the correct Terraform environment, regenerates the frontend runtime values from live AWS outputs, builds the app, uploads it to S3, and invalidates CloudFront so the dev and prod sites stay isolated.
 
-| Variable       | Description                          | Example                        |
-| -------------- | ------------------------------------ | ------------------------------ |
-| `LLM_API_KEY`  | OpenRouter or OpenAI API key         | `sk-or-v1-...`                 |
-| `LLM_BASE_URL` | LLM provider base URL                | `https://openrouter.ai/api/v1` |
-| `LLM_MODEL`    | _(Optional)_ Override model name     | `gpt-4o-mini`                  |
-| `DATABASE_URL` | Aiven PostgreSQL connection string   | `postgres://...`               |
-| `DB_SCHEMA`    | Environment schema (`dev` or `prod`) | `dev`                          |
+### 🔐 One-Time Setup for a Fresh Clone
 
-> **Security:** All credentials are loaded inside the MCP Server/tools only. The LLM (OpenRouter) **never** receives `DATABASE_URL` or `LLM_API_KEY` — it only sees tool schemas and query results.
+Before the first deployment, make sure you have the required local values ready:
+
+- AWS credentials configured for the target account
+- Terraform installed locally
+- Aiven PostgreSQL connection string for the environment you want to deploy
+- OpenRouter or OpenAI API key for the LLM layer
+- SES sender email and admin email configured in the environment variables
+- A hosted domain or Route 53 zone already created
+
+A typical local setup is:
+
+```bash
+cp .env.local.example .env.local
+# fill in the required AWS / database / LLM values before running the deploy script
+```
+
+If your repo does not include a `.env.local.example`, use the values already referenced by the infra scripts and Terraform variables as the source of truth.
+
+### 💰 Cost Notes
+
+The recurring cost is expected to stay very low for normal usage. In practice, the main fixed monthly expense is typically the Route 53 hosted zone, while most other services are event-driven or usage-based. If you are not actively testing the dev site, you can destroy or pause it to keep costs near the minimum possible level.
 
 ---
 
-# 🏢 Enterprise-Grade Standards & Technical Documentation
-
-CricScore is structured to demonstrate production-oriented engineering practices across 6 core pillars of enterprise architecture. All technical decisions, tradeoffs, and deep-dives are documented in their respective guides below.
-
-### 1. 🛡️ DevSecOps & Security
-
-**Zero-Trust Identity & Automated Scanning**
-The platform is designed around **AWS Cognito JWT-based authentication**, API Gateway JWT Authorizers, and multi-tenant data isolation. The CI/CD pipeline can act as an automated gatekeeper, blocking PRs that fail GitLeaks, Trivy, Checkov, CodeQL, or OWASP ZAP.
-
-- 📖 **[Authentication & Authorization](./docs/auth.md)**: Cognito SSO flows, guest mode, admin user management, JWT validation, and cross-session identity guard.
-- 📖 **[Security Posture & Tradeoffs](./docs/security_posture.md)**: Defense in depth strategy, multi-tenant isolation, and encryption layers.
-- 📖 **[Branch Protection & Governance](./docs/branch_protection.md)**: Strict 8 required status checks, zero direct pushes to `main`, and administrator enforcement.
-- 📖 **[Contributing & Developer Workflow](./CONTRIBUTING.md)**: Step-by-step feature branch workflow, Git Hooks (`pre-push`), and full local validation commands (`validate_local.sh`).
-
-### 2. 🔭 Observability & Logging
-
-**Total System Visibility**
-The platform is instrumented to stream structured JSON logs to CloudWatch. AWS X-Ray can be used for distributed tracing across API Gateway, SNS, SQS, and Lambda to pinpoint latency bottlenecks. Critical failure metrics can trigger automated SNS alerts.
-
-- 📖 **[Observability Suite](./docs/observability.md)**: CloudWatch Dashboards, X-Ray Tracing, Sentry Crash Reporting, and Uptime monitors.
-- 📖 **[Cost & Performance](./docs/cost_management.md)**: Free-tier monitoring strategy and architecture scale limits.
-- 📖 **[AWS Resources Dashboard](./docs/aws_resources_dashboard.md)**: Automatically generated, real-time index of every single deployed AWS resource with deep-links to the console.
-
-### 3. ✅ Rigorous Testing
-
-**Multi-Layer Test Pyramid**
-Code is intended to be validated at every tier: Unit tests evaluate isolated Lambda functions, API tests validate REST contracts, and Playwright can execute E2E user journey tests against the staging environment.
-
-- 📖 **[Testing Guide](./docs/testing.md)**: Vitest and Playwright test commands, Availability Testing (Chaos/DR), and E2E structures.
-- 📖 **[Toolchain & Security Stack](./docs/tools.md)**: Master list of all CI/CD, IaC, and AppSec tools used in the pipeline.
-
-### 4. ♾️ High Availability & Reliability
-
-**Fault-Tolerant Event-Driven Design**
-The architecture decouples the frontend from backend persistence using SNS fan-out and SQS queuing. If the database experiences downtime, the queue-based pattern is designed to retain and replay work with retry and dead-letter handling.
-
-- 📖 **[Detailed Architecture](./docs/architecture.md)**: System design, sequence flows, and EDA logic.
-- 📖 **[API Guide](./docs/api.md)**: REST & WebSocket contract specifications.
-- 📖 **[Aiven Managed Services](./docs/aiven.md)**: PostgreSQL database configuration and keep-alive strategy.
-- 📖 **[Node.js Guide](./docs/nodejs_guide.md)**: ESM vs CommonJS standardizations.
-
-### 5. 🏗️ Infrastructure as Code (IaC)
-
-**Immutable & Reproducible Environments**
-The AWS infrastructure is codified in Terraform. Changes can be planned, validated for security drift by Checkov, and applied through GitHub Actions or the deploy script to reduce manual click-ops errors.
-
-- 📖 **[Full Deployment & Infrastructure](./docs/deployment.md)**: Local preview, bootstrap foundations, and AWS/Aiven Setup.
-- 📖 **[Troubleshooting](./docs/troubleshooting.md)**: Setup fixes and identity verification help.
-
-### 6. 🤖 Agentic AI & RAG
-
-**Production-style AI with MCP Security Boundaries**
-The AI chat system implements the Model Context Protocol to enforce a clear security boundary between the LLM and the database. Tool execution, credential access, and query validation are designed to remain inside the MCP server boundary rather than being exposed directly to the provider.
-
-- 📖 **[AI Architecture](./docs/ai_architecture.md)**: Full Agentic RAG design, MCP architecture diagram, troubleshooting log (13 documented bugs & fixes), educational AI concepts, and cost breakdown.
-
-### 7. 🚀 CI/CD Automation
-
-**Pipeline Governance**
-Merge requests to `main` are designed to require passing status checks. The deployment pipeline can automatically build the Vite frontend, synchronize S3 buckets, invalidate CloudFront caches, package Lambdas, and execute semantic version releases in a controlled, repeatable way.
-
-- 📖 **[GitHub Actions Architecture](./docs/github_actions.md)**: CI/CD Directory structure constraints and pipeline organization.
-- 📖 **[Automated Releases](./docs/release_process.md)**: Semantic release and Conventional Commit specifications.
-- 📖 **[Full Project Log](./docs/changelog.md)**: Release records and development timeline.
-
----
-
-# 🤖 AI Assisted Development
+## 🤖 AI Assisted Development
 
 AI tools were used as productivity accelerators for:
 
