@@ -12,17 +12,17 @@ const openai = new OpenAI({
 
 /**
  * Returns the default model name based on the configured LLM provider.
- * Falls back to anthropic/claude-sonnet-4.5 for OpenRouter.
+ * Falls back to openai/gpt-4o-mini for OpenRouter.
  */
 function getDefaultModel() {
   const baseURL = process.env.LLM_BASE_URL || "";
   if (baseURL.includes("groq")) return "llama-3.3-70b-versatile";
-  return "anthropic/claude-sonnet-4.5";
+  return "openai/gpt-4o-mini";
 }
 
 /**
  * The LLM model to use — can be overridden via LLM_MODEL env var.
- * Defaults to anthropic/claude-sonnet-4.5 (OpenRouter) or llama-3.3-70b-versatile (Groq).
+ * Defaults to openai/gpt-4o-mini (OpenRouter) or llama-3.3-70b-versatile (Groq).
  */
 const LLM_MODEL = process.env.LLM_MODEL || getDefaultModel();
 

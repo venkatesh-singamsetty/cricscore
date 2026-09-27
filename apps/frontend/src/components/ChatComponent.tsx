@@ -12,14 +12,9 @@ import { safeSessionStorageSet } from "../utils/storageSafety";
 
 export const AVAILABLE_AI_MODELS = [
   {
-    id: "anthropic/claude-sonnet-4.5",
-    name: "Claude 3.5 Sonnet",
-    badge: "Default",
-  },
-  {
     id: "openai/gpt-4o-mini",
     name: "GPT-4o Mini",
-    badge: "Fast",
+    badge: "Default",
   },
   {
     id: "google/gemini-2.5-flash",
@@ -35,6 +30,11 @@ export const AVAILABLE_AI_MODELS = [
     id: "meta-llama/llama-3.3-70b-instruct",
     name: "Llama 3.3 70B",
     badge: "Popular",
+  },
+  {
+    id: "anthropic/claude-sonnet-4.5",
+    name: "Claude 3.5 Sonnet",
+    badge: "Advanced",
   },
 ];
 
@@ -59,12 +59,11 @@ export function ChatComponent({
     {
       role: "assistant",
       content: "Hi! Ask me anything about the live match!",
-      modelName: "Claude 3.5 Sonnet (Default)",
+      modelName: "GPT-4o Mini (Default)",
     },
   ]);
-  const [selectedModel, setSelectedModel] = useState<string>(
-    "anthropic/claude-sonnet-4.5",
-  );
+  const [selectedModel, setSelectedModel] =
+    useState<string>("openai/gpt-4o-mini");
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [isUploadingRules, setIsUploadingRules] = useState(false);

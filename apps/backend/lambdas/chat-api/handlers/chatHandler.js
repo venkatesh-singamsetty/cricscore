@@ -21,7 +21,7 @@ ball_events(id, inning_id, over_number, ball_number, bowler_name, batter_name, r
  * Normalizes user-selected or legacy model slugs to valid, fast, tool-supporting OpenRouter model IDs.
  */
 function normalizeModelSlug(model) {
-  if (!model) return LLM_MODEL || "anthropic/claude-sonnet-4.5";
+  if (!model) return LLM_MODEL || "openai/gpt-4o-mini";
   const slug = String(model).toLowerCase();
 
   if (
@@ -48,7 +48,7 @@ function normalizeModelSlug(model) {
   if (slug.includes("llama")) {
     return "meta-llama/llama-3.3-70b-instruct";
   }
-  return "google/gemini-2.5-flash";
+  return "openai/gpt-4o-mini";
 }
 
 /**
