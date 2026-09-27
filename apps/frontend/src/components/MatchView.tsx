@@ -1081,22 +1081,22 @@ const MatchView: React.FC<MatchViewProps> = ({
         <div className="max-w-4xl mx-auto px-3 py-1.5">
           <div className="flex justify-between items-center gap-4">
             <div className="flex-1 overflow-hidden">
-              <div className="flex items-center gap-2 mb-0.5 overflow-hidden">
+              <div className="flex items-center gap-2 mb-1 overflow-hidden">
                 <span className="bg-indigo-600 text-white text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-widest flex-shrink-0">
                   {innings.inningNumber === 1 ? "1st" : "2nd"} INN
                 </span>
                 <div className="flex items-center gap-1.5 text-white text-[11px] font-black tracking-widest uppercase truncate">
                   <span
-                    className="text-blue-400 cursor-pointer hover:underline"
+                    className="bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/40 text-emerald-300 font-black px-2 py-0.5 rounded-full text-[9px] uppercase tracking-wider flex items-center gap-1 shadow-sm shadow-emerald-500/10 cursor-pointer hover:bg-emerald-500/30 transition-colors"
                     onClick={() => handleRenameTeam(true)}
                   >
-                    {innings.battingTeamName}
+                    🏏 BATTING: {innings.battingTeamName}
                   </span>
-                  <span className="text-slate-600 text-[8px] italic lowercase font-medium">
+                  <span className="text-slate-500 text-[8px] italic lowercase font-medium">
                     vs
                   </span>
                   <span
-                    className="text-indigo-400 cursor-pointer hover:underline"
+                    className="text-indigo-400 cursor-pointer hover:underline text-[10px] font-bold"
                     onClick={() => handleRenameTeam(false)}
                   >
                     {innings.bowlingTeamName}
@@ -1104,7 +1104,10 @@ const MatchView: React.FC<MatchViewProps> = ({
                 </div>
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-black tracking-tighter text-white tabular-nums">
+                <span className="text-xl font-black text-emerald-400 uppercase tracking-tighter mr-1 flex items-center gap-1">
+                  <span>🏏</span> {innings.battingTeamName}:
+                </span>
+                <span className="text-2xl md:text-3xl font-black tracking-tighter text-white tabular-nums">
                   {innings.totalRuns}
                   <span className="text-slate-500 mx-0.5 text-xl">/</span>
                   {innings.totalWickets}

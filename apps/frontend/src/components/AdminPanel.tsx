@@ -157,7 +157,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       const data = await res.json();
       if (!res.ok)
         throw new Error(data.error || "Failed to delete guest users");
-      setMessage(`✅ ${data.message || "Success!"}`);
+      const mCount = data.deletedMatchesCount ?? 0;
+      const uCount = data.deletedUsersCount ?? 0;
+      const msg =
+        data.message ||
+        `Deleted ${mCount} guest matches and ${uCount} guest users.`;
+      setMessage(`✅ ${msg}`);
       fetchUsers(true); // Refresh the list while keeping success message
     } catch (err: any) {
       setMessage(`❌ Error: ${err.message}`);
@@ -186,7 +191,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       const data = await res.json();
       if (!res.ok)
         throw new Error(data.error || "Failed to delete guest matches");
-      setMessage(`✅ ${data.message || "Success!"}`);
+      const mCount = data.deletedMatchesCount ?? data.count ?? 0;
+      const msg = data.message || `Deleted ${mCount} guest matches.`;
+      setMessage(`✅ ${msg}`);
     } catch (err: any) {
       setMessage(`❌ Error: ${err.message}`);
     } finally {
