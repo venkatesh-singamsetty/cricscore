@@ -878,8 +878,16 @@ exports.handler = async (event) => {
                        (SELECT json_agg(json_build_object(
                            'inning_number', i.inning_number,
                            'batting_team_name', i.batting_team_name,
-                           'total_runs', i.total_runs,
-                           'total_wickets', i.total_wickets,
+                           'total_runs', GREATEST(
+                             COALESCE(i.total_runs, 0),
+                             COALESCE((SELECT SUM(p.runs) FROM players p WHERE p.inning_id = i.id), 0),
+                             COALESCE((SELECT SUM(b.runs + CASE WHEN (b.is_extra = true OR b.is_extra::text = 'true') AND UPPER(COALESCE(b.extra_type, '')) IN ('WIDE','NO_BALL') THEN COALESCE(NULLIF(b.extra_runs, 0), 1) ELSE COALESCE(b.extra_runs, 0) END) FROM ball_events b WHERE b.inning_id = i.id), 0)
+                           ),
+                           'total_wickets', GREATEST(
+                             COALESCE(i.total_wickets, 0),
+                             COALESCE((SELECT COUNT(*) FROM players p WHERE p.inning_id = i.id AND p.is_out = true AND p.wicket_type != 'RETIRED_HURT'), 0),
+                             COALESCE((SELECT COUNT(*) FROM ball_events b WHERE b.inning_id = i.id AND (b.is_wicket = true OR b.is_wicket::text = 'true') AND b.wicket_type != 'RETIRED_HURT'), 0)
+                           ),
                            'overs', i.overs,
                            'balls', i.balls
                        ) ORDER BY i.inning_number) FROM innings i WHERE i.match_id = m.id) as innings

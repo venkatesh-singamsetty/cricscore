@@ -25,8 +25,12 @@ export interface LiveScorePayload {
   batting_team_name?: string;
   explicitTotalRuns?: number;
   explicit_total_runs?: number;
+  totalRuns?: number;
+  total_runs?: number;
   explicitTotalWickets?: number;
   explicit_total_wickets?: number;
+  totalWickets?: number;
+  total_wickets?: number;
   currentOvers?: number;
   current_overs?: number;
   currentBalls?: number;
@@ -140,15 +144,15 @@ export function applyLiveScoreToMatches<T extends MatchListItem>(
   payload: LiveScorePayload,
 ): { matches: T[]; applied: boolean } {
   const matchId = payload.matchId || payload.match_id;
-  const totalRuns = pickNumber(
-    payload.explicitTotalRuns,
-    payload.explicit_total_runs,
-  );
-  if (!matchId || totalRuns === undefined) {
+  if (!matchId) {
     return { matches, applied: false };
   }
 
-  const matchIndex = matches.findIndex((m) => String(m.id) === String(matchId));
+  const matchIndex = matches.findIndex(
+    (m) =>
+      String(m.id).trim().toLowerCase() ===
+      String(matchId).trim().toLowerCase(),
+  );
   if (matchIndex === -1) {
     return { matches, applied: false };
   }
@@ -164,11 +168,17 @@ export function applyLiveScoreToMatches<T extends MatchListItem>(
 
   let innIndex = -1;
   if (inningId) {
-    innIndex = innings.findIndex((i) => String(i.id) === String(inningId));
+    innIndex = innings.findIndex(
+      (i) =>
+        String(i.id).trim().toLowerCase() ===
+        String(inningId).trim().toLowerCase(),
+    );
   }
   if (innIndex < 0 && battingTeam) {
     innIndex = innings.findIndex(
-      (i) => i.batting_team_name?.toLowerCase() === battingTeam.toLowerCase(),
+      (i) =>
+        i.batting_team_name?.trim().toLowerCase() ===
+        battingTeam.trim().toLowerCase(),
     );
   }
   if (innIndex < 0) {
@@ -176,7 +186,43 @@ export function applyLiveScoreToMatches<T extends MatchListItem>(
   }
 
   const current = innings[innIndex];
-  const nextTotalRuns = Math.max(totalRuns, Number(current.total_runs || 0));
+
+  let ballExtraRuns = 0;
+  if (payload.ballData) {
+    const r = Number(payload.ballData.runs || 0);
+    const isExtra = payload.ballData.isExtra || payload.ballData.is_extra;
+    const extraType = String(
+      payload.ballData.extraType || payload.ballData.extra_type || "",
+    ).toUpperCase();
+    const extraRuns = Number(
+      payload.ballData.extraRuns !== undefined
+        ? payload.ballData.extraRuns
+        : payload.ballData.extra_runs || 0,
+    );
+    if (isExtra) {
+      if (extraType === "WIDE" || extraType === "NO_BALL") {
+        ballExtraRuns = r + (extraRuns > 0 ? extraRuns : 1);
+      } else {
+        ballExtraRuns = r + extraRuns;
+      }
+    } else {
+      ballExtraRuns = r;
+    }
+  }
+
+  const payloadRuns = pickNumber(
+    payload.explicitTotalRuns,
+    payload.explicit_total_runs,
+    payload.totalRuns,
+    payload.total_runs,
+  );
+
+  const nextTotalRuns = Math.max(
+    payloadRuns ?? 0,
+    Number(current.total_runs || 0) + ballExtraRuns,
+    Number(current.total_runs || 0),
+  );
+
   const incomingWickets = pickNumber(
     payload.explicitTotalWickets,
     payload.explicit_total_wickets,
@@ -184,6 +230,7 @@ export function applyLiveScoreToMatches<T extends MatchListItem>(
   const nextTotalWickets = Math.max(
     incomingWickets ?? current.total_wickets ?? 0,
     Number(current.total_wickets || 0),
+    payload.ballData?.isWicket ? Number(current.total_wickets || 0) + 1 : 0,
   );
 
   const nextInning: MatchInningSummary = {
@@ -191,9 +238,19 @@ export function applyLiveScoreToMatches<T extends MatchListItem>(
     total_runs: nextTotalRuns,
     total_wickets: nextTotalWickets,
     overs:
-      pickNumber(payload.currentOvers, payload.current_overs) ?? current.overs,
+      pickNumber(
+        payload.currentOvers,
+        payload.current_overs,
+        payload.ballData?.overNumber,
+        payload.ballData?.over_number,
+      ) ?? current.overs,
     balls:
-      pickNumber(payload.currentBalls, payload.current_balls) ?? current.balls,
+      pickNumber(
+        payload.currentBalls,
+        payload.current_balls,
+        payload.ballData?.ballNumber,
+        payload.ballData?.ball_number,
+      ) ?? current.balls,
   };
 
   const newInnings = [...innings];

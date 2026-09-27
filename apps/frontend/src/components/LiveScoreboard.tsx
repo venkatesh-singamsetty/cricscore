@@ -156,17 +156,59 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
             (sum: number, p: any) => sum + Number(p.runs || 0),
             0,
           );
+
+          const allBallsMapped = (inn.allBalls || []).map((b: any) => ({
+            ...b,
+            bowlerName: b.bowler_name || b.bowlerName,
+            batterName: b.batter_name || b.batterName,
+            isExtra: b.is_extra !== undefined ? b.is_extra : b.isExtra,
+            extraType: (b.extra_type || b.extraType) as ExtraType,
+            extraRuns: b.extra_runs !== undefined ? b.extra_runs : b.extraRuns,
+            isWicket: b.is_wicket !== undefined ? b.is_wicket : b.isWicket,
+            wicketType: (b.wicket_type || b.wicketType) as WicketType,
+            overNumber:
+              b.over_number !== undefined ? b.over_number : b.overNumber,
+            ballNumber:
+              b.ball_number !== undefined ? b.ball_number : b.ballNumber,
+          }));
+
+          const ballsRunsSum = allBallsMapped.reduce((sum: number, b: any) => {
+            const r = Number(b.runs || 0);
+            const isExtra = b.isExtra;
+            const extraType = b.extraType;
+            const extraRuns = Number(b.extraRuns || 0);
+            let ballTotal = r;
+            if (isExtra) {
+              if (
+                extraType === ExtraType.WIDE ||
+                extraType === ExtraType.NO_BALL
+              ) {
+                ballTotal = r + (extraRuns > 0 ? extraRuns : 1);
+              } else {
+                ballTotal = r + extraRuns;
+              }
+            }
+            return sum + ballTotal;
+          }, 0);
+
           const derivedTotalRuns = Math.max(
             Number(inn.total_runs || inn.totalRuns || 0),
             playerRunsSum,
+            ballsRunsSum,
           );
 
           const outWicketsCount = Object.values(players).filter(
-            (p: any) => p.isOut && p.wicketType !== "RETIRED_HURT",
+            (p: any) => p.isOut && p.wicketType !== WicketType.RETIRED_HURT,
           ).length;
+
+          const ballsWicketsCount = allBallsMapped.filter(
+            (b: any) => b.isWicket && b.wicketType !== WicketType.RETIRED_HURT,
+          ).length;
+
           const derivedTotalWickets = Math.max(
             Number(inn.total_wickets || inn.totalWickets || 0),
             outWicketsCount,
+            ballsWicketsCount,
           );
 
           return {
@@ -179,19 +221,8 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
             totalWickets: derivedTotalWickets,
             overs: Number(inn.overs || 0),
             balls: Number(inn.balls || 0),
-            currentOver: [],
-            allBalls: (inn.allBalls || []).map((b: any) => ({
-              ...b,
-              bowlerName: b.bowler_name,
-              batterName: b.batter_name,
-              isExtra: b.is_extra,
-              extraType: b.extra_type as ExtraType,
-              extraRuns: b.extra_runs,
-              isWicket: b.is_wicket,
-              wicketType: b.wicket_type as WicketType,
-              overNumber: b.over_number,
-              ballNumber: b.ball_number,
-            })),
+            currentOver: allBallsMapped.slice(-6),
+            allBalls: allBallsMapped,
             strikerId:
               (inn.players || []).find((p: any) => p.name === inn.striker_name)
                 ?.id || "",
@@ -259,7 +290,9 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
       const msgMatchId = payload.matchId || payload.match_id;
       if (
         payload &&
-        (!targetMatchId || String(msgMatchId) === String(targetMatchId))
+        (!targetMatchId ||
+          String(msgMatchId).trim().toLowerCase() ===
+            String(targetMatchId).trim().toLowerCase())
       ) {
         // Safely unwrap the nested ball data
         setLiveData(
@@ -274,9 +307,15 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
         }
 
         const totalRuns =
-          payload.explicitTotalRuns ?? payload.explicit_total_runs;
+          payload.explicitTotalRuns ??
+          payload.explicit_total_runs ??
+          payload.totalRuns ??
+          payload.total_runs;
         const totalWickets =
-          payload.explicitTotalWickets ?? payload.explicit_total_wickets;
+          payload.explicitTotalWickets ??
+          payload.explicit_total_wickets ??
+          payload.totalWickets ??
+          payload.total_wickets;
         const currentOvers = payload.currentOvers ?? payload.current_overs;
         const currentBalls = payload.currentBalls ?? payload.current_balls;
 
@@ -295,7 +334,9 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
           let targetInningIndex = -1;
           if (targetInningId) {
             targetInningIndex = updatedInnings.findIndex(
-              (i: any) => String(i.id) === String(targetInningId),
+              (i: any) =>
+                String(i.id).trim().toLowerCase() ===
+                String(targetInningId).trim().toLowerCase(),
             );
           }
           if (targetInningIndex < 0 && targetBattingTeam) {
@@ -312,7 +353,27 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
           }
 
           if (targetInningIndex > -1) {
-            const inn = { ...updatedInnings[targetInningIndex] };
+            const rawInn = updatedInnings[targetInningIndex];
+            const clonedPlayers = Object.entries(rawInn.players || {}).reduce(
+              (acc: any, [k, v]: any) => {
+                acc[k] = { ...v };
+                return acc;
+              },
+              {},
+            );
+            const clonedBowlers = Object.entries(rawInn.bowlers || {}).reduce(
+              (acc: any, [k, v]: any) => {
+                acc[k] = { ...v };
+                return acc;
+              },
+              {},
+            );
+
+            const inn = {
+              ...rawInn,
+              players: clonedPlayers,
+              bowlers: clonedBowlers,
+            };
 
             const strikerName = payload.strikerName || payload.striker_name;
             const nonStrikerName =
@@ -375,38 +436,109 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
               inn.currentBowlerId = b.id;
             }
 
+            if (payload.ballData) {
+              const newBall = {
+                ...payload.ballData,
+                bowlerName:
+                  payload.ballData.bowlerName || payload.ballData.bowler_name,
+                batterName:
+                  payload.ballData.batterName || payload.ballData.batter_name,
+                isExtra:
+                  payload.ballData.isExtra !== undefined
+                    ? payload.ballData.isExtra
+                    : payload.ballData.is_extra,
+                extraType:
+                  payload.ballData.extraType || payload.ballData.extra_type,
+                extraRuns:
+                  payload.ballData.extraRuns !== undefined
+                    ? payload.ballData.extraRuns
+                    : payload.ballData.extra_runs,
+                isWicket:
+                  payload.ballData.isWicket !== undefined
+                    ? payload.ballData.isWicket
+                    : payload.ballData.is_wicket,
+                wicketType:
+                  payload.ballData.wicketType || payload.ballData.wicket_type,
+                overNumber:
+                  payload.ballData.overNumber !== undefined
+                    ? payload.ballData.overNumber
+                    : payload.ballData.over_number,
+                ballNumber:
+                  payload.ballData.ballNumber !== undefined
+                    ? payload.ballData.ballNumber
+                    : payload.ballData.ball_number,
+              };
+              inn.allBalls = [...(inn.allBalls || []), newBall];
+              inn.currentOver = [...(inn.currentOver || []), newBall].slice(-6);
+            }
+
             const playerRunsSum = Object.values(inn.players || {}).reduce(
               (sum: number, p: any) => sum + Number(p.runs || 0),
               0,
             );
+
+            const ballsRunsSum = (inn.allBalls || []).reduce(
+              (sum: number, b: any) => {
+                const r = Number(b.runs || 0);
+                const isExtra = b.isExtra || b.is_extra;
+                const extraType = String(
+                  b.extraType || b.extra_type || "",
+                ).toUpperCase();
+                const extraRuns = Number(
+                  b.extraRuns !== undefined ? b.extraRuns : b.extra_runs || 0,
+                );
+                let ballTotal = r;
+                if (isExtra) {
+                  if (extraType === "WIDE" || extraType === "NO_BALL") {
+                    ballTotal = r + (extraRuns > 0 ? extraRuns : 1);
+                  } else {
+                    ballTotal = r + extraRuns;
+                  }
+                }
+                return sum + ballTotal;
+              },
+              0,
+            );
+
             const outWicketsCount = Object.values(inn.players || {}).filter(
-              (p: any) => p.isOut && p.wicketType !== "RETIRED_HURT",
+              (p: any) => p.isOut && p.wicketType !== WicketType.RETIRED_HURT,
+            ).length;
+
+            const ballsWicketsCount = (inn.allBalls || []).filter(
+              (b: any) =>
+                (b.isWicket || b.is_wicket) &&
+                b.wicketType !== WicketType.RETIRED_HURT &&
+                b.wicket_type !== WicketType.RETIRED_HURT,
             ).length;
 
             inn.totalRuns = Math.max(
               Number(totalRuns || 0),
               Number(inn.totalRuns || 0),
               playerRunsSum,
+              ballsRunsSum,
             );
             if (totalWickets !== undefined) {
               inn.totalWickets = Math.max(
                 Number(totalWickets || 0),
                 Number(inn.totalWickets || 0),
                 outWicketsCount,
+                ballsWicketsCount,
               );
             } else {
               inn.totalWickets = Math.max(
                 Number(inn.totalWickets || 0),
                 outWicketsCount,
+                ballsWicketsCount,
               );
             }
 
             if (currentOvers !== undefined) inn.overs = Number(currentOvers);
-            if (currentBalls !== undefined) inn.balls = Number(currentBalls);
+            else if (payload.ballData?.overNumber !== undefined)
+              inn.overs = Number(payload.ballData.overNumber);
 
-            if (payload.ballData) {
-              inn.allBalls = [...(inn.allBalls || []), payload.ballData];
-            }
+            if (currentBalls !== undefined) inn.balls = Number(currentBalls);
+            else if (payload.ballData?.ballNumber !== undefined)
+              inn.balls = Number(payload.ballData.ballNumber);
 
             updatedInnings[targetInningIndex] = inn;
           }
@@ -557,16 +689,25 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                 "Waiting...";
 
               // Find active batters (strictly current striker and non-striker)
-              const activeBatters = Object.values(currentInnings.players)
-                .filter(
-                  (p: any) =>
-                    (p.id === currentInnings.strikerId ||
-                      p.id === currentInnings.nonStrikerId) &&
-                    p.id !== "",
-                )
-                .sort((a: any, b: any) =>
-                  a.id === currentInnings.strikerId ? -1 : 1,
-                );
+              const activeBatters = (() => {
+                const matched = Object.values(currentInnings.players || {})
+                  .filter(
+                    (p: any) =>
+                      (p.id === currentInnings.strikerId ||
+                        p.id === currentInnings.nonStrikerId) &&
+                      p.id !== "",
+                  )
+                  .sort((a: any, b: any) =>
+                    a.id === currentInnings.strikerId ? -1 : 1,
+                  );
+                if (matched.length > 0) return matched;
+                return Object.values(currentInnings.players || {})
+                  .filter(
+                    (p: any) =>
+                      !p.isOut && p.wicketType !== WicketType.RETIRED_HURT,
+                  )
+                  .slice(0, 2);
+              })();
 
               // Find current bowler
               const currentBowler =
@@ -655,6 +796,86 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                           OVS
                         </span>
                       </span>
+                    </div>
+                  </div>
+
+                  {/* THIS OVER Live Timeline Bar */}
+                  <div className="bg-slate-800/50 rounded-2xl border border-white/5 p-3.5 flex items-center justify-between shadow-lg">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      THIS OVER
+                    </span>
+                    <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
+                      {!currentInnings.currentOver ||
+                      currentInnings.currentOver.length === 0 ? (
+                        <span className="text-[10px] font-bold text-slate-500 italic uppercase">
+                          Waiting for ball...
+                        </span>
+                      ) : (
+                        currentInnings.currentOver.map(
+                          (ball: any, idx: number) => {
+                            const isRetHurt =
+                              ball.wicketType === WicketType.RETIRED_HURT ||
+                              String(ball.wicketType) === "RETIRED_HURT";
+                            const isRetOut =
+                              ball.wicketType === WicketType.RETIRED_OUT ||
+                              String(ball.wicketType) === "RETIRED_OUT";
+                            const isWicket = ball.isWicket || ball.is_wicket;
+                            const runs = Number(ball.runs || 0);
+                            const isExtra = ball.isExtra || ball.is_extra;
+                            const extraType = String(
+                              ball.extraType || ball.extra_type || "",
+                            ).toUpperCase();
+
+                            let badgeBg =
+                              "bg-white text-slate-900 border-white";
+                            if (isRetHurt)
+                              badgeBg =
+                                "bg-amber-500 text-amber-950 border-amber-300 shadow-amber-500/30";
+                            else if (isRetOut)
+                              badgeBg =
+                                "bg-purple-600 text-white border-purple-400 shadow-purple-500/30";
+                            else if (isWicket)
+                              badgeBg =
+                                "bg-red-500 text-white border-red-300 shadow-red-500/30";
+                            else if (runs === 4)
+                              badgeBg =
+                                "bg-blue-600 text-white border-blue-400 shadow-blue-500/30";
+                            else if (runs === 6)
+                              badgeBg =
+                                "bg-purple-600 text-white border-purple-400 shadow-purple-500/30";
+                            else if (isExtra)
+                              badgeBg =
+                                "bg-amber-500 text-amber-950 border-amber-300 shadow-amber-500/30";
+
+                            let label = String(runs);
+                            if (isRetHurt) label = "RH";
+                            else if (isRetOut) label = "RO";
+                            else if (isWicket)
+                              label = runs > 0 ? `W+${runs}` : "W";
+                            else if (isExtra) {
+                              if (extraType === "WIDE")
+                                label = runs > 0 ? `Wd+${runs}` : "Wd";
+                              else if (extraType === "NO_BALL")
+                                label = runs > 0 ? `Nb+${runs}` : "Nb";
+                              else if (extraType === "BYE")
+                                label = runs > 0 ? `B+${runs}` : "B";
+                              else if (extraType === "LEG_BYE")
+                                label = runs > 0 ? `Lb+${runs}` : "Lb";
+                              else label = extraType ? extraType[0] : "E";
+                            }
+
+                            return (
+                              <span
+                                key={idx}
+                                className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-[10px] md:text-xs font-black border shadow-md transition-all animate-in zoom-in-75 duration-300 ${badgeBg}`}
+                              >
+                                {label}
+                              </span>
+                            );
+                          },
+                        )
+                      )}
                     </div>
                   </div>
 
