@@ -33,7 +33,8 @@ ball_events(id, inning_id, over_number, ball_number, bowler_name, batter_name, r
  * @returns {object} Lambda response object
  */
 async function chatHandler(body, corsHeaders) {
-  const { message, matchId, history = [], isAdmin = false } = body;
+  const { message, matchId, history = [], isAdmin = false, model } = body;
+  const targetModel = model || LLM_MODEL;
 
   if (!message) {
     return {
@@ -130,7 +131,7 @@ Current Active Match Context: ${matchContext || "None provided"}
   let response;
   try {
     response = await openai.chat.completions.create({
-      model: LLM_MODEL,
+      model: targetModel,
       messages,
       tools,
       tool_choice: "auto",
@@ -184,7 +185,7 @@ Current Active Match Context: ${matchContext || "None provided"}
 
     // Final LLM call — generate human-readable answer from tool results
     response = await openai.chat.completions.create({
-      model: LLM_MODEL,
+      model: targetModel,
       messages,
       temperature: 0.5,
       max_tokens: 500,
@@ -195,7 +196,10 @@ Current Active Match Context: ${matchContext || "None provided"}
   return {
     statusCode: 200,
     headers: corsHeaders,
-    body: JSON.stringify({ reply: responseMessage.content }),
+    body: JSON.stringify({
+      reply: responseMessage.content,
+      model: targetModel,
+    }),
   };
 }
 

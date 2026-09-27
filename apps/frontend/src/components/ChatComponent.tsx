@@ -10,9 +10,48 @@ import {
 } from "lucide-react";
 import { safeSessionStorageSet } from "../utils/storageSafety";
 
+export const AVAILABLE_AI_MODELS = [
+  {
+    id: "anthropic/claude-3.5-sonnet",
+    name: "Claude 3.5 Sonnet",
+    badge: "Default",
+  },
+  {
+    id: "anthropic/claude-3.7-sonnet",
+    name: "Claude 3.7 Sonnet",
+    badge: "Advanced",
+  },
+  {
+    id: "deepseek/deepseek-r1:free",
+    name: "DeepSeek R1",
+    badge: "Free",
+  },
+  {
+    id: "meta-llama/llama-3.3-70b-instruct:free",
+    name: "Llama 3.3 70B",
+    badge: "Free",
+  },
+  {
+    id: "google/gemini-2.0-flash-exp:free",
+    name: "Gemini 2.0 Flash",
+    badge: "Free",
+  },
+  {
+    id: "qwen/qwen-2.5-coder-32b-instruct:free",
+    name: "Qwen 2.5 Coder",
+    badge: "Free",
+  },
+  {
+    id: "mistralai/mistral-7b-instruct:free",
+    name: "Mistral 7B",
+    badge: "Free",
+  },
+];
+
 interface Message {
   role: "system" | "user" | "assistant";
   content: string;
+  modelName?: string;
 }
 
 export function ChatComponent({
@@ -27,8 +66,15 @@ export function ChatComponent({
   setAlertMessage: (msg: string) => void;
 }) {
   const [messages, setMessages] = useState<Message[]>([
-    { role: "assistant", content: "Hi! Ask me anything about the live match!" },
+    {
+      role: "assistant",
+      content: "Hi! Ask me anything about the live match!",
+      modelName: "Claude 3.5 Sonnet (Default)",
+    },
   ]);
+  const [selectedModel, setSelectedModel] = useState<string>(
+    "anthropic/claude-3.5-sonnet",
+  );
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [isUploadingRules, setIsUploadingRules] = useState(false);
@@ -151,19 +197,35 @@ export function ChatComponent({
           matchId,
           history,
           isAdmin,
+          model: selectedModel,
         }),
       });
       const data = await res.json();
 
+      const activeModelObj = AVAILABLE_AI_MODELS.find(
+        (m) => m.id === (data.model || selectedModel),
+      );
+      const activeModelDisplayName = activeModelObj
+        ? `${activeModelObj.name} (${activeModelObj.badge})`
+        : selectedModel;
+
       if (data.reply) {
         setMessages((prev) => [
           ...prev,
-          { role: "assistant", content: data.reply },
+          {
+            role: "assistant",
+            content: data.reply,
+            modelName: activeModelDisplayName,
+          },
         ]);
       } else {
         setMessages((prev) => [
           ...prev,
-          { role: "assistant", content: "Error: " + data.error },
+          {
+            role: "assistant",
+            content: "Error: " + data.error,
+            modelName: activeModelDisplayName,
+          },
         ]);
       }
     } catch (error: any) {
@@ -178,11 +240,28 @@ export function ChatComponent({
 
   return (
     <div className="flex flex-col h-full w-full max-w-4xl mx-auto bg-slate-900 rounded-xl border border-white/10 shadow-2xl overflow-hidden">
-      <div className="p-4 bg-slate-800 border-b border-white/10 flex items-center justify-between">
-        <h3 className="text-xl font-bold text-white flex items-center gap-2">
-          <Bot className="text-indigo-400" />
-          Live Match AI Assistant
-        </h3>
+      <div className="p-4 bg-slate-800 border-b border-white/10 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <h3 className="text-lg md:text-xl font-bold text-white flex items-center gap-2">
+            <Bot className="text-indigo-400" />
+            Live Match AI Assistant
+          </h3>
+          <select
+            value={selectedModel}
+            onChange={(e) => setSelectedModel(e.target.value)}
+            className="bg-slate-900 text-indigo-300 text-xs font-black py-1.5 px-3 rounded-xl border border-indigo-500/30 focus:outline-none focus:border-indigo-400 cursor-pointer shadow-inner uppercase tracking-wider"
+          >
+            {AVAILABLE_AI_MODELS.map((m) => (
+              <option
+                key={m.id}
+                value={m.id}
+                className="bg-slate-900 text-slate-200"
+              >
+                {m.name} ({m.badge})
+              </option>
+            ))}
+          </select>
+        </div>
         {isAdmin && (
           <div className="flex items-center gap-3">
             <div className="relative">
@@ -268,6 +347,11 @@ export function ChatComponent({
             <div
               className={`p-3 rounded-2xl max-w-[80%] ${msg.role === "user" ? "bg-indigo-600 text-white rounded-tr-none" : "bg-slate-800 text-slate-200 rounded-tl-none border border-white/5"}`}
             >
+              {msg.role === "assistant" && msg.modelName && (
+                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest block mb-1">
+                  ⚡ {msg.modelName}
+                </span>
+              )}
               <p className="whitespace-pre-wrap text-sm leading-relaxed">
                 {msg.content}
               </p>
