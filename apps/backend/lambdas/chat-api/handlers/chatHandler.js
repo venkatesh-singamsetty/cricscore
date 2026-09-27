@@ -18,19 +18,91 @@ ball_events(id, inning_id, over_number, ball_number, bowler_name, batter_name, r
 `;
 
 /**
+ * Smart local intent router fallback when external LLM API balance/rate limits are reached.
+ * Automatically queries PostgreSQL DB or vector rulebook via MCP tools to give real, accurate answers.
+ */
+async function generateSmartFallback(message, matchContext, mcpClient) {
+  const q = String(message || "").toLowerCase();
+
+  // 1. Greetings
+  if (
+    q === "hi" ||
+    q === "hello" ||
+    q === "hey" ||
+    q.startsWith("hi ") ||
+    q.startsWith("hello ")
+  ) {
+    return "Hello! I am CricScore AI, your live match analyst. Ask me anything about scores, player stats, or tournament rules!";
+  }
+
+  // 2. Database Queries (Matches, scores, count, stats)
+  if (
+    q.includes("match") ||
+    q.includes("score") ||
+    q.includes("how many") ||
+    q.includes("stat") ||
+    q.includes("player")
+  ) {
+    const dbClient = await pool.connect();
+    try {
+      await setSearchPath(dbClient);
+      const countRes = await dbClient.query("SELECT COUNT(*) FROM matches");
+      const count = countRes.rows[0]?.count || 0;
+
+      const matchesRes = await dbClient.query(
+        "SELECT team_a_name, team_b_name, status, team_a_score, team_a_wickets, team_b_score, team_b_wickets FROM matches ORDER BY created_at DESC LIMIT 3",
+      );
+
+      let matchSummary = "";
+      if (matchesRes.rows.length > 0) {
+        matchSummary = matchesRes.rows
+          .map(
+            (m) =>
+              `• ${m.team_a_name} vs ${m.team_b_name} (${m.status}): ${m.team_a_score}/${m.team_a_wickets} vs ${m.team_b_score}/${m.team_b_wickets}`,
+          )
+          .join("\n");
+      }
+
+      return `We have ${count} match(es) recorded in the tournament database:\n${matchSummary || "No matches recorded yet."}`;
+    } catch (err) {
+      console.error("generateSmartFallback DB error:", err);
+    } finally {
+      dbClient.release();
+    }
+  }
+
+  // 3. Rulebook Queries (Powerplay, DLS, rules, tiebreaker)
+  if (
+    q.includes("powerplay") ||
+    q.includes("rule") ||
+    q.includes("dls") ||
+    q.includes("tie") ||
+    q.includes("over") ||
+    q.includes("format")
+  ) {
+    try {
+      const res = await mcpClient.callTool({
+        name: "search_tournament_rules",
+        arguments: { query: message },
+      });
+      if (res?.content?.[0]?.text && !res.content[0].text.includes("Error")) {
+        return res.content[0].text;
+      }
+    } catch (err) {
+      console.error("generateSmartFallback Rules error:", err);
+    }
+  }
+
+  // 4. Default Contextual Response
+  if (matchContext) {
+    return `Currently ${matchContext}. Ask me about match scores, top scorers, or tournament rules!`;
+  }
+
+  return "I am CricScore AI, your cricket analyst. Ask me about live match scores, team statistics, or tournament rulebooks!";
+}
+
+/**
  * Handles the main /chat endpoint.
- *
- * Flow:
- * 1. Fetch active match context from DB (if matchId provided)
- * 2. Spin up MCP Server + Client using InMemoryTransport (zero cost)
- * 3. Discover tools from MCP Server and pass schemas to LLM
- * 4. LLM decides which tool(s) to call (if any)
- * 5. Delegate tool calls back to MCP Server for secure execution
- * 6. Final LLM call generates the human-readable response
- *
- * @param {object} body - Parsed request body
- * @param {object} corsHeaders - CORS headers to include in response
- * @returns {object} Lambda response object
  */
 async function chatHandler(body, corsHeaders) {
   const { message, matchId, history = [], isAdmin = false } = body;
@@ -146,16 +218,18 @@ Active Match: ${matchContext || "None"}
       });
     } catch (fallbackErr) {
       console.warn(
-        "chatHandler: OpenRouter API limit hit, returning friendly response:",
+        "chatHandler: OpenRouter API limit hit, invoking smart local fallback:",
         fallbackErr.message,
+      );
+      const smartReply = await generateSmartFallback(
+        message,
+        matchContext,
+        mcpClient,
       );
       return {
         statusCode: 200,
         headers: corsHeaders,
-        body: JSON.stringify({
-          reply:
-            "Hello! I am CricScore AI, your live match analyst. How can I help you with match scores, stats, or rules today?",
-        }),
+        body: JSON.stringify({ reply: smartReply }),
       };
     }
   }
