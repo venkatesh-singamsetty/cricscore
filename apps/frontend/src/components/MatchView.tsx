@@ -1187,7 +1187,7 @@ const MatchView: React.FC<MatchViewProps> = ({
         ref={middleContainerRef}
         className="flex-1 overflow-y-auto scrollbar-hide py-1"
       >
-        <div className="max-w-4xl mx-auto w-full px-3 space-y-1 pb-12 md:pb-16">
+        <div className="max-w-4xl mx-auto w-full px-3 space-y-1 pb-4 md:pb-6">
           {/* Active Player Cards */}
           <div className="grid grid-cols-2 gap-2">
             {/* Batters */}
@@ -1362,27 +1362,19 @@ const MatchView: React.FC<MatchViewProps> = ({
             </div>
           </div>
 
-          {/* Live Commentary & Equation */}
-          <div className="space-y-1">
-            <div className="bg-indigo-600/5 rounded-lg py-1 px-2.5 border border-indigo-500/10 shadow-inner">
-              <div className="flex items-center gap-2">
-                <span className="flex-shrink-0 text-[10px] font-black text-indigo-400 uppercase italic">
-                  LIVE
-                </span>
-                <p className="text-xs md:text-sm text-slate-200 font-bold tracking-wide italic uppercase leading-none truncate">
-                  {lastCommentary}
-                </p>
-              </div>
+          {/* Live Commentary */}
+          <div className="bg-indigo-600/5 rounded-lg py-0.5 px-2 border border-indigo-500/10 shadow-inner">
+            <div className="flex items-center gap-2">
+              <span className="flex-shrink-0 text-[9px] font-black text-indigo-400 uppercase italic">
+                LIVE
+              </span>
+              <p className="text-[11px] md:text-xs text-slate-200 font-bold tracking-wide italic uppercase leading-none truncate">
+                {lastCommentary}
+              </p>
             </div>
-            {equation && (
-              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg py-1 px-2.5 text-center">
-                <span className="text-[9px] md:text-xs font-black text-yellow-500 uppercase tracking-[0.2em]">
-                  {equation}
-                </span>
-              </div>
-            )}
           </div>
-          {/* Live Stats Strip */}
+
+          {/* Target Banner & Live Stats Strip */}
           {(() => {
             const ballsBowled = innings.overs * 6 + innings.balls;
             const crr =
@@ -1407,40 +1399,49 @@ const MatchView: React.FC<MatchViewProps> = ({
                     .reduce((s, b) => s + b.runs + b.extraRuns, 0)
                 : null;
             return (
-              <div className="grid grid-cols-3 gap-1.5 mt-1 pb-2">
-                <div className="bg-slate-800/50 rounded-xl py-1 px-2 text-center border border-white/5">
-                  <div className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-0.5">
-                    CRR
-                  </div>
-                  <div className="text-xs md:text-sm font-black text-white tabular-nums">
-                    {crr}
-                  </div>
-                </div>
-                {rrr !== null ? (
-                  <div className="bg-yellow-500/10 rounded-xl py-1 px-2 text-center border border-yellow-500/20">
-                    <div className="text-[9px] font-black text-yellow-600 uppercase tracking-wider mb-0.5">
-                      RRR
-                    </div>
-                    <div className="text-xs md:text-sm font-black text-yellow-400 tabular-nums">
-                      {rrr}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-slate-800/50 rounded-xl py-1 px-2 text-center border border-white/5">
-                    <div className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-0.5">
-                      BALLS LEFT
-                    </div>
-                    <div className="text-xs md:text-sm font-black text-white tabular-nums">
-                      {ballsLeft}
-                    </div>
+              <div className="space-y-1">
+                {equation && (
+                  <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg py-0.5 px-2 text-center">
+                    <span className="text-[10px] md:text-xs font-black text-yellow-400 uppercase tracking-[0.15em]">
+                      🎯 {equation}
+                    </span>
                   </div>
                 )}
-                <div className="bg-slate-800/50 rounded-xl py-1 px-2 text-center border border-white/5">
-                  <div className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-0.5">
-                    LAST OVR
+                <div className="grid grid-cols-3 gap-1.5">
+                  <div className="bg-slate-800/50 rounded-xl py-0.5 px-1.5 text-center border border-white/5">
+                    <div className="text-[8px] md:text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                      CRR
+                    </div>
+                    <div className="text-xs md:text-sm font-black text-white tabular-nums leading-tight">
+                      {crr}
+                    </div>
                   </div>
-                  <div className="text-xs md:text-sm font-black text-indigo-400 tabular-nums">
-                    {lastOverRuns !== null ? lastOverRuns : "—"}
+                  {rrr !== null ? (
+                    <div className="bg-yellow-500/10 rounded-xl py-0.5 px-1.5 text-center border border-yellow-500/20">
+                      <div className="text-[8px] md:text-[9px] font-black text-yellow-600 uppercase tracking-wider">
+                        RRR
+                      </div>
+                      <div className="text-xs md:text-sm font-black text-yellow-400 tabular-nums leading-tight">
+                        {rrr}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-slate-800/50 rounded-xl py-0.5 px-1.5 text-center border border-white/5">
+                      <div className="text-[8px] md:text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                        BALLS LEFT
+                      </div>
+                      <div className="text-xs md:text-sm font-black text-white tabular-nums leading-tight">
+                        {ballsLeft}
+                      </div>
+                    </div>
+                  )}
+                  <div className="bg-slate-800/50 rounded-xl py-0.5 px-1.5 text-center border border-white/5">
+                    <div className="text-[8px] md:text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                      LAST OVR
+                    </div>
+                    <div className="text-xs md:text-sm font-black text-indigo-400 tabular-nums leading-tight">
+                      {lastOverRuns !== null ? lastOverRuns : "—"}
+                    </div>
                   </div>
                 </div>
               </div>
