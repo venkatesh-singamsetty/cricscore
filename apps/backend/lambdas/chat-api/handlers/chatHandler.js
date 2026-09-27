@@ -161,9 +161,9 @@ Current Active Match Context: ${matchContext || "None provided"}
     };
   });
 
-  // Step 5: Initial LLM call (with automatic fallback if primary fails)
+  // Step 5: Initial LLM call (with automatic fallback to GPT-4o Mini if primary fails)
   const isClaude = targetModel.includes("claude");
-  const initialMaxTokens = isClaude ? 50 : 150;
+  const initialMaxTokens = isClaude ? 40 : 80;
 
   let response;
   let activeModelUsed = targetModel;
@@ -180,7 +180,7 @@ Current Active Match Context: ${matchContext || "None provided"}
     console.warn(
       `chatHandler: Primary model ${targetModel} error: ${err.message}. Retrying with fallback model...`,
     );
-    activeModelUsed = "google/gemini-2.5-flash";
+    activeModelUsed = "openai/gpt-4o-mini";
     try {
       response = await openai.chat.completions.create({
         model: activeModelUsed,
@@ -188,7 +188,7 @@ Current Active Match Context: ${matchContext || "None provided"}
         tools,
         tool_choice: "auto",
         temperature: 0.1,
-        max_tokens: 150,
+        max_tokens: 80,
       });
     } catch (fallbackErr) {
       console.error("chatHandler: Fallback LLM call error:", fallbackErr);
@@ -239,7 +239,7 @@ Current Active Match Context: ${matchContext || "None provided"}
     }
 
     // Final LLM call — generate human-readable answer from tool results
-    const finalMaxTokens = activeModelUsed.includes("claude") ? 50 : 150;
+    const finalMaxTokens = activeModelUsed.includes("claude") ? 40 : 80;
     try {
       response = await openai.chat.completions.create({
         model: activeModelUsed,
@@ -257,7 +257,7 @@ Current Active Match Context: ${matchContext || "None provided"}
         model: activeModelUsed,
         messages,
         temperature: 0.5,
-        max_tokens: 150,
+        max_tokens: 80,
       });
     }
     responseMessage = response.choices[0].message;
