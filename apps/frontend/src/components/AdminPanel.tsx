@@ -38,9 +38,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   >(null);
   const [purgeConfirmText, setPurgeConfirmText] = useState("");
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (keepMessage = false) => {
     setLoading(true);
-    setMessage("");
+    if (!keepMessage) setMessage("");
     try {
       const session = await fetchAuthSession();
       const token = session.tokens?.idToken?.toString();
@@ -98,7 +98,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       if (!res.ok) throw new Error(data.error || `Failed to ${action} user`);
 
       setMessage(`✅ ${data.message || "Success!"}`);
-      fetchUsers(); // Refresh the list
+      fetchUsers(true); // Refresh the list while keeping success message
     } catch (err: any) {
       setMessage(`❌ Error: ${err.message}`);
     } finally {
@@ -129,7 +129,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       if (!res.ok) throw new Error(data.error || "Failed to delete user");
 
       setMessage(`✅ ${data.message || "User deleted successfully!"}`);
-      fetchUsers(); // Refresh the list
+      fetchUsers(true); // Refresh the list while keeping success message
     } catch (err: any) {
       setMessage(`❌ Error: ${err.message}`);
     } finally {
@@ -158,7 +158,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       if (!res.ok)
         throw new Error(data.error || "Failed to delete guest users");
       setMessage(`✅ ${data.message || "Success!"}`);
-      fetchUsers(); // Refresh the list
+      fetchUsers(true); // Refresh the list while keeping success message
     } catch (err: any) {
       setMessage(`❌ Error: ${err.message}`);
     } finally {
@@ -251,7 +251,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               </p>
             </div>
             <button
-              onClick={fetchUsers}
+              onClick={() => fetchUsers()}
               disabled={loading}
               className="px-4 py-2 bg-slate-800 border border-slate-700 text-slate-300 font-bold rounded-lg hover:bg-slate-700 hover:text-white transition-colors"
             >
