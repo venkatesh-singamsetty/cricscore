@@ -368,10 +368,14 @@ const MatchList: React.FC<MatchListProps> = ({
                           : match.team_a_name;
 
                       const leftTeamInnings = match.innings?.find(
-                        (i) => i.batting_team_name === leftTeamName,
+                        (i) =>
+                          i.batting_team_name?.toLowerCase() ===
+                          leftTeamName.toLowerCase(),
                       );
                       const rightTeamInnings = match.innings?.find(
-                        (i) => i.batting_team_name === rightTeamName,
+                        (i) =>
+                          i.batting_team_name?.toLowerCase() ===
+                          rightTeamName.toLowerCase(),
                       );
                       return (
                         <>

@@ -506,10 +506,12 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                           </div>
                           <div className="flex flex-wrap gap-2">
                             {balls.map((ball: any, idx: number) => {
+                              const isRetHurt =
+                                ball.wicketType === "RETIRED_HURT";
                               const isWicket = ball.isWicket;
                               const isExtra = ball.isExtra;
                               let label = String(ball.runs);
-                              if (isWicket) {
+                              if (isWicket || isRetHurt) {
                                 label = ball.runs > 0 ? `W+${ball.runs}` : "W";
                               } else if (ball.extraType === "WIDE") {
                                 label =
@@ -527,7 +529,7 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                               return (
                                 <div
                                   key={idx}
-                                  className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black ${isWicket ? "bg-red-600 text-white shadow-lg shadow-red-600/20" : isExtra ? "bg-amber-600 text-white shadow-lg shadow-amber-600/20" : "bg-slate-800 text-slate-300"}`}
+                                  className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black ${isRetHurt ? "bg-amber-500 text-amber-950 shadow-lg shadow-amber-500/30 border border-amber-300" : isWicket ? "bg-red-600 text-white shadow-lg shadow-red-600/20" : isExtra ? "bg-amber-600 text-white shadow-lg shadow-amber-600/20" : "bg-slate-800 text-slate-300"}`}
                                 >
                                   {label}
                                 </div>

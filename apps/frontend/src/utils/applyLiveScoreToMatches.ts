@@ -154,7 +154,9 @@ export function applyLiveScoreToMatches<T extends MatchListItem>(
     innIndex = innings.findIndex((i) => String(i.id) === String(inningId));
   }
   if (innIndex < 0 && battingTeam) {
-    innIndex = innings.findIndex((i) => i.batting_team_name === battingTeam);
+    innIndex = innings.findIndex(
+      (i) => i.batting_team_name?.toLowerCase() === battingTeam.toLowerCase(),
+    );
   }
   if (innIndex < 0) {
     innIndex = innings.length - 1;

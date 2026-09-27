@@ -486,6 +486,7 @@ const MatchView: React.FC<MatchViewProps> = ({
         body: JSON.stringify({
           matchId,
           inningId: innings.id,
+          battingTeamName: innings.battingTeamName,
           strikerName: striker.name,
           nonStrikerName: nonStriker.name,
           bowlerName: bowler.name,
@@ -544,6 +545,7 @@ const MatchView: React.FC<MatchViewProps> = ({
         body: JSON.stringify({
           matchId,
           inningId: finalInnings.id,
+          battingTeamName: finalInnings.battingTeamName,
           ballData: ball,
           strikerName: finalInnings.players[finalInnings.strikerId]?.name || "",
           nonStrikerName:
@@ -1279,48 +1281,68 @@ const MatchView: React.FC<MatchViewProps> = ({
                   </span>
                 </div>
               ) : (
-                innings.currentOver.map((ball, idx) => (
-                  <div
-                    key={idx}
-                    className="flex flex-col items-center gap-1.5 animate-in slide-in-from-right-4 duration-300"
-                  >
+                innings.currentOver.map((ball, idx) => {
+                  const isRetHurt =
+                    ball.wicketType === WicketType.RETIRED_HURT ||
+                    String(ball.wicketType) === "RETIRED_HURT";
+                  const isRetOut =
+                    ball.wicketType === WicketType.RETIRED_OUT ||
+                    String(ball.wicketType) === "RETIRED_OUT";
+                  return (
                     <div
-                      className={`flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-[12px] md:text-[14px] font-black border-2 transition-all shadow-xl ${
-                        ball.isWicket
-                          ? "bg-red-500 text-white border-red-300 shadow-red-500/40"
-                          : ball.runs === 4
-                            ? "bg-blue-600 text-white border-blue-400 shadow-blue-500/40"
-                            : ball.runs === 6
-                              ? "bg-purple-600 text-white border-purple-400 shadow-purple-500/40"
-                              : ball.isExtra
-                                ? "bg-amber-500 text-amber-950 border-amber-300 shadow-amber-500/40"
-                                : "bg-white text-slate-900 border-white shadow-white/10"
-                      }`}
+                      key={idx}
+                      className="flex flex-col items-center gap-1.5 animate-in slide-in-from-right-4 duration-300"
                     >
-                      {(() => {
-                        if (ball.isWicket)
-                          return ball.runs > 0 ? `W+${ball.runs}` : "W";
-                        if (ball.isExtra) {
-                          if (ball.extraType === "WIDE")
-                            return ball.runs > 0 ? `Wd+${ball.runs}` : "Wd";
-                          if (ball.extraType === "NO_BALL")
-                            return ball.runs > 0 ? `Nb+${ball.runs}` : "Nb";
-                          if (ball.extraType === "BYE")
-                            return ball.runs > 0 ? `B+${ball.runs}` : "B";
-                          if (ball.extraType === "LEG_BYE")
-                            return ball.runs > 0 ? `Lb+${ball.runs}` : "Lb";
-                          return ball.runs > 0
-                            ? `${ball.extraType[0]}+${ball.runs}`
-                            : ball.extraType[0];
-                        }
-                        return ball.runs;
-                      })()}
+                      <div
+                        className={`flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-[12px] md:text-[14px] font-black border-2 transition-all shadow-xl ${
+                          isRetHurt
+                            ? "bg-amber-500 text-amber-950 border-amber-300 shadow-amber-500/40"
+                            : ball.isWicket
+                              ? "bg-red-500 text-white border-red-300 shadow-red-500/40"
+                              : ball.runs === 4
+                                ? "bg-blue-600 text-white border-blue-400 shadow-blue-500/40"
+                                : ball.runs === 6
+                                  ? "bg-purple-600 text-white border-purple-400 shadow-purple-500/40"
+                                  : ball.isExtra
+                                    ? "bg-amber-500 text-amber-950 border-amber-300 shadow-amber-500/40"
+                                    : "bg-white text-slate-900 border-white shadow-white/10"
+                        }`}
+                      >
+                        {(() => {
+                          if (ball.isWicket || isRetHurt)
+                            return ball.runs > 0 ? `W+${ball.runs}` : "W";
+                          if (ball.isExtra) {
+                            if (ball.extraType === "WIDE")
+                              return ball.runs > 0 ? `Wd+${ball.runs}` : "Wd";
+                            if (ball.extraType === "NO_BALL")
+                              return ball.runs > 0 ? `Nb+${ball.runs}` : "Nb";
+                            if (ball.extraType === "BYE")
+                              return ball.runs > 0 ? `B+${ball.runs}` : "B";
+                            if (ball.extraType === "LEG_BYE")
+                              return ball.runs > 0 ? `Lb+${ball.runs}` : "Lb";
+                            return ball.runs > 0
+                              ? `${ball.extraType[0]}+${ball.runs}`
+                              : ball.extraType[0];
+                          }
+                          return ball.runs;
+                        })()}
+                      </div>
+                      <span
+                        className={`text-[8px] md:text-[9px] font-black uppercase ${isRetHurt ? "text-amber-400" : isRetOut ? "text-purple-400" : ball.isWicket ? "text-red-400" : "text-slate-500"}`}
+                      >
+                        {isRetHurt
+                          ? "RET_HURT"
+                          : isRetOut
+                            ? "RET_OUT"
+                            : ball.isWicket
+                              ? "WICKET"
+                              : ball.isExtra
+                                ? ball.extraType.split("_")[0]
+                                : "RUN"}
+                      </span>
                     </div>
-                    <span className="text-[8px] md:text-[9px] font-black text-slate-500 uppercase">
-                      {ball.isExtra ? ball.extraType.split("_")[0] : "RUN"}
-                    </span>
-                  </div>
-                ))
+                  );
+                })
               )}
               {innings.currentOver.length > 0 &&
                 innings.currentOver.length < 6 &&
