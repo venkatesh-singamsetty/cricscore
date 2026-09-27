@@ -17,19 +17,9 @@ export const AVAILABLE_AI_MODELS = [
     badge: "Default",
   },
   {
-    id: "anthropic/claude-sonnet-5",
-    name: "Claude Sonnet 5",
-    badge: "Advanced",
-  },
-  {
-    id: "deepseek/deepseek-chat",
-    name: "DeepSeek V3",
-    badge: "Popular",
-  },
-  {
-    id: "deepseek/deepseek-r1",
-    name: "DeepSeek R1",
-    badge: "Reasoning",
+    id: "openai/gpt-4o-mini",
+    name: "GPT-4o Mini",
+    badge: "Fast",
   },
   {
     id: "google/gemini-2.5-flash",
@@ -37,14 +27,14 @@ export const AVAILABLE_AI_MODELS = [
     badge: "Fast",
   },
   {
-    id: "meta-llama/llama-3.3-70b-instruct",
-    name: "Llama 3.3 70B",
+    id: "deepseek/deepseek-chat",
+    name: "DeepSeek V3",
     badge: "Popular",
   },
   {
-    id: "nvidia/nemotron-3.5-lightning:free",
-    name: "Nemotron 3.5",
-    badge: "Free",
+    id: "meta-llama/llama-3.3-70b-instruct",
+    name: "Llama 3.3 70B",
+    badge: "Popular",
   },
 ];
 

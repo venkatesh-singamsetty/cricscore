@@ -18,7 +18,7 @@ ball_events(id, inning_id, over_number, ball_number, bowler_name, batter_name, r
 `;
 
 /**
- * Normalizes user-selected or legacy model slugs to valid, working OpenRouter model IDs.
+ * Normalizes user-selected or legacy model slugs to valid, fast, tool-supporting OpenRouter model IDs.
  */
 function normalizeModelSlug(model) {
   if (!model) return LLM_MODEL || "anthropic/claude-sonnet-4.5";
@@ -28,18 +28,19 @@ function normalizeModelSlug(model) {
     slug.includes("claude-3.5") ||
     slug.includes("claude-3.7") ||
     slug.includes("claude-sonnet") ||
-    slug.includes("sonnet-4.5")
+    slug.includes("sonnet")
   ) {
     return "anthropic/claude-sonnet-4.5";
   }
-  if (slug.includes("claude-sonnet-5")) {
-    return "anthropic/claude-sonnet-5";
+  if (
+    slug.includes("gpt-4o") ||
+    slug.includes("openai") ||
+    slug.includes("gpt")
+  ) {
+    return "openai/gpt-4o-mini";
   }
   if (slug.includes("gemini")) {
     return "google/gemini-2.5-flash";
-  }
-  if (slug.includes("deepseek-r1")) {
-    return "deepseek/deepseek-r1";
   }
   if (slug.includes("deepseek")) {
     return "deepseek/deepseek-chat";
@@ -47,13 +48,7 @@ function normalizeModelSlug(model) {
   if (slug.includes("llama")) {
     return "meta-llama/llama-3.3-70b-instruct";
   }
-  if (slug.includes("qwen")) {
-    return "qwen/qwen-2.5-coder-32b-instruct";
-  }
-  if (slug.includes("mistral") || slug.includes("nemotron")) {
-    return "nvidia/nemotron-3.5-lightning:free";
-  }
-  return model;
+  return "google/gemini-2.5-flash";
 }
 
 /**
@@ -166,8 +161,9 @@ Current Active Match Context: ${matchContext || "None provided"}
     };
   });
 
-  // Step 5: Initial LLM call
+  // Step 5: Initial LLM call (with automatic fallback to Gemini Flash if primary fails)
   let response;
+  let activeModelUsed = targetModel;
   try {
     response = await openai.chat.completions.create({
       model: targetModel,
@@ -178,12 +174,29 @@ Current Active Match Context: ${matchContext || "None provided"}
       max_tokens: 250,
     });
   } catch (err) {
-    console.error("chatHandler: LLM call error:", err);
-    return {
-      statusCode: 500,
-      headers: corsHeaders,
-      body: JSON.stringify({ error: "LLM processing failed" }),
-    };
+    console.warn(
+      `chatHandler: Primary model ${targetModel} error: ${err.message}. Retrying with fallback model...`,
+    );
+    activeModelUsed = "google/gemini-2.5-flash";
+    try {
+      response = await openai.chat.completions.create({
+        model: activeModelUsed,
+        messages,
+        tools,
+        tool_choice: "auto",
+        temperature: 0.1,
+        max_tokens: 250,
+      });
+    } catch (fallbackErr) {
+      console.error("chatHandler: Fallback LLM call error:", fallbackErr);
+      return {
+        statusCode: 500,
+        headers: corsHeaders,
+        body: JSON.stringify({
+          error: "LLM processing failed. Please try again.",
+        }),
+      };
+    }
   }
 
   let responseMessage = response.choices[0].message;
@@ -223,12 +236,26 @@ Current Active Match Context: ${matchContext || "None provided"}
     }
 
     // Final LLM call — generate human-readable answer from tool results
-    response = await openai.chat.completions.create({
-      model: targetModel,
-      messages,
-      temperature: 0.5,
-      max_tokens: 250,
-    });
+    try {
+      response = await openai.chat.completions.create({
+        model: activeModelUsed,
+        messages,
+        temperature: 0.5,
+        max_tokens: 250,
+      });
+    } catch (err) {
+      console.warn(
+        `chatHandler: Final LLM call error with ${activeModelUsed}, retrying fallback:`,
+        err.message,
+      );
+      activeModelUsed = "openai/gpt-4o-mini";
+      response = await openai.chat.completions.create({
+        model: activeModelUsed,
+        messages,
+        temperature: 0.5,
+        max_tokens: 250,
+      });
+    }
     responseMessage = response.choices[0].message;
   }
 
@@ -242,7 +269,7 @@ Current Active Match Context: ${matchContext || "None provided"}
     headers: corsHeaders,
     body: JSON.stringify({
       reply: replyText,
-      model: targetModel,
+      model: activeModelUsed,
     }),
   };
 }
