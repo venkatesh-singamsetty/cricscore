@@ -18,6 +18,7 @@ interface MatchViewProps {
   userToken?: string;
   onInningsEnd: (innings: InningsState) => void;
   onResetMatch: () => void;
+  onQuitMatch?: () => void;
   onForceReset?: () => void;
   onUpdateOvers?: (overs: number) => void;
   onStateChange?: (state: InningsState) => void;
@@ -118,6 +119,7 @@ const MatchView: React.FC<MatchViewProps> = ({
   userToken,
   onInningsEnd,
   onResetMatch,
+  onQuitMatch,
   onForceReset,
   onUpdateOvers,
   onStateChange,
@@ -1072,6 +1074,7 @@ const MatchView: React.FC<MatchViewProps> = ({
           previousInnings={previousInnings}
           onClose={() => setShowScoreboard(false)}
           onResetMatch={onResetMatch}
+          onQuitMatch={onQuitMatch}
           totalOvers={totalOvers}
         />
       )}

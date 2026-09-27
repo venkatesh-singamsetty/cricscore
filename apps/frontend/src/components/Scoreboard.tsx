@@ -7,6 +7,7 @@ interface ScoreboardProps {
   previousInnings?: InningsState;
   onClose: () => void;
   onResetMatch?: () => void;
+  onQuitMatch?: () => void;
   isSpectator?: boolean;
   totalOvers?: number;
   playerOfTheMatch?: string | null;
@@ -17,6 +18,7 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
   previousInnings,
   onClose,
   onResetMatch,
+  onQuitMatch,
   isSpectator = false,
   totalOvers,
   playerOfTheMatch,
@@ -598,16 +600,27 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                   </div>
                 </div>
                 {!isSpectator && onResetMatch && activeTab === "current" && (
-                  <div className="mt-8 pt-6 border-t border-white/10 flex flex-col items-center">
+                  <div className="mt-8 pt-6 border-t border-white/10 flex flex-wrap gap-4 items-center justify-center">
                     <button
                       onClick={() => {
                         onClose();
                         onResetMatch();
                       }}
-                      className="py-3 px-8 rounded-full bg-red-900/40 text-red-500 font-black text-xs uppercase tracking-widest border border-red-500/20 active:scale-95 transition-transform hover:bg-red-900/60"
+                      className="py-3 px-8 rounded-full bg-indigo-900/40 text-indigo-400 font-black text-xs uppercase tracking-widest border border-indigo-500/20 active:scale-95 transition-transform hover:bg-indigo-900/60"
                     >
                       START NEW MATCH
                     </button>
+                    {onQuitMatch && (
+                      <button
+                        onClick={() => {
+                          onClose();
+                          onQuitMatch();
+                        }}
+                        className="py-3 px-8 rounded-full bg-rose-900/40 text-rose-400 font-black text-xs uppercase tracking-widest border border-rose-500/20 active:scale-95 transition-transform hover:bg-rose-900/60"
+                      >
+                        QUIT MATCH
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
