@@ -29,7 +29,7 @@ async function searchRulesTool({ query }) {
     const embeddingReq = await fetch(`${EMBEDDING_BASE_URL}/embeddings`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.LLM_API_KEY}`,
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY || process.env.LLM_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({

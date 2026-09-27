@@ -198,40 +198,23 @@ Active Match: ${matchContext || "None"}
       tools,
       tool_choice: "auto",
       temperature: 0.1,
-      max_tokens: 25,
-      extra_body: { include_reasoning: false },
+      max_tokens: 500,
     });
   } catch (err) {
     console.warn(
-      "chatHandler: Primary LLM call error, retrying with max_tokens 20:",
+      "chatHandler: Primary LLM call error, invoking smart local fallback:",
       err.message,
     );
-    try {
-      response = await openai.chat.completions.create({
-        model: LLM_MODEL,
-        messages,
-        tools,
-        tool_choice: "auto",
-        temperature: 0.1,
-        max_tokens: 20,
-        extra_body: { include_reasoning: false },
-      });
-    } catch (fallbackErr) {
-      console.warn(
-        "chatHandler: OpenRouter API limit hit, invoking smart local fallback:",
-        fallbackErr.message,
-      );
-      const smartReply = await generateSmartFallback(
-        message,
-        matchContext,
-        mcpClient,
-      );
-      return {
-        statusCode: 200,
-        headers: corsHeaders,
-        body: JSON.stringify({ reply: smartReply }),
-      };
-    }
+    const smartReply = await generateSmartFallback(
+      message,
+      matchContext,
+      mcpClient,
+    );
+    return {
+      statusCode: 200,
+      headers: corsHeaders,
+      body: JSON.stringify({ reply: smartReply }),
+    };
   }
 
   let responseMessage = response.choices[0].message;
@@ -276,19 +259,12 @@ Active Match: ${matchContext || "None"}
         model: LLM_MODEL,
         messages,
         temperature: 0.5,
-        max_tokens: 25,
-        extra_body: { include_reasoning: false },
+        max_tokens: 500,
       });
+      responseMessage = response.choices[0].message;
     } catch (err) {
-      response = await openai.chat.completions.create({
-        model: LLM_MODEL,
-        messages,
-        temperature: 0.5,
-        max_tokens: 20,
-        extra_body: { include_reasoning: false },
-      });
+      console.warn("chatHandler: Final LLM call error:", err.message);
     }
-    responseMessage = response.choices[0].message;
   }
 
   const replyText =
