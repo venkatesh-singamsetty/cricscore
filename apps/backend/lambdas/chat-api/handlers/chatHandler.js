@@ -97,6 +97,13 @@ Active Match: ${matchContext || "None"}
   await mcpClient.connect(clientTransport);
 
   // Step 4: Discover tools from MCP Server — clean up $schema for OpenAI compatibility
+  const TOOL_DESCRIPTIONS = {
+    execute_sql: "Run SQL query on DB",
+    search_tournament_rules: "Search rulebooks for rules",
+    delete_match: "Delete match (admin)",
+    delete_guest_data: "Delete guest data (admin)",
+  };
+
   const mcpToolsList = await mcpClient.listTools();
   const tools = mcpToolsList.tools.map((t) => {
     const { $schema, additionalProperties, ...cleanSchema } = t.inputSchema;
@@ -104,7 +111,7 @@ Active Match: ${matchContext || "None"}
       type: "function",
       function: {
         name: t.name,
-        description: t.description,
+        description: TOOL_DESCRIPTIONS[t.name] || t.description,
         parameters: cleanSchema,
       },
     };
@@ -119,19 +126,23 @@ Active Match: ${matchContext || "None"}
       tools,
       tool_choice: "auto",
       temperature: 0.1,
-      max_tokens: 80,
+      max_tokens: 25,
+      extra_body: { include_reasoning: false },
     });
   } catch (err) {
     console.warn(
-      "chatHandler: Primary LLM call error, retrying with free fallback model:",
+      "chatHandler: Primary LLM call error, retrying with max_tokens 20:",
       err.message,
     );
     try {
       response = await openai.chat.completions.create({
-        model: "cohere/north-mini-code:free",
+        model: LLM_MODEL,
         messages,
+        tools,
+        tool_choice: "auto",
         temperature: 0.1,
-        max_tokens: 80,
+        max_tokens: 20,
+        extra_body: { include_reasoning: false },
       });
     } catch (fallbackErr) {
       console.error("chatHandler: Fallback LLM call error:", fallbackErr);
@@ -185,23 +196,25 @@ Active Match: ${matchContext || "None"}
         model: LLM_MODEL,
         messages,
         temperature: 0.5,
-        max_tokens: 80,
+        max_tokens: 25,
+        extra_body: { include_reasoning: false },
       });
     } catch (err) {
       response = await openai.chat.completions.create({
-        model: "cohere/north-mini-code:free",
+        model: LLM_MODEL,
         messages,
         temperature: 0.5,
-        max_tokens: 80,
+        max_tokens: 20,
+        extra_body: { include_reasoning: false },
       });
     }
     responseMessage = response.choices[0].message;
   }
 
   const replyText =
-    (responseMessage && responseMessage.content) ||
-    (responseMessage && responseMessage.reasoning) ||
-    "Hello! How can I assist you with the live match today?";
+    responseMessage && responseMessage.content
+      ? responseMessage.content
+      : "Hello! How can I assist you with the live match today?";
 
   return {
     statusCode: 200,
