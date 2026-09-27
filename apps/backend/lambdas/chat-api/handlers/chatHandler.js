@@ -161,7 +161,10 @@ Current Active Match Context: ${matchContext || "None provided"}
     };
   });
 
-  // Step 5: Initial LLM call (with automatic fallback to Gemini Flash if primary fails)
+  // Step 5: Initial LLM call (with automatic fallback if primary fails)
+  const isClaude = targetModel.includes("claude");
+  const initialMaxTokens = isClaude ? 50 : 150;
+
   let response;
   let activeModelUsed = targetModel;
   try {
@@ -171,7 +174,7 @@ Current Active Match Context: ${matchContext || "None provided"}
       tools,
       tool_choice: "auto",
       temperature: 0.1,
-      max_tokens: 100,
+      max_tokens: initialMaxTokens,
     });
   } catch (err) {
     console.warn(
@@ -185,7 +188,7 @@ Current Active Match Context: ${matchContext || "None provided"}
         tools,
         tool_choice: "auto",
         temperature: 0.1,
-        max_tokens: 100,
+        max_tokens: 150,
       });
     } catch (fallbackErr) {
       console.error("chatHandler: Fallback LLM call error:", fallbackErr);
@@ -236,12 +239,13 @@ Current Active Match Context: ${matchContext || "None provided"}
     }
 
     // Final LLM call — generate human-readable answer from tool results
+    const finalMaxTokens = activeModelUsed.includes("claude") ? 50 : 150;
     try {
       response = await openai.chat.completions.create({
         model: activeModelUsed,
         messages,
         temperature: 0.5,
-        max_tokens: 100,
+        max_tokens: finalMaxTokens,
       });
     } catch (err) {
       console.warn(
@@ -253,7 +257,7 @@ Current Active Match Context: ${matchContext || "None provided"}
         model: activeModelUsed,
         messages,
         temperature: 0.5,
-        max_tokens: 100,
+        max_tokens: 150,
       });
     }
     responseMessage = response.choices[0].message;
