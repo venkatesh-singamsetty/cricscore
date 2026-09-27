@@ -1347,7 +1347,7 @@ exports.handler = async (event) => {
       }
     }
 
-    // DELETE /admin/users/guests (Delete all guest users & matches)
+    // DELETE /admin/users/guests (Delete all guest users)
     if (httpMethod === "DELETE" && path === "/admin/users/guests") {
       const claims = getClaims(event);
       const isSuperAdmin =
@@ -1370,16 +1370,6 @@ exports.handler = async (event) => {
       }
 
       try {
-        let deletedMatchesCount = 0;
-        try {
-          const matchRes = await client.query(
-            "DELETE FROM matches WHERE scorer_email LIKE 'guest-%' OR scorer_email LIKE 'guest_%' RETURNING id",
-          );
-          deletedMatchesCount = matchRes.rowCount || 0;
-        } catch (mErr) {
-          console.error("Error deleting guest matches in users purge:", mErr);
-        }
-
         const cognito = new CognitoIdentityProviderClient({
           region: "us-east-1",
         });
@@ -1433,8 +1423,7 @@ exports.handler = async (event) => {
           body: JSON.stringify({
             success: true,
             deletedUsersCount,
-            deletedMatchesCount,
-            message: `Deleted ${deletedMatchesCount} guest matches and ${deletedUsersCount} guest users.`,
+            message: `Deleted ${deletedUsersCount} guest users.`,
           }),
         };
       } catch (err) {

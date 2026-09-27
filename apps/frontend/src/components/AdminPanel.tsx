@@ -157,11 +157,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       const data = await res.json();
       if (!res.ok)
         throw new Error(data.error || "Failed to delete guest users");
-      const mCount = data.deletedMatchesCount ?? 0;
       const uCount = data.deletedUsersCount ?? 0;
-      const msg =
-        data.message ||
-        `Deleted ${mCount} guest matches and ${uCount} guest users.`;
+      const msg = data.message || `Deleted ${uCount} guest users.`;
       setMessage(`✅ ${msg}`);
       fetchUsers(true); // Refresh the list while keeping success message
     } catch (err: any) {
@@ -471,8 +468,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               {pendingBulkAction === "delete-all-guests" && (
                 <p className="text-slate-400 text-sm font-medium mb-8 leading-relaxed">
                   Are you sure you want to permanently delete ALL guest users
-                  from Cognito and guest matches from the database? This action
-                  cannot be undone.
+                  from Cognito? This action cannot be undone.
                 </p>
               )}
 
