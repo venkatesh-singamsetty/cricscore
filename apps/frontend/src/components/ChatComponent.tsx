@@ -12,38 +12,38 @@ import { safeSessionStorageSet } from "../utils/storageSafety";
 
 export const AVAILABLE_AI_MODELS = [
   {
-    id: "anthropic/claude-3.5-sonnet",
+    id: "anthropic/claude-sonnet-4.5",
     name: "Claude 3.5 Sonnet",
     badge: "Default",
   },
   {
-    id: "anthropic/claude-3.7-sonnet",
-    name: "Claude 3.7 Sonnet",
+    id: "anthropic/claude-sonnet-5",
+    name: "Claude Sonnet 5",
     badge: "Advanced",
   },
   {
-    id: "deepseek/deepseek-r1:free",
+    id: "deepseek/deepseek-chat",
+    name: "DeepSeek V3",
+    badge: "Popular",
+  },
+  {
+    id: "deepseek/deepseek-r1",
     name: "DeepSeek R1",
-    badge: "Free",
+    badge: "Reasoning",
   },
   {
-    id: "meta-llama/llama-3.3-70b-instruct:free",
+    id: "google/gemini-2.5-flash",
+    name: "Gemini 2.5 Flash",
+    badge: "Fast",
+  },
+  {
+    id: "meta-llama/llama-3.3-70b-instruct",
     name: "Llama 3.3 70B",
-    badge: "Free",
+    badge: "Popular",
   },
   {
-    id: "google/gemini-2.0-flash-exp:free",
-    name: "Gemini 2.0 Flash",
-    badge: "Free",
-  },
-  {
-    id: "qwen/qwen-2.5-coder-32b-instruct:free",
-    name: "Qwen 2.5 Coder",
-    badge: "Free",
-  },
-  {
-    id: "mistralai/mistral-7b-instruct:free",
-    name: "Mistral 7B",
+    id: "nvidia/nemotron-3.5-lightning:free",
+    name: "Nemotron 3.5",
     badge: "Free",
   },
 ];
@@ -73,7 +73,7 @@ export function ChatComponent({
     },
   ]);
   const [selectedModel, setSelectedModel] = useState<string>(
-    "anthropic/claude-3.5-sonnet",
+    "anthropic/claude-sonnet-4.5",
   );
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);

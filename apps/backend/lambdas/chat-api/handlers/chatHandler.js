@@ -18,6 +18,45 @@ ball_events(id, inning_id, over_number, ball_number, bowler_name, batter_name, r
 `;
 
 /**
+ * Normalizes user-selected or legacy model slugs to valid, working OpenRouter model IDs.
+ */
+function normalizeModelSlug(model) {
+  if (!model) return LLM_MODEL || "anthropic/claude-sonnet-4.5";
+  const slug = String(model).toLowerCase();
+
+  if (
+    slug.includes("claude-3.5") ||
+    slug.includes("claude-3.7") ||
+    slug.includes("claude-sonnet") ||
+    slug.includes("sonnet-4.5")
+  ) {
+    return "anthropic/claude-sonnet-4.5";
+  }
+  if (slug.includes("claude-sonnet-5")) {
+    return "anthropic/claude-sonnet-5";
+  }
+  if (slug.includes("gemini")) {
+    return "google/gemini-2.5-flash";
+  }
+  if (slug.includes("deepseek-r1")) {
+    return "deepseek/deepseek-r1";
+  }
+  if (slug.includes("deepseek")) {
+    return "deepseek/deepseek-chat";
+  }
+  if (slug.includes("llama")) {
+    return "meta-llama/llama-3.3-70b-instruct";
+  }
+  if (slug.includes("qwen")) {
+    return "qwen/qwen-2.5-coder-32b-instruct";
+  }
+  if (slug.includes("mistral") || slug.includes("nemotron")) {
+    return "nvidia/nemotron-3.5-lightning:free";
+  }
+  return model;
+}
+
+/**
  * Handles the main /chat endpoint.
  *
  * Flow:
@@ -34,7 +73,7 @@ ball_events(id, inning_id, over_number, ball_number, bowler_name, batter_name, r
  */
 async function chatHandler(body, corsHeaders) {
   const { message, matchId, history = [], isAdmin = false, model } = body;
-  const targetModel = model || LLM_MODEL;
+  const targetModel = normalizeModelSlug(model);
 
   if (!message) {
     return {
@@ -193,11 +232,16 @@ Current Active Match Context: ${matchContext || "None provided"}
     responseMessage = response.choices[0].message;
   }
 
+  const replyText =
+    responseMessage.content ||
+    responseMessage.reasoning_content ||
+    "Response generated.";
+
   return {
     statusCode: 200,
     headers: corsHeaders,
     body: JSON.stringify({
-      reply: responseMessage.content,
+      reply: replyText,
       model: targetModel,
     }),
   };
