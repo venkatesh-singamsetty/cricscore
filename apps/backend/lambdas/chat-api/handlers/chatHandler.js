@@ -153,7 +153,7 @@ ${adminOnlyInstructions}Active Match: ${matchContext || "None"}
     };
   });
 
-  // Step 5: Initial LLM call (with automatic fallback to GPT-4o Mini if primary fails)
+  // Step 5: Initial LLM call (with automatic fallback to Nemotron Free if primary fails)
   const isClaude = targetModel.includes("claude");
   const initialMaxTokens = isClaude ? 40 : 80;
 
@@ -170,9 +170,9 @@ ${adminOnlyInstructions}Active Match: ${matchContext || "None"}
     });
   } catch (err) {
     console.warn(
-      `chatHandler: Primary model ${targetModel} error: ${err.message}. Retrying with fallback model...`,
+      `chatHandler: Primary model ${targetModel} error: ${err.message}. Retrying with free fallback model...`,
     );
-    activeModelUsed = "openai/gpt-4o-mini";
+    activeModelUsed = "nvidia/nemotron-3.5-lightning:free";
     try {
       response = await openai.chat.completions.create({
         model: activeModelUsed,
@@ -244,7 +244,7 @@ ${adminOnlyInstructions}Active Match: ${matchContext || "None"}
         `chatHandler: Final LLM call error with ${activeModelUsed}, retrying fallback:`,
         err.message,
       );
-      activeModelUsed = "openai/gpt-4o-mini";
+      activeModelUsed = "nvidia/nemotron-3.5-lightning:free";
       response = await openai.chat.completions.create({
         model: activeModelUsed,
         messages,
