@@ -12,17 +12,17 @@ const openai = new OpenAI({
 
 /**
  * Returns the default model name based on the configured LLM provider.
- * Falls back to openai/gpt-4o-mini for OpenRouter.
+ * Falls back to gpt-4o-mini for OpenRouter (fast, cost-effective, reliable).
  */
 function getDefaultModel() {
   const baseURL = process.env.LLM_BASE_URL || "";
   if (baseURL.includes("groq")) return "llama-3.3-70b-versatile";
-  return "openai/gpt-4o-mini";
+  return "gpt-4o-mini";
 }
 
 /**
  * The LLM model to use — can be overridden via LLM_MODEL env var.
- * Defaults to openai/gpt-4o-mini (OpenRouter) or llama-3.3-70b-versatile (Groq).
+ * Defaults to gpt-4o-mini (OpenRouter) or llama-3.3-70b-versatile (Groq).
  */
 const LLM_MODEL = process.env.LLM_MODEL || getDefaultModel();
 
