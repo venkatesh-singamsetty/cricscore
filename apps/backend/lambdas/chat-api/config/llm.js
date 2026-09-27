@@ -8,16 +8,21 @@ const { OpenAI } = require("openai");
 const openai = new OpenAI({
   apiKey: process.env.LLM_API_KEY,
   baseURL: process.env.LLM_BASE_URL || "https://openrouter.ai/api/v1",
+  fetch: globalThis.fetch,
+  defaultHeaders: {
+    "HTTP-Referer": "https://cricscore.venkateshsingamsetty.com",
+    "X-Title": "CricScore",
+  },
 });
 
 /**
  * Returns the default model name based on the configured LLM provider.
- * Falls back to gpt-4o-mini for OpenRouter (fast, cost-effective, reliable).
+ * Falls back to openai/gpt-4o-mini for OpenRouter (fast, cost-effective, reliable).
  */
 function getDefaultModel() {
   const baseURL = process.env.LLM_BASE_URL || "";
   if (baseURL.includes("groq")) return "llama-3.3-70b-versatile";
-  return "gpt-4o-mini";
+  return "openai/gpt-4o-mini";
 }
 
 /**
