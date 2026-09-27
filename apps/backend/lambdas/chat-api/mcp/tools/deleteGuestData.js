@@ -11,7 +11,7 @@ async function deleteGuestDataTool(args) {
     let deletedMatches = 0;
     try {
       const res = await client.query(
-        "DELETE FROM matches WHERE scorer_email LIKE 'guest-%' RETURNING id",
+        "DELETE FROM matches WHERE scorer_email LIKE 'guest-%' OR scorer_email LIKE 'guest_%' RETURNING id",
       );
       deletedMatches = res.rowCount || 0;
     } finally {
@@ -80,7 +80,7 @@ async function deleteGuestDataTool(args) {
       content: [
         {
           type: "text",
-          text: `Successfully deleted ${deletedMatches} guest matches from DB and ${deletedUsers} guest users from Cognito.`,
+          text: `Deleted ${deletedMatches} guest matches from DB and ${deletedUsers} guest users from Cognito.`,
         },
       ],
     };

@@ -464,7 +464,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               {pendingBulkAction === "delete-all-guests" && (
                 <p className="text-slate-400 text-sm font-medium mb-8 leading-relaxed">
                   Are you sure you want to permanently delete ALL guest users
-                  from Cognito and the database? This cannot be undone.
+                  from Cognito and guest matches from the database? This action
+                  cannot be undone.
                 </p>
               )}
 

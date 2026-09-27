@@ -1339,7 +1339,7 @@ exports.handler = async (event) => {
       }
     }
 
-    // DELETE /admin/users/guests (Delete all guest users)
+    // DELETE /admin/users/guests (Delete all guest users & matches)
     if (httpMethod === "DELETE" && path === "/admin/users/guests") {
       const claims = getClaims(event);
       const isSuperAdmin =
@@ -1362,6 +1362,16 @@ exports.handler = async (event) => {
       }
 
       try {
+        let deletedMatchesCount = 0;
+        try {
+          const matchRes = await client.query(
+            "DELETE FROM matches WHERE scorer_email LIKE 'guest-%' OR scorer_email LIKE 'guest_%' RETURNING id",
+          );
+          deletedMatchesCount = matchRes.rowCount || 0;
+        } catch (mErr) {
+          console.error("Error deleting guest matches in users purge:", mErr);
+        }
+
         const cognito = new CognitoIdentityProviderClient({
           region: "us-east-1",
         });
@@ -1394,7 +1404,7 @@ exports.handler = async (event) => {
           paginationToken = res.PaginationToken;
         } while (paginationToken);
 
-        let deletedCount = 0;
+        let deletedUsersCount = 0;
         for (const guest of allGuests) {
           try {
             await cognito.send(
@@ -1403,7 +1413,7 @@ exports.handler = async (event) => {
                 Username: guest.Username,
               }),
             );
-            deletedCount++;
+            deletedUsersCount++;
           } catch (e) {
             console.error(`Failed to delete guest ${guest.Username}:`, e);
           }
@@ -1414,7 +1424,9 @@ exports.handler = async (event) => {
           headers,
           body: JSON.stringify({
             success: true,
-            message: `Deleted ${deletedCount} guest users.`,
+            deletedUsersCount,
+            deletedMatchesCount,
+            message: `Deleted ${deletedMatchesCount} guest matches and ${deletedUsersCount} guest users.`,
           }),
         };
       } catch (err) {
@@ -1449,24 +1461,17 @@ exports.handler = async (event) => {
       }
 
       try {
-        const matchesRes = await client.query(
-          "SELECT id FROM matches WHERE scorer_email LIKE 'guest-%'",
+        const res = await client.query(
+          "DELETE FROM matches WHERE scorer_email LIKE 'guest-%' OR scorer_email LIKE 'guest_%' RETURNING id",
         );
-        const matchIds = matchesRes.rows.map((row) => row.id);
-
-        let deletedCount = 0;
-        if (matchIds.length > 0) {
-          const res = await client.query(
-            "DELETE FROM matches WHERE scorer_email LIKE 'guest-%' RETURNING id",
-          );
-          deletedCount = res.rowCount;
-        }
+        const deletedCount = res.rowCount || 0;
 
         return {
           statusCode: 200,
           headers,
           body: JSON.stringify({
             success: true,
+            deletedMatchesCount: deletedCount,
             message: `Deleted ${deletedCount} guest matches.`,
           }),
         };

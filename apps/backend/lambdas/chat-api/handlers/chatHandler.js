@@ -68,7 +68,7 @@ async function chatHandler(body, corsHeaders) {
   const adminOnlyInstructions = isAdmin
     ? `
 6. DELETE MATCHES (ADMIN): If the user asks to delete matches, you MUST first call 'execute_sql' to fetch the matching records, show them to the user, and explicitly ask for confirmation. ONLY call 'delete_match' AFTER the user says "yes" or confirms the deletion.
-7. DELETE GUEST DATA (ADMIN): If the user asks to delete, clear, or prune guest users, guest matches, or guest details → ALWAYS call 'delete_guest_data'. Do NOT ask for confirmation first, just execute the tool.
+7. DELETE GUEST DATA (ADMIN): If the user asks to delete, clear, or prune guest users, guest matches, or guest details → ALWAYS call 'delete_guest_data'. Do NOT ask for confirmation first, just execute the tool. In your final response, you MUST explicitly state the EXACT count of guest matches and guest users deleted returned by the tool (e.g., "Deleted 0 guest matches and 0 guest users." or "Deleted 3 guest matches and 2 guest users."). NEVER respond with a generic message like "I have successfully deleted any guest matches" without stating the numbers.
 `
     : `
 6. ADMIN-ONLY ACTIONS: Do not discuss, suggest, or perform guest cleanup, match deletion, or any other admin-only action unless the caller is explicitly an admin. If a non-admin asks for these actions, politely refuse and explain that admin privileges are required.
