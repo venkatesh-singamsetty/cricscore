@@ -175,7 +175,7 @@ Current Active Match Context: ${matchContext || "None provided"}
       tools,
       tool_choice: "auto",
       temperature: 0.1,
-      max_tokens: 500,
+      max_tokens: 250,
     });
   } catch (err) {
     console.error("chatHandler: LLM call error:", err);
@@ -227,7 +227,7 @@ Current Active Match Context: ${matchContext || "None provided"}
       model: targetModel,
       messages,
       temperature: 0.5,
-      max_tokens: 500,
+      max_tokens: 250,
     });
     responseMessage = response.choices[0].message;
   }
