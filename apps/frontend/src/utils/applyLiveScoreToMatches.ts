@@ -31,6 +31,19 @@ export interface LiveScorePayload {
   current_overs?: number;
   currentBalls?: number;
   current_balls?: number;
+  matchTotalOvers?: number;
+  match_total_overs?: number;
+  strikerName?: string;
+  striker_name?: string;
+  nonStrikerName?: string;
+  non_striker_name?: string;
+  bowlerName?: string;
+  bowler_name?: string;
+  runs?: number;
+  ballsFaced?: number;
+  fours?: number;
+  sixes?: number;
+  ballData?: any;
   data?: LiveScorePayload;
 }
 
@@ -163,14 +176,20 @@ export function applyLiveScoreToMatches<T extends MatchListItem>(
   }
 
   const current = innings[innIndex];
+  const nextTotalRuns = Math.max(totalRuns, Number(current.total_runs || 0));
+  const incomingWickets = pickNumber(
+    payload.explicitTotalWickets,
+    payload.explicit_total_wickets,
+  );
+  const nextTotalWickets = Math.max(
+    incomingWickets ?? current.total_wickets ?? 0,
+    Number(current.total_wickets || 0),
+  );
+
   const nextInning: MatchInningSummary = {
     ...current,
-    total_runs: totalRuns,
-    total_wickets:
-      pickNumber(
-        payload.explicitTotalWickets,
-        payload.explicit_total_wickets,
-      ) ?? current.total_wickets,
+    total_runs: nextTotalRuns,
+    total_wickets: nextTotalWickets,
     overs:
       pickNumber(payload.currentOvers, payload.current_overs) ?? current.overs,
     balls:

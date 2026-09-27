@@ -135,70 +135,91 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
         }
 
         // Map DB rows to InningsState
-        const mappedInnings = data.innings.map((inn: any): InningsState => ({
-          id: inn.id,
-          inningNumber: inn.inning_number,
-          target: inn.target,
-          battingTeamName: inn.batting_team_name,
-          bowlingTeamName: inn.bowling_team_name,
-          totalRuns: Number(inn.total_runs || 0),
-          totalWickets: Number(inn.total_wickets || 0),
-          overs: Number(inn.overs || 0),
-          balls: Number(inn.balls || 0),
-          currentOver: [],
-          allBalls: (inn.allBalls || []).map((b: any) => ({
-            ...b,
-            bowlerName: b.bowler_name,
-            batterName: b.batter_name,
-            isExtra: b.is_extra,
-            extraType: b.extra_type as ExtraType,
-            extraRuns: b.extra_runs,
-            isWicket: b.is_wicket,
-            wicketType: b.wicket_type as WicketType,
-            overNumber: b.over_number,
-            ballNumber: b.ball_number,
-          })),
-          strikerId:
-            (inn.players || []).find((p: any) => p.name === inn.striker_name)
-              ?.id || "",
-          nonStrikerId:
-            (inn.players || []).find(
-              (p: any) => p.name === inn.non_striker_name,
-            )?.id || "",
-          currentBowlerId:
-            (inn.bowlers || []).find(
-              (b: any) => b.name === inn.current_bowler_name,
-            )?.id || "",
-          players: (inn.players || []).reduce((acc: any, p: any) => {
+        const mappedInnings = data.innings.map((inn: any): InningsState => {
+          const players = (inn.players || []).reduce((acc: any, p: any) => {
             acc[p.id] = {
               id: p.id,
               name: p.name,
-              runs: p.runs,
-              ballsFaced: p.balls_faced,
-              fours: p.fours,
-              sixes: p.sixes,
+              runs: Number(p.runs || 0),
+              ballsFaced: Number(p.balls_faced || 0),
+              fours: Number(p.fours || 0),
+              sixes: Number(p.sixes || 0),
               isOut: p.is_out,
               wicketBy: p.wicket_by,
               wicketType: p.wicket_type as WicketType,
               fielderName: p.fielder_name,
             };
             return acc;
-          }, {}),
-          bowlers: (inn.bowlers || []).reduce((acc: any, b: any) => {
-            acc[b.id] = {
-              id: b.id,
-              name: b.name,
-              overs: b.overs_completed,
-              balls: b.balls,
-              maidens: b.maidens,
-              runsConceded: b.runs_conceded,
-              wickets: b.wickets,
-            };
-            return acc;
-          }, {}),
-          battingOrder: (inn.players || []).map((p: any) => p.id),
-          bowlingOrder: (inn.bowlers || []).map((b: any) => b.id),
-        }));
+          }, {});
+
+          const playerRunsSum = Object.values(players).reduce(
+            (sum: number, p: any) => sum + Number(p.runs || 0),
+            0,
+          );
+          const derivedTotalRuns = Math.max(
+            Number(inn.total_runs || inn.totalRuns || 0),
+            playerRunsSum,
+          );
+
+          const outWicketsCount = Object.values(players).filter(
+            (p: any) => p.isOut && p.wicketType !== "RETIRED_HURT",
+          ).length;
+          const derivedTotalWickets = Math.max(
+            Number(inn.total_wickets || inn.totalWickets || 0),
+            outWicketsCount,
+          );
+
+          return {
+            id: inn.id,
+            inningNumber: inn.inning_number,
+            target: inn.target,
+            battingTeamName: inn.batting_team_name,
+            bowlingTeamName: inn.bowling_team_name,
+            totalRuns: derivedTotalRuns,
+            totalWickets: derivedTotalWickets,
+            overs: Number(inn.overs || 0),
+            balls: Number(inn.balls || 0),
+            currentOver: [],
+            allBalls: (inn.allBalls || []).map((b: any) => ({
+              ...b,
+              bowlerName: b.bowler_name,
+              batterName: b.batter_name,
+              isExtra: b.is_extra,
+              extraType: b.extra_type as ExtraType,
+              extraRuns: b.extra_runs,
+              isWicket: b.is_wicket,
+              wicketType: b.wicket_type as WicketType,
+              overNumber: b.over_number,
+              ballNumber: b.ball_number,
+            })),
+            strikerId:
+              (inn.players || []).find((p: any) => p.name === inn.striker_name)
+                ?.id || "",
+            nonStrikerId:
+              (inn.players || []).find(
+                (p: any) => p.name === inn.non_striker_name,
+              )?.id || "",
+            currentBowlerId:
+              (inn.bowlers || []).find(
+                (b: any) => b.name === inn.current_bowler_name,
+              )?.id || "",
+            players,
+            bowlers: (inn.bowlers || []).reduce((acc: any, b: any) => {
+              acc[b.id] = {
+                id: b.id,
+                name: b.name,
+                overs: b.overs_completed,
+                balls: b.balls,
+                maidens: b.maidens,
+                runsConceded: b.runs_conceded,
+                wickets: b.wickets,
+              };
+              return acc;
+            }, {}),
+            battingOrder: (inn.players || []).map((p: any) => p.id),
+            bowlingOrder: (inn.bowlers || []).map((b: any) => b.id),
+          };
+        });
 
         setMatchDetails({ innings: mappedInnings });
       } catch (err) {
@@ -217,12 +238,22 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
   }, [initialMatchId]);
 
   useEffect(() => {
-    // Only accept updates for the match we are following
-    if (
-      lastMessage &&
-      ["LIVE_SCORE_UPDATE", "STATE_SYNC"].includes(lastMessage.type)
-    ) {
-      const payload = lastMessage.data?.data || lastMessage.data || lastMessage;
+    if (!lastMessage) return;
+
+    const unwrapped = unwrapLiveScoreMessage(lastMessage as any);
+    if (!unwrapped) return;
+
+    const { type, payload } = unwrapped;
+
+    if (isHubRefreshType(type)) {
+      setHubUpdateTrigger((prev) => prev + 1);
+      if (targetMatchId) {
+        fetchMatchDetails(targetMatchId, true);
+      }
+      return;
+    }
+
+    if (isScoreEventType(type)) {
       console.log(`📥 WS Message -> target:`, targetMatchId, payload);
 
       const msgMatchId = payload.matchId || payload.match_id;
@@ -230,8 +261,10 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
         payload &&
         (!targetMatchId || String(msgMatchId) === String(targetMatchId))
       ) {
-        // Safely unwrap the nested v2.0 Fan-Out envelope
-        setLiveData(payload.ballData ? payload.ballData : payload);
+        // Safely unwrap the nested ball data
+        setLiveData(
+          (payload.ballData ? payload.ballData : payload) as LiveBall,
+        );
 
         const totalOvers = payload.matchTotalOvers ?? payload.match_total_overs;
         if (totalOvers !== undefined) {
@@ -248,108 +281,137 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
         const currentBalls = payload.currentBalls ?? payload.current_balls;
 
         // OPTIMISTIC UPDATE: Eliminate lag and eventual consistency issues
-        if (totalRuns !== undefined) {
-          setMatchDetails((prev: any) => {
-            if (!prev || !prev.innings || prev.innings.length === 0)
-              return prev;
-            const updatedInnings = [...prev.innings];
+        setMatchDetails((prev: any) => {
+          if (!prev || !prev.innings || prev.innings.length === 0) {
+            if (targetMatchId) fetchMatchDetails(targetMatchId, true);
+            return prev;
+          }
+          const updatedInnings = [...prev.innings];
 
-            const targetInningId = payload.inningId || payload.inning_id;
-            const targetBattingTeam =
-              payload.battingTeamName || payload.batting_team_name;
+          const targetInningId = payload.inningId || payload.inning_id;
+          const targetBattingTeam =
+            payload.battingTeamName || payload.batting_team_name;
 
-            let targetInningIndex = -1;
-            if (targetInningId) {
-              targetInningIndex = updatedInnings.findIndex(
-                (i: any) => String(i.id) === String(targetInningId),
+          let targetInningIndex = -1;
+          if (targetInningId) {
+            targetInningIndex = updatedInnings.findIndex(
+              (i: any) => String(i.id) === String(targetInningId),
+            );
+          }
+          if (targetInningIndex < 0 && targetBattingTeam) {
+            targetInningIndex = updatedInnings.findIndex(
+              (i: any) =>
+                i.battingTeamName?.trim().toLowerCase() ===
+                  targetBattingTeam.trim().toLowerCase() ||
+                i.batting_team_name?.trim().toLowerCase() ===
+                  targetBattingTeam.trim().toLowerCase(),
+            );
+          }
+          if (targetInningIndex < 0) {
+            targetInningIndex = updatedInnings.length - 1;
+          }
+
+          if (targetInningIndex > -1) {
+            const inn = { ...updatedInnings[targetInningIndex] };
+
+            const strikerName = payload.strikerName || payload.striker_name;
+            const nonStrikerName =
+              payload.nonStrikerName || payload.non_striker_name;
+            const bowlerName = payload.bowlerName || payload.bowler_name;
+            const runs = payload.runs;
+
+            if (strikerName && runs !== undefined) {
+              const striker = Object.values(inn.players || {}).find(
+                (p: any) =>
+                  p.name?.trim().toLowerCase() ===
+                  strikerName.trim().toLowerCase(),
+              ) as any;
+              if (striker) {
+                striker.runs = runs;
+                if (payload.ballsFaced !== undefined)
+                  striker.ballsFaced = payload.ballsFaced;
+                if (payload.fours !== undefined) striker.fours = payload.fours;
+                if (payload.sixes !== undefined) striker.sixes = payload.sixes;
+              } else if (inn.players) {
+                const id = "p_" + Date.now();
+                inn.players[id] = {
+                  id,
+                  name: strikerName,
+                  runs: runs,
+                  ballsFaced: payload.ballsFaced || 1,
+                  fours: payload.fours || 0,
+                  sixes: payload.sixes || 0,
+                };
+              }
+            }
+
+            if (strikerName && inn.players) {
+              const s = Object.values(inn.players).find(
+                (p: any) =>
+                  p.name?.trim().toLowerCase() ===
+                  strikerName.trim().toLowerCase(),
+              ) as any;
+              if (s) inn.strikerId = s.id;
+            }
+            if (nonStrikerName && inn.players) {
+              const ns = Object.values(inn.players).find(
+                (p: any) =>
+                  p.name?.trim().toLowerCase() ===
+                  nonStrikerName.trim().toLowerCase(),
+              ) as any;
+              if (ns) inn.nonStrikerId = ns.id;
+            }
+            if (bowlerName && inn.bowlers) {
+              let b = Object.values(inn.bowlers).find(
+                (b: any) =>
+                  b.name?.trim().toLowerCase() ===
+                  bowlerName.trim().toLowerCase(),
+              ) as any;
+              if (!b) {
+                const id = "b_" + Date.now();
+                inn.bowlers[id] = { id, name: bowlerName };
+                b = inn.bowlers[id];
+              }
+              inn.currentBowlerId = b.id;
+            }
+
+            const playerRunsSum = Object.values(inn.players || {}).reduce(
+              (sum: number, p: any) => sum + Number(p.runs || 0),
+              0,
+            );
+            const outWicketsCount = Object.values(inn.players || {}).filter(
+              (p: any) => p.isOut && p.wicketType !== "RETIRED_HURT",
+            ).length;
+
+            inn.totalRuns = Math.max(
+              Number(totalRuns || 0),
+              Number(inn.totalRuns || 0),
+              playerRunsSum,
+            );
+            if (totalWickets !== undefined) {
+              inn.totalWickets = Math.max(
+                Number(totalWickets || 0),
+                Number(inn.totalWickets || 0),
+                outWicketsCount,
+              );
+            } else {
+              inn.totalWickets = Math.max(
+                Number(inn.totalWickets || 0),
+                outWicketsCount,
               );
             }
-            if (targetInningIndex < 0 && targetBattingTeam) {
-              targetInningIndex = updatedInnings.findIndex(
-                (i: any) =>
-                  i.battingTeamName === targetBattingTeam ||
-                  i.batting_team_name === targetBattingTeam,
-              );
-            }
-            if (targetInningIndex < 0) {
-              targetInningIndex = updatedInnings.length - 1;
+
+            if (currentOvers !== undefined) inn.overs = Number(currentOvers);
+            if (currentBalls !== undefined) inn.balls = Number(currentBalls);
+
+            if (payload.ballData) {
+              inn.allBalls = [...(inn.allBalls || []), payload.ballData];
             }
 
-            if (targetInningIndex > -1) {
-              const inn = { ...updatedInnings[targetInningIndex] };
-              inn.totalRuns = Number(totalRuns);
-              if (totalWickets !== undefined)
-                inn.totalWickets = Number(totalWickets);
-              if (currentOvers !== undefined) inn.overs = Number(currentOvers);
-              if (currentBalls !== undefined) inn.balls = Number(currentBalls);
-
-              const strikerName = payload.strikerName || payload.striker_name;
-              const nonStrikerName =
-                payload.nonStrikerName || payload.non_striker_name;
-              const bowlerName = payload.bowlerName || payload.bowler_name;
-              const runs = payload.runs;
-
-              if (strikerName && runs !== undefined) {
-                const striker = Object.values(inn.players || {}).find(
-                  (p: any) => p.name === strikerName,
-                ) as any;
-                if (striker) {
-                  striker.runs = runs;
-                  if (payload.ballsFaced !== undefined)
-                    striker.ballsFaced = payload.ballsFaced;
-                  if (payload.fours !== undefined)
-                    striker.fours = payload.fours;
-                  if (payload.sixes !== undefined)
-                    striker.sixes = payload.sixes;
-                } else if (inn.players) {
-                  const id = "p_" + Date.now();
-                  inn.players[id] = {
-                    id,
-                    name: strikerName,
-                    runs: runs,
-                    ballsFaced: payload.ballsFaced || 1,
-                    fours: payload.fours || 0,
-                    sixes: payload.sixes || 0,
-                  };
-                }
-              }
-
-              if (strikerName && inn.players) {
-                const s = Object.values(inn.players).find(
-                  (p: any) => p.name === strikerName,
-                ) as any;
-                if (s) inn.strikerId = s.id;
-                else inn.striker_name = strikerName;
-              }
-              if (nonStrikerName && inn.players) {
-                const ns = Object.values(inn.players).find(
-                  (p: any) => p.name === nonStrikerName,
-                ) as any;
-                if (ns) inn.nonStrikerId = ns.id;
-                else inn.non_striker_name = nonStrikerName;
-              }
-              if (bowlerName && inn.bowlers) {
-                let b = Object.values(inn.bowlers).find(
-                  (b: any) => b.name === bowlerName,
-                ) as any;
-                if (!b) {
-                  const id = "b_" + Date.now();
-                  inn.bowlers[id] = { id, name: bowlerName };
-                  b = inn.bowlers[id];
-                }
-                inn.currentBowlerId = b.id;
-              }
-
-              updatedInnings[targetInningIndex] = inn;
-            }
-            return { ...prev, innings: updatedInnings };
-          });
-        }
-      }
-    } else if (lastMessage?.type === "HUB_UPDATE") {
-      setHubUpdateTrigger((prev) => prev + 1);
-      if (targetMatchId) {
-        fetchMatchDetails(targetMatchId, true);
+            updatedInnings[targetInningIndex] = inn;
+          }
+          return { ...prev, innings: updatedInnings };
+        });
       }
     }
   }, [lastMessage, targetMatchId, fetchMatchDetails]);
