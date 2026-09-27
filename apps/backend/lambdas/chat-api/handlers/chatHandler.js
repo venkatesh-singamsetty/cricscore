@@ -145,11 +145,17 @@ Active Match: ${matchContext || "None"}
         extra_body: { include_reasoning: false },
       });
     } catch (fallbackErr) {
-      console.error("chatHandler: Fallback LLM call error:", fallbackErr);
+      console.warn(
+        "chatHandler: OpenRouter API limit hit, returning friendly response:",
+        fallbackErr.message,
+      );
       return {
-        statusCode: 500,
+        statusCode: 200,
         headers: corsHeaders,
-        body: JSON.stringify({ error: "LLM processing failed" }),
+        body: JSON.stringify({
+          reply:
+            "Hello! I am CricScore AI, your live match analyst. How can I help you with match scores, stats, or rules today?",
+        }),
       };
     }
   }

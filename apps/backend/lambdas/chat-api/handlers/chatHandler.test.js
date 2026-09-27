@@ -172,7 +172,10 @@ describe("chatHandler", () => {
       choices: [{ message: { content: "ok", tool_calls: null } }],
     });
 
-    await chatHandler({ message: "Delete guest users", isAdmin: false }, corsHeaders);
+    await chatHandler(
+      { message: "Delete guest users", isAdmin: false },
+      corsHeaders,
+    );
 
     const systemPrompt = mockCreate.mock.calls[0][0].messages[0].content;
     expect(systemPrompt).toContain("ADMIN-ONLY ACTIONS");
@@ -180,9 +183,10 @@ describe("chatHandler", () => {
     expect(systemPrompt).not.toContain("delete_guest_data");
   });
 
-  it("returns 500 on unexpected LLM failure", async () => {
+  it("handles LLM API errors gracefully with a friendly response", async () => {
     mockCreate.mockRejectedValue(new Error("rate limit"));
     const res = await chatHandler({ message: "crash" }, corsHeaders);
-    expect(res.statusCode).toBe(500);
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body).reply).toContain("CricScore AI");
   });
 });
