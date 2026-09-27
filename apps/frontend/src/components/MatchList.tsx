@@ -1,6 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { fetchAuthSession } from "aws-amplify/auth";
+import { useWebSocket, WebSocketMessage } from "../hooks/useWebSocket";
+import {
+  applyLiveScoreToMatches,
+  isHubRefreshType,
+  isScoreEventType,
+  unwrapLiveScoreMessage,
+} from "../utils/applyLiveScoreToMatches";
 interface MatchInningSummary {
+  id?: string;
   inning_number: number;
   batting_team_name: string;
   total_runs: number;
@@ -19,6 +27,7 @@ interface MatchMetadata {
   updated_at: string;
   innings?: MatchInningSummary[];
   scorer_email?: string;
+  [key: string]: unknown;
 }
 
 interface MatchListProps {
@@ -28,6 +37,7 @@ interface MatchListProps {
   onResumeMatch?: (matchId: string) => void;
   refreshTrigger?: number;
   searchTerm?: string;
+  lastMessage?: WebSocketMessage | null;
 }
 
 const getTimeAgo = (dateStr: string) => {
@@ -46,6 +56,7 @@ const MatchList: React.FC<MatchListProps> = ({
   onResumeMatch,
   refreshTrigger,
   searchTerm = "",
+  lastMessage = null,
 }) => {
   const [matches, setMatches] = useState<MatchMetadata[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,64 +71,70 @@ const MatchList: React.FC<MatchListProps> = ({
     import.meta.env.VITE_API_URL ||
     "https://api.cricscoredev.venkateshsingamsetty.com";
   const WS_URL = import.meta.env.VITE_WS_URL || "";
+  const internalWs = useWebSocket(WS_URL);
+  const activeMessage = lastMessage || internalWs.lastMessage;
 
-  const fetchMatches = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_URL}/matches`);
-      const data = await response.json();
-      // Sort matches by most recently updated first, regardless of status
-      const sorted = [...data].sort((a, b) => {
-        return (
-          new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-        );
-      });
-      setMatches(sorted);
-    } catch (err) {
-      console.error("Failed to fetch matches:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const fetchMatches = useCallback(
+    async (background = false) => {
+      if (!background) setLoading(true);
+      try {
+        const response = await fetch(`${API_URL}/matches?t=${Date.now()}`, {
+          cache: "no-store",
+        });
+        const data = await response.json();
+        const rows = Array.isArray(data) ? data : [];
+        const normalized = rows.map((row: MatchMetadata) => ({
+          ...row,
+          innings:
+            typeof row.innings === "string"
+              ? JSON.parse(row.innings as unknown as string)
+              : row.innings,
+        }));
+        const sorted = [...normalized].sort((a, b) => {
+          return (
+            new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+          );
+        });
+        setMatches(sorted);
+      } catch (err) {
+        console.error("Failed to fetch matches:", err);
+      } finally {
+        if (!background) setLoading(false);
+      }
+    },
+    [API_URL],
+  );
 
   useEffect(() => {
-    fetchMatches();
-  }, [refreshTrigger, API_URL]);
+    fetchMatches(false);
+  }, [refreshTrigger, fetchMatches]);
 
-  // Connect to websocket to receive hub updates and refresh match list
   useEffect(() => {
-    if (!WS_URL) return;
-    let ws: WebSocket | null = null;
+    if (!activeMessage) return;
     try {
-      ws = new WebSocket(WS_URL);
-      ws.onopen = () => console.log("MatchList WS connected");
-      ws.onmessage = (evt) => {
-        try {
-          const msg = JSON.parse(evt.data);
-          const t = msg?.type || "";
-          // Refresh on hub-level updates or match list changes
-          if (
-            t === "HUB_UPDATE" ||
-            t === "MATCH_CREATED" ||
-            t === "MATCH_UPDATED" ||
-            t === "LIVE_SCORE_UPDATE"
-          ) {
-            console.log("MatchList received WS event", t);
-            fetchMatches();
+      const unwrapped = unwrapLiveScoreMessage(activeMessage as any);
+      if (!unwrapped) return;
+      const { type, payload } = unwrapped;
+
+      if (isHubRefreshType(type)) {
+        fetchMatches(true);
+        return;
+      }
+
+      if (isScoreEventType(type)) {
+        setMatches((prev) => {
+          const result = applyLiveScoreToMatches(prev, payload);
+          if (!result.applied) {
+            Promise.resolve().then(() => fetchMatches(true));
+            return prev;
           }
-        } catch (e) {
-          console.error("MatchList WS parse error", e);
-        }
-      };
-      ws.onclose = () => console.log("MatchList WS disconnected");
-      ws.onerror = (e) => console.error("MatchList WS error", e);
+          return result.matches as unknown as MatchMetadata[];
+        });
+      }
     } catch (err) {
-      console.error("Failed to connect MatchList WS", err);
+      console.error("MatchList live update error", err);
     }
-    return () => {
-      if (ws) ws.close();
-    };
-  }, [WS_URL]);
+  }, [activeMessage, fetchMatches]);
 
   const calculateResult = (match: any) => {
     if (match.match_winner) return match.match_winner;
@@ -241,7 +258,7 @@ const MatchList: React.FC<MatchListProps> = ({
             </button>
 
             <button
-              onClick={fetchMatches}
+              onClick={() => fetchMatches()}
               className="flex flex-col items-center gap-1 group"
             >
               <span className="text-[9px] font-black text-indigo-500 group-hover:text-indigo-400 uppercase tracking-tighter">

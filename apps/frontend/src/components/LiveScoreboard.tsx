@@ -4,6 +4,11 @@ import MatchList from "./MatchList"; // Added Phase 6+
 import Scoreboard from "./Scoreboard";
 import { InningsState, ExtraType, WicketType } from "../types";
 import { getCurrentPartnership } from "../utils/partnershipUtils";
+import {
+  isHubRefreshType,
+  isScoreEventType,
+  unwrapLiveScoreMessage,
+} from "../utils/applyLiveScoreToMatches";
 
 interface LiveBall {
   overNumber: number;
@@ -217,77 +222,119 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
       lastMessage &&
       ["LIVE_SCORE_UPDATE", "STATE_SYNC"].includes(lastMessage.type)
     ) {
-      const data = lastMessage.data;
-      console.log(`📥 WS Message -> target:`, targetMatchId);
+      const payload = lastMessage.data?.data || lastMessage.data || lastMessage;
+      console.log(`📥 WS Message -> target:`, targetMatchId, payload);
 
-      if (data && (!targetMatchId || data.matchId === targetMatchId)) {
+      const msgMatchId = payload.matchId || payload.match_id;
+      if (
+        payload &&
+        (!targetMatchId || String(msgMatchId) === String(targetMatchId))
+      ) {
         // Safely unwrap the nested v2.0 Fan-Out envelope
-        setLiveData(data.ballData ? data.ballData : data);
+        setLiveData(payload.ballData ? payload.ballData : payload);
 
-        if (data.matchTotalOvers !== undefined) {
+        const totalOvers = payload.matchTotalOvers ?? payload.match_total_overs;
+        if (totalOvers !== undefined) {
           setMatchMeta((prev) =>
-            prev ? { ...prev, totalOvers: data.matchTotalOvers } : null,
+            prev ? { ...prev, totalOvers: Number(totalOvers) } : null,
           );
         }
 
+        const totalRuns =
+          payload.explicitTotalRuns ?? payload.explicit_total_runs;
+        const totalWickets =
+          payload.explicitTotalWickets ?? payload.explicit_total_wickets;
+        const currentOvers = payload.currentOvers ?? payload.current_overs;
+        const currentBalls = payload.currentBalls ?? payload.current_balls;
+
         // OPTIMISTIC UPDATE: Eliminate lag and eventual consistency issues
-        if (data.explicitTotalRuns !== undefined) {
+        if (totalRuns !== undefined) {
           setMatchDetails((prev: any) => {
-            if (!prev) return prev;
+            if (!prev || !prev.innings || prev.innings.length === 0)
+              return prev;
             const updatedInnings = [...prev.innings];
-            const targetInningIndex = updatedInnings.findIndex(
-              (i: any) => i.id === data.inningId,
-            );
+
+            const targetInningId = payload.inningId || payload.inning_id;
+            const targetBattingTeam =
+              payload.battingTeamName || payload.batting_team_name;
+
+            let targetInningIndex = -1;
+            if (targetInningId) {
+              targetInningIndex = updatedInnings.findIndex(
+                (i: any) => String(i.id) === String(targetInningId),
+              );
+            }
+            if (targetInningIndex < 0 && targetBattingTeam) {
+              targetInningIndex = updatedInnings.findIndex(
+                (i: any) =>
+                  i.battingTeamName === targetBattingTeam ||
+                  i.batting_team_name === targetBattingTeam,
+              );
+            }
+            if (targetInningIndex < 0) {
+              targetInningIndex = updatedInnings.length - 1;
+            }
+
             if (targetInningIndex > -1) {
               const inn = { ...updatedInnings[targetInningIndex] };
-              inn.totalRuns = data.explicitTotalRuns;
-              inn.totalWickets = data.explicitTotalWickets;
-              inn.overs = data.currentOvers;
-              inn.balls = data.currentBalls;
+              inn.totalRuns = Number(totalRuns);
+              if (totalWickets !== undefined)
+                inn.totalWickets = Number(totalWickets);
+              if (currentOvers !== undefined) inn.overs = Number(currentOvers);
+              if (currentBalls !== undefined) inn.balls = Number(currentBalls);
 
-              if (data.strikerName && data.runs !== undefined) {
-                const striker = Object.values(inn.players).find(
-                  (p: any) => p.name === data.strikerName,
+              const strikerName = payload.strikerName || payload.striker_name;
+              const nonStrikerName =
+                payload.nonStrikerName || payload.non_striker_name;
+              const bowlerName = payload.bowlerName || payload.bowler_name;
+              const runs = payload.runs;
+
+              if (strikerName && runs !== undefined) {
+                const striker = Object.values(inn.players || {}).find(
+                  (p: any) => p.name === strikerName,
                 ) as any;
                 if (striker) {
-                  striker.runs = data.runs;
-                  striker.ballsFaced = data.ballsFaced;
-                  striker.fours = data.fours;
-                  striker.sixes = data.sixes;
-                } else {
+                  striker.runs = runs;
+                  if (payload.ballsFaced !== undefined)
+                    striker.ballsFaced = payload.ballsFaced;
+                  if (payload.fours !== undefined)
+                    striker.fours = payload.fours;
+                  if (payload.sixes !== undefined)
+                    striker.sixes = payload.sixes;
+                } else if (inn.players) {
                   const id = "p_" + Date.now();
                   inn.players[id] = {
                     id,
-                    name: data.strikerName,
-                    runs: data.runs,
-                    ballsFaced: data.ballsFaced,
-                    fours: data.fours,
-                    sixes: data.sixes,
+                    name: strikerName,
+                    runs: runs,
+                    ballsFaced: payload.ballsFaced || 1,
+                    fours: payload.fours || 0,
+                    sixes: payload.sixes || 0,
                   };
                 }
               }
 
-              if (data.strikerName) {
+              if (strikerName && inn.players) {
                 const s = Object.values(inn.players).find(
-                  (p: any) => p.name === data.strikerName,
+                  (p: any) => p.name === strikerName,
                 ) as any;
                 if (s) inn.strikerId = s.id;
-                else inn.striker_name = data.strikerName; // Fallback for find() later
+                else inn.striker_name = strikerName;
               }
-              if (data.nonStrikerName) {
+              if (nonStrikerName && inn.players) {
                 const ns = Object.values(inn.players).find(
-                  (p: any) => p.name === data.nonStrikerName,
+                  (p: any) => p.name === nonStrikerName,
                 ) as any;
                 if (ns) inn.nonStrikerId = ns.id;
-                else inn.non_striker_name = data.nonStrikerName;
+                else inn.non_striker_name = nonStrikerName;
               }
-              if (data.bowlerName) {
+              if (bowlerName && inn.bowlers) {
                 let b = Object.values(inn.bowlers).find(
-                  (b: any) => b.name === data.bowlerName,
+                  (b: any) => b.name === bowlerName,
                 ) as any;
                 if (!b) {
                   const id = "b_" + Date.now();
-                  inn.bowlers[id] = { id, name: data.bowlerName };
+                  inn.bowlers[id] = { id, name: bowlerName };
                   b = inn.bowlers[id];
                 }
                 inn.currentBowlerId = b.id;
@@ -298,8 +345,6 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
             return { ...prev, innings: updatedInnings };
           });
         }
-      } else {
-        console.warn("❌ Match id mismatch. Ignoring.");
       }
     } else if (lastMessage?.type === "HUB_UPDATE") {
       setHubUpdateTrigger((prev) => prev + 1);
@@ -381,6 +426,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
           onResumeMatch={onResumeMatch}
           refreshTrigger={hubUpdateTrigger}
           searchTerm={searchTerm}
+          lastMessage={lastMessage}
         />
       ) : (
         <div className="space-y-6">
@@ -485,15 +531,15 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                   <div className="bg-slate-800/80 p-5 rounded-3xl border border-white/5 flex justify-between items-center relative overflow-hidden shadow-xl">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl -z-10"></div>
                     <div className="flex flex-col flex-1">
-                      <div className="flex flex-col mb-1.5 gap-0.5">
-                        <div className="flex items-center gap-2 opacity-60">
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                            {currentInnings.battingTeamName}
+                      <div className="flex flex-col mb-1.5 gap-1">
+                        <div className="flex items-center gap-2">
+                          <span className="bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/40 text-emerald-300 font-black px-2.5 py-0.5 rounded-full text-[9px] uppercase tracking-wider flex items-center gap-1 shadow-sm shadow-emerald-500/10">
+                            🏏 BATTING: {currentInnings.battingTeamName}
                           </span>
-                          <span className="text-[8px] text-slate-600 italic">
+                          <span className="text-[9px] text-slate-500 italic">
                             vs
                           </span>
-                          <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
                             {currentInnings.bowlingTeamName}
                           </span>
                         </div>
@@ -518,8 +564,8 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                         )}
 
                         <div className="flex items-baseline gap-2">
-                          <span className="text-xl font-black text-slate-300 uppercase tracking-tighter mr-2">
-                            {currentInnings.battingTeamName}:
+                          <span className="text-xl font-black text-emerald-400 uppercase tracking-tighter mr-2 flex items-center gap-1">
+                            <span>🏏</span> {currentInnings.battingTeamName}:
                           </span>
                           <span className="text-4xl font-black text-white tabular-nums tracking-tighter italic">
                             {currentInnings.totalRuns}

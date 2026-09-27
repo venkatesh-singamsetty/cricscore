@@ -91,38 +91,56 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                   className={`px-4 py-3 text-[10px] font-black uppercase tracking-tight ${highlight ? "text-indigo-100" : "text-slate-500"}`}
                 >
                   {player.isOut || player.wicketType === "RETIRED_HURT" ? (
-                    <span
-                      className={
-                        player.wicketType === "RETIRED_HURT"
-                          ? "text-amber-400 opacity-90"
-                          : "text-red-400 opacity-90"
-                      }
-                    >
-                      {(() => {
-                        const type = player.wicketType;
-                        const bowler = player.wicketBy;
-                        const fielder = player.fielderName;
+                    (() => {
+                      const type = player.wicketType;
+                      const bowler = player.wicketBy;
+                      const fielder = player.fielderName;
 
-                        if (type === "CAUGHT") {
-                          if (fielder === bowler) return `c & b ${bowler}`;
-                          return `c ${fielder || "---"} b ${bowler}`;
-                        }
-                        if (type === "STUMPED")
-                          return `st ${fielder || "---"} b ${bowler}`;
-                        if (type === "RUN_OUT")
-                          return `run out (${fielder || "---"})`;
-                        if (type === "LBW") return `lbw b ${bowler}`;
-                        if (type === "BOWLED") return `b ${bowler}`;
-                        if (type === "HIT_WICKET")
-                          return `hit wicket b ${bowler}`;
-                        if (type === "RETIRED_HURT") return "retired hurt";
-                        if (type === "RETIRED_OUT") return "retired out";
-                        return `${type?.toLowerCase().replace(/_/g, " ")}`;
-                      })()}
-                    </span>
+                      let text = "";
+                      if (type === "CAUGHT") {
+                        if (fielder === bowler) text = `c & b ${bowler}`;
+                        else text = `c ${fielder || "---"} b ${bowler}`;
+                      } else if (type === "STUMPED") {
+                        text = `st ${fielder || "---"} b ${bowler}`;
+                      } else if (type === "RUN_OUT") {
+                        text = `run out (${fielder || "---"})`;
+                      } else if (type === "LBW") {
+                        text = `lbw b ${bowler}`;
+                      } else if (type === "BOWLED") {
+                        text = `b ${bowler}`;
+                      } else if (type === "HIT_WICKET") {
+                        text = `hit wicket b ${bowler}`;
+                      } else if (type === "RETIRED_HURT") {
+                        text = "ret. hurt";
+                      } else if (type === "RETIRED_OUT") {
+                        text = "ret. out";
+                      } else {
+                        text = `${type?.toLowerCase().replace(/_/g, " ")}`;
+                      }
+
+                      if (type === "RETIRED_HURT") {
+                        return (
+                          <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded text-[9px] font-black tracking-wide inline-flex items-center gap-1 shadow-sm">
+                            🚑 {text}
+                          </span>
+                        );
+                      }
+                      if (type === "RETIRED_OUT") {
+                        return (
+                          <span className="bg-purple-500/20 text-purple-300 border border-purple-500/40 px-2 py-0.5 rounded text-[9px] font-black tracking-wide inline-flex items-center gap-1 shadow-sm">
+                            🚪 {text}
+                          </span>
+                        );
+                      }
+                      return (
+                        <span className="text-red-400 opacity-90 font-medium">
+                          {text}
+                        </span>
+                      );
+                    })()
                   ) : (
-                    <span className="text-green-300 opacity-90">
-                      {highlight ? "batting" : "not out"}
+                    <span className="text-emerald-400 font-bold opacity-90 flex items-center gap-1">
+                      {highlight ? "🏏 BATTING" : "NOT OUT"}
                     </span>
                   )}
                 </td>
