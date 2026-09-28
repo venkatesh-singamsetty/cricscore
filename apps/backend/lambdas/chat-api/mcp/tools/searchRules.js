@@ -25,6 +25,12 @@ async function searchRulesTool({ query }) {
   let searchResult = "";
 
   try {
+    // Clean typo-heavy queries (e.g., "powerplayy rukles" -> "powerplay rules")
+    const cleanQuery = query
+      .replace(/powerplay+/gi, "powerplay")
+      .replace(/rukle+s?/gi, "rules")
+      .trim();
+
     // Step 1: Generate embedding via native fetch (OpenRouter-compatible)
     const embeddingReq = await fetch(`${EMBEDDING_BASE_URL}/embeddings`, {
       method: "POST",
@@ -34,7 +40,7 @@ async function searchRulesTool({ query }) {
       },
       body: JSON.stringify({
         model: EMBEDDING_MODEL,
-        input: query,
+        input: cleanQuery || query,
       }),
     });
 
@@ -44,14 +50,14 @@ async function searchRulesTool({ query }) {
     const embedding = embeddingRes.data[0].embedding;
     const embeddingVectorString = `[${embedding.join(",")}]`;
 
-    // Step 2: Cosine similarity search via pgvector
+    // Step 2: Cosine similarity search via pgvector (Limit 8 for comprehensive context)
     const client = await pool.connect();
     try {
       await setSearchPath(client); // Includes public for pgvector operator visibility
       const res = await client.query(
         // Cast to public.vector explicitly to resolve <=> operator
         // regardless of which schema (dev/prod) is the active search_path
-        "SELECT chunk_text, document_name FROM tournament_rules ORDER BY embedding <=> $1::public.vector LIMIT 3",
+        "SELECT chunk_text, document_name FROM tournament_rules ORDER BY embedding <=> $1::public.vector LIMIT 8",
         [embeddingVectorString],
       );
 

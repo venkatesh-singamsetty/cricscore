@@ -38,9 +38,19 @@ function getDefaultModel() {
 const LLM_MODEL = process.env.LLM_MODEL || getDefaultModel();
 
 /**
+ * Returns the default embedding model name based on provider.
+ */
+function getDefaultEmbeddingModel() {
+  const url = (baseURL || "").toLowerCase();
+  if (url.includes("openrouter")) return "openai/text-embedding-3-small";
+  return "text-embedding-3-small";
+}
+
+/**
  * The base URL and model for generating vector embeddings.
  */
 const EMBEDDING_BASE_URL = baseURL;
-const EMBEDDING_MODEL = "openai/text-embedding-3-small";
+const EMBEDDING_MODEL =
+  process.env.EMBEDDING_MODEL || getDefaultEmbeddingModel();
 
 module.exports = { openai, LLM_MODEL, EMBEDDING_BASE_URL, EMBEDDING_MODEL };

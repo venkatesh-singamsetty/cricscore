@@ -183,10 +183,22 @@ describe("chatHandler", () => {
     expect(systemPrompt).not.toContain("delete_guest_data");
   });
 
-  it("handles LLM API errors gracefully with a friendly response", async () => {
+  it("enforces Rule 8 for strict tournament rulebook truth in system prompt", async () => {
+    mockCreate.mockResolvedValue({
+      choices: [{ message: { content: "ok", tool_calls: null } }],
+    });
+
+    await chatHandler({ message: "What are the rules?" }, corsHeaders);
+
+    const callArgs = mockCreate.mock.calls[0][0];
+    const systemPrompt = callArgs.messages[0].content;
+    expect(systemPrompt).toContain("STRICT RULEBOOK TRUTH (NO HALLUCINATIONS)");
+    expect(callArgs.max_tokens).toBe(2000);
+  });
+
+  it("returns 500 on unexpected LLM failure", async () => {
     mockCreate.mockRejectedValue(new Error("rate limit"));
     const res = await chatHandler({ message: "crash" }, corsHeaders);
-    expect(res.statusCode).toBe(200);
-    expect(JSON.parse(res.body).reply).toContain("CricScore AI");
+    expect(res.statusCode).toBe(500);
   });
 });

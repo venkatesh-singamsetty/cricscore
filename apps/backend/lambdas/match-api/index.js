@@ -892,7 +892,7 @@ exports.handler = async (event) => {
                            'balls', i.balls
                        ) ORDER BY i.inning_number) FROM innings i WHERE i.match_id = m.id) as innings
                 FROM matches m 
-                ORDER BY created_at DESC LIMIT 20
+                ORDER BY created_at DESC LIMIT 100
             `);
       return {
         statusCode: 200,

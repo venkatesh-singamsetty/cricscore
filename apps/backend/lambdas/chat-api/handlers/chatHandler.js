@@ -18,91 +18,19 @@ ball_events(id, inning_id, over_number, ball_number, bowler_name, batter_name, r
 `;
 
 /**
- * Smart local intent router fallback when external LLM API balance/rate limits are reached.
- * Automatically queries PostgreSQL DB or vector rulebook via MCP tools to give real, accurate answers.
- */
-async function generateSmartFallback(message, matchContext, mcpClient) {
-  const q = String(message || "").toLowerCase();
-
-  // 1. Greetings
-  if (
-    q === "hi" ||
-    q === "hello" ||
-    q === "hey" ||
-    q.startsWith("hi ") ||
-    q.startsWith("hello ")
-  ) {
-    return "Hello! I am CricScore AI, your live match analyst. Ask me anything about scores, player stats, or tournament rules!";
-  }
-
-  // 2. Database Queries (Matches, scores, count, stats)
-  if (
-    q.includes("match") ||
-    q.includes("score") ||
-    q.includes("how many") ||
-    q.includes("stat") ||
-    q.includes("player")
-  ) {
-    const dbClient = await pool.connect();
-    try {
-      await setSearchPath(dbClient);
-      const countRes = await dbClient.query("SELECT COUNT(*) FROM matches");
-      const count = countRes.rows[0]?.count || 0;
-
-      const matchesRes = await dbClient.query(
-        "SELECT team_a_name, team_b_name, status, team_a_score, team_a_wickets, team_b_score, team_b_wickets FROM matches ORDER BY created_at DESC LIMIT 3",
-      );
-
-      let matchSummary = "";
-      if (matchesRes.rows.length > 0) {
-        matchSummary = matchesRes.rows
-          .map(
-            (m) =>
-              `• ${m.team_a_name} vs ${m.team_b_name} (${m.status}): ${m.team_a_score}/${m.team_a_wickets} vs ${m.team_b_score}/${m.team_b_wickets}`,
-          )
-          .join("\n");
-      }
-
-      return `We have ${count} match(es) recorded in the tournament database:\n${matchSummary || "No matches recorded yet."}`;
-    } catch (err) {
-      console.error("generateSmartFallback DB error:", err);
-    } finally {
-      dbClient.release();
-    }
-  }
-
-  // 3. Rulebook Queries (Powerplay, DLS, rules, tiebreaker)
-  if (
-    q.includes("powerplay") ||
-    q.includes("rule") ||
-    q.includes("dls") ||
-    q.includes("tie") ||
-    q.includes("over") ||
-    q.includes("format")
-  ) {
-    try {
-      const res = await mcpClient.callTool({
-        name: "search_tournament_rules",
-        arguments: { query: message },
-      });
-      if (res?.content?.[0]?.text && !res.content[0].text.includes("Error")) {
-        return res.content[0].text;
-      }
-    } catch (err) {
-      console.error("generateSmartFallback Rules error:", err);
-    }
-  }
-
-  // 4. Default Contextual Response
-  if (matchContext) {
-    return `Currently ${matchContext}. Ask me about match scores, top scorers, or tournament rules!`;
-  }
-
-  return "I am CricScore AI, your cricket analyst. Ask me about live match scores, team statistics, or tournament rulebooks!";
-}
-
-/**
  * Handles the main /chat endpoint.
+ *
+ * Flow:
+ * 1. Fetch active match context from DB (if matchId provided)
+ * 2. Spin up MCP Server + Client using InMemoryTransport (zero cost)
+ * 3. Discover tools from MCP Server and pass schemas to LLM
+ * 4. LLM decides which tool(s) to call (if any)
+ * 5. Delegate tool calls back to MCP Server for secure execution
+ * 6. Final LLM call generates the human-readable response
+ *
+ * @param {object} body - Parsed request body
+ * @param {object} corsHeaders - CORS headers to include in response
+ * @returns {object} Lambda response object
  */
 async function chatHandler(body, corsHeaders) {
   const { message, matchId, history = [], isAdmin = false } = body;
@@ -138,16 +66,34 @@ async function chatHandler(body, corsHeaders) {
 
   // Step 2: Build system prompt with tool routing instructions
   const adminOnlyInstructions = isAdmin
-    ? `6. DELETE MATCHES: Call 'execute_sql' to show matches and confirm first. 7. DELETE GUEST DATA: Always call 'delete_guest_data' and explicitly state exact deleted counts.`
-    : `6. ADMIN-ONLY ACTIONS: Refuse non-admin cleanup requests.`;
+    ? `
+6. DELETE MATCHES (ADMIN): If the user asks to delete matches, you MUST first call 'execute_sql' to fetch the matching records, show them to the user, and explicitly ask for confirmation. ONLY call 'delete_match' AFTER the user says "yes" or confirms the deletion.
+7. DELETE GUEST DATA (ADMIN): If the user asks to delete, clear, or prune guest users, guest matches, or guest details → ALWAYS call 'delete_guest_data'. Do NOT ask for confirmation first, just execute the tool.
+`
+    : `
+6. ADMIN-ONLY ACTIONS: Do not discuss, suggest, or perform guest cleanup, match deletion, or any other admin-only action unless the caller is explicitly an admin. If a non-admin asks for these actions, politely refuse and explain that admin privileges are required.
+`;
+  const systemPrompt = `You are CricScore AI, an expert cricket analyst for this specific tournament.
 
-  const systemPrompt = `You are CricScore AI, a cricket analyst.
-Rules:
-1. DB QUERIES (matches, scores, stats, players): Call 'execute_sql'. Schema: matches(id, team_a_name, team_b_name, total_overs, team_a_score, team_a_wickets, team_b_score, team_b_wickets, status, match_winner), innings(id, match_id, batting_team_name, total_runs, total_wickets), players(id, inning_id, name, runs, balls_faced, fours, sixes). Status uses UPPERCASE ('LIVE','COMPLETED','SCHEDULED'). Use ILIKE.
-2. RULEBOOK QUERIES (rules, format, DLS, tiebreaker): Call 'search_tournament_rules'. Cite [Source: doc_name].
-3. OFF-TOPIC: Refuse non-cricket questions.
-${adminOnlyInstructions}
-Active Match: ${matchContext || "None"}
+## TOOL ROUTING RULES (MANDATORY):
+1. DATABASE QUERIES: If the user asks about matches, scores, stats, players, or standings → ALWAYS call 'execute_sql'.
+2. RULEBOOK QUERIES: If the user asks ANYTHING about rules, regulations, formats, timings, breaks, eligibility, penalties, tiebreakers, LBW, weather, DLS, or any tournament policy → ALWAYS call 'search_tournament_rules' FIRST before answering. Do NOT answer from general cricket knowledge. The rulebook has the tournament-specific rules that override general cricket knowledge.
+3. NEVER answer a rulebook-type question from memory. Always search first, then answer based on the retrieved chunks. YOU MUST explicitly cite the [Source: document_name] provided in the search results so the user knows which rulebook the answer comes from.
+4. SCALED RULES: If the active match is shorter than a full tournament match, you MUST automatically scale rules like Powerplay proportionally based on the Active Match's Total Overs (e.g., if the rulebook specifies 8 powerplay overs for a 25-over match, a 10-over match has a 3-over powerplay).
+5. OFF-TOPIC: Refuse anything unrelated to cricket. Do not treat guest cleanup, match deletion, or other admin-only actions as normal cricket questions for non-admin users.
+6. COMPLETE RESPONSES: When the user requests details for N items (e.g., "latest 10 matches"), you MUST list ALL requested items. Use a clear, concise bullet/number format (Match #, Teams, Score, Winner) so all items are presented fully.
+7. COMPREHENSIVE RULE SYNTHESIS: When answering rulebook queries, read all retrieved chunks thoroughly and cover all relevant sub-rules (such as Mandatory Powerplay, Batting Powerplay, and Fielding Restrictions) completely.
+8. STRICT RULEBOOK TRUTH (NO HALLUCINATIONS): Tournament rules override standard international rules. If the retrieved rulebook chunk states "No runs for Leg Byes", you MUST explicitly state that NO RUNS are scored for leg byes in this tournament and that leg byes do NOT count as extras or add to team totals. NEVER state that leg byes add to team totals if the retrieved rulebook says otherwise. State EXACTLY what the retrieved rulebook specifies.
+${adminOnlyInstructions}## Database Schema:
+${DB_SCHEMA}
+
+## Database Hints:
+- The 'status' column uses UPPERCASE: 'SCHEDULED', 'LIVE', 'COMPLETED', 'ABANDONED'.
+- Use ILIKE for case-insensitive string matching.
+- For 'today', use: created_at >= NOW() - INTERVAL '24 hours'.
+- For 'latest' or 'last', ALWAYS use: ORDER BY created_at DESC LIMIT 1. (Or LIMIT N when N matches are requested).
+
+Current Active Match Context: ${matchContext || "None provided"}
 `;
 
   const messages = [
@@ -169,13 +115,6 @@ Active Match: ${matchContext || "None"}
   await mcpClient.connect(clientTransport);
 
   // Step 4: Discover tools from MCP Server — clean up $schema for OpenAI compatibility
-  const TOOL_DESCRIPTIONS = {
-    execute_sql: "Run SQL query on DB",
-    search_tournament_rules: "Search rulebooks for rules",
-    delete_match: "Delete match (admin)",
-    delete_guest_data: "Delete guest data (admin)",
-  };
-
   const mcpToolsList = await mcpClient.listTools();
   const tools = mcpToolsList.tools.map((t) => {
     const { $schema, additionalProperties, ...cleanSchema } = t.inputSchema;
@@ -183,7 +122,7 @@ Active Match: ${matchContext || "None"}
       type: "function",
       function: {
         name: t.name,
-        description: TOOL_DESCRIPTIONS[t.name] || t.description,
+        description: t.description,
         parameters: cleanSchema,
       },
     };
@@ -198,29 +137,21 @@ Active Match: ${matchContext || "None"}
       tools,
       tool_choice: "auto",
       temperature: 0.1,
-      max_tokens: 500,
+      max_tokens: 2000,
     });
   } catch (err) {
-    console.warn(
-      "chatHandler: Primary LLM call error, invoking smart local fallback:",
-      err.message,
-    );
-    const smartReply = await generateSmartFallback(
-      message,
-      matchContext,
-      mcpClient,
-    );
+    console.error("chatHandler: LLM call error:", err);
     return {
-      statusCode: 200,
+      statusCode: 500,
       headers: corsHeaders,
-      body: JSON.stringify({ reply: smartReply }),
+      body: JSON.stringify({ error: "LLM processing failed" }),
     };
   }
 
   let responseMessage = response.choices[0].message;
 
   // Step 6: Agentic tool call loop — delegate to MCP Server for secure execution
-  if (responseMessage && responseMessage.tool_calls) {
+  if (responseMessage.tool_calls) {
     messages.push(responseMessage);
 
     for (const toolCall of responseMessage.tool_calls) {
@@ -254,28 +185,19 @@ Active Match: ${matchContext || "None"}
     }
 
     // Final LLM call — generate human-readable answer from tool results
-    try {
-      response = await openai.chat.completions.create({
-        model: LLM_MODEL,
-        messages,
-        temperature: 0.5,
-        max_tokens: 500,
-      });
-      responseMessage = response.choices[0].message;
-    } catch (err) {
-      console.warn("chatHandler: Final LLM call error:", err.message);
-    }
+    response = await openai.chat.completions.create({
+      model: LLM_MODEL,
+      messages,
+      temperature: 0.5,
+      max_tokens: 2000,
+    });
+    responseMessage = response.choices[0].message;
   }
-
-  const replyText =
-    responseMessage && responseMessage.content
-      ? responseMessage.content
-      : "Hello! How can I assist you with the live match today?";
 
   return {
     statusCode: 200,
     headers: corsHeaders,
-    body: JSON.stringify({ reply: replyText }),
+    body: JSON.stringify({ reply: responseMessage.content }),
   };
 }
 
