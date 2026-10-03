@@ -41,8 +41,8 @@ export function FormattedContent({ content }: { content: string }) {
         // Source badge chip
         if (trimmed.startsWith("[Source:") && trimmed.endsWith("]")) {
           const docName = trimmed
-            .replace("[Source:", "")
-            .replace("]", "")
+            .replace(/\[Source:/g, "")
+            .replace(/\]/g, "")
             .trim();
           return (
             <div key={i} className="pt-2">

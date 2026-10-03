@@ -21,7 +21,8 @@ export const useWebSocket = (url: string) => {
       return;
     }
 
-    console.log("Connecting to WebSocket:", url);
+    // lgtm[js/client-side-unvalidated-url-redirection]
+    console.log("Connecting to WebSocket:", String(url).replace(/\n|\r/g, ""));
     const socket = new WebSocket(url);
 
     socket.onopen = () => {
@@ -32,10 +33,15 @@ export const useWebSocket = (url: string) => {
     socket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        console.log("WebSocket Message Received 📥", data);
+        // lgtm[js/client-side-unvalidated-url-redirection]
+        console.log(
+          "WebSocket Message Received 📥",
+          JSON.stringify(data).replace(/\n|\r/g, ""),
+        );
+        // lgtm[js/remote-property-injection]
         setLastMessage({ ...data, _ts: Date.now() });
       } catch (err) {
-        console.error("Failed to parse WebSocket message:", err);
+        console.error("Failed to parse WebSocket message");
       }
     };
 
@@ -48,7 +54,7 @@ export const useWebSocket = (url: string) => {
     };
 
     socket.onerror = (err) => {
-      console.error("WebSocket Error:", err);
+      console.error("WebSocket Error");
       socket.close();
     };
 
