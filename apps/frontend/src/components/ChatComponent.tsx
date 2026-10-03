@@ -15,6 +15,75 @@ interface Message {
   content: string;
 }
 
+export function FormattedContent({ content }: { content: string }) {
+  const lines = content.split("\n");
+
+  const renderInlineText = (str: string) => {
+    const parts = str.split(/(\*\*.*?\*\*)/g);
+    return parts.map((part, pIdx) => {
+      if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+        return (
+          <strong key={pIdx} className="font-semibold text-white">
+            {part.slice(2, -2)}
+          </strong>
+        );
+      }
+      return part;
+    });
+  };
+
+  return (
+    <div className="space-y-1.5 text-sm leading-relaxed">
+      {lines.map((line, i) => {
+        const trimmed = line.trim();
+        if (!trimmed) return <div key={i} className="h-1" />;
+
+        // Source badge chip
+        if (trimmed.startsWith("[Source:") && trimmed.endsWith("]")) {
+          const docName = trimmed
+            .replace("[Source:", "")
+            .replace("]", "")
+            .trim();
+          return (
+            <div key={i} className="pt-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono">
+                <FileText size={12} className="text-indigo-400" />
+                Source: {docName}
+              </span>
+            </div>
+          );
+        }
+
+        // Numbered list item
+        const numMatch = trimmed.match(/^(\d+)\.\s+(.*)/);
+        if (numMatch) {
+          return (
+            <div key={i} className="flex items-start gap-2 pl-1 my-1">
+              <span className="font-bold text-indigo-400 shrink-0">
+                {numMatch[1]}.
+              </span>
+              <div>{renderInlineText(numMatch[2])}</div>
+            </div>
+          );
+        }
+
+        // Bullet list item
+        if (trimmed.startsWith("- ") || trimmed.startsWith("• ")) {
+          const bulletText = trimmed.replace(/^[-•]\s+/, "");
+          return (
+            <div key={i} className="flex items-start gap-2 pl-3 my-0.5">
+              <span className="text-indigo-400 font-bold shrink-0">•</span>
+              <div>{renderInlineText(bulletText)}</div>
+            </div>
+          );
+        }
+
+        return <p key={i}>{renderInlineText(line)}</p>;
+      })}
+    </div>
+  );
+}
+
 export function ChatComponent({
   matchId,
   apiUrl,
@@ -268,9 +337,7 @@ export function ChatComponent({
             <div
               className={`p-3 rounded-2xl max-w-[80%] ${msg.role === "user" ? "bg-indigo-600 text-white rounded-tr-none" : "bg-slate-800 text-slate-200 rounded-tl-none border border-white/5"}`}
             >
-              <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                {msg.content}
-              </p>
+              <FormattedContent content={msg.content} />
             </div>
           </div>
         ))}

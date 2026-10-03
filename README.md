@@ -145,10 +145,10 @@ The AWS infrastructure is codified in Terraform. Changes can be planned, validat
 
 ### 6. 🤖 Agentic AI & RAG
 
-**Production-style AI with MCP Security Boundaries**
-CricScore includes a production-style **AI Chat Assistant**. The system implements the Model Context Protocol to enforce a clear security boundary between the LLM and the database. Tool execution, credential access, and query validation remain strictly inside the MCP server boundary rather than being exposed directly to the LLM provider.
+**Production-style AI with MCP Security Boundaries & Native OpenAI Models**
+CricScore includes a production-style **AI Chat Assistant** powered natively by OpenAI (`gpt-4o-mini` for inference & `text-embedding-3-small` for vector embeddings). The system implements the Model Context Protocol (MCP) to enforce a clear security boundary between the LLM and the database. Tool execution, credential access, and query validation remain strictly inside the MCP server boundary rather than being exposed directly to the LLM provider. Responses are optimized using ~1,000 char paragraph chunking, `LIMIT 8` pgvector context retrieval (~6,400 chars), deterministic temperature (0.1), and explicit rulebook truth guardrails (Rule 8).
 
-- 📖 **[AI Architecture](./docs/ai_architecture.md)**: Full Agentic RAG design, MCP architecture diagram, troubleshooting log (18 documented bugs & fixes), educational AI concepts, and cost breakdown.
+- 📖 **[AI Architecture](./docs/ai_architecture.md)**: Full Agentic RAG design, MCP architecture diagram, OpenAI API token guide, quality tuning breakdown, demo prompts suite, and unit cost analysis (~$0.0004/query).
 
 ### 7. 🚀 CI/CD Automation
 
@@ -235,10 +235,10 @@ To deploy CricScore to your own AWS account, use the canonical deployer scripts:
 
 ```bash
 # Development
-./infra/scripts/deploy.sh --env dev
+./infra/scripts/deploy.sh --env dev --use-local-env
 
 # Production
-./infra/scripts/deploy.sh --env prod
+./infra/scripts/deploy.sh --env prod --use-local-env
 ```
 
 This script applies the correct Terraform environment, regenerates the frontend runtime values from live AWS outputs, builds the app, uploads it to S3, and invalidates CloudFront so the dev and prod sites stay isolated.

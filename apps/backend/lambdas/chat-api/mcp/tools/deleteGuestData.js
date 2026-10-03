@@ -11,7 +11,7 @@ async function deleteGuestDataTool(args) {
     let deletedMatches = 0;
     try {
       const res = await client.query(
-        "DELETE FROM matches WHERE scorer_email LIKE 'guest-%' RETURNING id",
+        "DELETE FROM matches WHERE scorer_email LIKE 'guest-%' OR scorer_email LIKE 'guest_%' RETURNING id",
       );
       deletedMatches = res.rowCount || 0;
     } finally {
@@ -36,7 +36,16 @@ async function deleteGuestDataTool(args) {
           const emailAttr = (u.Attributes || []).find(
             (a) => a.Name === "email",
           );
-          return emailAttr && emailAttr.Value.startsWith("guest-");
+          const email = emailAttr ? emailAttr.Value : "";
+          const username = u.Username || "";
+          return (
+            email.startsWith("guest-") ||
+            email.startsWith("guest_") ||
+            email.includes("guest") ||
+            username.startsWith("guest-") ||
+            username.startsWith("guest_") ||
+            username.includes("guest")
+          );
         });
         allGuests = allGuests.concat(guests);
         paginationToken = res.PaginationToken;
@@ -61,7 +70,7 @@ async function deleteGuestDataTool(args) {
         content: [
           {
             type: "text",
-            text: `Successfully deleted ${deletedMatches} guest matches from the database. However, failed to delete guest users from Cognito: ${cognitoErr.message}`,
+            text: `Deleted ${deletedMatches} guest matches from the database. However, failed to delete guest users from Cognito: ${cognitoErr.message}`,
           },
         ],
       };
@@ -71,7 +80,7 @@ async function deleteGuestDataTool(args) {
       content: [
         {
           type: "text",
-          text: `Successfully deleted ${deletedMatches} guest matches and ${deletedUsers} guest users.`,
+          text: `Deleted ${deletedMatches} guest matches from DB and ${deletedUsers} guest users from Cognito.`,
         },
       ],
     };

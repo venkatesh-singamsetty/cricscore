@@ -10,9 +10,16 @@ export const useWebSocket = (url: string) => {
   const [isConnected, setIsConnected] = useState(false);
   const ws = useRef<WebSocket | null>(null);
   const reconnectTimeout = useRef<NodeJS.Timeout | undefined>(undefined);
+  const shouldReconnect = useRef(true);
 
   const connect = useCallback(() => {
-    if (ws.current?.readyState === WebSocket.OPEN) return;
+    if (!url) return;
+    if (
+      ws.current?.readyState === WebSocket.OPEN ||
+      ws.current?.readyState === WebSocket.CONNECTING
+    ) {
+      return;
+    }
 
     console.log("Connecting to WebSocket:", url);
     const socket = new WebSocket(url);
@@ -25,8 +32,8 @@ export const useWebSocket = (url: string) => {
     socket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        console.log("WebSocket Message Received 📥");
-        setLastMessage(data);
+        console.log("WebSocket Message Received 📥", data);
+        setLastMessage({ ...data, _ts: Date.now() });
       } catch (err) {
         console.error("Failed to parse WebSocket message:", err);
       }
@@ -35,7 +42,8 @@ export const useWebSocket = (url: string) => {
     socket.onclose = () => {
       console.log("WebSocket Disconnected ❌");
       setIsConnected(false);
-      // Auto-reconnect after 3 seconds
+      ws.current = null;
+      if (!shouldReconnect.current) return;
       reconnectTimeout.current = setTimeout(connect, 3000);
     };
 
@@ -48,10 +56,15 @@ export const useWebSocket = (url: string) => {
   }, [url]);
 
   useEffect(() => {
+    shouldReconnect.current = true;
     connect();
     return () => {
+      shouldReconnect.current = false;
       if (reconnectTimeout.current) clearTimeout(reconnectTimeout.current);
-      if (ws.current) ws.current.close();
+      if (ws.current) {
+        ws.current.close();
+        ws.current = null;
+      }
     };
   }, [connect]);
 

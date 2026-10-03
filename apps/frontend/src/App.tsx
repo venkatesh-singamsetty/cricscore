@@ -1016,6 +1016,12 @@ const App: React.FC = () => {
     window.history.replaceState({}, "", window.location.pathname);
   };
 
+  const handleQuitMatch = () => {
+    safeLocalStorageRemove(getMatchStateKey(emailTo));
+    resetMatch();
+    setView("VIEWER");
+  };
+
   const forceResetMatch = async () => {
     if (matchId && matchStatus !== MatchStatus.COMPLETED) {
       try {
@@ -1474,6 +1480,7 @@ const App: React.FC = () => {
                   userToken={userToken || undefined}
                   onInningsEnd={handleInningsEnd}
                   onResetMatch={() => setShowResetConfirm(true)}
+                  onQuitMatch={handleQuitMatch}
                   onForceReset={forceResetMatch}
                   onUpdateOvers={updateMatchOvers}
                   onStateChange={(state) => setCurrentInnings(state)}
@@ -1640,6 +1647,13 @@ const App: React.FC = () => {
                             <span>START FRESH MATCH</span>
                             <span className="text-sm">🏏</span>
                           </button>
+                          <button
+                            onClick={handleQuitMatch}
+                            className="flex-1 py-4 bg-rose-900/40 hover:bg-rose-900/60 text-rose-300 border border-rose-500/30 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-rose-950/40 active:scale-95 transition-all flex items-center justify-center gap-2"
+                          >
+                            <span>QUIT</span>
+                            <span className="text-sm">🚪</span>
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -1675,6 +1689,7 @@ const App: React.FC = () => {
                       userToken={userToken || undefined}
                       onInningsEnd={handleInningsEnd}
                       onResetMatch={() => setShowResetConfirm(true)}
+                      onQuitMatch={handleQuitMatch}
                       onForceReset={forceResetMatch}
                       onUpdateOvers={updateMatchOvers}
                       onStateChange={(state) => setCurrentInnings(state)}
@@ -1798,6 +1813,13 @@ const App: React.FC = () => {
                               >
                                 <span>START FRESH MATCH</span>
                                 <span className="text-sm">🏏</span>
+                              </button>
+                              <button
+                                onClick={handleQuitMatch}
+                                className="flex-1 py-4 bg-rose-900/40 hover:bg-rose-900/60 text-rose-300 border border-rose-500/30 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-rose-950/40 active:scale-95 transition-all flex items-center justify-center gap-2"
+                              >
+                                <span>QUIT</span>
+                                <span className="text-sm">🚪</span>
                               </button>
                             </div>
                           </div>

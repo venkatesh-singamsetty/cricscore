@@ -4,6 +4,11 @@ import MatchList from "./MatchList"; // Added Phase 6+
 import Scoreboard from "./Scoreboard";
 import { InningsState, ExtraType, WicketType } from "../types";
 import { getCurrentPartnership } from "../utils/partnershipUtils";
+import {
+  isHubRefreshType,
+  isScoreEventType,
+  unwrapLiveScoreMessage,
+} from "../utils/applyLiveScoreToMatches";
 
 interface LiveBall {
   overNumber: number;
@@ -130,70 +135,122 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
         }
 
         // Map DB rows to InningsState
-        const mappedInnings = data.innings.map((inn: any): InningsState => ({
-          id: inn.id,
-          inningNumber: inn.inning_number,
-          target: inn.target,
-          battingTeamName: inn.batting_team_name,
-          bowlingTeamName: inn.bowling_team_name,
-          totalRuns: Number(inn.total_runs || 0),
-          totalWickets: Number(inn.total_wickets || 0),
-          overs: Number(inn.overs || 0),
-          balls: Number(inn.balls || 0),
-          currentOver: [],
-          allBalls: (inn.allBalls || []).map((b: any) => ({
-            ...b,
-            bowlerName: b.bowler_name,
-            batterName: b.batter_name,
-            isExtra: b.is_extra,
-            extraType: b.extra_type as ExtraType,
-            extraRuns: b.extra_runs,
-            isWicket: b.is_wicket,
-            wicketType: b.wicket_type as WicketType,
-            overNumber: b.over_number,
-            ballNumber: b.ball_number,
-          })),
-          strikerId:
-            (inn.players || []).find((p: any) => p.name === inn.striker_name)
-              ?.id || "",
-          nonStrikerId:
-            (inn.players || []).find(
-              (p: any) => p.name === inn.non_striker_name,
-            )?.id || "",
-          currentBowlerId:
-            (inn.bowlers || []).find(
-              (b: any) => b.name === inn.current_bowler_name,
-            )?.id || "",
-          players: (inn.players || []).reduce((acc: any, p: any) => {
+        const mappedInnings = data.innings.map((inn: any): InningsState => {
+          const players = (inn.players || []).reduce((acc: any, p: any) => {
             acc[p.id] = {
               id: p.id,
               name: p.name,
-              runs: p.runs,
-              ballsFaced: p.balls_faced,
-              fours: p.fours,
-              sixes: p.sixes,
+              runs: Number(p.runs || 0),
+              ballsFaced: Number(p.balls_faced || 0),
+              fours: Number(p.fours || 0),
+              sixes: Number(p.sixes || 0),
               isOut: p.is_out,
               wicketBy: p.wicket_by,
               wicketType: p.wicket_type as WicketType,
               fielderName: p.fielder_name,
             };
             return acc;
-          }, {}),
-          bowlers: (inn.bowlers || []).reduce((acc: any, b: any) => {
-            acc[b.id] = {
-              id: b.id,
-              name: b.name,
-              overs: b.overs_completed,
-              balls: b.balls,
-              maidens: b.maidens,
-              runsConceded: b.runs_conceded,
-              wickets: b.wickets,
-            };
-            return acc;
-          }, {}),
-          battingOrder: (inn.players || []).map((p: any) => p.id),
-          bowlingOrder: (inn.bowlers || []).map((b: any) => b.id),
-        }));
+          }, {});
+
+          const playerRunsSum = Object.values(players).reduce(
+            (sum: number, p: any) => sum + Number(p.runs || 0),
+            0,
+          );
+
+          const allBallsMapped = (inn.allBalls || []).map((b: any) => ({
+            ...b,
+            bowlerName: b.bowler_name || b.bowlerName,
+            batterName: b.batter_name || b.batterName,
+            isExtra: b.is_extra !== undefined ? b.is_extra : b.isExtra,
+            extraType: (b.extra_type || b.extraType) as ExtraType,
+            extraRuns: b.extra_runs !== undefined ? b.extra_runs : b.extraRuns,
+            isWicket: b.is_wicket !== undefined ? b.is_wicket : b.isWicket,
+            wicketType: (b.wicket_type || b.wicketType) as WicketType,
+            overNumber:
+              b.over_number !== undefined ? b.over_number : b.overNumber,
+            ballNumber:
+              b.ball_number !== undefined ? b.ball_number : b.ballNumber,
+          }));
+
+          const ballsRunsSum = allBallsMapped.reduce((sum: number, b: any) => {
+            const r = Number(b.runs || 0);
+            const isExtra = b.isExtra;
+            const extraType = b.extraType;
+            const extraRuns = Number(b.extraRuns || 0);
+            let ballTotal = r;
+            if (isExtra) {
+              if (
+                extraType === ExtraType.WIDE ||
+                extraType === ExtraType.NO_BALL
+              ) {
+                ballTotal = r + (extraRuns > 0 ? extraRuns : 1);
+              } else {
+                ballTotal = r + extraRuns;
+              }
+            }
+            return sum + ballTotal;
+          }, 0);
+
+          const derivedTotalRuns = Math.max(
+            Number(inn.total_runs || inn.totalRuns || 0),
+            playerRunsSum,
+            ballsRunsSum,
+          );
+
+          const outWicketsCount = Object.values(players).filter(
+            (p: any) => p.isOut && p.wicketType !== WicketType.RETIRED_HURT,
+          ).length;
+
+          const ballsWicketsCount = allBallsMapped.filter(
+            (b: any) => b.isWicket && b.wicketType !== WicketType.RETIRED_HURT,
+          ).length;
+
+          const derivedTotalWickets = Math.max(
+            Number(inn.total_wickets || inn.totalWickets || 0),
+            outWicketsCount,
+            ballsWicketsCount,
+          );
+
+          return {
+            id: inn.id,
+            inningNumber: inn.inning_number,
+            target: inn.target,
+            battingTeamName: inn.batting_team_name,
+            bowlingTeamName: inn.bowling_team_name,
+            totalRuns: derivedTotalRuns,
+            totalWickets: derivedTotalWickets,
+            overs: Number(inn.overs || 0),
+            balls: Number(inn.balls || 0),
+            currentOver: allBallsMapped.slice(-6),
+            allBalls: allBallsMapped,
+            strikerId:
+              (inn.players || []).find((p: any) => p.name === inn.striker_name)
+                ?.id || "",
+            nonStrikerId:
+              (inn.players || []).find(
+                (p: any) => p.name === inn.non_striker_name,
+              )?.id || "",
+            currentBowlerId:
+              (inn.bowlers || []).find(
+                (b: any) => b.name === inn.current_bowler_name,
+              )?.id || "",
+            players,
+            bowlers: (inn.bowlers || []).reduce((acc: any, b: any) => {
+              acc[b.id] = {
+                id: b.id,
+                name: b.name,
+                overs: b.overs_completed,
+                balls: b.balls,
+                maidens: b.maidens,
+                runsConceded: b.runs_conceded,
+                wickets: b.wickets,
+              };
+              return acc;
+            }, {}),
+            battingOrder: (inn.players || []).map((p: any) => p.id),
+            bowlingOrder: (inn.bowlers || []).map((b: any) => b.id),
+          };
+        });
 
         setMatchDetails({ innings: mappedInnings });
       } catch (err) {
@@ -212,99 +269,281 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
   }, [initialMatchId]);
 
   useEffect(() => {
-    // Only accept updates for the match we are following
-    if (
-      lastMessage &&
-      ["LIVE_SCORE_UPDATE", "STATE_SYNC"].includes(lastMessage.type)
-    ) {
-      const data = lastMessage.data;
-      console.log(`📥 WS Message -> target:`, targetMatchId);
+    if (!lastMessage) return;
 
-      if (data && (!targetMatchId || data.matchId === targetMatchId)) {
-        // Safely unwrap the nested v2.0 Fan-Out envelope
-        setLiveData(data.ballData ? data.ballData : data);
+    const unwrapped = unwrapLiveScoreMessage(lastMessage as any);
+    if (!unwrapped) return;
 
-        if (data.matchTotalOvers !== undefined) {
-          setMatchMeta((prev) =>
-            prev ? { ...prev, totalOvers: data.matchTotalOvers } : null,
-          );
-        }
+    const { type, payload } = unwrapped;
 
-        // OPTIMISTIC UPDATE: Eliminate lag and eventual consistency issues
-        if (data.explicitTotalRuns !== undefined) {
-          setMatchDetails((prev: any) => {
-            if (!prev) return prev;
-            const updatedInnings = [...prev.innings];
-            const targetInningIndex = updatedInnings.findIndex(
-              (i: any) => i.id === data.inningId,
-            );
-            if (targetInningIndex > -1) {
-              const inn = { ...updatedInnings[targetInningIndex] };
-              inn.totalRuns = data.explicitTotalRuns;
-              inn.totalWickets = data.explicitTotalWickets;
-              inn.overs = data.currentOvers;
-              inn.balls = data.currentBalls;
-
-              if (data.strikerName && data.runs !== undefined) {
-                const striker = Object.values(inn.players).find(
-                  (p: any) => p.name === data.strikerName,
-                ) as any;
-                if (striker) {
-                  striker.runs = data.runs;
-                  striker.ballsFaced = data.ballsFaced;
-                  striker.fours = data.fours;
-                  striker.sixes = data.sixes;
-                } else {
-                  const id = "p_" + Date.now();
-                  inn.players[id] = {
-                    id,
-                    name: data.strikerName,
-                    runs: data.runs,
-                    ballsFaced: data.ballsFaced,
-                    fours: data.fours,
-                    sixes: data.sixes,
-                  };
-                }
-              }
-
-              if (data.strikerName) {
-                const s = Object.values(inn.players).find(
-                  (p: any) => p.name === data.strikerName,
-                ) as any;
-                if (s) inn.strikerId = s.id;
-                else inn.striker_name = data.strikerName; // Fallback for find() later
-              }
-              if (data.nonStrikerName) {
-                const ns = Object.values(inn.players).find(
-                  (p: any) => p.name === data.nonStrikerName,
-                ) as any;
-                if (ns) inn.nonStrikerId = ns.id;
-                else inn.non_striker_name = data.nonStrikerName;
-              }
-              if (data.bowlerName) {
-                let b = Object.values(inn.bowlers).find(
-                  (b: any) => b.name === data.bowlerName,
-                ) as any;
-                if (!b) {
-                  const id = "b_" + Date.now();
-                  inn.bowlers[id] = { id, name: data.bowlerName };
-                  b = inn.bowlers[id];
-                }
-                inn.currentBowlerId = b.id;
-              }
-
-              updatedInnings[targetInningIndex] = inn;
-            }
-            return { ...prev, innings: updatedInnings };
-          });
-        }
-      } else {
-        console.warn("❌ Match id mismatch. Ignoring.");
-      }
-    } else if (lastMessage?.type === "HUB_UPDATE") {
+    if (isHubRefreshType(type)) {
       setHubUpdateTrigger((prev) => prev + 1);
       if (targetMatchId) {
         fetchMatchDetails(targetMatchId, true);
+      }
+      return;
+    }
+
+    if (isScoreEventType(type)) {
+      console.log(`📥 WS Message -> target:`, targetMatchId, payload);
+
+      const msgMatchId = payload.matchId || payload.match_id;
+      if (
+        payload &&
+        (!targetMatchId ||
+          String(msgMatchId).trim().toLowerCase() ===
+            String(targetMatchId).trim().toLowerCase())
+      ) {
+        // Safely unwrap the nested ball data
+        setLiveData(
+          (payload.ballData ? payload.ballData : payload) as LiveBall,
+        );
+
+        const totalOvers = payload.matchTotalOvers ?? payload.match_total_overs;
+        if (totalOvers !== undefined) {
+          setMatchMeta((prev) =>
+            prev ? { ...prev, totalOvers: Number(totalOvers) } : null,
+          );
+        }
+
+        const totalRuns =
+          payload.explicitTotalRuns ??
+          payload.explicit_total_runs ??
+          payload.totalRuns ??
+          payload.total_runs;
+        const totalWickets =
+          payload.explicitTotalWickets ??
+          payload.explicit_total_wickets ??
+          payload.totalWickets ??
+          payload.total_wickets;
+        const currentOvers = payload.currentOvers ?? payload.current_overs;
+        const currentBalls = payload.currentBalls ?? payload.current_balls;
+
+        // OPTIMISTIC UPDATE: Eliminate lag and eventual consistency issues
+        setMatchDetails((prev: any) => {
+          if (!prev || !prev.innings || prev.innings.length === 0) {
+            if (targetMatchId) fetchMatchDetails(targetMatchId, true);
+            return prev;
+          }
+          const updatedInnings = [...prev.innings];
+
+          const targetInningId = payload.inningId || payload.inning_id;
+          const targetBattingTeam =
+            payload.battingTeamName || payload.batting_team_name;
+
+          let targetInningIndex = -1;
+          if (targetInningId) {
+            targetInningIndex = updatedInnings.findIndex(
+              (i: any) =>
+                String(i.id).trim().toLowerCase() ===
+                String(targetInningId).trim().toLowerCase(),
+            );
+          }
+          if (targetInningIndex < 0 && targetBattingTeam) {
+            targetInningIndex = updatedInnings.findIndex(
+              (i: any) =>
+                i.battingTeamName?.trim().toLowerCase() ===
+                  targetBattingTeam.trim().toLowerCase() ||
+                i.batting_team_name?.trim().toLowerCase() ===
+                  targetBattingTeam.trim().toLowerCase(),
+            );
+          }
+          if (targetInningIndex < 0) {
+            targetInningIndex = updatedInnings.length - 1;
+          }
+
+          if (targetInningIndex > -1) {
+            const rawInn = updatedInnings[targetInningIndex];
+            const clonedPlayers = Object.entries(rawInn.players || {}).reduce(
+              (acc: any, [k, v]: any) => {
+                acc[k] = { ...v };
+                return acc;
+              },
+              {},
+            );
+            const clonedBowlers = Object.entries(rawInn.bowlers || {}).reduce(
+              (acc: any, [k, v]: any) => {
+                acc[k] = { ...v };
+                return acc;
+              },
+              {},
+            );
+
+            const inn = {
+              ...rawInn,
+              players: clonedPlayers,
+              bowlers: clonedBowlers,
+            };
+
+            const strikerName = payload.strikerName || payload.striker_name;
+            const nonStrikerName =
+              payload.nonStrikerName || payload.non_striker_name;
+            const bowlerName = payload.bowlerName || payload.bowler_name;
+            const runs = payload.runs;
+
+            if (strikerName && runs !== undefined) {
+              const striker = Object.values(inn.players || {}).find(
+                (p: any) =>
+                  p.name?.trim().toLowerCase() ===
+                  strikerName.trim().toLowerCase(),
+              ) as any;
+              if (striker) {
+                striker.runs = runs;
+                if (payload.ballsFaced !== undefined)
+                  striker.ballsFaced = payload.ballsFaced;
+                if (payload.fours !== undefined) striker.fours = payload.fours;
+                if (payload.sixes !== undefined) striker.sixes = payload.sixes;
+              } else if (inn.players) {
+                const id = "p_" + Date.now();
+                inn.players[id] = {
+                  id,
+                  name: strikerName,
+                  runs: runs,
+                  ballsFaced: payload.ballsFaced || 1,
+                  fours: payload.fours || 0,
+                  sixes: payload.sixes || 0,
+                };
+              }
+            }
+
+            if (strikerName && inn.players) {
+              const s = Object.values(inn.players).find(
+                (p: any) =>
+                  p.name?.trim().toLowerCase() ===
+                  strikerName.trim().toLowerCase(),
+              ) as any;
+              if (s) inn.strikerId = s.id;
+            }
+            if (nonStrikerName && inn.players) {
+              const ns = Object.values(inn.players).find(
+                (p: any) =>
+                  p.name?.trim().toLowerCase() ===
+                  nonStrikerName.trim().toLowerCase(),
+              ) as any;
+              if (ns) inn.nonStrikerId = ns.id;
+            }
+            if (bowlerName && inn.bowlers) {
+              let b = Object.values(inn.bowlers).find(
+                (b: any) =>
+                  b.name?.trim().toLowerCase() ===
+                  bowlerName.trim().toLowerCase(),
+              ) as any;
+              if (!b) {
+                const id = "b_" + Date.now();
+                inn.bowlers[id] = { id, name: bowlerName };
+                b = inn.bowlers[id];
+              }
+              inn.currentBowlerId = b.id;
+            }
+
+            if (payload.ballData) {
+              const newBall = {
+                ...payload.ballData,
+                bowlerName:
+                  payload.ballData.bowlerName || payload.ballData.bowler_name,
+                batterName:
+                  payload.ballData.batterName || payload.ballData.batter_name,
+                isExtra:
+                  payload.ballData.isExtra !== undefined
+                    ? payload.ballData.isExtra
+                    : payload.ballData.is_extra,
+                extraType:
+                  payload.ballData.extraType || payload.ballData.extra_type,
+                extraRuns:
+                  payload.ballData.extraRuns !== undefined
+                    ? payload.ballData.extraRuns
+                    : payload.ballData.extra_runs,
+                isWicket:
+                  payload.ballData.isWicket !== undefined
+                    ? payload.ballData.isWicket
+                    : payload.ballData.is_wicket,
+                wicketType:
+                  payload.ballData.wicketType || payload.ballData.wicket_type,
+                overNumber:
+                  payload.ballData.overNumber !== undefined
+                    ? payload.ballData.overNumber
+                    : payload.ballData.over_number,
+                ballNumber:
+                  payload.ballData.ballNumber !== undefined
+                    ? payload.ballData.ballNumber
+                    : payload.ballData.ball_number,
+              };
+              inn.allBalls = [...(inn.allBalls || []), newBall];
+              inn.currentOver = [...(inn.currentOver || []), newBall].slice(-6);
+            }
+
+            const playerRunsSum = Object.values(inn.players || {}).reduce(
+              (sum: number, p: any) => sum + Number(p.runs || 0),
+              0,
+            );
+
+            const ballsRunsSum = (inn.allBalls || []).reduce(
+              (sum: number, b: any) => {
+                const r = Number(b.runs || 0);
+                const isExtra = b.isExtra || b.is_extra;
+                const extraType = String(
+                  b.extraType || b.extra_type || "",
+                ).toUpperCase();
+                const extraRuns = Number(
+                  b.extraRuns !== undefined ? b.extraRuns : b.extra_runs || 0,
+                );
+                let ballTotal = r;
+                if (isExtra) {
+                  if (extraType === "WIDE" || extraType === "NO_BALL") {
+                    ballTotal = r + (extraRuns > 0 ? extraRuns : 1);
+                  } else {
+                    ballTotal = r + extraRuns;
+                  }
+                }
+                return sum + ballTotal;
+              },
+              0,
+            );
+
+            const outWicketsCount = Object.values(inn.players || {}).filter(
+              (p: any) => p.isOut && p.wicketType !== WicketType.RETIRED_HURT,
+            ).length;
+
+            const ballsWicketsCount = (inn.allBalls || []).filter(
+              (b: any) =>
+                (b.isWicket || b.is_wicket) &&
+                b.wicketType !== WicketType.RETIRED_HURT &&
+                b.wicket_type !== WicketType.RETIRED_HURT,
+            ).length;
+
+            inn.totalRuns = Math.max(
+              Number(totalRuns || 0),
+              Number(inn.totalRuns || 0),
+              playerRunsSum,
+              ballsRunsSum,
+            );
+            if (totalWickets !== undefined) {
+              inn.totalWickets = Math.max(
+                Number(totalWickets || 0),
+                Number(inn.totalWickets || 0),
+                outWicketsCount,
+                ballsWicketsCount,
+              );
+            } else {
+              inn.totalWickets = Math.max(
+                Number(inn.totalWickets || 0),
+                outWicketsCount,
+                ballsWicketsCount,
+              );
+            }
+
+            if (currentOvers !== undefined) inn.overs = Number(currentOvers);
+            else if (payload.ballData?.overNumber !== undefined)
+              inn.overs = Number(payload.ballData.overNumber);
+
+            if (currentBalls !== undefined) inn.balls = Number(currentBalls);
+            else if (payload.ballData?.ballNumber !== undefined)
+              inn.balls = Number(payload.ballData.ballNumber);
+
+            updatedInnings[targetInningIndex] = inn;
+          }
+          return { ...prev, innings: updatedInnings };
+        });
       }
     }
   }, [lastMessage, targetMatchId, fetchMatchDetails]);
@@ -381,6 +620,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
           onResumeMatch={onResumeMatch}
           refreshTrigger={hubUpdateTrigger}
           searchTerm={searchTerm}
+          lastMessage={lastMessage}
         />
       ) : (
         <div className="space-y-6">
@@ -449,16 +689,25 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                 "Waiting...";
 
               // Find active batters (strictly current striker and non-striker)
-              const activeBatters = Object.values(currentInnings.players)
-                .filter(
-                  (p: any) =>
-                    (p.id === currentInnings.strikerId ||
-                      p.id === currentInnings.nonStrikerId) &&
-                    p.id !== "",
-                )
-                .sort((a: any, b: any) =>
-                  a.id === currentInnings.strikerId ? -1 : 1,
-                );
+              const activeBatters = (() => {
+                const matched = Object.values(currentInnings.players || {})
+                  .filter(
+                    (p: any) =>
+                      (p.id === currentInnings.strikerId ||
+                        p.id === currentInnings.nonStrikerId) &&
+                      p.id !== "",
+                  )
+                  .sort((a: any, b: any) =>
+                    a.id === currentInnings.strikerId ? -1 : 1,
+                  );
+                if (matched.length > 0) return matched;
+                return Object.values(currentInnings.players || {})
+                  .filter(
+                    (p: any) =>
+                      !p.isOut && p.wicketType !== WicketType.RETIRED_HURT,
+                  )
+                  .slice(0, 2);
+              })();
 
               // Find current bowler
               const currentBowler =
@@ -485,15 +734,15 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                   <div className="bg-slate-800/80 p-5 rounded-3xl border border-white/5 flex justify-between items-center relative overflow-hidden shadow-xl">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl -z-10"></div>
                     <div className="flex flex-col flex-1">
-                      <div className="flex flex-col mb-1.5 gap-0.5">
-                        <div className="flex items-center gap-2 opacity-60">
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                            {currentInnings.battingTeamName}
+                      <div className="flex flex-col mb-1.5 gap-1">
+                        <div className="flex items-center gap-2">
+                          <span className="bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/40 text-emerald-300 font-black px-2.5 py-0.5 rounded-full text-[9px] uppercase tracking-wider flex items-center gap-1 shadow-sm shadow-emerald-500/10">
+                            🏏 BATTING: {currentInnings.battingTeamName}
                           </span>
-                          <span className="text-[8px] text-slate-600 italic">
+                          <span className="text-[9px] text-slate-500 italic">
                             vs
                           </span>
-                          <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
                             {currentInnings.bowlingTeamName}
                           </span>
                         </div>
@@ -518,8 +767,8 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                         )}
 
                         <div className="flex items-baseline gap-2">
-                          <span className="text-xl font-black text-slate-300 uppercase tracking-tighter mr-2">
-                            {currentInnings.battingTeamName}:
+                          <span className="text-xl font-black text-emerald-400 uppercase tracking-tighter mr-2 flex items-center gap-1">
+                            <span>🏏</span> {currentInnings.battingTeamName}:
                           </span>
                           <span className="text-4xl font-black text-white tabular-nums tracking-tighter italic">
                             {currentInnings.totalRuns}
@@ -547,6 +796,86 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                           OVS
                         </span>
                       </span>
+                    </div>
+                  </div>
+
+                  {/* THIS OVER Live Timeline Bar */}
+                  <div className="bg-slate-800/50 rounded-2xl border border-white/5 p-3.5 flex items-center justify-between shadow-lg">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      THIS OVER
+                    </span>
+                    <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
+                      {!currentInnings.currentOver ||
+                      currentInnings.currentOver.length === 0 ? (
+                        <span className="text-[10px] font-bold text-slate-500 italic uppercase">
+                          Waiting for ball...
+                        </span>
+                      ) : (
+                        currentInnings.currentOver.map(
+                          (ball: any, idx: number) => {
+                            const isRetHurt =
+                              ball.wicketType === WicketType.RETIRED_HURT ||
+                              String(ball.wicketType) === "RETIRED_HURT";
+                            const isRetOut =
+                              ball.wicketType === WicketType.RETIRED_OUT ||
+                              String(ball.wicketType) === "RETIRED_OUT";
+                            const isWicket = ball.isWicket || ball.is_wicket;
+                            const runs = Number(ball.runs || 0);
+                            const isExtra = ball.isExtra || ball.is_extra;
+                            const extraType = String(
+                              ball.extraType || ball.extra_type || "",
+                            ).toUpperCase();
+
+                            let badgeBg =
+                              "bg-white text-slate-900 border-white";
+                            if (isRetHurt)
+                              badgeBg =
+                                "bg-amber-500 text-amber-950 border-amber-300 shadow-amber-500/30";
+                            else if (isRetOut)
+                              badgeBg =
+                                "bg-purple-600 text-white border-purple-400 shadow-purple-500/30";
+                            else if (isWicket)
+                              badgeBg =
+                                "bg-red-500 text-white border-red-300 shadow-red-500/30";
+                            else if (runs === 4)
+                              badgeBg =
+                                "bg-blue-600 text-white border-blue-400 shadow-blue-500/30";
+                            else if (runs === 6)
+                              badgeBg =
+                                "bg-purple-600 text-white border-purple-400 shadow-purple-500/30";
+                            else if (isExtra)
+                              badgeBg =
+                                "bg-amber-500 text-amber-950 border-amber-300 shadow-amber-500/30";
+
+                            let label = String(runs);
+                            if (isRetHurt) label = "RH";
+                            else if (isRetOut) label = "RO";
+                            else if (isWicket)
+                              label = runs > 0 ? `W+${runs}` : "W";
+                            else if (isExtra) {
+                              if (extraType === "WIDE")
+                                label = runs > 0 ? `Wd+${runs}` : "Wd";
+                              else if (extraType === "NO_BALL")
+                                label = runs > 0 ? `Nb+${runs}` : "Nb";
+                              else if (extraType === "BYE")
+                                label = runs > 0 ? `B+${runs}` : "B";
+                              else if (extraType === "LEG_BYE")
+                                label = runs > 0 ? `Lb+${runs}` : "Lb";
+                              else label = extraType ? extraType[0] : "E";
+                            }
+
+                            return (
+                              <span
+                                key={idx}
+                                className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-[10px] md:text-xs font-black border shadow-md transition-all animate-in zoom-in-75 duration-300 ${badgeBg}`}
+                              >
+                                {label}
+                              </span>
+                            );
+                          },
+                        )
+                      )}
                     </div>
                   </div>
 
