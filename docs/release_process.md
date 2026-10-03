@@ -39,9 +39,9 @@ You raise a Pull Request against the `main` branch. GitHub Actions will execute 
 
 ### Step 3: Merge & Deploy to DEV
 
-Once the PR is approved and checks pass, you merge the branch into `main`. The exact moment the code hits `main`, the `ci-cd.yml` workflow deploys the code to the DEV environment and runs E2E tests.
+Once the PR is approved and checks pass, you merge the branch into `main`. The exact moment the code hits `main`, the `ci.yml` workflow deploys the code to the DEV environment and runs E2E tests.
 
-Once the `ci-cd.yml` workflow completes successfully, it triggers the `.github/workflows/release.yml` GitHub Action via a `workflow_run` event.
+Once the `ci.yml` workflow completes successfully, it triggers the `.github/workflows/release.yml` GitHub Action via a `workflow_run` event.
 
 ### Step 4: Mathematical Version Calculation
 

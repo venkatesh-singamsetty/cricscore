@@ -6,11 +6,7 @@ const { OpenAI } = require("openai");
  * via LLM_BASE_URL and LLM_API_KEY environment variables.
  */
 const apiKey = process.env.OPENAI_API_KEY || process.env.LLM_API_KEY;
-const baseURL =
-  process.env.LLM_BASE_URL ||
-  (process.env.OPENAI_API_KEY
-    ? "https://api.openai.com/v1"
-    : "https://openrouter.ai/api/v1");
+const baseURL = process.env.LLM_BASE_URL || "https://api.openai.com/v1";
 
 const openai = new OpenAI({
   apiKey: apiKey,
@@ -28,7 +24,6 @@ const openai = new OpenAI({
 function getDefaultModel() {
   const url = (baseURL || "").toLowerCase();
   if (url.includes("groq")) return "llama-3.3-70b-versatile";
-  if (url.includes("openrouter")) return "openai/gpt-4o-mini";
   return "gpt-4o-mini";
 }
 
@@ -41,8 +36,6 @@ const LLM_MODEL = process.env.LLM_MODEL || getDefaultModel();
  * Returns the default embedding model name based on provider.
  */
 function getDefaultEmbeddingModel() {
-  const url = (baseURL || "").toLowerCase();
-  if (url.includes("openrouter")) return "openai/text-embedding-3-small";
   return "text-embedding-3-small";
 }
 

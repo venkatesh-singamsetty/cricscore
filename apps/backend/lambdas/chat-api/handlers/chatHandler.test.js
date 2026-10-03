@@ -196,9 +196,11 @@ describe("chatHandler", () => {
     expect(callArgs.max_tokens).toBe(2000);
   });
 
-  it("returns 500 on unexpected LLM failure", async () => {
+  it("returns 200 OK with graceful fallback on unexpected LLM failure", async () => {
     mockCreate.mockRejectedValue(new Error("rate limit"));
     const res = await chatHandler({ message: "crash" }, corsHeaders);
-    expect(res.statusCode).toBe(500);
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+    expect(body.reply).toContain("experiencing high traffic");
   });
 });

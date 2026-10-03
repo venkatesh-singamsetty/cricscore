@@ -243,7 +243,7 @@ sequenceDiagram
     participant APIGW as API Gateway (/chat/summary)
     participant SummaryHandler as summaryHandler.js
     participant DB as Aiven PostgreSQL
-    participant LLM as OpenRouter LLM
+    participant LLM as OpenAI
 
     Scorer->>Frontend: Click "Generate AI Report"
     Frontend->>APIGW: POST /chat/summary { matchId }
@@ -336,7 +336,7 @@ While building the Agentic SQL RAG, we encountered and resolved several common h
    - **Bug:** When executing complex tool chains, the `chat_api` Lambda repeatedly crashed with `Error: undefined`. CloudWatch logs revealed it was hitting the default 3-second AWS Lambda timeout, and sometimes hanging indefinitely due to Groq's API server stability issues/rate limits for the `llama-3.3-70b-versatile` model.
    - **Fix:**
      - Increased the AWS Lambda timeout to `30` seconds in Terraform (`infra/terraform/lambda.tf`).
-     - Swapped the default LLM provider from Groq to OpenRouter in deployment scripts (`./infra/scripts/deploy.sh --env dev`), defaulting to `gpt-4o-mini` for lightning-fast and reliable responses that bypass the timeouts.
+     - Swapped the default LLM provider from Groq to native OpenAI in deployment scripts (`./infra/scripts/deploy.sh --env dev`), defaulting to `gpt-4o-mini` for lightning-fast and reliable responses that bypass the timeouts.
 
 7. **Vector RAG - PDF-Parse Canvas Crash:**
    - **Bug:** Deploying `pdf-parse` inside the Lambda environment crashed instantly during initialization with `ReferenceError: DOMMatrix is not defined`. This is due to the underlying `pdf.js` library attempting to use browser-specific canvas APIs on modern Node.js environments without native canvas bindings.
@@ -346,8 +346,8 @@ While building the Agentic SQL RAG, we encountered and resolved several common h
    - **Bug:** When uploading a large PDF, iterating over 50+ chunks and making sequential requests to OpenAI to generate vector embeddings caused the Lambda to exceed API Gateway's unchangeable 30-second maximum integration timeout, leading to an immediate `503 Service Unavailable` for the client.
    - **Fix:** Refactored the embedding pipeline to collect all valid chunks into an array and send a single batched request to `openai.embeddings.create({ input: chunkArray })`. This brought processing time for a 10-page document down from 45+ seconds to under 3 seconds!
 
-9. **Vector RAG - OpenRouter SDK Crash:**
-   - **Bug:** Even with batch embeddings, the Lambda timed out at exactly 30 seconds without generating vectors. Testing revealed that the official OpenAI Node.js SDK internally crashes with an `ERR_STREAM_PREMATURE_CLOSE` error when trying to fetch embeddings from OpenRouter instead of OpenAI, causing the server to silently hang.
+9. **Vector RAG - Embedding Generation Crash:**
+   - **Bug:** Even with batch embeddings, the Lambda timed out at exactly 30 seconds without generating vectors. Testing revealed an underlying streaming issue, causing the server to silently hang.
    - **Fix:** Ripped out the OpenAI SDK dependency for generating the vector embeddings and replaced it with a 100% native Node.js `fetch` request, directly bypassing the bugged SDK library.
 
 10. **Vector RAG - Lambda Out of Memory (OOM) Timeout:**
@@ -410,7 +410,7 @@ The broad concept of computers mimicking human understanding.
 ### 2. GenAI (Generative AI)
 
 A subset of AI that focuses on creating novel content (text, images, code) rather than just classifying or predicting.
-**In CricScore:** Instead of returning pre-programmed string templates (like `"Player X scored Y runs"`), the `chat-api` Lambda sends the data to an LLM (via OpenRouter) which **generates** a completely unique, conversational, and context-aware response perfectly tailored to the user's specific phrasing.
+**In CricScore:** Instead of returning pre-programmed string templates (like `"Player X scored Y runs"`), the `chat-api` Lambda sends the data to an LLM (via OpenAI) which **generates** a completely unique, conversational, and context-aware response perfectly tailored to the user's specific phrasing.
 
 ### 3. RAG (Retrieval-Augmented Generation)
 
@@ -446,9 +446,9 @@ This AI architecture is specifically designed to be **Serverless** and **Pay-Per
 
 - **Zero Extra Cost:** Instead of paying a premium monthly subscription for a dedicated Vector Database like Pinecone or Weaviate, we utilize the open-source `pgvector` extension directly within our existing Aiven PostgreSQL instance. The `HNSW` index ensures similarity searches remain lightning-fast without incurring any additional infrastructure fees.
 
-### LLM Providers (OpenRouter)
+### LLM Providers (OpenAI)
 
-- **Model Choice:** By using OpenRouter, we can dynamically route to the most cost-effective models. Using models like `gpt-4o-mini` or open-source equivalents provides exceptional function-calling accuracy at a fraction of a cent per request.
+- **Model Choice:** By using native OpenAI, we gain maximum stability and access to the latest capabilities. Models like `gpt-4o-mini` provide exceptional function-calling accuracy at a fraction of a cent per request.
 - **Embeddings:** Vector embeddings are generated using `text-embedding-3-small`, which is remarkably cheap and highly performant for semantic rulebook search.
 
 ---
