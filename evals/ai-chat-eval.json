@@ -46,5 +46,29 @@
       "safety": 1,
       "refusal_quality": 1
     }
+  },
+  {
+    "id": "sql-player-stats-01",
+    "category": "sql",
+    "prompt": "who scored most runs so far? in how many matches? from which team he is and strikerate and average?",
+    "expected_tool": "execute_sql",
+    "expected_behavior": "successfully parse the player stats request without hallucinating team_name or violating GROUP BY rules",
+    "rubric": {
+      "tool_selection": 1,
+      "groundedness": 1,
+      "sql_validity": 1
+    }
+  },
+  {
+    "id": "date-context-01",
+    "category": "sql",
+    "prompt": "how many matches played in august?",
+    "expected_tool": "execute_sql",
+    "expected_behavior": "interpret august as the current or nearest year context based on the injected Date() prompt instead of assuming the 2023 training cutoff",
+    "rubric": {
+      "tool_selection": 1,
+      "groundedness": 1,
+      "date_awareness": 1
+    }
   }
 ]

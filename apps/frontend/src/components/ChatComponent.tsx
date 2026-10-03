@@ -7,6 +7,8 @@ import {
   Trash2,
   FileText,
   ChevronDown,
+  Copy,
+  PlusCircle,
 } from "lucide-react";
 import { safeSessionStorageSet } from "../utils/storageSafety";
 
@@ -95,9 +97,38 @@ export function ChatComponent({
   isAdmin?: boolean;
   setAlertMessage: (msg: string) => void;
 }) {
-  const [messages, setMessages] = useState<Message[]>([
-    { role: "assistant", content: "Hi! Ask me anything about the live match!" },
-  ]);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    const saved = localStorage.getItem("cricscore-chat-memory");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return [
+      {
+        role: "assistant",
+        content: "Hi! Ask me anything about the live match!",
+      },
+    ];
+  });
+
+  React.useEffect(() => {
+    localStorage.setItem("cricscore-chat-memory", JSON.stringify(messages));
+  }, [messages]);
+
+  const handleNewChat = () => {
+    setMessages([
+      {
+        role: "assistant",
+        content: "Hi! Ask me anything about the live match!",
+      },
+    ]);
+  };
+
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setAlertMessage("✅ Copied to clipboard");
+  };
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [isUploadingRules, setIsUploadingRules] = useState(false);
@@ -246,77 +277,88 @@ export function ChatComponent({
   };
 
   return (
-    <div className="flex flex-col h-full w-full max-w-4xl mx-auto bg-slate-900 rounded-xl border border-white/10 shadow-2xl overflow-hidden">
-      <div className="p-4 bg-slate-800 border-b border-white/10 flex items-center justify-between">
+    <div className="flex flex-col h-full w-full max-w-4xl mx-auto bg-slate-900 rounded-xl border border-white/10 shadow-2xl overflow-hidden relative">
+      <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-transparent pointer-events-none" />
+      <div className="p-4 bg-slate-800/80 backdrop-blur-sm border-b border-white/10 flex items-center justify-between relative z-10">
         <h3 className="text-xl font-bold text-white flex items-center gap-2">
           <Bot className="text-indigo-400" />
           Live Match AI Assistant
         </h3>
-        {isAdmin && (
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <button
-                onClick={() => setShowDocsDropdown(!showDocsDropdown)}
-                className="flex items-center gap-2 px-3 py-1.5 bg-slate-700/50 hover:bg-slate-700/80 text-slate-300 text-xs font-bold rounded-lg transition-colors border border-slate-600/50"
-              >
-                <FileText size={14} />
-                Docs ({uploadedDocs.length})
-                <ChevronDown size={14} />
-              </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleNewChat}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700/50 hover:bg-slate-700/80 text-slate-300 text-xs font-bold rounded-lg transition-colors border border-slate-600/50"
+            title="Start a new chat"
+          >
+            <PlusCircle size={14} className="text-emerald-400" />
+            New Chat
+          </button>
+          {isAdmin && (
+            <>
+              <div className="relative">
+                <button
+                  onClick={() => setShowDocsDropdown(!showDocsDropdown)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-slate-700/50 hover:bg-slate-700/80 text-slate-300 text-xs font-bold rounded-lg transition-colors border border-slate-600/50"
+                >
+                  <FileText size={14} />
+                  Docs ({uploadedDocs.length})
+                  <ChevronDown size={14} />
+                </button>
 
-              {showDocsDropdown && (
-                <div className="absolute right-0 mt-2 w-64 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden">
-                  <div className="p-2 border-b border-slate-700">
-                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                      Uploaded Rulebooks
-                    </span>
-                  </div>
-                  <div className="max-h-48 overflow-y-auto">
-                    {uploadedDocs.length === 0 ? (
-                      <div className="p-4 text-center text-sm text-slate-500">
-                        No docs uploaded
-                      </div>
-                    ) : (
-                      uploadedDocs.map((doc, i) => (
-                        <div
-                          key={i}
-                          className="flex items-center justify-between p-2 hover:bg-slate-700/50 group"
-                        >
-                          <span className="text-sm text-slate-300 truncate pr-2">
-                            {doc}
-                          </span>
-                          <button
-                            onClick={() => handleDeleteDoc(doc)}
-                            className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded opacity-0 group-hover:opacity-100 transition-all"
-                            title="Delete this rulebook"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                {showDocsDropdown && (
+                  <div className="absolute right-0 mt-2 w-64 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden">
+                    <div className="p-2 border-b border-slate-700">
+                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                        Uploaded Rulebooks
+                      </span>
+                    </div>
+                    <div className="max-h-48 overflow-y-auto">
+                      {uploadedDocs.length === 0 ? (
+                        <div className="p-4 text-center text-sm text-slate-500">
+                          No docs uploaded
                         </div>
-                      ))
-                    )}
+                      ) : (
+                        uploadedDocs.map((doc, i) => (
+                          <div
+                            key={i}
+                            className="flex items-center justify-between p-2 hover:bg-slate-700/50 group"
+                          >
+                            <span className="text-sm text-slate-300 truncate pr-2">
+                              {doc}
+                            </span>
+                            <button
+                              onClick={() => handleDeleteDoc(doc)}
+                              className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded opacity-0 group-hover:opacity-100 transition-all"
+                              title="Delete this rulebook"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
 
-            <input
-              type="file"
-              accept="application/pdf"
-              className="hidden"
-              ref={fileInputRef}
-              onChange={handleRulesUpload}
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploadingRules}
-              className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 text-xs font-bold rounded-lg transition-colors border border-indigo-500/30 disabled:opacity-50"
-            >
-              <Upload size={14} />
-              {isUploadingRules ? "Uploading..." : "Upload Rules"}
-            </button>
-          </div>
-        )}
+              <input
+                type="file"
+                accept="application/pdf"
+                className="hidden"
+                ref={fileInputRef}
+                onChange={handleRulesUpload}
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploadingRules}
+                className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 text-xs font-bold rounded-lg transition-colors border border-indigo-500/30 disabled:opacity-50"
+              >
+                <Upload size={14} />
+                {isUploadingRules ? "Uploading..." : "Upload Rules"}
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -335,9 +377,20 @@ export function ChatComponent({
               )}
             </div>
             <div
-              className={`p-3 rounded-2xl max-w-[80%] ${msg.role === "user" ? "bg-indigo-600 text-white rounded-tr-none" : "bg-slate-800 text-slate-200 rounded-tl-none border border-white/5"}`}
+              className={`p-3 rounded-2xl max-w-[80%] shadow-md relative group ${msg.role === "user" ? "bg-indigo-600 text-white rounded-tr-none shadow-indigo-500/20" : "bg-slate-800 text-slate-200 rounded-tl-none border border-white/5"}`}
             >
               <FormattedContent content={msg.content} />
+
+              {msg.role === "assistant" &&
+                msg.content !== "Hi! Ask me anything about the live match!" && (
+                  <button
+                    onClick={() => handleCopy(msg.content)}
+                    className="absolute -right-8 bottom-0 p-1.5 text-slate-500 hover:text-indigo-400 hover:bg-indigo-400/10 rounded-md opacity-0 group-hover:opacity-100 transition-all"
+                    title="Copy response"
+                  >
+                    <Copy size={14} />
+                  </button>
+                )}
             </div>
           </div>
         ))}
