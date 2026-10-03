@@ -136,6 +136,22 @@ For a standard **20-Overs Match** (120 balls per innings = **240 total events/ma
 
 ---
 
+## 🤖 AI API Unit Economics (OpenAI)
+
+The AI Assistant uses native OpenAI models with extreme cost efficiency:
+
+| Resource              | Model                    | Price Rate                            | Average Consumption / Query               | Cost / Action               |
+| :-------------------- | :----------------------- | :------------------------------------ | :---------------------------------------- | :-------------------------- |
+| **Chat & SQL Agent**  | `gpt-4o-mini`            | $0.15 / 1M input<br>$0.60 / 1M output | ~1,500 input tokens<br>~300 output tokens | **~$0.0004** per query      |
+| **Vector Embeddings** | `text-embedding-3-small` | $0.02 / 1M tokens                     | ~15,000 tokens / PDF                      | **~$0.0003** per PDF upload |
+
+### Balance Utilization ($4.50 OpenAI Credit):
+
+- **Chat Capacity**: ~$4.50 / $0.0004 = **~11,250 chat queries**.
+- **Rulebook Upload Capacity**: ~$4.50 / $0.0003 = **~15,000 PDF uploads**.
+
+---
+
 ## 📉 Cost Optimization Tips
 
 1.  **Match Lifecycle Management**: Set a matches `status` to `COMPLETED` to stop unnecessary WebSocket polling.
@@ -149,5 +165,6 @@ For a standard **20-Overs Match** (120 balls per innings = **240 total events/ma
 ## ⚖️ Total Monthly Estimated Cost
 
 - **Small-to-Medium Tournaments**: **~$0.66** (Route 53 + Amortized Domain Registration).
+- **AI Chatbot Usage**: **~$0.40** per 1,000 user questions (billed directly by OpenAI).
 - **Large-scale Public Launch**: **$10.00 - $25.00** (Only if you require high-availability RDS).
 - **Cognito**: **$0/month** for ≤50,000 MAUs. Scales to ~$275/mo at 100,000 MAUs (enterprise territory).

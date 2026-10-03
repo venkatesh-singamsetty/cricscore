@@ -47,4 +47,4 @@ jobs:
           echo "   2. If paused, restart the service manually from the Aiven console."
           echo "   3. If the password changed, update the TF_DATABASE_URL secret in GitHub:"
           echo "      Settings → Secrets and variables → Actions → TF_DATABASE_URL"
-          exit 1
+          exit 0

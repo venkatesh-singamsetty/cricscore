@@ -208,10 +208,10 @@ Run the canonical deploy script for your target environment:
 
 ```bash
 # Deploy dev
-./infra/scripts/deploy.sh --env dev
+./infra/scripts/deploy.sh --env dev --use-local-env
 
 # Deploy prod
-./infra/scripts/deploy.sh --env prod
+./infra/scripts/deploy.sh --env prod --use-local-env
 ```
 
 The script automatically:

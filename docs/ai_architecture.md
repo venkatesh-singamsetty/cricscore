@@ -9,7 +9,7 @@ Our chatbot is a fully autonomous AI Agent capable of two primary RAG methodolog
 
 ## 🏗️ Architecture
 
-The AI Chat system is built as a serverless Lambda (`chat-api`) integrated with Amazon API Gateway, communicating directly with advanced LLM providers (e.g., Groq, OpenRouter) using **OpenAI Tool Calling (Functions)**.
+The AI Chat system is built as a serverless Lambda (`chat-api`) integrated with Amazon API Gateway, communicating directly with OpenAI using **OpenAI Tool Calling (Functions)**.
 
 ```mermaid
 sequenceDiagram
@@ -19,8 +19,8 @@ sequenceDiagram
     participant APIGW as API Gateway (/chat)
     participant ChatAPI as chat-api Lambda (MCP Client)
     participant MCPServer as MCP Server (In-Memory)
-    participant LLM as Chat LLM (OpenRouter)
-    participant EmbedLLM as Embedding LLM (text-embedding-3)
+    participant LLM as Chat LLM (OpenAI gpt-4o-mini)
+    participant EmbedLLM as Embedding LLM (text-embedding-3-small)
     participant Aiven_PG as Aiven PostgreSQL
 
     Viewer->>App: Sends Chat Message
@@ -93,7 +93,7 @@ When a fan asks a question (e.g., _"Who scored the most runs today?"_), the foll
 
 1. **The Question Arrives:** API Gateway triggers the `chat-api` Lambda.
 2. **The MCP Client Checks Tools:** Inside the Lambda, the MCP Client asks the local MCP Server (also inside the Lambda): _"What tools do you have?"_ The server responds with schemas for tools like `execute_sql`.
-3. **The LLM "Thinks" (External Call):** The MCP Client sends the question and the tool schemas across the internet to the OpenRouter LLM. The LLM thinks: _"I don't know the answer, but I can use `execute_sql` to find out!"_ The LLM replies with a request to execute a specific SQL query.
+3. **The LLM "Thinks" (External Call):** The MCP Client sends the question and the tool schemas across the internet to the OpenAI LLM (`gpt-4o-mini`). The LLM thinks: _"I don't know the answer, but I can use `execute_sql` to find out!"_ The LLM replies with a request to execute a specific SQL query.
 4. **The MCP Server "Acts" (Local Execution):** The MCP Client receives this request and turns to the local MCP Server. The MCP Server uses its secret `DATABASE_URL`, connects to Aiven PostgreSQL, executes the query, and gets the JSON result.
 5. **The LLM Answers:** The MCP Client sends the raw database JSON back to the LLM. The LLM reads it and generates a friendly, natural response (e.g., _"Virat was the top scorer with 85 runs!"_).
 6. **The Response:** The final friendly answer is returned to the Fan.
@@ -133,33 +133,78 @@ We have extended the PostgreSQL database with the `pgvector` extension to serve 
 5. **Agentic Tool:** The LLM is provided the `search_tournament_rules` tool. If a user asks a rule-related question, the LLM calls this tool, and the backend performs a semantic vector search (`<=>`) against `pgvector` to return the 3 most relevant paragraphs to the LLM, including their source `document_name`.
 6. **Explicit Citations:** The LLM is strictly instructed via its system prompt to explicitly cite `[Source: document_name]` in its final response, so users can trust exactly which rulebook the regulation came from.
 
-## 🔑 LLM API Key Configuration
+## 🔑 LLM API Key Configuration & Provider Setup
 
-The backend is configured to use OpenAI API compatible endpoints. We previously utilized Groq, but due to rate limiting issues with large tool-calling schemas on free tiers, we have switched our primary inference engine to **OpenRouter**.
+The backend connects directly to **OpenAI** for high-precision inference and embedding generation:
 
-Because Agentic Tool Calling and Vector RAG require high reasoning capabilities and stability, we route our requests through OpenRouter.
-We explicitly use the following models:
+- **Chat & Tool Calling Engine:** `gpt-4o-mini` (lightning-fast, structured reasoning, full tool-calling support)
+- **Vector Embedding Engine:** `text-embedding-3-small` (1536-dimensional semantic vector embeddings for `pgvector`)
 
-- **Chat & Tool Routing Model**: `gpt-4o-mini` (fast, cost-effective reasoning)
-- **Embedding Model**: `text-embedding-3-small` (generates the mathematical vectors for pgvector)
+### ⚡ Why OpenAI Responses Are Superior (Model vs Settings Breakdown)
 
-The following secrets have been added to **GitHub Repository Secrets** for use in CI/CD, and in `.env.local` for local execution:
+The AI Assistant produces accurate, well-formatted, and reliable answers due to a combination of model capabilities and RAG configuration tuning:
 
-- `OPENROUTER_API_KEY`: Used as the primary key (`https://openrouter.ai/api/v1`) to access powerful models dynamically.
+| Aspect                 | Optimization / Tuning                                  | Impact on Response Quality                                                                                                                            |
+| :--------------------- | :----------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Model Choice**       | `gpt-4o-mini`                                          | Superior instruction-following, multi-step SQL synthesis, and strict adherence to rulebook parameters compared to legacy open-source models.          |
+| **Paragraph Chunking** | ~1,000 char paragraph blocks (`uploadRulesHandler.js`) | Replaced arbitrary line-count cuts with double-newline paragraph boundaries, preventing split sentences and preserving context.                       |
+| **pgvector Retrieval** | `LIMIT 8` chunks (`searchRules.js`)                    | Increased vector search limit from 3/6 to 8 chunks, feeding up to ~6,400 characters of exact rulebook context per query.                              |
+| **Token Limit**        | `max_tokens: 2000` (`chatHandler.js`)                  | Prevents response truncation when formatting 10-match tables or complex multi-paragraph explanations.                                                 |
+| **Temperature**        | `temperature: 0.1`                                     | Ensures deterministic, factual responses without creative hallucination on match stats or rulebook provisions.                                        |
+| **Guardrail Rule 8**   | System Prompt Rule 8                                   | Explicitly instructs model: _"ALWAYS prefer the uploaded rulebook text as absolute truth over general knowledge"_ (e.g. Leg Byes counting as extras). |
 
-### 🔄 How to Change the LLM Provider
+---
 
-If you decide to switch inference providers (e.g., from OpenRouter back to Groq, or to OpenAI, Together AI, etc.), you must update the base URL and API keys in the following places:
+### 🔑 How to Create an OpenAI API Key
 
-1. **Local Deployment (`./infra/scripts/deploy.sh --env dev`)**
-   - Update `TF_VAR_llm_api_key` from your `.env.local` value (or whatever environment variable you use).
-   - Update `TF_VAR_llm_base_url="https://openrouter.ai/api/v1"` to the new provider's base URL.
+1. Log in to [OpenAI Platform](https://platform.openai.com/).
+2. Navigate to **API Keys** under your Account Dashboard.
+3. Click **Create new secret key**, name it `CricScore-Prod` (or `CricScore-Dev`), and set permissions to **All**.
+4. Copy the secret key starting with `sk-proj-...`.
+5. Add the key to your `.env.local` file:
+   ```bash
+   LLM_API_KEY="sk-proj-..."
+   LLM_BASE_URL="https://api.openai.com/v1"
+   ```
+6. In AWS SSM Parameter Store / GitHub Secrets, store `LLM_API_KEY` for CI/CD deployments.
 
-2. **CI/CD Deployment (`.github/workflows/ci-cd.yml` & `drift.yml`)**
-   - In the `Deploy Infrastructure` steps, update the `TF_VAR_llm_api_key` to map to your new GitHub Secret (e.g., `TF_VAR_llm_api_key: ${{ secrets.GROQ_API_KEY }}`).
-   - Update `TF_VAR_llm_base_url` to the new provider's base URL.
+---
 
-3. **Backend Logic (`apps/backend/lambdas/chat-api/summaryHandler.js`)**
+### 💵 Cost Analysis & Query Economics
+
+Operating CricScore with native OpenAI models is extremely cost-effective:
+
+- **Input Token Cost (`gpt-4o-mini`)**: $0.15 per 1,000,000 tokens
+- **Output Token Cost (`gpt-4o-mini`)**: $0.60 per 1,000,000 tokens
+- **Embedding Cost (`text-embedding-3-small`)**: $0.02 per 1,000,000 tokens
+
+#### Per-Query Breakdown:
+
+- **Average Chat Query**: ~1,500 input tokens + ~300 output tokens = **~$0.0004 per chat query** (~2,500 queries per $1.00).
+- **Rulebook Upload**: 20-page PDF (~15,000 tokens) = **~$0.0003 per document upload**.
+- **$4.50 OpenAI Balance**: Provides approximately **~11,250 chat queries** or **~15,000 PDF document uploads**.
+
+---
+
+### 🧪 Demo Prompts Suite for Evaluation
+
+Use the following curated prompts during live demos or automated regression testing:
+
+1. **Rulebook Specific (Leg Byes & Extras)**:
+   > _"If a batsman hits the ball onto their pad and takes a run, does it count as leg byes or batsman runs?"_
+2. **Match Summary & High Scores**:
+   > _"Which team scored the highest total in the tournament so far?"_
+3. **Knockout Tiebreaker Rules**:
+   > _"What happens if a semi-final match ends in a tie?"_
+4. **List Matches Count**:
+   > _"Show me all matches currently recorded in the database."_
+5. **Bowler Limits & Overs**:
+   > _"What is the maximum number of overs a single bowler can bowl in a 20-over match?"_
+6. **Forfeits & Points Allocation**:
+
+   > _"How many points does a team get if their opponent forfeits the match?"_
+
+7. **Backend Logic (`apps/backend/lambdas/chat-api/summaryHandler.js`)**
    - The default model identifier (e.g., `gpt-4o-mini` or `llama-3.3-70b-versatile`) is hardcoded in the `generateSummary` fallback logic. Update it to match the model you wish to use on the new provider.
 
 _(Note: You do not need to modify the Terraform files directly, as `variables.tf` expects these to be passed down dynamically)._

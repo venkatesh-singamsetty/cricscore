@@ -104,13 +104,13 @@ For dev:
 
 ```bash
 cd ../..
-./infra/scripts/deploy.sh --env dev
+./infra/scripts/deploy.sh --env dev --use-local-env
 ```
 
 For prod:
 
 ```bash
-./infra/scripts/deploy.sh --env prod
+./infra/scripts/deploy.sh --env prod --use-local-env
 ```
 
 The deploy script automatically:

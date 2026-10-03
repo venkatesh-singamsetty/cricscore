@@ -258,7 +258,9 @@ resource "aws_lambda_function" "chat_api" {
       DATABASE_URL         = var.database_url
       DB_SCHEMA            = var.environment
       LLM_API_KEY          = var.llm_api_key
+      OPENAI_API_KEY       = var.openai_api_key != "" ? var.openai_api_key : var.llm_api_key
       LLM_BASE_URL         = var.llm_base_url
+      LLM_MODEL            = var.llm_model
       COGNITO_USER_POOL_ID = aws_cognito_user_pool.pool.id
     }
   }

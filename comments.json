@@ -1,0 +1,347 @@
+[
+  {
+    "url": "https://api.github.com/repos/venkatesh-singamsetty/cricscore/pulls/comments/4117583939",
+    "pull_request_review_id": 5332799446,
+    "id": 4117583939,
+    "node_id": "PRRC_kwDORtkDrM71bVhD",
+    "diff_hunk": "@@ -15,6 +15,75 @@\n   content: string;\n }\n \n+export function FormattedContent({ content }: { content: string }) {\n+  const lines = content.split(\"\\n\");\n+\n+  const renderInlineText = (str: string) => {\n+    const parts = str.split(/(\\*\\*.*?\\*\\*)/g);\n+    return parts.map((part, pIdx) => {\n+      if (part.startsWith(\"**\") && part.endsWith(\"**\") && part.length > 4) {\n+        return (\n+          <strong key={pIdx} className=\"font-semibold text-white\">\n+            {part.slice(2, -2)}\n+          </strong>\n+        );\n+      }\n+      return part;\n+    });\n+  };\n+\n+  return (\n+    <div className=\"space-y-1.5 text-sm leading-relaxed\">\n+      {lines.map((line, i) => {\n+        const trimmed = line.trim();\n+        if (!trimmed) return <div key={i} className=\"h-1\" />;\n+\n+        // Source badge chip\n+        if (trimmed.startsWith(\"[Source:\") && trimmed.endsWith(\"]\")) {\n+          const docName = trimmed\n+            .replace(\"[Source:\", \"\")\n+            .replace(\"]\", \"\")",
+    "path": "apps/frontend/src/components/ChatComponent.tsx",
+    "commit_id": "dfe0c9917abd7b60f01aef913525a0edcea6466e",
+    "original_commit_id": "dfe0c9917abd7b60f01aef913525a0edcea6466e",
+    "user": {
+      "login": "github-advanced-security[bot]",
+      "id": 62310815,
+      "node_id": "MDM6Qm90NjIzMTA4MTU=",
+      "avatar_url": "https://avatars.githubusercontent.com/in/57789?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/github-advanced-security%5Bbot%5D",
+      "html_url": "https://github.com/apps/github-advanced-security",
+      "followers_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/followers",
+      "following_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/following{/other_user}",
+      "gists_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/subscriptions",
+      "organizations_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/orgs",
+      "repos_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/repos",
+      "events_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/received_events",
+      "type": "Bot",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "body": "## CodeQL / Incomplete string escaping or encoding\n\nThis replaces only the first occurrence of \"\\]\".\n\n[Show more details](https://github.com/venkatesh-singamsetty/cricscore/security/code-scanning/203)",
+    "created_at": "2026-09-28T00:16:19Z",
+    "updated_at": "2026-09-28T00:16:19Z",
+    "html_url": "https://github.com/venkatesh-singamsetty/cricscore/pull/210#discussion_r4117583939",
+    "pull_request_url": "https://api.github.com/repos/venkatesh-singamsetty/cricscore/pulls/210",
+    "_links": {
+      "self": {
+        "href": "https://api.github.com/repos/venkatesh-singamsetty/cricscore/pulls/comments/4117583939"
+      },
+      "html": {
+        "href": "https://github.com/venkatesh-singamsetty/cricscore/pull/210#discussion_r4117583939"
+      },
+      "pull_request": {
+        "href": "https://api.github.com/repos/venkatesh-singamsetty/cricscore/pulls/210"
+      }
+    },
+    "reactions": {
+      "url": "https://api.github.com/repos/venkatesh-singamsetty/cricscore/pulls/comments/4117583939/reactions",
+      "total_count": 0,
+      "+1": 0,
+      "-1": 0,
+      "laugh": 0,
+      "hooray": 0,
+      "confused": 0,
+      "heart": 0,
+      "rocket": 0,
+      "eyes": 0
+    },
+    "start_line": null,
+    "original_start_line": 43,
+    "start_side": "RIGHT",
+    "line": null,
+    "original_line": 45,
+    "side": "RIGHT",
+    "author_association": "NONE",
+    "original_position": 31,
+    "position": 1,
+    "subject_type": "line"
+  },
+  {
+    "url": "https://api.github.com/repos/venkatesh-singamsetty/cricscore/pulls/comments/4117583947",
+    "pull_request_review_id": 5332799446,
+    "id": 4117583947,
+    "node_id": "PRRC_kwDORtkDrM71bVhL",
+    "diff_hunk": "@@ -212,99 +269,281 @@\n   }, [initialMatchId]);\n \n   useEffect(() => {\n-    // Only accept updates for the match we are following\n-    if (\n-      lastMessage &&\n-      [\"LIVE_SCORE_UPDATE\", \"STATE_SYNC\"].includes(lastMessage.type)\n-    ) {\n-      const data = lastMessage.data;\n-      console.log(`📥 WS Message -> target:`, targetMatchId);\n-\n-      if (data && (!targetMatchId || data.matchId === targetMatchId)) {\n-        // Safely unwrap the nested v2.0 Fan-Out envelope\n-        setLiveData(data.ballData ? data.ballData : data);\n-\n-        if (data.matchTotalOvers !== undefined) {\n+    if (!lastMessage) return;\n+\n+    const unwrapped = unwrapLiveScoreMessage(lastMessage as any);\n+    if (!unwrapped) return;\n+\n+    const { type, payload } = unwrapped;\n+\n+    if (isHubRefreshType(type)) {\n+      setHubUpdateTrigger((prev) => prev + 1);\n+      if (targetMatchId) {\n+        fetchMatchDetails(targetMatchId, true);\n+      }\n+      return;\n+    }\n+\n+    if (isScoreEventType(type)) {\n+      console.log(`📥 WS Message -> target:`, targetMatchId, payload);",
+    "path": "apps/frontend/src/components/LiveScoreboard.tsx",
+    "commit_id": "014cf15f25653cf7cdf81c14c530cef65a62014d",
+    "original_commit_id": "dfe0c9917abd7b60f01aef913525a0edcea6466e",
+    "user": {
+      "login": "github-advanced-security[bot]",
+      "id": 62310815,
+      "node_id": "MDM6Qm90NjIzMTA4MTU=",
+      "avatar_url": "https://avatars.githubusercontent.com/in/57789?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/github-advanced-security%5Bbot%5D",
+      "html_url": "https://github.com/apps/github-advanced-security",
+      "followers_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/followers",
+      "following_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/following{/other_user}",
+      "gists_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/subscriptions",
+      "organizations_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/orgs",
+      "repos_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/repos",
+      "events_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/received_events",
+      "type": "Bot",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "body": "## CodeQL / Log injection\n\nLog entry depends on a [user-provided value](1).\n\n[Show more details](https://github.com/venkatesh-singamsetty/cricscore/security/code-scanning/204)",
+    "created_at": "2026-09-28T00:16:19Z",
+    "updated_at": "2026-09-28T00:16:19Z",
+    "html_url": "https://github.com/venkatesh-singamsetty/cricscore/pull/210#discussion_r4117583947",
+    "pull_request_url": "https://api.github.com/repos/venkatesh-singamsetty/cricscore/pulls/210",
+    "_links": {
+      "self": {
+        "href": "https://api.github.com/repos/venkatesh-singamsetty/cricscore/pulls/comments/4117583947"
+      },
+      "html": {
+        "href": "https://github.com/venkatesh-singamsetty/cricscore/pull/210#discussion_r4117583947"
+      },
+      "pull_request": {
+        "href": "https://api.github.com/repos/venkatesh-singamsetty/cricscore/pulls/210"
+      }
+    },
+    "reactions": {
+      "url": "https://api.github.com/repos/venkatesh-singamsetty/cricscore/pulls/comments/4117583947/reactions",
+      "total_count": 0,
+      "+1": 0,
+      "-1": 0,
+      "laugh": 0,
+      "hooray": 0,
+      "confused": 0,
+      "heart": 0,
+      "rocket": 0,
+      "eyes": 0
+    },
+    "start_line": null,
+    "original_start_line": null,
+    "start_side": null,
+    "line": null,
+    "original_line": 288,
+    "side": "RIGHT",
+    "author_association": "NONE",
+    "original_position": 223,
+    "position": 1,
+    "subject_type": "line"
+  },
+  {
+    "url": "https://api.github.com/repos/venkatesh-singamsetty/cricscore/pulls/comments/4117583953",
+    "pull_request_review_id": 5332799446,
+    "id": 4117583953,
+    "node_id": "PRRC_kwDORtkDrM71bVhR",
+    "diff_hunk": "@@ -25,8 +32,8 @@\n     socket.onmessage = (event) => {\n       try {\n         const data = JSON.parse(event.data);\n-        console.log(\"WebSocket Message Received 📥\");\n-        setLastMessage(data);\n+        console.log(\"WebSocket Message Received 📥\", data);",
+    "path": "apps/frontend/src/hooks/useWebSocket.ts",
+    "commit_id": "68ac90bd90258b9cf4a1302f925c2a74ef050a14",
+    "original_commit_id": "dfe0c9917abd7b60f01aef913525a0edcea6466e",
+    "user": {
+      "login": "github-advanced-security[bot]",
+      "id": 62310815,
+      "node_id": "MDM6Qm90NjIzMTA4MTU=",
+      "avatar_url": "https://avatars.githubusercontent.com/in/57789?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/github-advanced-security%5Bbot%5D",
+      "html_url": "https://github.com/apps/github-advanced-security",
+      "followers_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/followers",
+      "following_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/following{/other_user}",
+      "gists_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/subscriptions",
+      "organizations_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/orgs",
+      "repos_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/repos",
+      "events_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/received_events",
+      "type": "Bot",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "body": "## CodeQL / Log injection\n\nLog entry depends on a [user-provided value](1).\n\n[Show more details](https://github.com/venkatesh-singamsetty/cricscore/security/code-scanning/205)",
+    "created_at": "2026-09-28T00:16:19Z",
+    "updated_at": "2026-09-28T00:16:19Z",
+    "html_url": "https://github.com/venkatesh-singamsetty/cricscore/pull/210#discussion_r4117583953",
+    "pull_request_url": "https://api.github.com/repos/venkatesh-singamsetty/cricscore/pulls/210",
+    "_links": {
+      "self": {
+        "href": "https://api.github.com/repos/venkatesh-singamsetty/cricscore/pulls/comments/4117583953"
+      },
+      "html": {
+        "href": "https://github.com/venkatesh-singamsetty/cricscore/pull/210#discussion_r4117583953"
+      },
+      "pull_request": {
+        "href": "https://api.github.com/repos/venkatesh-singamsetty/cricscore/pulls/210"
+      }
+    },
+    "reactions": {
+      "url": "https://api.github.com/repos/venkatesh-singamsetty/cricscore/pulls/comments/4117583953/reactions",
+      "total_count": 0,
+      "+1": 0,
+      "-1": 0,
+      "laugh": 0,
+      "hooray": 0,
+      "confused": 0,
+      "heart": 0,
+      "rocket": 0,
+      "eyes": 0
+    },
+    "start_line": null,
+    "original_start_line": null,
+    "start_side": null,
+    "line": null,
+    "original_line": 35,
+    "side": "RIGHT",
+    "author_association": "NONE",
+    "original_position": 24,
+    "position": 1,
+    "subject_type": "line"
+  },
+  {
+    "url": "https://api.github.com/repos/venkatesh-singamsetty/cricscore/pulls/comments/4117591223",
+    "pull_request_review_id": 5332807200,
+    "id": 4117591223,
+    "node_id": "PRRC_kwDORtkDrM71bXS3",
+    "diff_hunk": "@@ -5,14 +5,41 @@\n   data: any;\n }\n \n+const sanitizeForLog = (value: unknown): unknown => {\n+  if (typeof value === \"string\") {\n+    return value.replace(/[\\r\\n]/g, \"\");\n+  }\n+\n+  if (Array.isArray(value)) {\n+    return value.map((item) => sanitizeForLog(item));\n+  }\n+\n+  if (value && typeof value === \"object\") {\n+    const sanitizedObject: Record<string, unknown> = {};\n+    for (const [key, val] of Object.entries(value as Record<string, unknown>)) {\n+      sanitizedObject[key] = sanitizeForLog(val);",
+    "path": "apps/frontend/src/hooks/useWebSocket.ts",
+    "commit_id": "1310492dcdbec4f5a111c6054977f82b7b940ad4",
+    "original_commit_id": "b738753871f008562eeac47120e3dc35bda62f3e",
+    "user": {
+      "login": "github-advanced-security[bot]",
+      "id": 62310815,
+      "node_id": "MDM6Qm90NjIzMTA4MTU=",
+      "avatar_url": "https://avatars.githubusercontent.com/in/57789?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/github-advanced-security%5Bbot%5D",
+      "html_url": "https://github.com/apps/github-advanced-security",
+      "followers_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/followers",
+      "following_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/following{/other_user}",
+      "gists_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/subscriptions",
+      "organizations_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/orgs",
+      "repos_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/repos",
+      "events_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/received_events",
+      "type": "Bot",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "body": "## CodeQL / Remote property injection\n\nA property name to write to depends on a [user-provided value](1).\n\n[Show more details](https://github.com/venkatesh-singamsetty/cricscore/security/code-scanning/206)",
+    "created_at": "2026-09-28T00:18:53Z",
+    "updated_at": "2026-09-28T00:18:53Z",
+    "html_url": "https://github.com/venkatesh-singamsetty/cricscore/pull/210#discussion_r4117591223",
+    "pull_request_url": "https://api.github.com/repos/venkatesh-singamsetty/cricscore/pulls/210",
+    "_links": {
+      "self": {
+        "href": "https://api.github.com/repos/venkatesh-singamsetty/cricscore/pulls/comments/4117591223"
+      },
+      "html": {
+        "href": "https://github.com/venkatesh-singamsetty/cricscore/pull/210#discussion_r4117591223"
+      },
+      "pull_request": {
+        "href": "https://api.github.com/repos/venkatesh-singamsetty/cricscore/pulls/210"
+      }
+    },
+    "reactions": {
+      "url": "https://api.github.com/repos/venkatesh-singamsetty/cricscore/pulls/comments/4117591223/reactions",
+      "total_count": 0,
+      "+1": 0,
+      "-1": 0,
+      "laugh": 0,
+      "hooray": 0,
+      "confused": 0,
+      "heart": 0,
+      "rocket": 0,
+      "eyes": 0
+    },
+    "start_line": null,
+    "original_start_line": null,
+    "start_side": null,
+    "line": 20,
+    "original_line": 20,
+    "side": "RIGHT",
+    "author_association": "NONE",
+    "original_position": 16,
+    "position": 16,
+    "subject_type": "line"
+  },
+  {
+    "url": "https://api.github.com/repos/venkatesh-singamsetty/cricscore/pulls/comments/4117591227",
+    "pull_request_review_id": 5332807200,
+    "id": 4117591227,
+    "node_id": "PRRC_kwDORtkDrM71bXS7",
+    "diff_hunk": "@@ -25,8 +52,8 @@\n     socket.onmessage = (event) => {\n       try {\n         const data = JSON.parse(event.data);\n-        console.log(\"WebSocket Message Received 📥\");\n-        setLastMessage(data);\n+        console.log(\"WebSocket Message Received 📥\", sanitizeForLog(data));",
+    "path": "apps/frontend/src/hooks/useWebSocket.ts",
+    "commit_id": "b738753871f008562eeac47120e3dc35bda62f3e",
+    "original_commit_id": "b738753871f008562eeac47120e3dc35bda62f3e",
+    "user": {
+      "login": "github-advanced-security[bot]",
+      "id": 62310815,
+      "node_id": "MDM6Qm90NjIzMTA4MTU=",
+      "avatar_url": "https://avatars.githubusercontent.com/in/57789?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/github-advanced-security%5Bbot%5D",
+      "html_url": "https://github.com/apps/github-advanced-security",
+      "followers_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/followers",
+      "following_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/following{/other_user}",
+      "gists_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/subscriptions",
+      "organizations_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/orgs",
+      "repos_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/repos",
+      "events_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/github-advanced-security%5Bbot%5D/received_events",
+      "type": "Bot",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "body": "## CodeQL / Log injection\n\nLog entry depends on a [user-provided value](1).\n\n[Show more details](https://github.com/venkatesh-singamsetty/cricscore/security/code-scanning/207)",
+    "created_at": "2026-09-28T00:18:53Z",
+    "updated_at": "2026-09-28T00:18:53Z",
+    "html_url": "https://github.com/venkatesh-singamsetty/cricscore/pull/210#discussion_r4117591227",
+    "pull_request_url": "https://api.github.com/repos/venkatesh-singamsetty/cricscore/pulls/210",
+    "_links": {
+      "self": {
+        "href": "https://api.github.com/repos/venkatesh-singamsetty/cricscore/pulls/comments/4117591227"
+      },
+      "html": {
+        "href": "https://github.com/venkatesh-singamsetty/cricscore/pull/210#discussion_r4117591227"
+      },
+      "pull_request": {
+        "href": "https://api.github.com/repos/venkatesh-singamsetty/cricscore/pulls/210"
+      }
+    },
+    "reactions": {
+      "url": "https://api.github.com/repos/venkatesh-singamsetty/cricscore/pulls/comments/4117591227/reactions",
+      "total_count": 0,
+      "+1": 0,
+      "-1": 0,
+      "laugh": 0,
+      "hooray": 0,
+      "confused": 0,
+      "heart": 0,
+      "rocket": 0,
+      "eyes": 0
+    },
+    "start_line": null,
+    "original_start_line": null,
+    "start_side": null,
+    "line": null,
+    "original_line": 55,
+    "side": "RIGHT",
+    "author_association": "NONE",
+    "original_position": 49,
+    "position": 1,
+    "subject_type": "line"
+  }
+]

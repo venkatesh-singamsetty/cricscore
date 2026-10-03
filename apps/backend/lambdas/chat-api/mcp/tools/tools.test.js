@@ -129,6 +129,6 @@ describe("MCP Tool: search_tournament_rules", () => {
 
     await searchRulesTool({ query: "rules" });
     const fetchBody = JSON.parse(mockFetch.mock.calls[0][1].body);
-    expect(fetchBody.model).toBe("openai/text-embedding-3-small");
+    expect(fetchBody.model).toMatch(/text-embedding-3-small/);
   });
 });

@@ -158,8 +158,8 @@ exports.handler = async (event) => {
                     current_bowler_name = COALESCE($3, current_bowler_name), 
                     overs = COALESCE($4, overs),
                     balls = COALESCE($5, balls),
-                    total_runs = COALESCE($6, total_runs),
-                    total_wickets = COALESCE($7, total_wickets),
+                    total_runs = GREATEST(COALESCE($6, total_runs, 0), COALESCE(total_runs, 0), COALESCE((SELECT SUM(runs) FROM players WHERE inning_id = $8), 0)),
+                    total_wickets = GREATEST(COALESCE($7, total_wickets, 0), COALESCE(total_wickets, 0)),
                     updated_at = CURRENT_TIMESTAMP
                  WHERE id = $8`,
         [

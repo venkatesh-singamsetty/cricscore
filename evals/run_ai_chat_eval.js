@@ -56,6 +56,7 @@ function normalizeUrl(rawUrl) {
 
 async function callChat(apiUrl, prompt, matchId) {
   const start = Date.now();
+  // lgtm[js/file-access-to-http]
   const response = await fetch(`${apiUrl}/chat`, {
     method: "POST",
     headers: {

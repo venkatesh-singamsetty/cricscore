@@ -18,6 +18,7 @@ interface MatchViewProps {
   userToken?: string;
   onInningsEnd: (innings: InningsState) => void;
   onResetMatch: () => void;
+  onQuitMatch?: () => void;
   onForceReset?: () => void;
   onUpdateOvers?: (overs: number) => void;
   onStateChange?: (state: InningsState) => void;
@@ -118,6 +119,7 @@ const MatchView: React.FC<MatchViewProps> = ({
   userToken,
   onInningsEnd,
   onResetMatch,
+  onQuitMatch,
   onForceReset,
   onUpdateOvers,
   onStateChange,
@@ -486,6 +488,7 @@ const MatchView: React.FC<MatchViewProps> = ({
         body: JSON.stringify({
           matchId,
           inningId: innings.id,
+          battingTeamName: innings.battingTeamName,
           strikerName: striker.name,
           nonStrikerName: nonStriker.name,
           bowlerName: bowler.name,
@@ -544,6 +547,7 @@ const MatchView: React.FC<MatchViewProps> = ({
         body: JSON.stringify({
           matchId,
           inningId: finalInnings.id,
+          battingTeamName: finalInnings.battingTeamName,
           ballData: ball,
           strikerName: finalInnings.players[finalInnings.strikerId]?.name || "",
           nonStrikerName:
@@ -1070,6 +1074,7 @@ const MatchView: React.FC<MatchViewProps> = ({
           previousInnings={previousInnings}
           onClose={() => setShowScoreboard(false)}
           onResetMatch={onResetMatch}
+          onQuitMatch={onQuitMatch}
           totalOvers={totalOvers}
         />
       )}
@@ -1079,22 +1084,22 @@ const MatchView: React.FC<MatchViewProps> = ({
         <div className="max-w-4xl mx-auto px-3 py-1.5">
           <div className="flex justify-between items-center gap-4">
             <div className="flex-1 overflow-hidden">
-              <div className="flex items-center gap-2 mb-0.5 overflow-hidden">
+              <div className="flex items-center gap-2 mb-1 overflow-hidden">
                 <span className="bg-indigo-600 text-white text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-widest flex-shrink-0">
                   {innings.inningNumber === 1 ? "1st" : "2nd"} INN
                 </span>
                 <div className="flex items-center gap-1.5 text-white text-[11px] font-black tracking-widest uppercase truncate">
                   <span
-                    className="text-blue-400 cursor-pointer hover:underline"
+                    className="bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/40 text-emerald-300 font-black px-2 py-0.5 rounded-full text-[9px] uppercase tracking-wider flex items-center gap-1 shadow-sm shadow-emerald-500/10 cursor-pointer hover:bg-emerald-500/30 transition-colors"
                     onClick={() => handleRenameTeam(true)}
                   >
-                    {innings.battingTeamName}
+                    🏏 BATTING: {innings.battingTeamName}
                   </span>
-                  <span className="text-slate-600 text-[8px] italic lowercase font-medium">
+                  <span className="text-slate-500 text-[8px] italic lowercase font-medium">
                     vs
                   </span>
                   <span
-                    className="text-indigo-400 cursor-pointer hover:underline"
+                    className="text-indigo-400 cursor-pointer hover:underline text-[10px] font-bold"
                     onClick={() => handleRenameTeam(false)}
                   >
                     {innings.bowlingTeamName}
@@ -1102,7 +1107,10 @@ const MatchView: React.FC<MatchViewProps> = ({
                 </div>
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-black tracking-tighter text-white tabular-nums">
+                <span className="text-xl font-black text-emerald-400 uppercase tracking-tighter mr-1 flex items-center gap-1">
+                  <span>🏏</span> {innings.battingTeamName}:
+                </span>
+                <span className="text-2xl md:text-3xl font-black tracking-tighter text-white tabular-nums">
                   {innings.totalRuns}
                   <span className="text-slate-500 mx-0.5 text-xl">/</span>
                   {innings.totalWickets}
@@ -1182,7 +1190,7 @@ const MatchView: React.FC<MatchViewProps> = ({
         ref={middleContainerRef}
         className="flex-1 overflow-y-auto scrollbar-hide py-1"
       >
-        <div className="max-w-4xl mx-auto w-full px-3 space-y-1 pb-6">
+        <div className="max-w-4xl mx-auto w-full px-3 space-y-1 pb-4 md:pb-6">
           {/* Active Player Cards */}
           <div className="grid grid-cols-2 gap-2">
             {/* Batters */}
@@ -1190,7 +1198,7 @@ const MatchView: React.FC<MatchViewProps> = ({
               {[striker, nonStriker].map((b, idx) => (
                 <div
                   key={b.id || idx}
-                  className={`flex justify-between items-center px-3 py-2 rounded-xl border transition-all ${idx === 0 ? "bg-indigo-600 border-indigo-300 shadow-xl scale-[1.02] z-10" : "bg-slate-800 border-white/5 opacity-80"}`}
+                  className={`flex justify-between items-center px-3 py-1.5 rounded-xl border transition-all ${idx === 0 ? "bg-indigo-600 border-indigo-300 shadow-xl scale-[1.02] z-10" : "bg-slate-800 border-white/5 opacity-80"}`}
                 >
                   <div className="flex items-center gap-2 overflow-hidden">
                     <span
@@ -1202,12 +1210,12 @@ const MatchView: React.FC<MatchViewProps> = ({
                   </div>
                   <div className="flex items-baseline gap-1">
                     <span
-                      className={`text-xl md:text-2xl font-black ${idx === 0 ? "text-white" : "text-slate-200"}`}
+                      className={`text-lg md:text-xl font-black ${idx === 0 ? "text-white" : "text-slate-200"}`}
                     >
                       {b.runs}
                     </span>
                     <span
-                      className={`text-[11px] md:text-xs font-black ${idx === 0 ? "text-indigo-100" : "text-slate-500"}`}
+                      className={`text-[10px] md:text-xs font-black ${idx === 0 ? "text-indigo-100" : "text-slate-500"}`}
                     >
                       ({b.ballsFaced})
                     </span>
@@ -1216,7 +1224,7 @@ const MatchView: React.FC<MatchViewProps> = ({
               ))}
               <button
                 onClick={handleSwapEnds}
-                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-white text-indigo-950 rounded-full text-xs border-2 border-slate-900 active:scale-90 transition-all shadow-xl z-20"
+                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center bg-white text-indigo-950 rounded-full text-xs border-2 border-slate-900 active:scale-90 transition-all shadow-xl z-20"
               >
                 🔄
               </button>
@@ -1224,14 +1232,14 @@ const MatchView: React.FC<MatchViewProps> = ({
 
             {/* Bowlers */}
             <div className="space-y-1">
-              <div className="flex justify-between items-center px-3 py-2 md:p-3 rounded-xl bg-slate-800 border border-white/10 shadow-inner h-full">
+              <div className="flex justify-between items-center px-3 py-1.5 rounded-xl bg-slate-800 border border-white/10 shadow-inner h-full">
                 <div className="flex flex-col min-w-0">
-                  <div className="flex flex-col mb-1.5">
-                    <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest leading-none mb-1 italic">
+                  <div className="flex flex-col mb-1">
+                    <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest leading-none mb-0.5 italic">
                       {innings.bowlingTeamName}
                     </span>
                     <div className="flex items-center gap-1">
-                      <span className="w-1 h-3 bg-indigo-500 rounded-full"></span>
+                      <span className="w-1 h-2.5 bg-indigo-500 rounded-full"></span>
                       <span className="text-[9px] font-black text-slate-500 uppercase leading-none">
                         Bowler
                       </span>
@@ -1245,12 +1253,12 @@ const MatchView: React.FC<MatchViewProps> = ({
                   </span>
                 </div>
                 <div className="text-right">
-                  <div className="text-xl md:text-2xl font-black text-white leading-none tabular-nums">
+                  <div className="text-lg md:text-xl font-black text-white leading-none tabular-nums">
                     {bowler.wickets}
                     <span className="text-indigo-500 mx-0.5">/</span>
                     {bowler.runsConceded}
                   </div>
-                  <div className="text-[11px] md:text-xs font-black text-slate-500 tabular-nums uppercase mt-0.5">
+                  <div className="text-[10px] md:text-xs font-black text-slate-500 tabular-nums uppercase mt-0.5">
                     ({bowler.overs}.{bowler.balls})
                   </div>
                 </div>
@@ -1268,10 +1276,10 @@ const MatchView: React.FC<MatchViewProps> = ({
                 This Over
               </span>
             </div>
-            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1">
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-0.5">
               {innings.currentOver.length === 0 ? (
                 <div className="flex items-center gap-2 text-slate-500">
-                  <div className="w-8 h-8 rounded-full border-2 border-dashed border-slate-700 flex items-center justify-center animate-pulse">
+                  <div className="w-7 h-7 rounded-full border-2 border-dashed border-slate-700 flex items-center justify-center animate-pulse">
                     <span className="text-[10px] italic">0</span>
                   </div>
                   <span className="text-[10px] font-black uppercase tracking-tighter opacity-50 italic">
@@ -1279,55 +1287,75 @@ const MatchView: React.FC<MatchViewProps> = ({
                   </span>
                 </div>
               ) : (
-                innings.currentOver.map((ball, idx) => (
-                  <div
-                    key={idx}
-                    className="flex flex-col items-center gap-1.5 animate-in slide-in-from-right-4 duration-300"
-                  >
+                innings.currentOver.map((ball, idx) => {
+                  const isRetHurt =
+                    ball.wicketType === WicketType.RETIRED_HURT ||
+                    String(ball.wicketType) === "RETIRED_HURT";
+                  const isRetOut =
+                    ball.wicketType === WicketType.RETIRED_OUT ||
+                    String(ball.wicketType) === "RETIRED_OUT";
+                  return (
                     <div
-                      className={`flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-[12px] md:text-[14px] font-black border-2 transition-all shadow-xl ${
-                        ball.isWicket
-                          ? "bg-red-500 text-white border-red-300 shadow-red-500/40"
-                          : ball.runs === 4
-                            ? "bg-blue-600 text-white border-blue-400 shadow-blue-500/40"
-                            : ball.runs === 6
-                              ? "bg-purple-600 text-white border-purple-400 shadow-purple-500/40"
-                              : ball.isExtra
-                                ? "bg-amber-500 text-amber-950 border-amber-300 shadow-amber-500/40"
-                                : "bg-white text-slate-900 border-white shadow-white/10"
-                      }`}
+                      key={idx}
+                      className="flex flex-col items-center gap-1 animate-in slide-in-from-right-4 duration-300"
                     >
-                      {(() => {
-                        if (ball.isWicket)
-                          return ball.runs > 0 ? `W+${ball.runs}` : "W";
-                        if (ball.isExtra) {
-                          if (ball.extraType === "WIDE")
-                            return ball.runs > 0 ? `Wd+${ball.runs}` : "Wd";
-                          if (ball.extraType === "NO_BALL")
-                            return ball.runs > 0 ? `Nb+${ball.runs}` : "Nb";
-                          if (ball.extraType === "BYE")
-                            return ball.runs > 0 ? `B+${ball.runs}` : "B";
-                          if (ball.extraType === "LEG_BYE")
-                            return ball.runs > 0 ? `Lb+${ball.runs}` : "Lb";
-                          return ball.runs > 0
-                            ? `${ball.extraType[0]}+${ball.runs}`
-                            : ball.extraType[0];
-                        }
-                        return ball.runs;
-                      })()}
+                      <div
+                        className={`flex-shrink-0 w-7 h-7 md:w-9 md:h-9 rounded-full flex items-center justify-center text-[11px] md:text-[13px] font-black border-2 transition-all shadow-xl ${
+                          isRetHurt
+                            ? "bg-amber-500 text-amber-950 border-amber-300 shadow-amber-500/40"
+                            : ball.isWicket
+                              ? "bg-red-500 text-white border-red-300 shadow-red-500/40"
+                              : ball.runs === 4
+                                ? "bg-blue-600 text-white border-blue-400 shadow-blue-500/40"
+                                : ball.runs === 6
+                                  ? "bg-purple-600 text-white border-purple-400 shadow-purple-500/40"
+                                  : ball.isExtra
+                                    ? "bg-amber-500 text-amber-950 border-amber-300 shadow-amber-500/40"
+                                    : "bg-white text-slate-900 border-white shadow-white/10"
+                        }`}
+                      >
+                        {(() => {
+                          if (ball.isWicket || isRetHurt)
+                            return ball.runs > 0 ? `W+${ball.runs}` : "W";
+                          if (ball.isExtra) {
+                            if (ball.extraType === "WIDE")
+                              return ball.runs > 0 ? `Wd+${ball.runs}` : "Wd";
+                            if (ball.extraType === "NO_BALL")
+                              return ball.runs > 0 ? `Nb+${ball.runs}` : "Nb";
+                            if (ball.extraType === "BYE")
+                              return ball.runs > 0 ? `B+${ball.runs}` : "B";
+                            if (ball.extraType === "LEG_BYE")
+                              return ball.runs > 0 ? `Lb+${ball.runs}` : "Lb";
+                            return ball.runs > 0
+                              ? `${ball.extraType[0]}+${ball.runs}`
+                              : ball.extraType[0];
+                          }
+                          return ball.runs;
+                        })()}
+                      </div>
+                      <span
+                        className={`text-[8px] md:text-[9px] font-black uppercase ${isRetHurt ? "text-amber-400" : isRetOut ? "text-purple-400" : ball.isWicket ? "text-red-400" : "text-slate-500"}`}
+                      >
+                        {isRetHurt
+                          ? "RET_HURT"
+                          : isRetOut
+                            ? "RET_OUT"
+                            : ball.isWicket
+                              ? "WICKET"
+                              : ball.isExtra
+                                ? ball.extraType.split("_")[0]
+                                : "RUN"}
+                      </span>
                     </div>
-                    <span className="text-[8px] md:text-[9px] font-black text-slate-500 uppercase">
-                      {ball.isExtra ? ball.extraType.split("_")[0] : "RUN"}
-                    </span>
-                  </div>
-                ))
+                  );
+                })
               )}
               {innings.currentOver.length > 0 &&
                 innings.currentOver.length < 6 &&
                 [...Array(6 - innings.currentOver.length)].map((_, i) => (
                   <div
                     key={`empty-${i}`}
-                    className="w-9 h-9 md:w-11 md:h-11 rounded-full border-2 border-dashed border-slate-700/50 flex items-center justify-center opacity-30"
+                    className="w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-dashed border-slate-700/50 flex items-center justify-center opacity-30"
                   >
                     <span className="text-[10px] text-slate-600 font-bold">
                       •
@@ -1337,27 +1365,19 @@ const MatchView: React.FC<MatchViewProps> = ({
             </div>
           </div>
 
-          {/* Live Commentary & Equation */}
-          <div className="space-y-1">
-            <div className="bg-indigo-600/5 rounded-lg p-1.5 border border-indigo-500/10 shadow-inner">
-              <div className="flex items-center gap-3">
-                <span className="flex-shrink-0 text-[10px] font-black text-indigo-400 uppercase italic">
-                  LIVE
-                </span>
-                <p className="text-xs md:text-sm text-slate-200 font-bold tracking-wide italic uppercase leading-none truncate">
-                  {lastCommentary}
-                </p>
-              </div>
+          {/* Live Commentary */}
+          <div className="bg-indigo-600/5 rounded-lg py-0.5 px-2 border border-indigo-500/10 shadow-inner">
+            <div className="flex items-center gap-2">
+              <span className="flex-shrink-0 text-[9px] font-black text-indigo-400 uppercase italic">
+                LIVE
+              </span>
+              <p className="text-[11px] md:text-xs text-slate-200 font-bold tracking-wide italic uppercase leading-none truncate">
+                {lastCommentary}
+              </p>
             </div>
-            {equation && (
-              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-1.5 text-center">
-                <span className="text-[9px] md:text-sm font-black text-yellow-500 uppercase tracking-[0.2em]">
-                  {equation}
-                </span>
-              </div>
-            )}
           </div>
-          {/* Live Stats Strip */}
+
+          {/* Target Banner & Live Stats Strip */}
           {(() => {
             const ballsBowled = innings.overs * 6 + innings.balls;
             const crr =
@@ -1382,40 +1402,49 @@ const MatchView: React.FC<MatchViewProps> = ({
                     .reduce((s, b) => s + b.runs + b.extraRuns, 0)
                 : null;
             return (
-              <div className="grid grid-cols-3 gap-1.5 mt-1">
-                <div className="bg-slate-800/50 rounded-xl p-1.5 text-center border border-white/5">
-                  <div className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-0.5">
-                    CRR
-                  </div>
-                  <div className="text-sm font-black text-white tabular-nums">
-                    {crr}
-                  </div>
-                </div>
-                {rrr !== null ? (
-                  <div className="bg-yellow-500/10 rounded-xl p-1.5 text-center border border-yellow-500/20">
-                    <div className="text-[9px] font-black text-yellow-600 uppercase tracking-wider mb-0.5">
-                      RRR
-                    </div>
-                    <div className="text-sm font-black text-yellow-400 tabular-nums">
-                      {rrr}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-slate-800/50 rounded-xl p-1.5 text-center border border-white/5">
-                    <div className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-0.5">
-                      BALLS LEFT
-                    </div>
-                    <div className="text-sm font-black text-white tabular-nums">
-                      {ballsLeft}
-                    </div>
+              <div className="space-y-1">
+                {equation && (
+                  <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg py-0.5 px-2 text-center">
+                    <span className="text-[10px] md:text-xs font-black text-yellow-400 uppercase tracking-[0.15em]">
+                      🎯 {equation}
+                    </span>
                   </div>
                 )}
-                <div className="bg-slate-800/50 rounded-xl p-1.5 text-center border border-white/5">
-                  <div className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-0.5">
-                    LAST OVR
+                <div className="grid grid-cols-3 gap-1.5">
+                  <div className="bg-slate-800/50 rounded-xl py-0.5 px-1.5 text-center border border-white/5">
+                    <div className="text-[8px] md:text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                      CRR
+                    </div>
+                    <div className="text-xs md:text-sm font-black text-white tabular-nums leading-tight">
+                      {crr}
+                    </div>
                   </div>
-                  <div className="text-sm font-black text-indigo-400 tabular-nums">
-                    {lastOverRuns !== null ? lastOverRuns : "—"}
+                  {rrr !== null ? (
+                    <div className="bg-yellow-500/10 rounded-xl py-0.5 px-1.5 text-center border border-yellow-500/20">
+                      <div className="text-[8px] md:text-[9px] font-black text-yellow-600 uppercase tracking-wider">
+                        RRR
+                      </div>
+                      <div className="text-xs md:text-sm font-black text-yellow-400 tabular-nums leading-tight">
+                        {rrr}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-slate-800/50 rounded-xl py-0.5 px-1.5 text-center border border-white/5">
+                      <div className="text-[8px] md:text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                        BALLS LEFT
+                      </div>
+                      <div className="text-xs md:text-sm font-black text-white tabular-nums leading-tight">
+                        {ballsLeft}
+                      </div>
+                    </div>
+                  )}
+                  <div className="bg-slate-800/50 rounded-xl py-0.5 px-1.5 text-center border border-white/5">
+                    <div className="text-[8px] md:text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                      LAST OVR
+                    </div>
+                    <div className="text-xs md:text-sm font-black text-indigo-400 tabular-nums leading-tight">
+                      {lastOverRuns !== null ? lastOverRuns : "—"}
+                    </div>
                   </div>
                 </div>
               </div>
