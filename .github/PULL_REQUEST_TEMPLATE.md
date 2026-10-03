@@ -13,13 +13,25 @@
 - [ ] `chore:` Routine tasks, dependencies, or pipeline updates
 - [ ] `refactor:` Code change that neither fixes a bug nor adds a feature
 
-## Verification
+## Component Change Matrix
 
-- [ ] I have verified linting and formatting (`npm run lint`)
-- [ ] I have run unit tests (`npm run test:all`)
-- [ ] I have verified E2E browser tests locally if UI changed (`npm run test:e2e`)
-- [ ] I have verified there are no secret leaks locally (`gitleaks protect -v`)
-- [ ] I have run `terraform validate` (if infrastructure was changed)
+<!-- Briefly list what changed under the relevant components, or mark unchanged -->
+
+| Component            | Status       | Changed Files / Details |
+| -------------------- | ------------ | ----------------------- |
+| 🎨 Frontend App      | ➖ Unchanged |                         |
+| ⚡ Backend & Lambdas | ➖ Unchanged |                         |
+| 🏗️ Terraform IaC     | ➖ Unchanged |                         |
+| 📚 Documentation     | ➖ Unchanged |                         |
+| ⚙️ CI/CD & Workflows | ➖ Unchanged |                         |
+
+## Verification Checklist
+
+- [ ] Code formatting and linters verified (`npm run lint`)
+- [ ] Unit test suites executed (`npm run test:all`)
+- [ ] E2E browser tests locally verified if UI changed (`npm run test:e2e`)
+- [ ] Secret scanning verified (`gitleaks protect -v`)
+- [ ] Terraform syntax verified (`terraform validate`)
 
 ## Screenshots / Evidence (if applicable)
 
