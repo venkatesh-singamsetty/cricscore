@@ -1,3 +1,9 @@
+## [4.3.4](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.3.3...v4.3.4) (2026-10-03)
+
+### 🐛 Bug Fixes
+
+* stabilize viewer hub live scores and migrate to native OpenAI ([#221](https://github.com/venkatesh-singamsetty/cricscore/issues/221)) ([1a7887b](https://github.com/venkatesh-singamsetty/cricscore/commit/1a7887b7a8693338ff57f163c21f42c6978eea84))
+
 ## [4.3.3](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.3.2...v4.3.3) (2026-09-26)
 
 ### 🐛 Bug Fixes
