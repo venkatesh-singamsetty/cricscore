@@ -1115,7 +1115,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                       </button>
                     </div>
                   </div>
-                  {!matchMeta?.aiSummary || isGeneratingAiSummary ? (
+                  {!matchMeta?.aiSummary ? (
                     <div className="bg-slate-800/30 border border-white/5 rounded-[2rem] p-6 text-center animate-pulse">
                       <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center justify-center gap-2 mb-3">
                         <span className="animate-spin">⏳</span>{" "}

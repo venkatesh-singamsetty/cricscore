@@ -171,7 +171,6 @@ const App: React.FC = () => {
 
   const [emailTo, setEmailTo] = useState("");
   const [hasRestored, setHasRestored] = useState(false);
-  const emailInputRef = React.useRef<HTMLInputElement>(null);
 
   const isRestoringRef = React.useRef(false);
   const isEndingInningsRef = React.useRef(false);
