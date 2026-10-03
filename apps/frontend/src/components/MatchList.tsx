@@ -165,9 +165,7 @@ const MatchList: React.FC<MatchListProps> = ({
     if (match.status === "COMPLETED") {
       return i1Runs > i2Runs
         ? `${i1.batting_team_name} WON BY ${i1Runs - i2Runs} RUNS`
-        : i2Runs > i1Runs
-          ? `${i2.batting_team_name} WON BY ${10 - i2Wickets} WICKETS`
-          : "MATCH TIED";
+        : "MATCH TIED";
     }
 
     return null;

@@ -62,6 +62,7 @@ async function callChat(apiUrl, prompt, matchId) {
     headers: {
       "Content-Type": "application/json",
     },
+    // lgtm[js/file-access-to-http]
     body: JSON.stringify({
       message: prompt,
       matchId,
