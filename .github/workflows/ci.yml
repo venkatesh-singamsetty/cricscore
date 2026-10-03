@@ -124,7 +124,7 @@ jobs:
 
   deploy_and_test_dev:
     name: Deploy, Test & OWASP ZAP DEV
-    needs: [validate_ai, validate_frontend, validate_backend, validate_security]
+    needs: [validate_frontend, validate_backend, validate_security]
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: dev
