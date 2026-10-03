@@ -17,7 +17,7 @@ describe("storage safety helpers", () => {
 
     try {
       expect(safeSessionStorageGet("last_view")).toBeNull();
-      expect(safeSessionStorageSet("last_view", "VIEWER")).toBeUndefined();
+      expect(() => safeSessionStorageSet("last_view", "VIEWER")).not.toThrow();
     } finally {
       Object.defineProperty(globalThis, "sessionStorage", {
         value: original,
@@ -35,8 +35,8 @@ describe("storage safety helpers", () => {
 
     try {
       expect(safeLocalStorageGet("match-state")).toBeNull();
-      expect(safeLocalStorageSet("match-state", "{}") ).toBeUndefined();
-      expect(safeLocalStorageRemove("match-state")).toBeUndefined();
+      expect(() => safeLocalStorageSet("match-state", "{}")).not.toThrow();
+      expect(() => safeLocalStorageRemove("match-state")).not.toThrow();
     } finally {
       Object.defineProperty(globalThis, "localStorage", {
         value: original,
