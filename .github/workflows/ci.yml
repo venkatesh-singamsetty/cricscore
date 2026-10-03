@@ -1,4 +1,4 @@
-name: CricScore CI/CD
+name: CI
 
 on:
   push:

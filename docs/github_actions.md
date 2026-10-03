@@ -17,9 +17,9 @@ GitHub enforces extremely strict directory constraints for its automated service
 .github/
 ├── dependabot.yml           <-- Native Service (Must be here)
 └── workflows/               <-- Flat folder structure
-    ├── ci-cd.yml
+    ├── cd.yml
+    ├── ci.yml
     ├── codeql.yml
-    ├── deploy-prod.yml
     ├── drift.yml
     ├── e2e.yml
     ├── keepalive.yml
@@ -84,8 +84,8 @@ graph TD
 
 **Workflows:**
 
-- `ci-cd.yml`: Validates code, deploys to DEV, runs ZAP & E2E against DEV.
-- `deploy-prod.yml`: Deploys a specific tag to PROD, runs ZAP & E2E against PROD.
+- `ci.yml`: Validates code, deploys to DEV, runs ZAP & E2E against DEV.
+- `cd.yml`: Deploys a specific tag to PROD, runs ZAP & E2E against PROD.
 - `e2e.yml`: A placeholder check for pull requests; actual E2E execution is deferred to the DEV and PROD deployment workflows.
 
 ### Security & Governance (Triggered on Pull Request)
