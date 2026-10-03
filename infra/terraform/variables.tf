@@ -75,6 +75,19 @@ variable "llm_model" {
   default     = "gpt-4o-mini"
 }
 
+variable "openai_api_key" {
+  type        = string
+  description = "The OpenAI API key for native OpenAI models"
+  default     = ""
+  sensitive   = true
+}
+
+variable "llm_model" {
+  type        = string
+  description = "The LLM Model name (e.g. gpt-4o-mini)"
+  default     = "gpt-4o-mini"
+}
+
 variable "google_client_id" {
   type        = string
   description = "Google OAuth Client ID for Cognito Federation"
