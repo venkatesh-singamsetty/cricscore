@@ -1,13 +1,31 @@
 ## Description
 
-<!-- Describe your changes briefly -->
+<!-- Describe your changes in detail -->
+<!-- What does this PR solve or implement? -->
 
 ## Type of Change
 
-- [ ] `feat:` New feature
-- [ ] `fix:` Bug fix
-- [ ] `chore:` Routine tasks (deps, ci, docs, etc)
+<!-- Check the appropriate box using [x] -->
 
-## Checklist
+- [ ] `feat:` New feature (triggers MINOR release)
+- [ ] `fix:` Bug fix (triggers PATCH release)
+- [ ] `docs:` Documentation only changes
+- [ ] `chore:` Routine tasks, dependencies, or pipeline updates
+- [ ] `refactor:` Code change that neither fixes a bug nor adds a feature
 
-- [ ] Local tests and linters pass
+## Verification
+
+- [ ] I have verified linting and formatting (`npm run lint`)
+- [ ] I have run unit tests (`npm run test:all`)
+- [ ] I have verified E2E browser tests locally if UI changed (`npm run test:e2e`)
+- [ ] I have verified there are no secret leaks locally (`gitleaks protect -v`)
+- [ ] I have run `terraform validate` (if infrastructure was changed)
+- [ ] I have run `checkov` IaC scans locally (if infrastructure was changed)
+
+## Screenshots / Evidence (if applicable)
+
+<!-- Drag and drop screenshots here if this affects the UI -->
+
+---
+
+_Note: Please ensure your PR title follows Conventional Commits format (e.g., `feat: add awesome feature`) so Semantic Release can automatically generate the changelog!_
