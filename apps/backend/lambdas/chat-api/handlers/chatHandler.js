@@ -97,6 +97,7 @@ ${DB_SCHEMA}
 - For 'latest' or 'last', ALWAYS use: ORDER BY created_at DESC LIMIT 1. (Or LIMIT N when N matches are requested).
 
 Current Active Match Context: ${matchContext || "None provided"}
+Current Date and Time: ${new Date().toISOString()}
 `;
 
   const messages = [

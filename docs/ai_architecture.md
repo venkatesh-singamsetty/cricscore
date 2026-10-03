@@ -152,6 +152,8 @@ The AI Assistant produces accurate, well-formatted, and reliable answers due to 
 | **Token Limit**        | `max_tokens: 2000` (`chatHandler.js`)                  | Prevents response truncation when formatting 10-match tables or complex multi-paragraph explanations.                                                 |
 | **Temperature**        | `temperature: 0.1`                                     | Ensures deterministic, factual responses without creative hallucination on match stats or rulebook provisions.                                        |
 | **Guardrail Rule 8**   | System Prompt Rule 8                                   | Explicitly instructs model: _"ALWAYS prefer the uploaded rulebook text as absolute truth over general knowledge"_ (e.g. Leg Byes counting as extras). |
+| **Time Awareness**     | System Prompt Date Injection                           | Injects real-time `Date().toISOString()` to prevent the LLM from defaulting to its training cutoff year (e.g., assuming "August" means August 2023).  |
+| **SQL Generation**     | System Prompt PostgreSQL Hints                         | Explicitly enforces strict `GROUP BY` rules and corrects common column hallucinations (e.g., `team_name` -> `batting_team_name`) for player stats.    |
 
 ---
 
