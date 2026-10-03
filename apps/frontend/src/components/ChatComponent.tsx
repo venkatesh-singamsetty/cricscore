@@ -277,9 +277,9 @@ export function ChatComponent({
   };
 
   return (
-    <div className="flex flex-col h-full w-full max-w-4xl mx-auto bg-slate-900 rounded-xl border border-white/10 shadow-2xl overflow-hidden relative">
+    <div className="flex flex-col flex-1 min-h-0 w-full max-w-4xl mx-auto bg-slate-900 rounded-xl border border-white/10 shadow-2xl overflow-hidden relative">
       <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-transparent pointer-events-none" />
-      <div className="p-4 bg-slate-800/80 backdrop-blur-sm border-b border-white/10 flex items-center justify-between relative z-10">
+      <div className="shrink-0 p-4 bg-slate-800/80 backdrop-blur-sm border-b border-white/10 flex items-center justify-between relative z-10">
         <h3 className="text-xl font-bold text-white flex items-center gap-2">
           <Bot className="text-indigo-400" />
           Live Match AI Assistant
@@ -415,7 +415,7 @@ export function ChatComponent({
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="p-4 bg-slate-800 border-t border-white/10">
+      <div className="shrink-0 p-4 bg-slate-800 border-t border-white/10">
         <form onSubmit={sendMessage} className="relative flex items-center">
           <input
             type="text"
