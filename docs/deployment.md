@@ -95,7 +95,7 @@ PROJECT_NAME='cricscore'
 
 # AI / LLM
 LLM_API_KEY='your-openai-api-key'
-LLM_BASE_URL='https://openrouter.ai/api/v1'
+LLM_BASE_URL='https://api.openai.com/v1'
 ```
 
 > [!CAUTION]

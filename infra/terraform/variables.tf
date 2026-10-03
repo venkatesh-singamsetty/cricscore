@@ -59,7 +59,7 @@ variable "llm_api_key" {
 variable "llm_base_url" {
   type        = string
   description = "Base URL for OpenAI-compatible LLM endpoint"
-  default     = "https://openrouter.ai/api/v1"
+  default     = "https://api.openai.com/v1"
 }
 
 variable "openai_api_key" {
