@@ -22,7 +22,7 @@ jobs:
 
 
   validate_security:
-    name: Infrastructure u0026 Secrets Security
+    name: Infrastructure & Secrets Security
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
