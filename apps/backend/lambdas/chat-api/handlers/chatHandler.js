@@ -142,9 +142,12 @@ Current Active Match Context: ${matchContext || "None provided"}
   } catch (err) {
     console.error("chatHandler: LLM call error:", err);
     return {
-      statusCode: 500,
+      statusCode: 200,
       headers: corsHeaders,
-      body: JSON.stringify({ error: "LLM processing failed" }),
+      body: JSON.stringify({
+        reply:
+          "I'm currently experiencing high traffic and cannot process this request. Please check the live scoreboard for updates.",
+      }),
     };
   }
 
@@ -185,13 +188,21 @@ Current Active Match Context: ${matchContext || "None provided"}
     }
 
     // Final LLM call — generate human-readable answer from tool results
-    response = await openai.chat.completions.create({
-      model: LLM_MODEL,
-      messages,
-      temperature: 0.5,
-      max_tokens: 2000,
-    });
-    responseMessage = response.choices[0].message;
+    try {
+      response = await openai.chat.completions.create({
+        model: LLM_MODEL,
+        messages,
+        temperature: 0.5,
+        max_tokens: 2000,
+      });
+      responseMessage = response.choices[0].message;
+    } catch (err) {
+      console.error("chatHandler: Final LLM call error:", err);
+      responseMessage = {
+        content:
+          "I'm unable to synthesize the full answer right now, but you can check the scoreboard for the latest updates.",
+      };
+    }
   }
 
   return {

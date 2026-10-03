@@ -25,7 +25,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: main
           token: ${{ secrets.GH_PAT }}
+          
+      - name: Reset to exact tested commit
+        run: git reset --hard ${{ github.event.workflow_run.head_sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

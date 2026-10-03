@@ -49,6 +49,24 @@ jobs:
           cd apps/backend
           npx vitest run lambdas/chat-api/handlers/chatHandler.test.js
 
+  validate_security:
+    name: Infrastructure u0026 Secrets Security
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Run GitLeaks Secrets Scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run Checkov IaC Scan
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: infra/terraform
+          framework: terraform
+
   validate_frontend:
     name: Lint & Test
     runs-on: ubuntu-latest
@@ -134,7 +152,7 @@ jobs:
 
   deploy_and_test_dev:
     name: Deploy, Test & OWASP ZAP DEV
-    needs: [validate_ai, validate_frontend, validate_backend]
+    needs: [validate_ai, validate_frontend, validate_backend, validate_security]
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: dev
