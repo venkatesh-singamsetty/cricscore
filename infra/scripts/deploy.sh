@@ -52,6 +52,9 @@ if [ -n "${TF_SES_SOURCE_EMAIL:-}" ]; then export TF_VAR_ses_source_email="$TF_S
 if [ -n "${AWS_REGION:-}" ]; then export TF_VAR_aws_region="$AWS_REGION"; fi
 if [ -n "${ADMIN_EMAIL:-}" ]; then export TF_VAR_admin_email="$ADMIN_EMAIL"; fi
 if [ -n "${LLM_API_KEY:-}" ]; then export TF_VAR_llm_api_key="$LLM_API_KEY"; fi
+if [ -n "${OPENAI_API_KEY:-}" ]; then export TF_VAR_openai_api_key="$OPENAI_API_KEY"; fi
+if [ -n "${LLM_BASE_URL:-}" ]; then export TF_VAR_llm_base_url="$LLM_BASE_URL"; fi
+if [ -n "${LLM_MODEL:-}" ]; then export TF_VAR_llm_model="$LLM_MODEL"; fi
 # 1. Install Dependencies
 echo "📦 Installing required frontend dependencies..."
 (cd apps/frontend && npm install --ignore-scripts)

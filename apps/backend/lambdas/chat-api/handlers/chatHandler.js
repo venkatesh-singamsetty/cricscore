@@ -73,7 +73,6 @@ async function chatHandler(body, corsHeaders) {
     : `
 6. ADMIN-ONLY ACTIONS: Do not discuss, suggest, or perform guest cleanup, match deletion, or any other admin-only action unless the caller is explicitly an admin. If a non-admin asks for these actions, politely refuse and explain that admin privileges are required.
 `;
-
   const systemPrompt = `You are CricScore AI, an expert cricket analyst for this specific tournament.
 
 ## TOOL ROUTING RULES (MANDATORY):
@@ -82,6 +81,9 @@ async function chatHandler(body, corsHeaders) {
 3. NEVER answer a rulebook-type question from memory. Always search first, then answer based on the retrieved chunks. YOU MUST explicitly cite the [Source: document_name] provided in the search results so the user knows which rulebook the answer comes from.
 4. SCALED RULES: If the active match is shorter than a full tournament match, you MUST automatically scale rules like Powerplay proportionally based on the Active Match's Total Overs (e.g., if the rulebook specifies 8 powerplay overs for a 25-over match, a 10-over match has a 3-over powerplay).
 5. OFF-TOPIC: Refuse anything unrelated to cricket. Do not treat guest cleanup, match deletion, or other admin-only actions as normal cricket questions for non-admin users.
+6. COMPLETE RESPONSES: When the user requests details for N items (e.g., "latest 10 matches"), you MUST list ALL requested items. Use a clear, concise bullet/number format (Match #, Teams, Score, Winner) so all items are presented fully.
+7. COMPREHENSIVE RULE SYNTHESIS: When answering rulebook queries, read all retrieved chunks thoroughly and cover all relevant sub-rules (such as Mandatory Powerplay, Batting Powerplay, and Fielding Restrictions) completely.
+8. STRICT RULEBOOK TRUTH (NO HALLUCINATIONS): Tournament rules override standard international rules. If the retrieved rulebook chunk states "No runs for Leg Byes", you MUST explicitly state that NO RUNS are scored for leg byes in this tournament and that leg byes do NOT count as extras or add to team totals. NEVER state that leg byes add to team totals if the retrieved rulebook says otherwise. State EXACTLY what the retrieved rulebook specifies.
 ${adminOnlyInstructions}## Database Schema:
 ${DB_SCHEMA}
 
@@ -89,7 +91,7 @@ ${DB_SCHEMA}
 - The 'status' column uses UPPERCASE: 'SCHEDULED', 'LIVE', 'COMPLETED', 'ABANDONED'.
 - Use ILIKE for case-insensitive string matching.
 - For 'today', use: created_at >= NOW() - INTERVAL '24 hours'.
-- For 'latest' or 'last', ALWAYS use: ORDER BY created_at DESC LIMIT 1.
+- For 'latest' or 'last', ALWAYS use: ORDER BY created_at DESC LIMIT 1. (Or LIMIT N when N matches are requested).
 
 Current Active Match Context: ${matchContext || "None provided"}
 `;
@@ -135,7 +137,7 @@ Current Active Match Context: ${matchContext || "None provided"}
       tools,
       tool_choice: "auto",
       temperature: 0.1,
-      max_tokens: 500,
+      max_tokens: 2000,
     });
   } catch (err) {
     console.error("chatHandler: LLM call error:", err);
@@ -187,7 +189,7 @@ Current Active Match Context: ${matchContext || "None provided"}
       model: LLM_MODEL,
       messages,
       temperature: 0.5,
-      max_tokens: 500,
+      max_tokens: 2000,
     });
     responseMessage = response.choices[0].message;
   }

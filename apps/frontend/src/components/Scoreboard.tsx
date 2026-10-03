@@ -7,6 +7,7 @@ interface ScoreboardProps {
   previousInnings?: InningsState;
   onClose: () => void;
   onResetMatch?: () => void;
+  onQuitMatch?: () => void;
   isSpectator?: boolean;
   totalOvers?: number;
   playerOfTheMatch?: string | null;
@@ -17,6 +18,7 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
   previousInnings,
   onClose,
   onResetMatch,
+  onQuitMatch,
   isSpectator = false,
   totalOvers,
   playerOfTheMatch,
@@ -91,38 +93,56 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                   className={`px-4 py-3 text-[10px] font-black uppercase tracking-tight ${highlight ? "text-indigo-100" : "text-slate-500"}`}
                 >
                   {player.isOut || player.wicketType === "RETIRED_HURT" ? (
-                    <span
-                      className={
-                        player.wicketType === "RETIRED_HURT"
-                          ? "text-amber-400 opacity-90"
-                          : "text-red-400 opacity-90"
-                      }
-                    >
-                      {(() => {
-                        const type = player.wicketType;
-                        const bowler = player.wicketBy;
-                        const fielder = player.fielderName;
+                    (() => {
+                      const type = player.wicketType;
+                      const bowler = player.wicketBy;
+                      const fielder = player.fielderName;
 
-                        if (type === "CAUGHT") {
-                          if (fielder === bowler) return `c & b ${bowler}`;
-                          return `c ${fielder || "---"} b ${bowler}`;
-                        }
-                        if (type === "STUMPED")
-                          return `st ${fielder || "---"} b ${bowler}`;
-                        if (type === "RUN_OUT")
-                          return `run out (${fielder || "---"})`;
-                        if (type === "LBW") return `lbw b ${bowler}`;
-                        if (type === "BOWLED") return `b ${bowler}`;
-                        if (type === "HIT_WICKET")
-                          return `hit wicket b ${bowler}`;
-                        if (type === "RETIRED_HURT") return "retired hurt";
-                        if (type === "RETIRED_OUT") return "retired out";
-                        return `${type?.toLowerCase().replace(/_/g, " ")}`;
-                      })()}
-                    </span>
+                      let text = "";
+                      if (type === "CAUGHT") {
+                        if (fielder === bowler) text = `c & b ${bowler}`;
+                        else text = `c ${fielder || "---"} b ${bowler}`;
+                      } else if (type === "STUMPED") {
+                        text = `st ${fielder || "---"} b ${bowler}`;
+                      } else if (type === "RUN_OUT") {
+                        text = `run out (${fielder || "---"})`;
+                      } else if (type === "LBW") {
+                        text = `lbw b ${bowler}`;
+                      } else if (type === "BOWLED") {
+                        text = `b ${bowler}`;
+                      } else if (type === "HIT_WICKET") {
+                        text = `hit wicket b ${bowler}`;
+                      } else if (type === "RETIRED_HURT") {
+                        text = "ret. hurt";
+                      } else if (type === "RETIRED_OUT") {
+                        text = "ret. out";
+                      } else {
+                        text = `${type?.toLowerCase().replace(/_/g, " ")}`;
+                      }
+
+                      if (type === "RETIRED_HURT") {
+                        return (
+                          <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded text-[9px] font-black tracking-wide inline-flex items-center gap-1 shadow-sm">
+                            🚑 {text}
+                          </span>
+                        );
+                      }
+                      if (type === "RETIRED_OUT") {
+                        return (
+                          <span className="bg-purple-500/20 text-purple-300 border border-purple-500/40 px-2 py-0.5 rounded text-[9px] font-black tracking-wide inline-flex items-center gap-1 shadow-sm">
+                            🚪 {text}
+                          </span>
+                        );
+                      }
+                      return (
+                        <span className="text-red-400 opacity-90 font-medium">
+                          {text}
+                        </span>
+                      );
+                    })()
                   ) : (
-                    <span className="text-green-300 opacity-90">
-                      {highlight ? "batting" : "not out"}
+                    <span className="text-emerald-400 font-bold opacity-90 flex items-center gap-1">
+                      {highlight ? "🏏 BATTING" : "NOT OUT"}
                     </span>
                   )}
                 </td>
@@ -488,10 +508,12 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                           </div>
                           <div className="flex flex-wrap gap-2">
                             {balls.map((ball: any, idx: number) => {
+                              const isRetHurt =
+                                ball.wicketType === "RETIRED_HURT";
                               const isWicket = ball.isWicket;
                               const isExtra = ball.isExtra;
                               let label = String(ball.runs);
-                              if (isWicket) {
+                              if (isWicket || isRetHurt) {
                                 label = ball.runs > 0 ? `W+${ball.runs}` : "W";
                               } else if (ball.extraType === "WIDE") {
                                 label =
@@ -509,7 +531,7 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                               return (
                                 <div
                                   key={idx}
-                                  className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black ${isWicket ? "bg-red-600 text-white shadow-lg shadow-red-600/20" : isExtra ? "bg-amber-600 text-white shadow-lg shadow-amber-600/20" : "bg-slate-800 text-slate-300"}`}
+                                  className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black ${isRetHurt ? "bg-amber-500 text-amber-950 shadow-lg shadow-amber-500/30 border border-amber-300" : isWicket ? "bg-red-600 text-white shadow-lg shadow-red-600/20" : isExtra ? "bg-amber-600 text-white shadow-lg shadow-amber-600/20" : "bg-slate-800 text-slate-300"}`}
                                 >
                                   {label}
                                 </div>
@@ -578,16 +600,27 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                   </div>
                 </div>
                 {!isSpectator && onResetMatch && activeTab === "current" && (
-                  <div className="mt-8 pt-6 border-t border-white/10 flex flex-col items-center">
+                  <div className="mt-8 pt-6 border-t border-white/10 flex flex-wrap gap-4 items-center justify-center">
                     <button
                       onClick={() => {
                         onClose();
                         onResetMatch();
                       }}
-                      className="py-3 px-8 rounded-full bg-red-900/40 text-red-500 font-black text-xs uppercase tracking-widest border border-red-500/20 active:scale-95 transition-transform hover:bg-red-900/60"
+                      className="py-3 px-8 rounded-full bg-indigo-900/40 text-indigo-400 font-black text-xs uppercase tracking-widest border border-indigo-500/20 active:scale-95 transition-transform hover:bg-indigo-900/60"
                     >
                       START NEW MATCH
                     </button>
+                    {onQuitMatch && (
+                      <button
+                        onClick={() => {
+                          onClose();
+                          onQuitMatch();
+                        }}
+                        className="py-3 px-8 rounded-full bg-rose-900/40 text-rose-400 font-black text-xs uppercase tracking-widest border border-rose-500/20 active:scale-95 transition-transform hover:bg-rose-900/60"
+                      >
+                        QUIT MATCH
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

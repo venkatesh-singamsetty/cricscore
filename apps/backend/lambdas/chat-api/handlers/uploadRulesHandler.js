@@ -49,19 +49,24 @@ async function uploadRulesHandler(event, corsHeaders) {
     const data = await parser.getText();
     const fullText = data.text;
 
-    // Step 2: Chunk text by paragraphs (double newline), sub-chunk if > 2000 chars
-    const rawChunks = fullText
+    // Step 2: Clean and chunk text smartly (~1000 chars per chunk for optimal RAG context)
+    const paragraphs = fullText
       .split(/\n\s*\n/)
-      .filter((c) => c.trim().length > 10);
+      .map((p) => p.replace(/\s+/g, " ").trim())
+      .filter((p) => p.length > 5);
+
     const chunks = [];
-    for (const chunk of rawChunks) {
-      if (chunk.length > 2000) {
-        const subChunks = chunk.match(/.{1,1500}/g) || [];
-        chunks.push(...subChunks);
+    let currentChunk = "";
+
+    for (const para of paragraphs) {
+      if ((currentChunk + " " + para).length <= 1000) {
+        currentChunk = currentChunk ? currentChunk + "\n" + para : para;
       } else {
-        chunks.push(chunk);
+        if (currentChunk) chunks.push(currentChunk);
+        currentChunk = para;
       }
     }
+    if (currentChunk) chunks.push(currentChunk);
 
     const validChunks = chunks.filter((c) => c.trim().length > 0);
     let insertedCount = 0;
@@ -81,7 +86,7 @@ async function uploadRulesHandler(event, corsHeaders) {
         const embeddingRes = await fetch(`${EMBEDDING_BASE_URL}/embeddings`, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${process.env.LLM_API_KEY}`,
+            Authorization: `Bearer ${process.env.OPENAI_API_KEY || process.env.LLM_API_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({

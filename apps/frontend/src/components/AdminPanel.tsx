@@ -38,9 +38,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   >(null);
   const [purgeConfirmText, setPurgeConfirmText] = useState("");
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (keepMessage = false) => {
     setLoading(true);
-    setMessage("");
+    if (!keepMessage) setMessage("");
     try {
       const session = await fetchAuthSession();
       const token = session.tokens?.idToken?.toString();
@@ -98,7 +98,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       if (!res.ok) throw new Error(data.error || `Failed to ${action} user`);
 
       setMessage(`✅ ${data.message || "Success!"}`);
-      fetchUsers(); // Refresh the list
+      fetchUsers(true); // Refresh the list while keeping success message
     } catch (err: any) {
       setMessage(`❌ Error: ${err.message}`);
     } finally {
@@ -129,7 +129,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       if (!res.ok) throw new Error(data.error || "Failed to delete user");
 
       setMessage(`✅ ${data.message || "User deleted successfully!"}`);
-      fetchUsers(); // Refresh the list
+      fetchUsers(true); // Refresh the list while keeping success message
     } catch (err: any) {
       setMessage(`❌ Error: ${err.message}`);
     } finally {
@@ -157,8 +157,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       const data = await res.json();
       if (!res.ok)
         throw new Error(data.error || "Failed to delete guest users");
-      setMessage(`✅ ${data.message || "Success!"}`);
-      fetchUsers(); // Refresh the list
+      const uCount = data.deletedUsersCount ?? 0;
+      const msg = data.message || `Deleted ${uCount} guest users.`;
+      setMessage(`✅ ${msg}`);
+      fetchUsers(true); // Refresh the list while keeping success message
     } catch (err: any) {
       setMessage(`❌ Error: ${err.message}`);
     } finally {
@@ -186,7 +188,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       const data = await res.json();
       if (!res.ok)
         throw new Error(data.error || "Failed to delete guest matches");
-      setMessage(`✅ ${data.message || "Success!"}`);
+      const mCount = data.deletedMatchesCount ?? data.count ?? 0;
+      const msg = data.message || `Deleted ${mCount} guest matches.`;
+      setMessage(`✅ ${msg}`);
     } catch (err: any) {
       setMessage(`❌ Error: ${err.message}`);
     } finally {
@@ -251,7 +255,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               </p>
             </div>
             <button
-              onClick={fetchUsers}
+              onClick={() => fetchUsers()}
               disabled={loading}
               className="px-4 py-2 bg-slate-800 border border-slate-700 text-slate-300 font-bold rounded-lg hover:bg-slate-700 hover:text-white transition-colors"
             >
@@ -464,7 +468,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               {pendingBulkAction === "delete-all-guests" && (
                 <p className="text-slate-400 text-sm font-medium mb-8 leading-relaxed">
                   Are you sure you want to permanently delete ALL guest users
-                  from Cognito and the database? This cannot be undone.
+                  from Cognito? This action cannot be undone.
                 </p>
               )}
 

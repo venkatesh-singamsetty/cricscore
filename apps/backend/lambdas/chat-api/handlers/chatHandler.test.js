@@ -172,12 +172,28 @@ describe("chatHandler", () => {
       choices: [{ message: { content: "ok", tool_calls: null } }],
     });
 
-    await chatHandler({ message: "Delete guest users", isAdmin: false }, corsHeaders);
+    await chatHandler(
+      { message: "Delete guest users", isAdmin: false },
+      corsHeaders,
+    );
 
     const systemPrompt = mockCreate.mock.calls[0][0].messages[0].content;
     expect(systemPrompt).toContain("ADMIN-ONLY ACTIONS");
     expect(systemPrompt).not.toContain("DELETE GUEST DATA");
     expect(systemPrompt).not.toContain("delete_guest_data");
+  });
+
+  it("enforces Rule 8 for strict tournament rulebook truth in system prompt", async () => {
+    mockCreate.mockResolvedValue({
+      choices: [{ message: { content: "ok", tool_calls: null } }],
+    });
+
+    await chatHandler({ message: "What are the rules?" }, corsHeaders);
+
+    const callArgs = mockCreate.mock.calls[0][0];
+    const systemPrompt = callArgs.messages[0].content;
+    expect(systemPrompt).toContain("STRICT RULEBOOK TRUTH (NO HALLUCINATIONS)");
+    expect(callArgs.max_tokens).toBe(2000);
   });
 
   it("returns 500 on unexpected LLM failure", async () => {
