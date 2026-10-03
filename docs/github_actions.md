@@ -21,12 +21,10 @@ GitHub enforces extremely strict directory constraints for its automated service
     ├── ci.yml
     ├── codeql.yml
     ├── drift.yml
-    ├── e2e.yml
     ├── keepalive.yml
     ├── pr-summary.yml
     ├── release.yml
     ├── sbom.yml
-    ├── secrets.yml
     └── terraform-unlock.yml
 ```
 
@@ -86,14 +84,17 @@ graph TD
 
 - `ci.yml`: Validates code, deploys to DEV, runs ZAP & E2E against DEV.
 - `cd.yml`: Deploys a specific tag to PROD, runs ZAP & E2E against PROD.
-- `e2e.yml`: A placeholder check for pull requests; actual E2E execution is deferred to the DEV and PROD deployment workflows.
+
+### Rebuilding vs. Artifact Promotion
+
+While traditional "D.R.Y." CI/CD principles suggest compiling an artifact only once, CricScore uses **Vite** for the frontend React application. Vite statically bakes environment variables (like `VITE_API_URL` and Cognito IDs) directly into the minified Javascript at build-time.
+Therefore, `ci.yml` performs a "dry-run" build without variables to validate compilation, but the `deploy_and_test_dev` job and `cd.yml` workflow MUST explicitly re-compile the source code to securely inject the correct DEV and PROD environment variables into the static bundles.
 
 ### Security & Governance (Triggered on Pull Request)
 
-These pipelines perform deep static analysis and compliance checks.
+These pipelines perform deep static analysis and compliance checks. All primary checks (Checkov, GitLeaks, Trivy) run natively in the `ci.yml` matrix.
 
 - `codeql.yml`: GitHub Native Static Application Security Testing (SAST).
-- `secrets.yml`: GitLeaks detection for hardcoded AWS keys or passwords.
 - `sbom.yml`: Generates the SPDX Software Bill of Materials.
 - `pr-summary.yml`: AI-powered workflow that automatically generates a summary of the PR and tracks status check completions.
 
