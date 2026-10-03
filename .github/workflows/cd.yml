@@ -36,8 +36,7 @@ jobs:
       TF_VAR_ses_source_email: ${{ secrets.TF_SES_SOURCE_EMAIL }}
       TF_VAR_database_url: ${{ secrets.TF_DATABASE_URL }}
       TF_VAR_admin_email: ${{ vars.ADMIN_EMAIL }}
-      TF_VAR_llm_api_key: ${{ secrets.OPENROUTER_API_KEY }}
-      TF_VAR_llm_base_url: "https://openrouter.ai/api/v1"
+      TF_VAR_llm_api_key: ${{ secrets.OPENAI_API_KEY }}
       API_GATEWAY_ID: ${{ vars.API_GATEWAY_ID }}
       WS_API_GATEWAY_ID: ${{ vars.WS_API_GATEWAY_ID }}
       S3_BUCKET: ${{ vars.S3_BUCKET }}

@@ -41,9 +41,9 @@ Sign up at [console.aiven.io](https://console.aiven.io/) and create a **free** P
 > [!NOTE]
 > Both `dev` and `prod` share one Aiven database. They are isolated via PostgreSQL schemas (`dev` and `prod`).
 
-### 4. An OpenRouter API Key (for AI features)
+### 4. An OpenAI API Key (for AI features)
 
-Sign up at [openrouter.ai](https://openrouter.ai) and create an API key. This powers the AI chat assistant.
+Sign up at [openai.com](https://openai.com) and create an API key. This powers the AI chat assistant.
 
 ---
 
@@ -94,7 +94,7 @@ SUBDOMAIN_PREFIX='cricscore'
 PROJECT_NAME='cricscore'
 
 # AI / LLM
-LLM_API_KEY='your-openrouter-api-key'
+LLM_API_KEY='your-openai-api-key'
 LLM_BASE_URL='https://openrouter.ai/api/v1'
 ```
 
