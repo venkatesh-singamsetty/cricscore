@@ -285,14 +285,6 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
     }
 
     if (isScoreEventType(type)) {
-      console.log(
-        `📥 WS Message -> target:`,
-        targetMatchId,
-        typeof payload === "object"
-          ? JSON.stringify(payload).replace(/\n|\r/g, "")
-          : payload,
-      );
-
       const msgMatchId = payload.matchId || payload.match_id;
       if (
         payload &&
