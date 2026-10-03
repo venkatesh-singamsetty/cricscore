@@ -60,6 +60,8 @@ resource "aws_dynamodb_table" "terraform_locks" {
 # 3. Route 53 Hosted Zone for the Root Domain
 # ------------------------------------------------------------------------------
 resource "aws_route53_zone" "main" {
+  # checkov:skip=CKV2_AWS_38: DNSSEC is not required for this hobby project
+  # checkov:skip=CKV2_AWS_39: DNS query logging is too expensive/verbose for this project
   name = var.domain_name
 
   lifecycle {

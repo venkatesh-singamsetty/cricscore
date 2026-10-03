@@ -2,7 +2,7 @@
 
 This is the quick checklist for a fresh clone. For the full deployment walkthrough, see [deployment.md](./deployment.md).
 
-> Important: this project is not a pure local-only app. A fresh clone still needs AWS, Aiven PostgreSQL, domain/DNS, SES, Cognito, and an OpenRouter API key.
+> Important: this project is not a pure local-only app. A fresh clone still needs AWS, Aiven PostgreSQL, domain/DNS, SES, Cognito, and an OpenAI API key.
 
 ---
 
@@ -156,7 +156,7 @@ A fresh clone will not work without these:
 - Aiven PostgreSQL
 - Cognito User Pool configured by Terraform
 - SES domain verification
-- OpenRouter API key
+- OpenAI API key
 
 ---
 

@@ -59,7 +59,7 @@ variable "llm_api_key" {
 variable "llm_base_url" {
   type        = string
   description = "Base URL for OpenAI-compatible LLM endpoint"
-  default     = "https://openrouter.ai/api/v1"
+  default     = "https://api.openai.com/v1"
 }
 
 variable "openai_api_key" {
@@ -74,6 +74,7 @@ variable "llm_model" {
   description = "The LLM Model name (e.g. gpt-4o-mini)"
   default     = "gpt-4o-mini"
 }
+
 
 variable "google_client_id" {
   type        = string
