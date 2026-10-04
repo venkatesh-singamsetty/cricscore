@@ -132,9 +132,9 @@ export function ChatComponent({
     localStorage.setItem("cricscore-chat-memory", JSON.stringify(messages));
   }, [messages]);
 
-  const speakText = (text: string) => {
+  const speakText = (text: string, force: boolean = false) => {
     if (
-      !isSpeechEnabled ||
+      (!isSpeechEnabled && !force) ||
       typeof window === "undefined" ||
       !("speechSynthesis" in window)
     ) {
@@ -150,155 +150,15 @@ export function ChatComponent({
     window.speechSynthesis.speak(utterance);
   };
 
-  const startListening = () => {
-    const SpeechRecognition =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
+  const submitText = async (
+    textToSend: string,
+    isVoiceRequest: boolean = false,
+  ) => {
+    const trimmed = textToSend.trim();
+    if (!trimmed || loading) return;
 
-    if (!SpeechRecognition) {
-      setAlertMessage("Voice recognition is not supported on this browser.");
-      return;
-    }
-
-    if (isListening) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
-      return;
-    }
-
-    try {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = true;
-      recognition.lang = "en-US";
-
-      recognition.onstart = () => {
-        setIsListening(true);
-      };
-
-      recognition.onresult = (event: any) => {
-        const transcript = Array.from(event.results)
-          .map((result: any) => result[0].transcript)
-          .join("");
-        setInput(transcript);
-      };
-
-      recognition.onerror = (event: any) => {
-        console.error("Speech recognition error:", event.error);
-        setIsListening(false);
-      };
-
-      recognition.onend = () => {
-        setIsListening(false);
-      };
-
-      recognitionRef.current = recognition;
-      recognition.start();
-    } catch (e: any) {
-      console.error(e);
-      setIsListening(false);
-    }
-  };
-
-  const handleNewChat = () => {
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
-    setMessages([
-      {
-        role: "assistant",
-        content: "Hi! Ask me anything about the live match!",
-      },
-    ]);
-  };
-
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setAlertMessage("✅ Copied to clipboard");
-  };
-
-  React.useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
-
-  React.useEffect(() => {
-    if (isAdmin) {
-      fetchDocs();
-    }
-  }, [isAdmin, apiUrl]);
-
-  const fetchDocs = async () => {
-    try {
-      const res = await fetch(`${apiUrl}/rules`);
-      if (res.ok) {
-        const data = await res.json();
-        setUploadedDocs(data.documents || []);
-      }
-    } catch (err) {
-      console.error("Failed to fetch documents", err);
-    }
-  };
-
-  const handleDeleteDoc = async (docName: string) => {
-    if (!window.confirm(`Are you sure you want to delete ${docName}?`)) return;
-    try {
-      const res = await fetch(
-        `${apiUrl}/rules?documentName=${encodeURIComponent(docName)}`,
-        {
-          method: "DELETE",
-        },
-      );
-      if (res.ok) {
-        setAlertMessage(`✅ Deleted ${docName}`);
-        fetchDocs();
-      } else {
-        const data = await res.json();
-        setAlertMessage(`❌ Failed to delete: ${data.error}`);
-      }
-    } catch (err: any) {
-      setAlertMessage(`❌ Failed to delete: ${err.message}`);
-    }
-  };
-
-  const handleRulesUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsUploadingRules(true);
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = async () => {
-      try {
-        const response = await fetch(`${apiUrl}/rules/upload`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            fileBase64: reader.result,
-            fileName: file.name,
-          }),
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "Upload failed");
-        setAlertMessage(
-          `✅ Rules uploaded! Processed ${data.chunksProcessed} sections.`,
-        );
-        fetchDocs();
-      } catch (err: any) {
-        setAlertMessage(`❌ Upload failed: ${err.message}`);
-      } finally {
-        setIsUploadingRules(false);
-        if (fileInputRef.current) fileInputRef.current.value = "";
-      }
-    };
-  };
-
-  const sendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const inputText = input.trim();
-    if (!inputText || loading) return;
-
-    if (inputText.startsWith("/login ")) {
-      const pin = inputText.split(" ")[1];
+    if (trimmed.startsWith("/login ")) {
+      const pin = trimmed.split(" ")[1];
       const ADMIN_PIN = import.meta.env.VITE_ADMIN_PIN || "2403";
       if (pin === ADMIN_PIN) {
         safeSessionStorageSet("auth_admin", "true");
@@ -306,7 +166,7 @@ export function ChatComponent({
       } else {
         setMessages((prev) => [
           ...prev,
-          { role: "user", content: inputText },
+          { role: "user", content: trimmed },
           { role: "assistant", content: "❌ Invalid Admin PIN." },
         ]);
         setInput("");
@@ -314,7 +174,7 @@ export function ChatComponent({
       return;
     }
 
-    const userMsg = { role: "user" as const, content: inputText };
+    const userMsg = { role: "user" as const, content: trimmed };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setLoading(true);
@@ -339,7 +199,7 @@ export function ChatComponent({
           ...prev,
           { role: "assistant", content: data.reply },
         ]);
-        speakText(data.reply);
+        speakText(data.reply, isVoiceRequest);
       } else {
         setMessages((prev) => [
           ...prev,
@@ -354,6 +214,68 @@ export function ChatComponent({
     } finally {
       setLoading(false);
     }
+  };
+
+  const startListening = () => {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      setAlertMessage("Voice recognition is not supported on this browser.");
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = "en-US";
+
+      let spokenText = "";
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onresult = (event: any) => {
+        let currentText = "";
+        for (let i = 0; i < event.results.length; i++) {
+          currentText += event.results[i][0].transcript;
+        }
+        setInput(currentText);
+        spokenText = currentText;
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error("Speech recognition error:", event.error);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+        if (spokenText.trim()) {
+          submitText(spokenText.trim(), true);
+        }
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (e: any) {
+      console.error(e);
+      setIsListening(false);
+    }
+  };
+
+  const sendMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    submitText(input, false);
   };
 
   return (
