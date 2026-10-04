@@ -305,7 +305,7 @@ If your repo does not include a `.env.local.example`, use the values already ref
 To ensure the repository is completely "viral-proof" and safe to deploy to the public internet, CricScore is strictly governed by automated cost-protection guardrails:
 
 - **API Rate Limiting**: API Gateway enforces a strict throttling rate (`rate_limit = 50`, `burst_limit = 100`) to prevent malicious DDoS attacks from racking up AWS bills.
-- **Database Connection Protection**: All AWS Lambda functions are hard-capped to `reserved_concurrent_executions = 20`. This guarantees that massive traffic spikes will be throttled natively by AWS rather than crashing the Aiven Free Tier PostgreSQL database.
+- **Database Connection Protection**: The AWS Sandbox account inherently enforces a strict total concurrency limit of `10` across all Lambdas. This natural ceiling guarantees that massive traffic spikes will be throttled natively by AWS rather than crashing the Aiven Free Tier PostgreSQL database.
 - **Automated Cost Alarms**: Terraform automatically provisions an AWS Budgets Cost Alert that instantly emails the administrator the moment monthly spending exceeds `$5.00`.
 - **Git History Scrubbing**: The entire git history is continuously scanned by GitLeaks, guaranteeing absolutely zero raw credentials exist anywhere in the repository.
 
