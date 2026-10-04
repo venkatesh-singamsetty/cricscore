@@ -294,23 +294,36 @@ resource "aws_lambda_function" "cognito_presignup" {
   }
 }
 
-# --- ML Predictor Lambda (Python) ---
-data "archive_file" "ml_predict_zip" {
-  type        = "zip"
-  source_dir  = "${path.module}/../../apps/ml-engine"
-  output_path = "${path.module}/ml_predict.zip"
-  excludes    = ["data", "venv", "__pycache__", ".DS_Store"]
+# --- ML Predictor Lambda (Python via Docker ECR) ---
+
+resource "aws_ecr_repository" "ml_predict" {
+  name                 = "${var.project_name}-ml-predict"
+  image_tag_mutability = "MUTABLE"
+  force_delete         = true
+}
+
+resource "null_resource" "docker_build_push" {
+  triggers = {
+    # Rebuild when any file in ml-engine changes
+    dir_sha1 = sha1(join("", [for f in fileset("${path.module}/../../apps/ml-engine", "*") : filesha1("${path.module}/../../apps/ml-engine/${f}")]))
+  }
+
+  provisioner "local-exec" {
+    command = <<EOF
+      aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin ${aws_ecr_repository.ml_predict.repository_url}
+      docker build --platform linux/amd64 -t ${aws_ecr_repository.ml_predict.repository_url}:latest ${path.module}/../../apps/ml-engine
+      docker push ${aws_ecr_repository.ml_predict.repository_url}:latest
+    EOF
+  }
 }
 
 resource "aws_lambda_function" "ml_predict" {
-  filename         = data.archive_file.ml_predict_zip.output_path
   function_name    = "${var.project_name}-ml-predict"
   role             = aws_iam_role.lambda_role.arn
-  handler          = "predict.handler"
-  runtime          = "python3.10"
-  source_code_hash = data.archive_file.ml_predict_zip.output_base64sha256
-  timeout          = 15
-  memory_size      = 256
+  package_type     = "Image"
+  image_uri        = "${aws_ecr_repository.ml_predict.repository_url}:latest"
+  timeout          = 30
+  memory_size      = 512
 
   tracing_config {
     mode = "Active"
@@ -319,4 +332,6 @@ resource "aws_lambda_function" "ml_predict" {
   tags = {
     Project = var.project_name
   }
+
+  depends_on = [null_resource.docker_build_push]
 }
