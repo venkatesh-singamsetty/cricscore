@@ -425,12 +425,15 @@ export function ChatComponent({
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="shrink-0 p-3 sm:p-4 bg-slate-800 border-t border-white/10">
+      <div className="shrink-0 p-3 sm:p-4 bg-slate-800 border-t border-white/10 sticky bottom-0 z-20">
         <form onSubmit={sendMessage} className="relative flex items-center">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            onFocus={() => {
+              setTimeout(() => window.scrollTo(0, 0), 100);
+            }}
             placeholder="Ask about the match, score, or players..."
             className="w-full bg-slate-900 border border-white/10 rounded-full py-2.5 sm:py-3 px-4 sm:px-6 pr-12 sm:pr-14 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-slate-500"
             disabled={loading}
