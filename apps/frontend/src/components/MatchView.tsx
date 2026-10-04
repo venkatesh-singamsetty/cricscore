@@ -1535,32 +1535,32 @@ const MatchView: React.FC<MatchViewProps> = ({
                 <button
                   key={run}
                   onClick={() => handleScore(run)}
-                  className="h-16 sm:h-16 lg:h-14 rounded-xl md:rounded-lg bg-slate-900 border border-white/5 hover:border-white/20 text-white font-black text-3xl active:scale-95 transition-all shadow-inner"
+                  className="h-16 sm:h-16 lg:h-14 rounded-xl md:rounded-lg bg-slate-800 border border-slate-700 hover:border-slate-500 hover:bg-slate-700 text-white font-black text-3xl active:scale-95 transition-all shadow-lg"
                 >
                   {run}
                 </button>
               ))}
               <button
                 onClick={() => handleScore(4)}
-                className="h-16 sm:h-16 lg:h-14 rounded-xl md:rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-black text-3xl active:scale-95 transition-all shadow-xl shadow-blue-600/20 border border-blue-400/30"
+                className="h-16 sm:h-16 lg:h-14 rounded-xl md:rounded-lg bg-cyan-500 hover:bg-cyan-400 text-white font-black text-3xl active:scale-95 transition-all shadow-[0_0_12px_rgba(6,182,212,0.6)] border border-cyan-400/50"
               >
                 4
               </button>
               <button
                 onClick={() => handleScore(5)}
-                className="h-16 sm:h-16 lg:h-14 rounded-xl md:rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-black text-3xl active:scale-95 transition-all shadow-xl shadow-emerald-600/20 border border-emerald-400/30"
+                className="h-16 sm:h-16 lg:h-14 rounded-xl md:rounded-lg bg-amber-500 hover:bg-amber-400 text-white font-black text-3xl active:scale-95 transition-all shadow-[0_0_12px_rgba(245,158,11,0.6)] border border-amber-400/50"
               >
                 5
               </button>
               <button
                 onClick={() => handleScore(6)}
-                className="h-16 sm:h-16 lg:h-14 rounded-xl md:rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-black text-3xl active:scale-95 transition-all shadow-xl shadow-purple-600/20 border border-purple-400/30"
+                className="h-16 sm:h-16 lg:h-14 rounded-xl md:rounded-lg bg-purple-500 hover:bg-purple-400 text-white font-black text-3xl active:scale-95 transition-all shadow-[0_0_15px_rgba(168,85,247,0.7)] border border-purple-400/50"
               >
                 6
               </button>
               <button
                 onClick={() => setModalView("WICKET_TYPE")}
-                className="h-16 sm:h-16 lg:h-14 rounded-xl md:rounded-lg bg-red-600 hover:bg-red-500 text-white font-black text-3xl active:scale-95 transition-all shadow-xl shadow-red-600/20 border border-red-400/30"
+                className="h-16 sm:h-16 lg:h-14 rounded-xl md:rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-black text-3xl active:scale-95 transition-all shadow-[0_0_15px_rgba(225,29,72,0.8)] border border-rose-500/50"
               >
                 W
               </button>

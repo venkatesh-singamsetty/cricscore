@@ -13,6 +13,8 @@
 
 👉 **Deployment Details:** **[Full Deployment Guide](./docs/deployment.md)**
 
+⚡ **Quick Commands:** **[Developer Cheatsheet](./CHEATSHEET.md)**
+
 🛠️ **Developer Workflow:** **[Contributing & PR Guide](./CONTRIBUTING.md)**
 
 ---
@@ -173,7 +175,7 @@ Merge requests to `main` require passing status checks. The main pipeline deploy
 CricScore features an integrated Machine Learning Operations (MLOps) pipeline that predicts the live win probability for Team A vs Team B. The model dynamically evaluates the _current match situation_ (runs, wickets fallen, target score, balls left) and updates after every single ball.
 Instead of deploying heavy, always-on inference servers, the model is packaged into an **AWS ECR Docker Container** and executed via a Serverless Lambda (`/match/predict`), reducing idle compute costs to absolute zero.
 
-- 📖 **[MLOps Tutorial](./docs/mlops_tutorial.md)**: End-to-end guide on data ingestion, training gates, and Docker containerization.
+- 📖 **[MLOps & Prediction Guide](./docs/mlops_tutorial.md)**: End-to-end pipeline (data ingestion → training gates → Docker containerization), [Win Prediction Specification](./docs/mlops_tutorial.md#-8-win-prediction-engine-specification) (par-RPO scaling, RRR caps, wicket sensitivity), and [DLS Method](./docs/mlops_tutorial.md#️-9-duckworth-lewis-stern-dls-method) (ICC resource decay, par-score calculations).
 
 ---
 
@@ -315,7 +317,7 @@ To ensure the repository is completely "viral-proof" and safe to deploy to the p
 
 CricScore implements a strict AI Agent Governance framework. To ensure AI coding assistants (like Cursor, GitHub Copilot, or native MCP Agents) strictly follow enterprise standards, the repository contains a highly granular **AI Skills Library**.
 
-The `.agents/skills/` directory contains 9 isolated, industry-standard skill modules:
+The `.agents/skills/` directory contains 10 isolated, industry-standard skill modules:
 
 1. `cricscore-code-review-standards`
 2. `cricscore-security-standards`

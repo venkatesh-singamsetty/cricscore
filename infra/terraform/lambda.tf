@@ -314,7 +314,7 @@ resource "null_resource" "docker_build_push" {
   provisioner "local-exec" {
     command = <<EOF
       aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin ${aws_ecr_repository.ml_predict.repository_url}
-      docker build --platform linux/amd64 -t ${aws_ecr_repository.ml_predict.repository_url}:latest ${path.module}/../../apps/ml-engine
+      docker build --platform linux/amd64 --provenance=false -t ${aws_ecr_repository.ml_predict.repository_url}:latest ${path.module}/../../apps/ml-engine
       docker push ${aws_ecr_repository.ml_predict.repository_url}:latest
       aws lambda update-function-code --function-name ${var.project_name}-ml-predict --image-uri ${aws_ecr_repository.ml_predict.repository_url}:latest || true
     EOF

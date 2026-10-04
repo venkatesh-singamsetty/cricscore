@@ -1,7 +1,7 @@
 ## Deployment and Development Workflow
 
 - Never push directly to main branch. Always create a feature/fix branch and open a Pull Request.
-- Never push to github repo without running local validations and tests first (`./infra/scripts/pre-push-check.sh`). Never test in GitHub Actions by trial-and-error when it can be verified locally.
+- Never push to github repo without running local validations and tests first (`./infra/scripts/validate_local.sh`). Never test in GitHub Actions by trial-and-error when it can be verified locally.
 - Always deploy from local to dev and test first.
 - Always add tests and update documentation for the features added and issues addressed at the time they are made.
 
