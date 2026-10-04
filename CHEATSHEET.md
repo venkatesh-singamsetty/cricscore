@@ -232,6 +232,12 @@ SELECT * FROM matches WHERE id = 'YOUR_MATCH_ID';
 # View the last 5 ball events (to check for missing or stuck live data)
 SELECT * FROM balls ORDER BY created_at DESC LIMIT 5;
 
+# Check active database connections (Useful if AWS Lambdas are exhausting the connection pool)
+SELECT count(*) FROM pg_stat_activity;
+
+# View detailed connection activity to identify hanging queries
+SELECT pid, usename, state, query FROM pg_stat_activity WHERE state = 'active';
+
 # Exit psql
 \q
 ```
