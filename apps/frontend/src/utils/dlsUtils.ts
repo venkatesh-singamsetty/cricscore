@@ -4,16 +4,16 @@
 
 // Standard ICC T20 Resource Parameters per wicket lost (0 to 9)
 const DLS_RESOURCE_PARAMS: Record<number, { R0: number; b: number }> = {
-  0: { R0: 100.0, b: 0.0544 },
-  1: { R0: 93.4, b: 0.0558 },
-  2: { R0: 85.1, b: 0.0575 },
-  3: { R0: 74.9, b: 0.0598 },
-  4: { R0: 62.7, b: 0.0631 },
-  5: { R0: 48.5, b: 0.0682 },
-  6: { R0: 33.1, b: 0.0765 },
-  7: { R0: 18.7, b: 0.091 },
-  8: { R0: 8.2, b: 0.12 },
-  9: { R0: 2.1, b: 0.18 },
+  0: { R0: 100.0, b: 0.125 },
+  1: { R0: 93.4, b: 0.13 },
+  2: { R0: 85.1, b: 0.14 },
+  3: { R0: 74.9, b: 0.15 },
+  4: { R0: 62.7, b: 0.17 },
+  5: { R0: 48.5, b: 0.2 },
+  6: { R0: 33.1, b: 0.25 },
+  7: { R0: 18.7, b: 0.35 },
+  8: { R0: 8.2, b: 0.5 },
+  9: { R0: 2.1, b: 0.8 },
 };
 
 /**
@@ -27,6 +27,7 @@ export const calculateDlsResource = (
   const w = Math.min(9, Math.max(0, wicketsLost));
   const u = Math.max(0, oversRemaining);
   const param = DLS_RESOURCE_PARAMS[w] || DLS_RESOURCE_PARAMS[0];
+  if (u >= 20 && w === 0) return 100.0;
   const resource = param.R0 * (1 - Math.exp(-param.b * u));
   return Math.min(100.0, Math.max(0.0, resource));
 };
