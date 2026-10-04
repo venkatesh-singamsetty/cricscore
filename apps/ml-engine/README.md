@@ -28,3 +28,8 @@ This directory contains the Zero-Cost MLOps pipeline for the CricScore live win 
    ```
 
 The script will output `live_win_predictor_model.joblib` and `live_metadata.json` locally. In production, the GitHub Actions CI/CD pipeline will automatically run these scripts, build the Docker image, and push it to the AWS ECR Private repository.
+
+## 📖 Specifications & Mathematical Documentation
+
+- 📖 **[Win Prediction Engine Specification](../../docs/mlops_win_prediction_spec.md)**: Mathematical models, par-RPO scaling equations, RRR caps, 50-50 match start baselines, and wicket sensitivity.
+- 📖 **[Duckworth-Lewis-Stern (DLS) Specification](../../docs/mlops_dls_spec.md)**: ICC exponential resource decay formulas, resource tables, DLS par-score calculations, and rain interruption tiebreakers.
