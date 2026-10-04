@@ -28,6 +28,9 @@ install_tool() {
             python3) brew install python3 ;;
             terraform) brew tap hashicorp/tap && brew install hashicorp/tap/terraform ;;
             aws)  brew install awscli ;;
+            jq) brew install jq ;;
+            gh) brew install gh ;;
+            docker) echo "❌ Docker must be installed manually (e.g. Docker Desktop or Orbstack)." && exit 1 ;;
             checkov) brew install checkov ;;
             gitleaks) brew install gitleaks ;;
             trivy) brew install trivy ;;
@@ -45,6 +48,20 @@ install_tool() {
             npm) echo "npm is installed with node." ;;
             python3)
                 sudo apt-get install -y python3 python3-pip python3-venv
+                ;;
+            jq)
+                sudo apt-get install -y jq
+                ;;
+            gh)
+                type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
+                curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+                && sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+                && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+                && sudo apt update \
+                && sudo apt install gh -y
+                ;;
+            docker)
+                sudo apt-get install -y docker.io
                 ;;
             terraform)
                 sudo apt-get install -y gnupg software-properties-common
@@ -100,6 +117,9 @@ check_cmd npm
 check_cmd python3
 check_cmd terraform
 check_cmd aws
+check_cmd jq
+check_cmd gh
+check_cmd docker
 check_cmd checkov
 check_cmd gitleaks
 check_cmd trivy
