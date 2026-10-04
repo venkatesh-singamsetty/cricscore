@@ -25,6 +25,7 @@ install_tool() {
         case $tool in
             node) brew install node@24 ;;
             npm)  echo "npm is installed with node." ;;
+            python3) brew install python3 ;;
             terraform) brew tap hashicorp/tap && brew install hashicorp/tap/terraform ;;
             aws)  brew install awscli ;;
             checkov) brew install checkov ;;
@@ -42,6 +43,9 @@ install_tool() {
                 sudo apt-get install -y nodejs
                 ;;
             npm) echo "npm is installed with node." ;;
+            python3)
+                sudo apt-get install -y python3 python3-pip python3-venv
+                ;;
             terraform)
                 sudo apt-get install -y gnupg software-properties-common
                 wget -O- https://apt.releases.hashicorp.com/gpg | \
@@ -93,6 +97,7 @@ check_cmd() {
 
 check_cmd node
 check_cmd npm
+check_cmd python3
 check_cmd terraform
 check_cmd aws
 check_cmd checkov

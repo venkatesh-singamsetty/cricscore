@@ -13,6 +13,8 @@
 
 👉 **Deployment Details:** **[Full Deployment Guide](./docs/deployment.md)**
 
+⚡ **Quick Commands:** **[Developer Cheatsheet](./CHEATSHEET.md)**
+
 🛠️ **Developer Workflow:** **[Contributing & PR Guide](./CONTRIBUTING.md)**
 
 ---
