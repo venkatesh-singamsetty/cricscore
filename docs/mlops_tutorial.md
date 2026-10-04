@@ -45,7 +45,7 @@ graph TD
     GATE -- "Yes (Deploy)" --> ECR
     GATE -- "No (Fail Build)" --> STOP((Stop))
 
-    ECR -- "10GB Docker Image" --> LAMBDA
+    ECR -- "Docker Image (< 500MB)" --> LAMBDA
     LAMBDA -- "POST /match/predict" --> APIGW
     UI -- "Every ball bowled" --> APIGW
     APIGW -- "Win Probability %" --> UI
@@ -146,8 +146,10 @@ The UI visualizes the probabilities using a compact progress bar nestled right i
 During the development of this MLOps pipeline, we faced and resolved several critical infrastructure issues:
 
 - **AWS Lambda Zip Size Limits**: Initially, we deployed the model via standard `.zip` files. However, the combined size of `pandas`, `scikit-learn`, and the `.joblib` model exceeded Lambda's strict 250MB unzipped limit. **Fix**: We migrated the architecture to AWS ECR Docker Container Images, which increased the limit to 10GB.
-- **Lambda Memory Thrashing (Timeouts)**: The initial Lambda memory size was set to `128MB`. Loading the ML libraries and model weights caused intense CPU thrashing and disk swapping, leading to function timeouts (>10s). **Fix**: We increased the Lambda memory allocation to `1024MB`, which proportionately scaled up the underlying vCPU power and reduced inference time to sub-100ms.
-- **Public vs. Private ECR Free Tier Cost Traps**: We considered using Amazon Public ECR to make the image accessible, but discovered Public ECR only offers a 50GB free tier that _expires_ or costs money for high bandwidth, while **Private ECR offers a perpetual 500MB/month free tier**. **Fix**: We stayed with Private ECR and enforced a strategy of continuously overwriting the `latest` image tag during CI/CD to prevent older versions from bloating our 500MB storage limit over time.
+- **Out-of-Distribution (OOD) shortened matches (e.g. 1-Over Matches)**: Logistic regression models trained on T20 data (`balls_left = 120`) misinterpret shortened match features. When `balls_left = 5` at ball 0.1 of a 1-over match, a raw linear model treats it as an exhausted 20th over with 6 runs scored, collapsing the batting team's win probability to ~4%. **Fix**: We introduced a 1st-innings match-scale normalization step in `predict.py` (`120 / total_match_balls`), scaling `balls_left` and `current_score` to standard 120-ball T20 baseline equivalents.
+- **Batting vs. Bowling Team Mapping Alignment**: The frontend `AiMatchPrediction` component initially passed static `teamA` and `teamB` strings to the API, causing inverted win predictions during 2nd innings when `teamB` was batting. **Fix**: `AiMatchPrediction.tsx` now dynamically passes `battingTeam` as `team1` and `bowlingTeam` as `team2`, ensuring backend predictions match who is actively at the crease.
+- **Start of Match Baseline (50% / 50%)**: At the beginning of 1st innings (`currentScore = 0`, `wicketsLost = 0`), the model initially output skewed weights for shortened match configurations. **Fix**: Explicitly enforced a 50% - 50% baseline rule at the start of every match before scoring begins.
+- **Impossible Chase Heuristics**: In 2nd innings chases where the required runs exceed maximum physical possibility (`runsNeeded > ballsLeft * 6`), standard ML models can output nonsensical probabilities. **Fix**: Added explicit hard overrides ensuring 0% win probability for the chasing team and 100% for the defending team.
 
 ---
 
