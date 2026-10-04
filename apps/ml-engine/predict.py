@@ -53,25 +53,29 @@ def handler(event, context):
                 'body': json.dumps({'error': 'Model not loaded'})
             }
 
-        # For 1st innings in shortened matches (e.g. 1-over match where total overs < 20),
-        # normalize balls_left and current_score to standard 120-ball scale so the linear model
-        # doesn't misinterpret 5 balls left as an exhausted 20th over.
+        # Normalize balls_left, current_score, and target_score to standard 120-ball T20 scale
+        # for shortened matches (e.g. 1-over matches) so linear model features align with training data.
         model_balls_left = balls_left
         model_current_score = current_score
+        model_target_score = target_score
 
-        if inning == 1:
-            # Estimate total overs for this match from balls_left and current balls bowled
-            balls_bowled = max(0, float(body.get('ballsBowled', 0)))
-            total_match_balls = balls_bowled + balls_left
-            if total_match_balls > 0 and total_match_balls < 120:
+        balls_bowled = max(0, float(body.get('ballsBowled', 0)))
+        total_match_balls = balls_bowled + balls_left
+
+        if total_match_balls > 0 and total_match_balls < 120:
+            scale_factor = 120.0 / total_match_balls
+            model_balls_left = balls_left * scale_factor
+            
+            if inning == 1:
                 total_overs = total_match_balls / 6.0
-                # Shortened matches have higher expected par RPO (e.g., ~11.8 RPO for 1 over vs 8.0 RPO for 20 overs)
                 par_rpo = 8.0 + (20.0 - total_overs) * 0.2
                 match_par = max(1.0, par_rpo * total_overs)
-                
-                # Normalize current score relative to standard T20 par (160 runs)
                 model_current_score = (current_score / match_par) * 160.0
-                model_balls_left = (balls_left / total_match_balls) * 120.0
+            else:
+                # In 2nd innings, scale target and score by 120 / total_match_balls
+                model_current_score = current_score * scale_factor
+                if target_score > 0:
+                    model_target_score = target_score * scale_factor
 
         # Create input DataFrame matching training feature structure
         input_data = pd.DataFrame([{
@@ -81,7 +85,7 @@ def handler(event, context):
             'balls_left': model_balls_left,
             'current_score': model_current_score,
             'wickets_lost': wickets_lost,
-            'target_score': target_score
+            'target_score': model_target_score
         }])
 
         # Predict Win Probability for batting_team (target class 1)
