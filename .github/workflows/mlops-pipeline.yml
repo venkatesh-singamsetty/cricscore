@@ -1,0 +1,58 @@
+name: MLOps Pipeline (Win Predictor)
+
+on:
+  push:
+    paths:
+      - 'apps/ml-engine/**'
+    branches:
+      - main
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  train-and-deploy-model:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install ML Dependencies
+        working-directory: apps/ml-engine
+        run: pip install -r requirements.txt
+
+      - name: Download & Parse Data (Phase 1)
+        working-directory: apps/ml-engine
+        run: python data_pipeline.py
+
+      - name: Train & Evaluate Model (Phase 2 & 3)
+        working-directory: apps/ml-engine
+        env:
+          CI: 'true'
+          # If we had a real bucket, we'd enable this:
+          # ML_S3_BUCKET: 'cricscore-ml-models-prod'
+          # AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          # AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          # AWS_REGION: 'us-east-1'
+        run: |
+          python train.py
+          
+          # Phase 3: Fail workflow if accuracy < 60%
+          ACCURACY=$(jq '.metrics.accuracy' metadata.json)
+          if (( $(echo "$ACCURACY < 0.60" | bc -l) )); then
+            echo "❌ Model failed evaluation threshold (Accuracy: $ACCURACY)"
+            exit 1
+          fi
+          echo "✅ Model passed minimum threshold (Accuracy: $ACCURACY)"
+
+      - name: Upload Model Artifact (Phase 4)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ml-win-predictor-v1
+          path: |
+            apps/ml-engine/win_predictor_model.joblib
+            apps/ml-engine/metadata.json

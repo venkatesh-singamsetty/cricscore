@@ -262,6 +262,32 @@ resource "aws_lambda_permission" "api_gw_chat" {
   source_arn    = "${aws_apigatewayv2_api.http_api.execution_arn}/*/*"
 }
 
+# Integration for ML Predictor API
+resource "aws_apigatewayv2_integration" "ml_predict" {
+  api_id           = aws_apigatewayv2_api.http_api.id
+  integration_type = "AWS_PROXY"
+
+  connection_type    = "INTERNET"
+  description        = "ML Predictor Lambda Integration"
+  integration_method = "POST"
+  integration_uri    = aws_lambda_function.ml_predict.invoke_arn
+}
+
+resource "aws_apigatewayv2_route" "post_match_predict" {
+  api_id             = aws_apigatewayv2_api.http_api.id
+  route_key          = "POST /match/predict"
+  target             = "integrations/${aws_apigatewayv2_integration.ml_predict.id}"
+  authorization_type = "NONE"
+}
+
+resource "aws_lambda_permission" "api_gw_ml_predict" {
+  statement_id  = "AllowExecutionFromAPIGatewayMLPredict"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.ml_predict.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.http_api.execution_arn}/*/*"
+}
+
 # --- Custom Domain for HTTP API ---
 resource "aws_acm_certificate" "http_api" {
   domain_name       = "api.${var.domain_name}"

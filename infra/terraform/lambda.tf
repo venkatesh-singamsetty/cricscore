@@ -293,3 +293,30 @@ resource "aws_lambda_function" "cognito_presignup" {
     Project = var.project_name
   }
 }
+
+# --- ML Predictor Lambda (Python) ---
+data "archive_file" "ml_predict_zip" {
+  type        = "zip"
+  source_dir  = "${path.module}/../../apps/ml-engine"
+  output_path = "${path.module}/ml_predict.zip"
+  excludes    = ["data", "venv", "__pycache__", ".DS_Store"]
+}
+
+resource "aws_lambda_function" "ml_predict" {
+  filename         = data.archive_file.ml_predict_zip.output_path
+  function_name    = "${var.project_name}-ml-predict"
+  role             = aws_iam_role.lambda_role.arn
+  handler          = "predict.handler"
+  runtime          = "python3.10"
+  source_code_hash = data.archive_file.ml_predict_zip.output_base64sha256
+  timeout          = 15
+  memory_size      = 256
+
+  tracing_config {
+    mode = "Active"
+  }
+
+  tags = {
+    Project = var.project_name
+  }
+}

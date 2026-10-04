@@ -148,3 +148,4 @@ tmp_*.tsx
 *.rej
 patch*.diff
 merge_prs.sh
+cricket-data/
