@@ -1,3 +1,9 @@
+## [4.8.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.8.0...v4.8.1) (2026-10-04)
+
+### 🐛 Bug Fixes
+
+* override ML prediction for mathematically impossible chases ([#236](https://github.com/venkatesh-singamsetty/cricscore/issues/236)) ([a0754c4](https://github.com/venkatesh-singamsetty/cricscore/commit/a0754c4eb12c607a7b09ce1c13b27abe5af46e5d))
+
 ## [4.8.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.7.1...v4.8.0) (2026-10-04)
 
 ### 🚀 Features
