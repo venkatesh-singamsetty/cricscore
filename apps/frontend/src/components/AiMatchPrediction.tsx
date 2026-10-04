@@ -91,6 +91,7 @@ export const AiMatchPrediction: React.FC<AiMatchPredictionProps> = ({
             wicketsLost,
             targetScore,
             ballsLeft,
+            ballsBowled,
           }),
         });
         if (!response.ok) throw new Error("Failed to fetch prediction");
