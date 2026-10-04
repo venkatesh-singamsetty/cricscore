@@ -1,3 +1,18 @@
+## [4.6.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.5.0...v4.6.0) (2026-10-04)
+
+### 🚀 Features
+
+* Containerize ML Lambda to solve dependency limits ([8c62203](https://github.com/venkatesh-singamsetty/cricscore/commit/8c62203d15553dc7f7eb9f1591a66697fff90e61))
+
+### 🐛 Bug Fixes
+
+* pass security scan ([006286c](https://github.com/venkatesh-singamsetty/cricscore/commit/006286cff2e2ca7cdf089a910e24b52520d5c866))
+* terraform formatting ([1bb694f](https://github.com/venkatesh-singamsetty/cricscore/commit/1bb694fd564e65cd2aa5812eed8e113092bc169f))
+
+### 📚 Documentation
+
+* Update cost and AI architecture for MLOps Docker ECR migration ([26ed5c0](https://github.com/venkatesh-singamsetty/cricscore/commit/26ed5c065fb26d69424324fe37892d5773371cff))
+
 ## [4.5.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.4.0...v4.5.0) (2026-10-04)
 
 ### 🚀 Features
