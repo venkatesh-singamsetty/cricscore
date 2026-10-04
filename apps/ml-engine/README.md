@@ -31,5 +31,4 @@ The script will output `live_win_predictor_model.joblib` and `live_metadata.json
 
 ## 📖 Specifications & Mathematical Documentation
 
-- 📖 **[Win Prediction Engine Specification](../../docs/mlops_win_prediction_spec.md)**: Mathematical models, par-RPO scaling equations, RRR caps, 50-50 match start baselines, and wicket sensitivity.
-- 📖 **[Duckworth-Lewis-Stern (DLS) Specification](../../docs/mlops_dls_spec.md)**: ICC exponential resource decay formulas, resource tables, DLS par-score calculations, and rain interruption tiebreakers.
+- 📖 **[MLOps & Prediction Guide](../../docs/mlops_tutorial.md)**: Full pipeline docs, [Win Prediction Specification](../../docs/mlops_tutorial.md#-8-win-prediction-engine-specification) (par-RPO scaling, RRR caps, wicket sensitivity), and [DLS Method](../../docs/mlops_tutorial.md#️-9-duckworth-lewis-stern-dls-method) (ICC resource decay, par-score calculations).
