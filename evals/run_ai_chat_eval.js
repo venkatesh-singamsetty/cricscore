@@ -56,13 +56,13 @@ function normalizeUrl(rawUrl) {
 
 async function callChat(apiUrl, prompt, matchId) {
   const start = Date.now();
-  // lgtm[js/file-access-to-http]
+  // codeql[js/file-access-to-http] Sending eval test data to own API
   const response = await fetch(`${apiUrl}/chat`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    // lgtm[js/file-access-to-http]
+    // codeql[js/file-access-to-http] Sending eval test data to own API
     body: JSON.stringify({
       message: prompt,
       matchId,
