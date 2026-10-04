@@ -14,7 +14,12 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
-import { safeSessionStorageSet } from "../utils/storageSafety";
+import {
+  safeSessionStorageSet,
+  safeLocalStorageGet,
+  safeLocalStorageSet,
+  safeLocalStorageRemove,
+} from "../utils/storageSafety";
 
 interface Message {
   role: "system" | "user" | "assistant";
@@ -102,10 +107,11 @@ export function ChatComponent({
   setAlertMessage: (msg: string) => void;
 }) {
   const [messages, setMessages] = useState<Message[]>(() => {
-    const saved = localStorage.getItem("cricscore-chat-memory");
+    const saved = safeLocalStorageGet("cricscore-chat-memory");
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       } catch (e) {}
     }
     return [
@@ -129,7 +135,7 @@ export function ChatComponent({
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
-    localStorage.setItem("cricscore-chat-memory", JSON.stringify(messages));
+    safeLocalStorageSet("cricscore-chat-memory", JSON.stringify(messages));
   }, [messages]);
 
   const speakText = (text: string, force: boolean = false) => {
@@ -270,6 +276,30 @@ export function ChatComponent({
     } catch (e: any) {
       console.error(e);
       setIsListening(false);
+    }
+  };
+
+  const handleNewChat = () => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch (e) {}
+    }
+    safeLocalStorageRemove("cricscore-chat-memory");
+    setMessages([
+      {
+        role: "assistant",
+        content: "Hi! Ask me anything about the live match!",
+      },
+    ]);
+  };
+
+  const handleCopy = (text: string) => {
+    try {
+      navigator.clipboard.writeText(text);
+      setAlertMessage("✅ Copied to clipboard");
+    } catch (e) {
+      console.error(e);
     }
   };
 
