@@ -1,3 +1,15 @@
+## [4.4.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.3.4...v4.4.0) (2026-10-04)
+
+### 🚀 Features
+
+* zero-cost MLOps match prediction pipeline ([#225](https://github.com/venkatesh-singamsetty/cricscore/issues/225)) ([cc83ff7](https://github.com/venkatesh-singamsetty/cricscore/commit/cc83ff7109ac69ce31c93227dc794daa65b1e67a))
+
+### 🐛 Bug Fixes
+
+* chat UI and voice assistant improvements ([#224](https://github.com/venkatesh-singamsetty/cricscore/issues/224)) ([b466c56](https://github.com/venkatesh-singamsetty/cricscore/commit/b466c5601c68c19ed29579e829b93add5f6a3cad))
+* **ci:** remove s3 upload in training script ([#227](https://github.com/venkatesh-singamsetty/cricscore/issues/227)) ([3324895](https://github.com/venkatesh-singamsetty/cricscore/commit/332489528478a9220ed55a5448ac61e0a9dea329))
+* remove unused startListening to resolve CodeQL alert ([#226](https://github.com/venkatesh-singamsetty/cricscore/issues/226)) ([4821476](https://github.com/venkatesh-singamsetty/cricscore/commit/4821476388d51a3b8aca70e49eec26480fe194d2))
+
 ## [4.3.4](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.3.3...v4.3.4) (2026-10-03)
 
 ### 🐛 Bug Fixes
