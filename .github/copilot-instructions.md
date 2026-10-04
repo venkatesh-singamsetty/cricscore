@@ -9,5 +9,6 @@ These skills are the single source of truth for the CricScore repository and gov
 - Security standards and secrets management
 - CI/CD workflow rules and mandatory local validations
 - MLOps and testing standards
+- Cheatsheet maintenance and documentation accuracy
 
 Ensure your generated code strictly adheres to the boundaries and standard practices defined in those files.
