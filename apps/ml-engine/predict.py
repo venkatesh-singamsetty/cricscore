@@ -110,8 +110,8 @@ def handler(event, context):
             runs_needed = target_score - current_score
             max_possible_runs = balls_left * 6
             
-            if runs_needed > max_possible_runs:
-                # Mathematically impossible to win
+            if wickets_lost >= 10 or runs_needed > max_possible_runs:
+                # All out or mathematically impossible to win
                 batting_team_prob = 0.0
                 bowling_team_prob = 1.0
             elif runs_needed <= 0:

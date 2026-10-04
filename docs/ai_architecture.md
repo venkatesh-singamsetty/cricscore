@@ -541,8 +541,7 @@ We have implemented a live **Match Win Predictor** (similar to WASP) that calcul
 3. **Automated Pipeline**: A Terraform `null_resource` handles the `docker build` and `docker push` lifecycle seamlessly during deployment.
 4. **Monorepo Integration**: The model code, Dockerfile, and inference API live in `apps/ml-engine/` inside the existing CricScore monorepo, keeping the data science and backend engineering perfectly synchronized.
 
-- 📖 **[Win Prediction Engine Specification](./mlops_win_prediction_spec.md)**: Detailed mathematical models, par-RPO scaling equations, RRR caps, 50-50 match start baselines, and wicket sensitivity analysis.
-- 📖 **[Duckworth-Lewis-Stern (DLS) Specification](./mlops_dls_spec.md)**: ICC exponential resource decay formulas, resource tables, DLS par-score calculations, and rain interruption tiebreakers.
+- 📖 **[MLOps & Prediction Guide](./mlops_tutorial.md)**: Full pipeline docs, [Win Prediction Specification](./mlops_tutorial.md#-8-win-prediction-engine-specification) (par-RPO scaling, RRR caps, wicket sensitivity), and [DLS Method](./mlops_tutorial.md#️-9-duckworth-lewis-stern-dls-method) (ICC resource decay, par-score calculations).
 
 ### Edge Case Handling & Heuristics
 
