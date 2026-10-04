@@ -83,6 +83,12 @@ This document provides a breakdown of the estimated operational costs for the Cr
 - **After free tier**: $0.0055 per MAU (e.g., 100,000 MAUs = $275/mo). For a small tournament platform this threshold is extremely unlikely to be reached.
 - **Cost for typical usage**: **$0/month**.
 
+### 13. **ML Inference: AWS ECR & Containerized Lambda** _(new)_
+
+- **Free Tier Limit**: **500MB of Private ECR Storage** per month, permanently free. Containerized Lambdas share the standard 1,000,000 free requests per month.
+- **Usage**: The XGBoost Machine Learning model (`ml-engine`) requires heavy dependencies like Pandas and Scikit-Learn that exceed the 250MB Lambda zip limit. By packaging it as a Docker image and deploying it via ECR, we bypass the zip limit entirely (Docker images support up to 10GB).
+- **Cost Efficiency**: AWS charges the **exact same price** for a Docker-based Lambda as a zip-based Lambda. By disabling ECR image scanning (which incurs a fee) in Terraform, the entire ML infrastructure remains at **$0/month**.
+
 ---
 
 ## 🗄️ Database (Aiven PostgreSQL)
