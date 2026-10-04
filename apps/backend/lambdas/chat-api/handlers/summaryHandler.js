@@ -316,6 +316,7 @@ CRITICAL INSTRUCTIONS:
 2. You MUST state the EXACT final team scores as provided in the Score 1 and Score 2 lines. Do NOT alter, recalculate, or invent any score, ball count, or wicket count. For example: "${score1Text}" and "${score2Text}".
 3. State the official match winner: "${m.match_winner || "Match Completed"}".
 4. Name the "Player of the Match" (POM) based on top individual performances and state their exact stats in 1 sentence.
+5. Add a 1-paragraph section analyzing "Game-Changing Moments" based STRICTLY on the top batting and bowling performances provided below. Do NOT hallucinate events, players, or boundaries that are not present in the statistics below.
 
 Respond with a JSON object in this exact format:
 {

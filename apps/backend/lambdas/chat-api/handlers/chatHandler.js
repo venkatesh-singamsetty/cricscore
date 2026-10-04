@@ -91,9 +91,13 @@ ${DB_SCHEMA}
 - The 'status' column uses UPPERCASE: 'SCHEDULED', 'LIVE', 'COMPLETED', 'ABANDONED'.
 - Use ILIKE for case-insensitive string matching.
 - For 'today', use: created_at >= NOW() - INTERVAL '24 hours'.
+- PostgreSQL STRICT GROUP BY: Any column selected that is not inside an aggregate function (SUM, AVG, COUNT) MUST be explicitly listed in the GROUP BY clause!
+- Team Names: There is no 'team_name' column. Use 'batting_team_name' or 'bowling_team_name' from the innings table.
+- Averages: AVG(runs) works, but remember to cast to float if needed. Strike rate is (SUM(runs) / SUM(balls_faced)) * 100.
 - For 'latest' or 'last', ALWAYS use: ORDER BY created_at DESC LIMIT 1. (Or LIMIT N when N matches are requested).
 
 Current Active Match Context: ${matchContext || "None provided"}
+Current Date and Time: ${new Date().toISOString()}
 `;
 
   const messages = [
