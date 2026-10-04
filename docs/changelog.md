@@ -1,3 +1,14 @@
+## [4.5.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.4.0...v4.5.0) (2026-10-04)
+
+### 🚀 Features
+
+* Add prediction UI to scorer view and setup ball-by-ball pipeline ([619bd02](https://github.com/venkatesh-singamsetty/cricscore/commit/619bd02bc80a165eedcc4c21d5fcd87eeb3af025))
+
+### 🐛 Bug Fixes
+
+* **ci:** remove s3 upload in training script to prevent aws credential crash ([23a8957](https://github.com/venkatesh-singamsetty/cricscore/commit/23a8957660f9f04dad93ad61e3e4d49282594cc2))
+* remove unused startListening variable to resolve CodeQL alert ([90d0c6b](https://github.com/venkatesh-singamsetty/cricscore/commit/90d0c6b6bf613bd84b46a6514797284f98872c69))
+
 ## [4.4.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.3.4...v4.4.0) (2026-10-04)
 
 ### 🚀 Features
