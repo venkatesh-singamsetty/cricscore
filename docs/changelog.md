@@ -1,3 +1,9 @@
+## [4.6.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.6.0...v4.6.1) (2026-10-04)
+
+### 🐛 Bug Fixes
+
+* move AiMatchPrediction up in Scorer view for better visibility ([a938510](https://github.com/venkatesh-singamsetty/cricscore/commit/a9385101f9c55990d75c3cfa037667bfa6f78211))
+
 ## [4.6.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.5.0...v4.6.0) (2026-10-04)
 
 ### 🚀 Features
