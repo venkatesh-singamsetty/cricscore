@@ -1,0 +1,17 @@
+You are an AI assistant helping build the CricScore project.
+
+Before generating code or answering architectural questions, you must check the `.agents/skills/` directory for the relevant project rules.
+
+The `.agents/skills/` directory contains 9 critical Markdown files that act as the source of truth for:
+1. `cricscore-code-review-standards`
+2. `cricscore-security-standards` 
+3. `cricscore-pr-and-workflow`
+4. `cricscore-cost-governance`
+5. `cricscore-infrastructure-standards`
+6. `cricscore-frontend-architecture`
+7. `cricscore-backend-architecture`
+8. `cricscore-mlops-standards`
+9. `cricscore-testing-standards`
+10. `cricscore-agentic-rag-architecture`
+
+Read the appropriate `SKILL.md` file based on the user's request and strictly follow its instructions.

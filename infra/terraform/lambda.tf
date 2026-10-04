@@ -316,17 +316,19 @@ resource "null_resource" "docker_build_push" {
       aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin ${aws_ecr_repository.ml_predict.repository_url}
       docker build --platform linux/amd64 -t ${aws_ecr_repository.ml_predict.repository_url}:latest ${path.module}/../../apps/ml-engine
       docker push ${aws_ecr_repository.ml_predict.repository_url}:latest
+      aws lambda update-function-code --function-name ${var.project_name}-ml-predict --image-uri ${aws_ecr_repository.ml_predict.repository_url}:latest || true
     EOF
   }
 }
 
 resource "aws_lambda_function" "ml_predict" {
-  function_name = "${var.project_name}-ml-predict"
-  role          = aws_iam_role.lambda_role.arn
-  package_type  = "Image"
-  image_uri     = "${aws_ecr_repository.ml_predict.repository_url}:latest"
-  timeout       = 30
-  memory_size   = 512
+  function_name                  = "${var.project_name}-ml-predict"
+  reserved_concurrent_executions = 20
+  role                           = aws_iam_role.lambda_role.arn
+  package_type                   = "Image"
+  image_uri                      = "${aws_ecr_repository.ml_predict.repository_url}:latest"
+  timeout                        = 30
+  memory_size                    = 512
 
   tracing_config {
     mode = "Active"
