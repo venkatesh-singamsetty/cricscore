@@ -1,0 +1,22 @@
+{
+  "modelVersion": "v2.0.0-live",
+  "trainingDate": "2026-10-04T07:15:17.196635",
+  "datasetSource": "Cricsheet T20s Ball-by-Ball",
+  "numBallsTrained": 80000,
+  "numBallsTested": 20000,
+  "features": [
+    "batting_team",
+    "bowling_team",
+    "inning",
+    "balls_left",
+    "current_score",
+    "wickets_lost",
+    "target_score"
+  ],
+  "modelType": "LogisticRegression (scikit-learn)",
+  "metrics": {
+    "accuracy": 0.7988,
+    "logLoss": 0.41570620455578317,
+    "rocAuc": 0.8883883832772349
+  }
+}
