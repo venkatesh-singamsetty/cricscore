@@ -11,6 +11,8 @@ interface AiMatchPredictionProps {
   wicketsLost?: number;
   targetScore?: number;
   ballsBowled?: number;
+  battingTeam?: string;
+  bowlingTeam?: string;
 }
 
 interface PredictionData {
@@ -32,10 +34,16 @@ export const AiMatchPrediction: React.FC<AiMatchPredictionProps> = ({
   wicketsLost = 0,
   targetScore = -1,
   ballsBowled = 0,
+  battingTeam,
+  bowlingTeam,
 }) => {
   const [prediction, setPrediction] = useState<PredictionData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const activeBattingTeam = battingTeam || teamA;
+  const activeBowlingTeam =
+    bowlingTeam || (activeBattingTeam === teamA ? teamB : teamA);
 
   const API_URL =
     import.meta.env.VITE_API_URL ||
@@ -48,18 +56,19 @@ export const AiMatchPrediction: React.FC<AiMatchPredictionProps> = ({
       try {
         const ballsLeft = Math.max(0, totalOvers * 6 - ballsBowled);
 
-        // Impossible Chase Override
+        // Impossible Chase Override (2nd Innings)
+        // Batting team cannot achieve target -> Batting team gets 0%, Bowling team gets 100%
         if (inning === 2 && targetScore > 0) {
           const runsNeeded = targetScore - currentScore;
           // Assume max 6 runs per ball. If runsNeeded > ballsLeft * 6, it's mathematically impossible
           if (runsNeeded > ballsLeft * 6) {
             if (isMounted) {
               setPrediction({
-                team1: teamA,
-                team2: teamB,
-                team1WinProbability: 1.0,
-                team2WinProbability: 0.0,
-                predictedWinner: teamA,
+                team1: activeBattingTeam,
+                team2: activeBowlingTeam,
+                team1WinProbability: 0.0,
+                team2WinProbability: 1.0,
+                predictedWinner: activeBowlingTeam,
                 modelVersion: "override-v1",
               });
               setLoading(false);
@@ -72,8 +81,8 @@ export const AiMatchPrediction: React.FC<AiMatchPredictionProps> = ({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            team1: teamA,
-            team2: teamB,
+            team1: activeBattingTeam,
+            team2: activeBowlingTeam,
             venue: "Unknown",
             tossWinner: "Unknown",
             tossDecision: "Unknown",
@@ -105,6 +114,8 @@ export const AiMatchPrediction: React.FC<AiMatchPredictionProps> = ({
     API_URL,
     teamA,
     teamB,
+    activeBattingTeam,
+    activeBowlingTeam,
     totalOvers,
     inning,
     currentScore,
