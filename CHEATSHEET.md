@@ -194,6 +194,12 @@ aws dynamodb scan --table-name cricscoredev-connections --select COUNT
 # Verify S3 Static Website Bucket Contents
 aws s3 ls s3://cricscoredev-app-<hash>/
 
+# Check SQS Queue Depth (To see if database storage workers are falling behind)
+aws sqs get-queue-attributes --queue-url https://sqs.<REGION>.amazonaws.com/<ACCOUNT_ID>/cricscoredev-storage-buffer.fifo --attribute-names ApproximateNumberOfMessages
+
+# Purge SQS Queue (Clear stuck backlog - Use with caution!)
+aws sqs purge-queue --queue-url https://sqs.<REGION>.amazonaws.com/<ACCOUNT_ID>/cricscoredev-storage-buffer.fifo
+
 # Force an update to a Lambda function if image was pushed manually
 aws lambda update-function-code --function-name cricscoredev-ml-predict --image-uri <ECR_IMAGE_URI>
 
