@@ -22,8 +22,10 @@ _(This command automatically runs `npm run test --prefix apps/frontend` and `npm
 
 Unit tests are isolated tests that verify individual functions, utilities, or background cloud logic without spinning up external dependencies.
 
-- **Frontend Unit Tests**: Validate React Types and state handlers.
-  - _Location:_ `apps/frontend/src/test/types.test.ts`
+- **Frontend Unit Tests**: Validate React Types, state handlers, and Duckworth-Lewis-Stern (DLS) Par Score calculations.
+  - _Location:_ `apps/frontend/src/test/types.test.ts`, `apps/frontend/src/test/dlsUtils.test.ts`
+- **ML Engine Unit Tests (PyTest)**: Validate live win probability inference, 120-ball feature scaling for 1-to-20 over matches, and heuristic overrides in Python.
+  - _Location:_ `apps/ml-engine/test_predict.py`
 - **Backend Event-Driven Unit Tests**: Validate AWS Lambda workers (e.g., `storage-worker`, `broadcaster`, `score-update`) using `aws-sdk-client-mock`.
   - _Location:_ `apps/backend/lambdas/storage-worker/index.test.js`, `apps/backend/lambdas/broadcaster/index.test.js`, `apps/backend/lambdas/score-update/index.test.js`, `apps/backend/lambdas/onconnect/index.test.js`, `apps/backend/lambdas/ondisconnect/index.test.js`
 

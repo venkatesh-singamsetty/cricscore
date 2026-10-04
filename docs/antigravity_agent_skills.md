@@ -29,7 +29,7 @@ We created three dedicated skills tailored specifically to this codebase:
 ### 🛠️ 1. `cricscore-workflow-and-validation`
 
 - **Location:** [`.agents/skills/cricscore-workflow-and-validation/SKILL.md`](file:///Users/venkat/workspace/gitRepos/cricscore/.agents/skills/cricscore-workflow-and-validation/SKILL.md)
-- **Purpose:** Enforces PR workflow, local testing checks (`./infra/scripts/pre-push-check.sh`), non-direct-main push policies, and the Semantic Release + PROD deployment lifecycle.
+- **Purpose:** Enforces PR workflow, local testing checks (`./infra/scripts/validate_local.sh`), non-direct-main push policies, and the Semantic Release + PROD deployment lifecycle.
 
 ### 🏏 2. `cricscore-score-engine-architecture`
 
@@ -39,7 +39,7 @@ We created three dedicated skills tailored specifically to this codebase:
 ### 💰 3. `cricscore-cost-and-infrastructure-best-practices`
 
 - **Location:** [`.agents/skills/cricscore-cost-and-infrastructure-best-practices/SKILL.md`](file:///Users/venkat/workspace/gitRepos/cricscore/.agents/skills/cricscore-cost-and-infrastructure-best-practices/SKILL.md)
-- **Purpose:** Prevents trial-and-error CI testing by requiring local validation (`./infra/scripts/pre-push-check.sh`), mandates CloudWatch 7-day log retention, RDS connection pooling, and SSM Parameter Store cost optimizations.
+- **Purpose:** Prevents trial-and-error CI testing by requiring local validation (`./infra/scripts/validate_local.sh`), mandates CloudWatch 7-day log retention, RDS connection pooling, and SSM Parameter Store cost optimizations.
 
 ---
 

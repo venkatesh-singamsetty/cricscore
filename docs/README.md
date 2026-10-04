@@ -11,8 +11,7 @@ Welcome to the CricScore documentation directory. This folder contains all archi
 
 ## 🚀 Deployment & Infrastructure
 
-- [**Full Deployment Guide**](./deployment.md) — Step-by-step tutorial to deploy CricScore to AWS from scratch.
-- [**Deployment Checklist**](./deployment_checklist.md) — Quick clone-to-deploy checklist for experienced users.
+- [**Full Deployment Guide**](./deployment.md) — Step-by-step tutorial to deploy CricScore to AWS from scratch (includes quick-reference checklist).
 - [**Local Frontend Quickstart**](./local_frontend_quickstart.md) — How to run the React app locally against the live cloud endpoints.
 - [**Terraform Infrastructure Guide & Tutorial**](./terraform_guide.md) — Comprehensive HCL architecture walkthrough and hands-on tutorial.
 - [**Real-Time WebSockets & Event Fan-Out Tutorial**](./websocket_tutorial.md) — Architecture and implementation guide for live score streaming.
@@ -33,6 +32,7 @@ Welcome to the CricScore documentation directory. This folder contains all archi
 - [**Contributing & Developer Workflow**](../CONTRIBUTING.md) — Step-by-step feature branch and PR workflow guide.
 - [**Testing Strategy**](./testing.md) — E2E tests via Playwright, unit tests, and security tests.
 - [**Node.js Guidelines**](./nodejs_guide.md) — Best practices and configuration for the Lambda backend.
+- [**MLOps & Prediction Guide**](./mlops_tutorial.md) — ML pipeline, win prediction math, and DLS method specification.
 - [**Troubleshooting Log**](./troubleshooting.md) — Detailed engineering traces of bugs, race conditions, and their resolutions.
 - [**Release Process**](./release_process.md) — How to cut, tag, and ship new versions of CricScore.
 - [**Changelog**](./changelog.md) — History of features, fixes, and architectural changes.

@@ -1,8 +1,27 @@
 # 🚀 Deployment Guide
 
-This is the full deployment reference for CricScore. For the quick fresh-clone checklist, see [deployment_checklist.md](./deployment_checklist.md).
+This is the full deployment reference for CricScore — from registering a domain to having a live, fully-featured cricket scoring platform running in the cloud.
 
-This guide walks you through deploying your own CricScore instance from scratch — from registering a domain to having a live, fully-featured cricket scoring platform running in the cloud.
+<details>
+<summary><b>⚡ TL;DR — Clone-to-Deploy Quick Checklist</b> (click to expand)</summary>
+
+> Important: this project is not a pure local-only app. A fresh clone still needs AWS, Aiven PostgreSQL, domain/DNS, SES, Cognito, and an OpenAI API key.
+
+1. `git clone https://github.com/venkatesh-singamsetty/cricscore.git && cd cricscore`
+2. `./infra/scripts/setup.sh` — Install Node.js, Terraform, AWS CLI
+3. `cp .env.local.example .env.local` — Fill in AWS, Aiven, domain, OpenAI values
+4. `cp apps/frontend/.env.example apps/frontend/.env` — Optional Sentry DSN
+5. Edit `infra/terraform/environments/dev.tfvars` and `prod.tfvars` with your domain
+6. Bootstrap: `cd infra/terraform/bootstrap && terraform init && terraform apply`
+7. Point domain registrar nameservers → Route 53 NS records
+8. Verify SES domain identity in AWS Console
+9. Deploy: `./infra/scripts/deploy.sh --env dev --use-local-env`
+10. CI/CD: `gh auth login && ./infra/scripts/setup_github_envs.sh`
+11. Create account → add to Cognito `Admin` group → sign out/in
+
+**Required external dependencies:** AWS account + IAM, Route 53 / domain, Aiven PostgreSQL, Cognito (via Terraform), SES domain verification, OpenAI API key.
+
+</details>
 
 ---
 

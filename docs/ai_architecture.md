@@ -536,7 +536,16 @@ We have implemented a live **Match Win Predictor** (similar to WASP) that calcul
 
 ### Architecture Overview
 
-1. **Model Storage (AWS ECR)**: The trained ML model (e.g., Logistic Regression or XGBoost) and its heavy dependencies (Pandas, Scikit-Learn) are packaged into a Docker container. AWS ECR provides 500MB of free private storage per month.
+1. **Model Storage (AWS ECR)**: The trained ML model (Logistic Regression) and its heavy dependencies (Pandas, Scikit-Learn) are packaged into a Docker container. AWS ECR provides 500MB of free private storage per month.
 2. **Inference Engine (AWS Lambda - Container Image)**: A dedicated `ml-engine` Serverless Lambda runs the Docker image to expose a prediction API. Because Lambda scales to zero, there is zero cost when no matches are playing. AWS charges the exact same price for Container Image Lambdas as standard Zip Lambdas, allowing us to bypass the 250MB Zip limit while retaining the 1,000,000 free requests per month.
 3. **Automated Pipeline**: A Terraform `null_resource` handles the `docker build` and `docker push` lifecycle seamlessly during deployment.
 4. **Monorepo Integration**: The model code, Dockerfile, and inference API live in `apps/ml-engine/` inside the existing CricScore monorepo, keeping the data science and backend engineering perfectly synchronized.
+
+- 📖 **[MLOps & Prediction Guide](./mlops_tutorial.md)**: Full pipeline docs, [Win Prediction Specification](./mlops_tutorial.md#-8-win-prediction-engine-specification) (par-RPO scaling, RRR caps, wicket sensitivity), and [DLS Method](./mlops_tutorial.md#️-9-duckworth-lewis-stern-dls-method) (ICC resource decay, par-score calculations).
+
+### Edge Case Handling & Heuristics
+
+1. **Dynamic Team Alignment**: The frontend `AiMatchPrediction.tsx` passes `battingTeam` as `team1` and `bowlingTeam` as `team2` so the model always receives the active batting team as the primary target class.
+2. **Shortened Match Scale Normalization**: For shortened matches (e.g., 1-over matches), raw inputs of `balls_left = 5` and `current_score = 6` at ball 0.1 would trick a linear model into thinking the match is in the 20th over. `predict.py` normalizes `balls_left` and `current_score` by a factor of `(120 / total_match_balls)` during the 1st innings to evaluate probabilities on a 120-ball T20 equivalent scale.
+3. **Start-of-Match Baseline (50% / 50%)**: At the start of the 1st innings (`currentScore = 0`, `wicketsLost = 0`), the model forces a 50% / 50% baseline probability before the first ball is bowled.
+4. **Impossible Chase Override**: During the 2nd innings, if the required runs exceed the maximum possible runs (`runsNeeded > ballsLeft * 6`), the frontend and backend cap win probabilities to 0% for the chasing team and 100% for the defending team.

@@ -53,21 +53,52 @@ def handler(event, context):
                 'body': json.dumps({'error': 'Model not loaded'})
             }
 
+        # Normalize balls_left, current_score, and target_score to standard 120-ball T20 scale
+        # for shortened matches (e.g. 1-over matches) so linear model features align with training data.
+        model_balls_left = balls_left
+        model_current_score = current_score
+        model_target_score = target_score
+
+        balls_bowled = max(0, float(body.get('ballsBowled', 0)))
+        total_match_balls = balls_bowled + balls_left
+
+        if total_match_balls > 0 and total_match_balls < 120:
+            scale_factor = 120.0 / total_match_balls
+            model_balls_left = balls_left * scale_factor
+            
+            if inning == 1:
+                total_overs = total_match_balls / 6.0
+                par_rpo = 8.0 + (20.0 - total_overs) * 0.2
+                match_par = max(1.0, par_rpo * total_overs)
+                model_current_score = (current_score / match_par) * 160.0
+            else:
+                # In 2nd innings, scale target and score by 120 / total_match_balls
+                model_current_score = current_score * scale_factor
+                if target_score > 0:
+                    model_target_score = target_score * scale_factor
+
         # Create input DataFrame matching training feature structure
         input_data = pd.DataFrame([{
             'batting_team': batting_team,
             'bowling_team': bowling_team,
             'inning': inning,
-            'balls_left': balls_left,
-            'current_score': current_score,
+            'balls_left': model_balls_left,
+            'current_score': model_current_score,
             'wickets_lost': wickets_lost,
-            'target_score': target_score
+            'target_score': model_target_score
         }])
 
         # Predict Win Probability for batting_team (target class 1)
         # predict_proba returns [prob_loss, prob_win] for the target class
         prediction_probs = model.predict_proba(input_data)
         batting_team_prob = prediction_probs[0][1]
+
+        # 1. Start of Match Baseline (before ball 0.1 is bowled):
+        # At the start of 1st innings when score is 0, no wickets lost, and 0 balls bowled,
+        # both teams have equal baseline chance (50% / 50%).
+        if inning == 1 and current_score == 0 and wickets_lost == 0 and balls_bowled == 0:
+            batting_team_prob = 0.50
+
         bowling_team_prob = 1.0 - batting_team_prob
 
         # HEURISTIC OVERRIDE: Impossible Chases & Extreme Required Run Rates (RRR)
@@ -79,8 +110,8 @@ def handler(event, context):
             runs_needed = target_score - current_score
             max_possible_runs = balls_left * 6
             
-            if runs_needed > max_possible_runs:
-                # Mathematically impossible to win
+            if wickets_lost >= 10 or runs_needed > max_possible_runs:
+                # All out or mathematically impossible to win
                 batting_team_prob = 0.0
                 bowling_team_prob = 1.0
             elif runs_needed <= 0:

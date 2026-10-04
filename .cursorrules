@@ -13,5 +13,6 @@ The `.agents/skills/` directory contains 9 critical Markdown files that act as t
 8. `cricscore-mlops-standards`
 9. `cricscore-testing-standards`
 10. `cricscore-agentic-rag-architecture`
+11. `cricscore-cheatsheet-maintenance`
 
 Read the appropriate `SKILL.md` file based on the user's request and strictly follow its instructions.
