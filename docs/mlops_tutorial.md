@@ -8,12 +8,55 @@ Most importantly, this pipeline is designed to be **100% free** and highly scala
 
 ## 🏗️ 1. Architecture Overview
 
+```mermaid
+graph TD
+    %% Define Data Flow
+    subgraph Data Source
+        Cricsheet[Cricsheet JSON Archives]
+        DB[(CricScore PostgreSQL)]
+    end
+
+    %% Define Training Pipeline (GitHub Actions)
+    subgraph GitHub Actions [Automated CI/CD Pipeline]
+        DP[data_pipeline.py]
+        LT[live_train.py]
+        TEST[PyTest Validation]
+        GATE{Accuracy > 60%?}
+    end
+
+    %% Define Deployment
+    subgraph AWS Deployment [Serverless AWS]
+        ECR[Amazon ECR Container Registry]
+        LAMBDA[AWS Lambda Inference API]
+        APIGW[Amazon API Gateway]
+    end
+
+    %% Frontend App
+    subgraph Client
+        UI[React Frontend: LiveScoreboard]
+    end
+
+    %% Connections
+    Cricsheet -- Download & Parse --> DP
+    DB -- Future Enhancement --> DP
+    DP -- "live_data.csv" --> LT
+    LT -- "live_win_predictor_model.joblib" --> TEST
+    TEST -- Pass --> GATE
+    GATE -- "Yes (Deploy)" --> ECR
+    GATE -- "No (Fail Build)" --> STOP((Stop))
+
+    ECR -- "10GB Docker Image" --> LAMBDA
+    LAMBDA -- "POST /match/predict" --> APIGW
+    UI -- "Every ball bowled" --> APIGW
+    APIGW -- "Win Probability %" --> UI
+```
+
 The MLOps pipeline consists of four main stages:
 
-1. **Data Ingestion & Preprocessing**: Automatically downloads raw ball-by-ball JSON data from [Cricsheet](https://cricsheet.org/) and compiles it into a structured tabular format (`matches.csv`).
+1. **Data Ingestion & Preprocessing**: Automatically downloads raw ball-by-ball JSON data from [Cricsheet](https://cricsheet.org/) and compiles it into a structured tabular format (`live_data.csv`).
 2. **Model Training & Evaluation**: Trains a lightweight Scikit-Learn `LogisticRegression` model. The training script strictly enforces chronological data splitting to prevent **data leakage** (future events predicting past outcomes).
-3. **Continuous Integration (CI) Gate**: A GitHub Actions workflow that automatically runs the pipeline on any changes. It enforces a strict accuracy gate (e.g., >60%) before allowing the model artifact to be committed or deployed.
-4. **Serverless Inference**: The model is bundled directly into an AWS Lambda function deployment package, exposing a `POST /match/predict` endpoint via API Gateway with sub-100ms latency.
+3. **Continuous Integration (CI) Gate**: A GitHub Actions workflow that automatically runs the pipeline on a monthly cron schedule or manual trigger. It runs a `pytest` suite and enforces a strict accuracy gate (e.g., >60%) before deploying the model.
+4. **Serverless Inference**: The model is bundled into an AWS ECR Docker Container, exposing a `POST /match/predict` endpoint via API Gateway with sub-100ms latency.
 
 ---
 
@@ -73,6 +116,13 @@ This GitHub Action triggers whenever changes are made in `apps/ml-engine/`.
 
 Instead of deploying a traditional zipped Lambda package, the live model is containerized using Docker and hosted on **AWS ECR (Elastic Container Registry)**.
 
+**Serverless Container Execution (Firecracker MicroVM):**
+A common misconception is that a Docker image in ECR requires a running server (like ECS or Fargate) to serve requests. However, AWS Lambda natively supports Docker Images under the hood using **Firecracker MicroVMs**.
+
+- The image sits idle in ECR costing nothing.
+- When an API Gateway request arrives, Lambda provisions a MicroVM, spins up the container in milliseconds, and executes `predict.py`.
+- Once the response is sent, the container is frozen. If no new requests arrive, it is automatically destroyed. You get the heavy dependency support of Docker with the zero-idle-cost benefits of Serverless!
+
 **How it works:**
 
 1. **Containerization**: A `Dockerfile` bundles the `live_win_predictor_model.joblib`, `predict.py`, and dependencies into an AWS Lambda Python base image.
@@ -88,6 +138,16 @@ Instead of deploying a traditional zipped Lambda package, the live model is cont
 The React frontend seamlessly integrates with the Lambda endpoint. Inside the Live Scoreboard view, an `AiMatchPrediction` component issues a `POST` request to the API Gateway after every single ball.
 
 The UI visualizes the probabilities using a compact progress bar nestled right inside the scoreboard header, providing fans and scorers with real-time AI insights.
+
+---
+
+## 🛑 7. Lessons Learned & Troubleshooting
+
+During the development of this MLOps pipeline, we faced and resolved several critical infrastructure issues:
+
+- **AWS Lambda Zip Size Limits**: Initially, we deployed the model via standard `.zip` files. However, the combined size of `pandas`, `scikit-learn`, and the `.joblib` model exceeded Lambda's strict 250MB unzipped limit. **Fix**: We migrated the architecture to AWS ECR Docker Container Images, which increased the limit to 10GB.
+- **Lambda Memory Thrashing (Timeouts)**: The initial Lambda memory size was set to `128MB`. Loading the ML libraries and model weights caused intense CPU thrashing and disk swapping, leading to function timeouts (>10s). **Fix**: We increased the Lambda memory allocation to `1024MB`, which proportionately scaled up the underlying vCPU power and reduced inference time to sub-100ms.
+- **Public vs. Private ECR Free Tier Cost Traps**: We considered using Amazon Public ECR to make the image accessible, but discovered Public ECR only offers a 50GB free tier that _expires_ or costs money for high bandwidth, while **Private ECR offers a perpetual 500MB/month free tier**. **Fix**: We stayed with Private ECR and enforced a strategy of continuously overwriting the `latest` image tag during CI/CD to prevent older versions from bloating our 500MB storage limit over time.
 
 ---
 
