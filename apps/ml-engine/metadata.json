@@ -1,0 +1,18 @@
+{
+  "modelVersion": "v1.0.0",
+  "trainingDate": "2026-10-03T23:29:30.666759",
+  "datasetSource": "Cricsheet T20s",
+  "numMatchesTrained": 2754,
+  "numMatchesTested": 689,
+  "features": ["team1", "team2", "venue", "toss_winner", "toss_decision"],
+  "modelType": "LogisticRegression (scikit-learn)",
+  "metrics": {
+    "accuracy": 0.6589259796806967,
+    "logLoss": 0.6060251255795616,
+    "rocAuc": 0.7378410488885893,
+    "confusionMatrix": [
+      [259, 84],
+      [151, 195]
+    ]
+  }
+}
