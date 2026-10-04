@@ -315,7 +315,7 @@ To ensure the repository is completely "viral-proof" and safe to deploy to the p
 
 CricScore implements a strict AI Agent Governance framework. To ensure AI coding assistants (like Cursor, GitHub Copilot, or native MCP Agents) strictly follow enterprise standards, the repository contains a highly granular **AI Skills Library**.
 
-The `.agents/skills/` directory contains 9 isolated, industry-standard skill modules:
+The `.agents/skills/` directory contains 10 isolated, industry-standard skill modules:
 
 1. `cricscore-code-review-standards`
 2. `cricscore-security-standards`
