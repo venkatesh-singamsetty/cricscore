@@ -161,6 +161,26 @@ Merge requests to `main` require passing status checks. The main pipeline deploy
 
 ---
 
+## 🤖 ML Prediction Pipeline (Experimental)
+
+CricScore now features an integrated Machine Learning Operations (MLOps) pipeline that predicts the winner of a T20 match based on historical Cricsheet data.
+
+**What the ML feature does:**
+The ML model predicts the win probability for Team A vs Team B using an AWS Lambda serverless inference endpoint (`/match/predict`) integrated with the React frontend. It dynamically displays real-time prediction updates inside the `LiveScoreboard`.
+
+**Important Disclaimer:**
+
+> **Note**: This model is intended solely as an experimental/project prediction feature and is **not guaranteed to predict match outcomes accurately**. It currently relies on simplified historical features for lightweight deployment.
+
+**Future Improvements:**
+
+1. Incorporating live streaming match data (current score, wickets fallen) into the prediction rather than pre-match team features only.
+2. Including player-level statistics (strike rates, economy) to better represent squad strength.
+3. Training on larger, complete datasets across multiple formats (ODI, Tests) and leagues (IPL, BBL).
+4. Utilizing more complex models (e.g., XGBoost, LightGBM) if Serverless limits (e.g. 250MB size) can be bypassed using containerized Lambdas.
+
+---
+
 ## 🛠️ Technology Stack
 
 ### Frontend

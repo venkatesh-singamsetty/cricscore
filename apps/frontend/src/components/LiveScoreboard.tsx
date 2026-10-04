@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useWebSocket } from "../hooks/useWebSocket";
 import MatchList from "./MatchList"; // Added Phase 6+
 import Scoreboard from "./Scoreboard";
+import { AiMatchPrediction } from "./AiMatchPrediction";
 import { InningsState, ExtraType, WicketType } from "../types";
 import { getCurrentPartnership } from "../utils/partnershipUtils";
 import {
@@ -876,6 +877,16 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                       )}
                     </div>
                   </div>
+
+                  {/* AI Match Prediction Section */}
+                  {matchMeta && matchMeta.status !== "COMPLETED" && (
+                    <AiMatchPrediction
+                      matchId={targetMatchId}
+                      teamA={matchMeta.teamA}
+                      teamB={matchMeta.teamB}
+                      totalOvers={matchMeta.totalOvers}
+                    />
+                  )}
 
                   {/* Batsmen */}
                   <div className="bg-white/5 rounded-2xl border border-white/5 p-4 space-y-3">
