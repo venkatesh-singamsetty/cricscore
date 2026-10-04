@@ -1,3 +1,47 @@
+## [4.9.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.8.2...v4.9.0) (2026-10-04)
+
+### 🚀 Features
+
+* **frontend:** integrate live Duckworth-Lewis-Stern (DLS) Par Score calculation into LiveScoreboard header ([5302abc](https://github.com/venkatesh-singamsetty/cricscore/commit/5302abc963402a5f5325af2678d7ef319bc92033))
+* **ui:** update AI prediction bar colors to vibrant emerald and rose ([a21067f](https://github.com/venkatesh-singamsetty/cricscore/commit/a21067f6414aec15064d5a5b4e586f0f1754e6e4))
+* **ui:** update prediction bar to colorblind-safe cyan and amber ([5e8753a](https://github.com/venkatesh-singamsetty/cricscore/commit/5e8753a71211134cb36637ad98821261be47b362))
+* **ui:** update scoring buttons to use premium glowing color palette ([28fdad1](https://github.com/venkatesh-singamsetty/cricscore/commit/28fdad1d8f696ee854a0bca4035d4417c3b0f80a))
+
+### 🐛 Bug Fixes
+
+* disable docker buildkit provenance for aws lambda compatibility ([9f81d3e](https://github.com/venkatesh-singamsetty/cricscore/commit/9f81d3ed3d071a8306221a9f55e3ab7cd8f5d3c4))
+* **frontend:** dynamically pass batting/bowling teams to ML predictor and correct impossible chase win probabilities ([36e72ee](https://github.com/venkatesh-singamsetty/cricscore/commit/36e72eea418628ebd3485ac187def9684f5b03db))
+* **ml-engine:** calibrate par-RPO scaling for 1-over match win probabilities ([b0d086b](https://github.com/venkatesh-singamsetty/cricscore/commit/b0d086b1966dbc5c2c5ec6edc609e2bae703ba30))
+* **ml-engine:** enforce 50-50 win probability baseline at start of match ([fb541f9](https://github.com/venkatesh-singamsetty/cricscore/commit/fb541f90b57281dc9bc1174b6072af4a13394489))
+* **ml-engine:** enforce match_overs dynamic scaling for 1 to 20 overs matches ([388bbba](https://github.com/venkatesh-singamsetty/cricscore/commit/388bbbaac6356a8a108dd6a21e9c645a5cc999e6))
+* **ml-engine:** scale 2nd innings target_score and current_score for shortened matches ([a584767](https://github.com/venkatesh-singamsetty/cricscore/commit/a5847674decff3f9518083687fef706cfac7eb43))
+
+### 📚 Documentation
+
+* add AI agent skill for maintaining the cheatsheet ([bc93a47](https://github.com/venkatesh-singamsetty/cricscore/commit/bc93a4777fbeaa6e8b0d061e3919a89dd96fd41e))
+* add aws configure to initial setup instructions ([a5b2cac](https://github.com/venkatesh-singamsetty/cricscore/commit/a5b2cac3c84ee9609aec9b682b9ca6df128884b4))
+* add cheatsheet maintenance skill to AI assistant rules ([10f0fa6](https://github.com/venkatesh-singamsetty/cricscore/commit/10f0fa6b97eef36448d42cf7bfbdcb891b17d275))
+* add comprehensive specification for ML win prediction scaling and DLS par score calculations ([a321471](https://github.com/venkatesh-singamsetty/cricscore/commit/a3214719416c4d0b404ea74f741481b168692ffd))
+* add database connection limit troubleshooting commands ([a2ce416](https://github.com/venkatesh-singamsetty/cricscore/commit/a2ce416b7d64589efebfbd56aa177951ee1732cb))
+* add mlops_ prefix to prediction and DLS specification files ([b3329e5](https://github.com/venkatesh-singamsetty/cricscore/commit/b3329e5275f29be03d9e749d74d5ea38109b0d74))
+* add SQS messaging troubleshooting commands ([6082241](https://github.com/venkatesh-singamsetty/cricscore/commit/608224160dfd6d917f6e53846a7938976b0170ae))
+* add wicket sensitivity analysis section to ml_and_dls_spec.md ([d86cd89](https://github.com/venkatesh-singamsetty/cricscore/commit/d86cd893786e88bd0408ddfdf138ffa2ea91d38b))
+* consolidate MLOps specs and deployment checklist into single-source docs ([6f6a1a7](https://github.com/venkatesh-singamsetty/cricscore/commit/6f6a1a7b50b945c245fa425132b34e46f0a4d831))
+* correct local validation script path in AGENTS.md rules ([7c3768c](https://github.com/venkatesh-singamsetty/cricscore/commit/7c3768c26d1001e0aaf37356f77c8e7aeaea5fe4))
+* correct number of agent skills in README ([6560493](https://github.com/venkatesh-singamsetty/cricscore/commit/65604932a5a6aa84e94259d9ce341a02d545b921))
+* create CHEATSHEET.md and add python3 to setup.sh ([952caf8](https://github.com/venkatesh-singamsetty/cricscore/commit/952caf895cc187f9b17c734f9be981d79a4da89a))
+* cross-link mlops_win_prediction_spec.md and mlops_dls_spec.md across README, mlops_tutorial, and ai_architecture ([f555db1](https://github.com/venkatesh-singamsetty/cricscore/commit/f555db1d80cffd03291ec198f864d82fab966afe))
+* document ML engine fixes for 1-over matches, team alignment, 50-50 baseline, and impossible chase overrides ([56cbbd1](https://github.com/venkatesh-singamsetty/cricscore/commit/56cbbd1775d8d3444822f1048ada8a1de52fcd04))
+* expand cheatsheet to cover full e2e developer lifecycle and expert troubleshooting ([e7dec66](https://github.com/venkatesh-singamsetty/cricscore/commit/e7dec667e74fc8876370eb9610cdb45415b62937))
+* **ml-engine:** link mlops_win_prediction_spec.md and mlops_dls_spec.md in ml-engine README ([d1f98dc](https://github.com/venkatesh-singamsetty/cricscore/commit/d1f98dc00068382b642d76c06334a8fba41c3dc1))
+* replace stale pre-push-check.sh references with validate_local.sh ([23b4a19](https://github.com/venkatesh-singamsetty/cricscore/commit/23b4a19e0eda8b2ed5de1ee212c10ab9d8f0415f))
+* separate prediction engine spec into win_prediction_spec.md and DLS spec into dls_spec.md ([f6793ac](https://github.com/venkatesh-singamsetty/cricscore/commit/f6793acae18d077e0ca38145c98ba8109fdca714))
+* update testing strategy documentation with frontend DLS unit tests and ML PyTest suite locations ([89f5824](https://github.com/venkatesh-singamsetty/cricscore/commit/89f5824da01f8dc2a9eefb598751548f8c252f16))
+
+### 🧪 Tests
+
+* **frontend:** add unit tests for DLS par score utility with 100% test pass rate ([954a238](https://github.com/venkatesh-singamsetty/cricscore/commit/954a238045ba03f8cbd45d2e0ee854b7ce5aca10))
+
 ## [4.8.2](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.8.1...v4.8.2) (2026-10-04)
 
 ### 🐛 Bug Fixes
