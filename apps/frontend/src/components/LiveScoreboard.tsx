@@ -885,6 +885,14 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                       teamA={matchMeta.teamA}
                       teamB={matchMeta.teamB}
                       totalOvers={matchMeta.totalOvers}
+                      compact={true}
+                      inning={currentInnings.inningNumber}
+                      currentScore={currentInnings.totalRuns}
+                      wicketsLost={currentInnings.totalWickets}
+                      targetScore={currentInnings.target || -1}
+                      ballsBowled={
+                        currentInnings.overs * 6 + currentInnings.balls
+                      }
                     />
                   )}
 

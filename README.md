@@ -1,5 +1,12 @@
 # 🏏 CricScore: Real-Time Cricket Match Engine
 
+[![CI/CD Pipeline](https://github.com/venkatesh-singamsetty/cric-score/actions/workflows/ci.yml/badge.svg)](https://github.com/venkatesh-singamsetty/cric-score/actions/workflows/ci.yml)
+[![Production Release](https://img.shields.io/github/v/release/venkatesh-singamsetty/cric-score?label=production&color=success)](https://github.com/venkatesh-singamsetty/cric-score/releases)
+[![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue?logo=typescript)](https://www.typescriptlang.org/)
+[![Python ML](https://img.shields.io/badge/Python-ML_Engine-blue?logo=python)](https://www.python.org/)
+[![Terraform](https://img.shields.io/badge/Terraform-Managed-purple?logo=terraform)](https://www.terraform.io/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 🚀 **Production Environment:** **https://cricscore.venkateshsingamsetty.com**
 
 🧪 **Development Environment:** **https://cricscoredev.venkateshsingamsetty.com**
@@ -19,6 +26,7 @@ The project models a live cricket platform featuring:
 - **Serverless Compute**: Fully managed AWS Lambda backends.
 - **Event-Driven Architecture**: Fan-out messaging via SNS and SQS for fault-tolerant state processing.
 - **Agentic AI**: Autonomous RAG capabilities with Text-to-SQL and Vector Search.
+- **Live MLOps**: Zero-cost real-time win probability predictions using AWS ECR Containers.
 - **Multi-Cloud Infrastructure**: Terraform-managed deployments bridging AWS and Aiven PostgreSQL.
 - **Real-Time Streaming**: WebSocket API Gateway for instant, low-latency score updates.
 - **DevSecOps Governance**: End-to-end CI/CD automation with automated security and compliance scanning.
@@ -159,24 +167,13 @@ Merge requests to `main` require passing status checks. The main pipeline deploy
 - 📖 **[Automated Releases](./docs/release_process.md)**: Semantic release and Conventional Commit specifications.
 - 📖 **[Full Project Log](./docs/changelog.md)**: Release records and development timeline.
 
----
+### 8. 🧠 Serverless MLOps & Live Prediction
 
-## 🤖 ML Prediction Pipeline (Experimental)
+**Real-Time Win Probability Engine**
+CricScore features an integrated Machine Learning Operations (MLOps) pipeline that predicts the live win probability for Team A vs Team B. The model dynamically evaluates the _current match situation_ (runs, wickets fallen, target score, balls left) and updates after every single ball.
+Instead of deploying heavy, always-on inference servers, the model is packaged into an **AWS ECR Docker Container** and executed via a Serverless Lambda (`/match/predict`), reducing idle compute costs to absolute zero.
 
-CricScore now features an integrated Machine Learning Operations (MLOps) pipeline that predicts the winner of a T20 match based on historical Cricsheet data.
-
-**What the ML feature does:**
-The ML model predicts the live win probability for Team A vs Team B using an AWS ECR Docker Container running on a Serverless Lambda (`/match/predict`). It dynamically evaluates the _current match situation_ (runs, wickets fallen, target score, balls left) and displays real-time prediction updates inside the `LiveScoreboard` header after every single ball.
-
-**Important Disclaimer:**
-
-> **Note**: This model is intended solely as an experimental/project prediction feature and is **not guaranteed to predict match outcomes accurately**. It relies on simplified historical features for lightweight deployment.
-
-**Future Improvements:**
-
-1. Incorporating player-level statistics (strike rates, economy) to better represent squad strength rather than relying purely on team-vs-team history.
-2. Training on larger, complete datasets across multiple formats (ODI, Tests) and leagues (IPL, BBL).
-3. Moving to Deep Learning: Now that the pipeline supports 10GB Docker ECR Images, we can swap `LogisticRegression` for heavy frameworks like PyTorch or TensorFlow.
+- 📖 **[MLOps Tutorial](./docs/mlops_tutorial.md)**: End-to-end guide on data ingestion, training gates, and Docker containerization.
 
 ---
 
@@ -214,6 +211,16 @@ The ML model predicts the live win probability for Team A vs Team B using an AWS
 | pgvector         | Vector similarity search extension for RAG           |
 | HNSW Index       | High-performance approximate nearest-neighbor search |
 
+### Machine Learning & MLOps
+
+| Technology     | Purpose                                         |
+| -------------- | ----------------------------------------------- |
+| Python 3.12+   | ML Engine runtime                               |
+| Scikit-Learn   | Logistic Regression model for win probability   |
+| Pandas / NumPy | High-performance data manipulation and matrices |
+| AWS ECR        | Docker container registry for Serverless ML     |
+| Joblib         | Model serialization and artifact packaging      |
+
 ### Infrastructure & Cloud
 
 | Technology | Purpose                        |
@@ -242,7 +249,8 @@ The ML model predicts the live win probability for Team A vs Team B using an AWS
 
 | Tool                  | Purpose                       |
 | --------------------- | ----------------------------- |
-| Vitest                | Unit testing framework        |
+| Vitest                | Node.js unit testing          |
+| Pytest                | Python ML Engine testing      |
 | React Testing Library | Frontend component testing    |
 | Playwright            | End-to-end browser automation |
 
@@ -293,12 +301,27 @@ The recurring cost is expected to stay very low for normal usage. In practice, t
 
 ---
 
-## 🤖 AI Assisted Development
+## 🤖 AI Agent Governance & Skills
 
-AI tools were used as productivity accelerators for:
+CricScore implements a strict AI Agent Governance framework. To ensure AI coding assistants (like Cursor, GitHub Copilot, or native MCP Agents) strictly follow enterprise standards, the repository contains a highly granular **AI Skills Library**.
 
-- Code suggestions
-- Documentation generation
-- Test creation assistance
-- Troubleshooting
-- Architecture brainstorming
+The `.agents/skills/` directory contains 9 isolated, industry-standard skill modules:
+
+1. `cricscore-code-review-standards`
+2. `cricscore-security-standards`
+3. `cricscore-pr-and-workflow`
+4. `cricscore-cost-governance`
+5. `cricscore-infrastructure-standards`
+6. `cricscore-frontend-architecture`
+7. `cricscore-backend-architecture`
+8. `cricscore-mlops-standards`
+9. `cricscore-testing-standards`
+10. `cricscore-agentic-rag-architecture`
+
+### 🔌 Universal AI Compatibility
+
+Because these skills are written in standard Markdown (`SKILL.md`), they act as a universal "Source of Truth" that can be ingested by any AI tool:
+
+- **Cursor IDE**: The `.cursorrules` file automatically instructs Claude to read these skills before generating code.
+- **GitHub Copilot**: The `.github/copilot-instructions.md` file enforces these boundaries during Copilot chat sessions.
+- **MCP (Model Context Protocol)**: Any MCP-compatible agent (like Claude Desktop) can parse this repository and autonomously learn the architecture using standard filesystem MCP tools.
