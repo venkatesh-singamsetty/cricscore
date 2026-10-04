@@ -1183,6 +1183,19 @@ const MatchView: React.FC<MatchViewProps> = ({
               )}
             </div>
           </div>
+          {/* AI Match Prediction Section - Compact Mode in Header */}
+          <AiMatchPrediction
+            matchId={matchId}
+            teamA={innings.battingTeamName}
+            teamB={innings.bowlingTeamName}
+            totalOvers={totalOvers}
+            compact={true}
+            inning={innings.inningNumber}
+            currentScore={innings.totalRuns}
+            wicketsLost={innings.totalWickets}
+            targetScore={innings.target || -1}
+            ballsBowled={innings.overs * 6 + innings.balls}
+          />
         </div>
       </div>
 
@@ -1378,14 +1391,6 @@ const MatchView: React.FC<MatchViewProps> = ({
             </div>
           </div>
 
-          {/* AI Match Prediction Section */}
-          <AiMatchPrediction
-            matchId={matchId}
-            teamA={innings.battingTeamName}
-            teamB={innings.bowlingTeamName}
-            totalOvers={totalOvers}
-          />
-
           {/* Target Banner & Live Stats Strip */}
           {(() => {
             const ballsBowled = innings.overs * 6 + innings.balls;
@@ -1459,7 +1464,6 @@ const MatchView: React.FC<MatchViewProps> = ({
               </div>
             );
           })()}
-
         </div>
       </div>
 
