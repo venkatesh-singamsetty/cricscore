@@ -165,11 +165,11 @@ export const AiMatchPrediction: React.FC<AiMatchPredictionProps> = ({
         </div>
         <div className="w-full h-1.5 rounded-full overflow-hidden flex bg-slate-700/50">
           <div
-            className="bg-indigo-500 h-full transition-all duration-1000 shadow-[0_0_8px_rgba(99,102,241,0.6)]"
+            className="bg-emerald-500 h-full transition-all duration-1000 shadow-[0_0_8px_rgba(16,185,129,0.8)]"
             style={{ width: `${prediction.team1WinProbability * 100}%` }}
           ></div>
           <div
-            className="bg-slate-500 h-full transition-all duration-1000"
+            className="bg-rose-500 h-full transition-all duration-1000 shadow-[0_0_8px_rgba(244,63,94,0.6)]"
             style={{ width: `${prediction.team2WinProbability * 100}%` }}
           ></div>
         </div>
@@ -196,11 +196,11 @@ export const AiMatchPrediction: React.FC<AiMatchPredictionProps> = ({
 
         <div className="w-full h-2 rounded-full overflow-hidden flex">
           <div
-            className="bg-indigo-500 h-full transition-all duration-1000"
+            className="bg-emerald-500 h-full transition-all duration-1000 shadow-[0_0_8px_rgba(16,185,129,0.8)]"
             style={{ width: `${prediction.team1WinProbability * 100}%` }}
           ></div>
           <div
-            className="bg-slate-700 h-full transition-all duration-1000"
+            className="bg-rose-500 h-full transition-all duration-1000 shadow-[0_0_8px_rgba(244,63,94,0.6)]"
             style={{ width: `${prediction.team2WinProbability * 100}%` }}
           ></div>
         </div>
