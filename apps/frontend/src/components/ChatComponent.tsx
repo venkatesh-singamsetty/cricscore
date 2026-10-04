@@ -489,45 +489,47 @@ export function ChatComponent({
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="shrink-0 p-2.5 sm:p-4 bg-slate-800 border-t border-white/10 sticky bottom-0 z-20">
-        <form onSubmit={sendMessage} className="relative flex items-center">
+      <div className="shrink-0 p-2.5 sm:p-4 bg-slate-800 border-t border-white/10 sticky bottom-0 z-30">
+        <form onSubmit={sendMessage} className="flex items-center gap-2">
           <input
             type="text"
+            name="cric_chat_query"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="sentences"
+            spellCheck={false}
+            data-lpignore="true"
+            data-form-type="other"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onFocus={() => {
-              setTimeout(() => window.scrollTo(0, 0), 100);
-            }}
             placeholder={
               isListening
                 ? "Listening... Speak now..."
                 : "Ask about match, score, or players..."
             }
-            className="w-full bg-slate-900 border border-white/10 rounded-full py-2.5 sm:py-3 px-4 sm:px-6 pr-20 sm:pr-24 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-slate-500"
+            className="flex-1 min-w-0 bg-slate-900 border border-white/10 rounded-2xl py-2.5 sm:py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-slate-500"
             disabled={loading}
           />
-          <div className="absolute right-1.5 sm:right-2 flex items-center gap-1">
-            <button
-              type="button"
-              onClick={startListening}
-              className={`p-1.5 sm:p-2 rounded-full transition-all ${
-                isListening
-                  ? "bg-rose-600 text-white animate-pulse shadow-lg shadow-rose-600/50"
-                  : "bg-slate-800 text-slate-400 hover:text-indigo-300 hover:bg-slate-700"
-              }`}
-              title={isListening ? "Stop listening" : "Speak question"}
-            >
-              {isListening ? <MicOff size={16} /> : <Mic size={16} />}
-            </button>
-            <button
-              type="submit"
-              disabled={!input.trim() || loading}
-              className="p-1.5 sm:p-2 bg-indigo-500 text-white rounded-full hover:bg-indigo-600 disabled:opacity-50 disabled:hover:bg-indigo-500 transition-colors"
-              title="Send message"
-            >
-              <Send size={16} className="sm:w-[18px] sm:h-[18px]" />
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={startListening}
+            className={`p-2.5 sm:p-3 rounded-2xl shrink-0 transition-all ${
+              isListening
+                ? "bg-rose-600 text-white animate-pulse shadow-lg shadow-rose-600/50"
+                : "bg-slate-900 border border-white/10 text-indigo-400 hover:text-white hover:bg-slate-700"
+            }`}
+            title={isListening ? "Stop listening" : "Speak question"}
+          >
+            {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+          </button>
+          <button
+            type="submit"
+            disabled={!input.trim() || loading}
+            className="p-2.5 sm:p-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl disabled:opacity-50 transition-colors shrink-0 shadow-lg shadow-indigo-600/20"
+            title="Send message"
+          >
+            <Send size={18} />
+          </button>
         </form>
       </div>
     </div>
