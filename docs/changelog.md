@@ -1,3 +1,10 @@
+## [4.8.2](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.8.1...v4.8.2) (2026-10-04)
+
+### 🐛 Bug Fixes
+
+* Force ML Lambda Deployment ([#237](https://github.com/venkatesh-singamsetty/cricscore/issues/237)) ([a1a75f7](https://github.com/venkatesh-singamsetty/cricscore/commit/a1a75f7ff1a72164f436025d0fcba4ab6a1bb33d))
+* OOD ML Prediction for Shortened Matches ([#238](https://github.com/venkatesh-singamsetty/cricscore/issues/238)) ([ce478af](https://github.com/venkatesh-singamsetty/cricscore/commit/ce478afa8e51759edf1812a0cf0884b251e1e744))
+
 ## [4.8.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.8.0...v4.8.1) (2026-10-04)
 
 ### 🐛 Bug Fixes
