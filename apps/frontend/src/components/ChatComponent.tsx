@@ -9,8 +9,6 @@ import {
   ChevronDown,
   Copy,
   PlusCircle,
-  Mic,
-  MicOff,
   Volume2,
   VolumeX,
 } from "lucide-react";
@@ -124,9 +122,7 @@ export function ChatComponent({
 
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isListening, setIsListening] = useState(false);
   const [isSpeechEnabled, setIsSpeechEnabled] = useState(false);
-  const recognitionRef = useRef<any>(null);
 
   const [isUploadingRules, setIsUploadingRules] = useState(false);
   const [uploadedDocs, setUploadedDocs] = useState<string[]>([]);
@@ -242,86 +238,6 @@ export function ChatComponent({
       ]);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const startListening = () => {
-    const SpeechRecognition =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      setAlertMessage("Voice recognition is not supported on this browser.");
-      return;
-    }
-
-    if (isListening) {
-      try {
-        recognitionRef.current?.stop();
-      } catch (e) {}
-      setIsListening(false);
-      return;
-    }
-
-    try {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      // Use false for interimResults on mobile for better compatibility
-      recognition.interimResults = false;
-      recognition.lang = "en-US";
-
-      let spokenText = "";
-
-      recognition.onstart = () => {
-        setIsListening(true);
-      };
-
-      recognition.onresult = (event: any) => {
-        let currentText = "";
-        for (let i = 0; i < event.results.length; i++) {
-          currentText += event.results[i][0].transcript;
-        }
-        setInput(currentText);
-        spokenText = currentText;
-      };
-
-      recognition.onerror = (event: any) => {
-        console.error("Speech recognition error:", event.error);
-        setIsListening(false);
-
-        let errorMsg = event.error;
-        if (event.error === "not-allowed") {
-          errorMsg =
-            "Microphone permission denied. Please allow microphone access.";
-        } else if (event.error === "network") {
-          errorMsg =
-            "Network error. Note: Voice recognition on mobile often requires an HTTPS connection.";
-        } else if (event.error === "no-speech") {
-          // Don't alert for no-speech, just stop listening silently
-          return;
-        }
-
-        setAlertMessage(`Voice Error: ${errorMsg}`);
-      };
-
-      recognition.onend = () => {
-        setIsListening(false);
-        if (spokenText.trim()) {
-          // Delay submission slightly to allow UI to update
-          setTimeout(() => {
-            submitText(spokenText.trim(), true);
-          }, 100);
-        }
-      };
-
-      recognitionRef.current = recognition;
-      recognition.start();
-    } catch (e: any) {
-      console.error("Failed to start recognition:", e);
-      setIsListening(false);
-      setAlertMessage(
-        "Failed to start voice recognition: " + (e.message || "Unknown error"),
-      );
     }
   };
 
