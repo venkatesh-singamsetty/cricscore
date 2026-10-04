@@ -4,11 +4,9 @@ import joblib
 import pandas as pd
 
 # Cold Start Initialization
-# If deployed to AWS Lambda, we can bundle the joblib file or download it from S3.
-# To keep this version 100% free and simple (no S3 costs), we package the 1MB model 
-# directly in the Lambda deployment package!
-MODEL_FILE = os.path.join(os.path.dirname(__file__), 'win_predictor_model.joblib')
-METADATA_FILE = os.path.join(os.path.dirname(__file__), 'metadata.json')
+# Using the new live model
+MODEL_FILE = os.path.join(os.path.dirname(__file__), 'live_win_predictor_model.joblib')
+METADATA_FILE = os.path.join(os.path.dirname(__file__), 'live_metadata.json')
 
 model = None
 metadata = None
@@ -30,13 +28,17 @@ def handler(event, context):
     """
     try:
         body = json.loads(event.get('body', '{}'))
-        team1 = body.get('team1')
-        team2 = body.get('team2')
-        venue = body.get('venue', 'Unknown')
-        toss_winner = body.get('tossWinner', 'Unknown')
-        toss_decision = body.get('tossDecision', 'Unknown')
+        batting_team = body.get('team1') # Front-end passes batting team as team1
+        bowling_team = body.get('team2') # Front-end passes bowling team as team2
+        
+        # New live features
+        inning = float(body.get('inning', 1))
+        balls_left = float(body.get('ballsLeft', 120))
+        current_score = float(body.get('currentScore', 0))
+        wickets_lost = float(body.get('wicketsLost', 0))
+        target_score = float(body.get('targetScore', -1))
 
-        if not team1 or not team2:
+        if not batting_team or not bowling_team:
             return {
                 'statusCode': 400,
                 'body': json.dumps({'error': 'team1 and team2 are required'})
@@ -52,20 +54,22 @@ def handler(event, context):
 
         # Create input DataFrame matching training feature structure
         input_data = pd.DataFrame([{
-            'team1': team1,
-            'team2': team2,
-            'venue': venue,
-            'toss_winner': toss_winner,
-            'toss_decision': toss_decision
+            'batting_team': batting_team,
+            'bowling_team': bowling_team,
+            'inning': inning,
+            'balls_left': balls_left,
+            'current_score': current_score,
+            'wickets_lost': wickets_lost,
+            'target_score': target_score
         }])
 
-        # Predict Win Probability for team1
+        # Predict Win Probability for batting_team (target class 1)
         # predict_proba returns [prob_loss, prob_win] for the target class
         prediction_probs = model.predict_proba(input_data)
-        team1_prob = prediction_probs[0][1]
-        team2_prob = 1.0 - team1_prob
+        batting_team_prob = prediction_probs[0][1]
+        bowling_team_prob = 1.0 - batting_team_prob
 
-        predicted_winner = team1 if team1_prob > 0.5 else team2
+        predicted_winner = batting_team if batting_team_prob > 0.5 else bowling_team
 
         return {
             'statusCode': 200,
@@ -74,12 +78,12 @@ def handler(event, context):
                 'Access-Control-Allow-Origin': '*'
             },
             'body': json.dumps({
-                'team1': team1,
-                'team2': team2,
-                'team1WinProbability': round(team1_prob, 2),
-                'team2WinProbability': round(team2_prob, 2),
+                'team1': batting_team,
+                'team2': bowling_team,
+                'team1WinProbability': round(batting_team_prob, 2),
+                'team2WinProbability': round(bowling_team_prob, 2),
                 'predictedWinner': predicted_winner,
-                'modelVersion': metadata.get('modelVersion', 'v1') if metadata else 'v1'
+                'modelVersion': metadata.get('modelVersion', 'v2') if metadata else 'v2'
             })
         }
     except Exception as e:
@@ -95,9 +99,11 @@ if __name__ == "__main__":
         'body': json.dumps({
             'team1': 'India',
             'team2': 'Australia',
-            'venue': 'Melbourne',
-            'tossWinner': 'India',
-            'tossDecision': 'bat'
+            'inning': 2,
+            'ballsLeft': 30,
+            'currentScore': 150,
+            'wicketsLost': 3,
+            'targetScore': 180
         })
     }
     print(handler(test_event, None))

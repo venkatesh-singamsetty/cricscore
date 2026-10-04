@@ -124,7 +124,7 @@ export function ChatComponent({
   const [loading, setLoading] = useState(false);
   const [isSpeechEnabled, setIsSpeechEnabled] = useState(false);
 
-  const [isUploadingRules, setIsUploadingRules] = useState(false);
+  const [isUploadingRules] = useState(false);
   const [uploadedDocs, setUploadedDocs] = useState<string[]>([]);
   const [showDocsDropdown, setShowDocsDropdown] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -259,7 +259,6 @@ export function ChatComponent({
   const handleCopy = (text: string) => {
     try {
       navigator.clipboard.writeText(text);
-      setAlertMessage("✅ Copied to clipboard");
     } catch (e) {
       console.error(e);
     }

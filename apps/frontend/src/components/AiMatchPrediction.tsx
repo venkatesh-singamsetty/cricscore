@@ -5,6 +5,12 @@ interface AiMatchPredictionProps {
   teamA: string;
   teamB: string;
   totalOvers: number;
+  compact?: boolean;
+  inning?: number;
+  currentScore?: number;
+  wicketsLost?: number;
+  targetScore?: number;
+  ballsBowled?: number;
 }
 
 interface PredictionData {
@@ -19,6 +25,13 @@ interface PredictionData {
 export const AiMatchPrediction: React.FC<AiMatchPredictionProps> = ({
   teamA,
   teamB,
+  totalOvers,
+  compact = false,
+  inning = 1,
+  currentScore = 0,
+  wicketsLost = 0,
+  targetScore = -1,
+  ballsBowled = 0,
 }) => {
   const [prediction, setPrediction] = useState<PredictionData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -33,6 +46,7 @@ export const AiMatchPrediction: React.FC<AiMatchPredictionProps> = ({
     const fetchPrediction = async () => {
       setLoading(true);
       try {
+        const ballsLeft = Math.max(0, totalOvers * 6 - ballsBowled);
         const response = await fetch(`${API_URL}/match/predict`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -42,6 +56,11 @@ export const AiMatchPrediction: React.FC<AiMatchPredictionProps> = ({
             venue: "Unknown",
             tossWinner: "Unknown",
             tossDecision: "Unknown",
+            inning,
+            currentScore,
+            wicketsLost,
+            targetScore,
+            ballsLeft,
           }),
         });
         if (!response.ok) throw new Error("Failed to fetch prediction");
@@ -61,15 +80,28 @@ export const AiMatchPrediction: React.FC<AiMatchPredictionProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [API_URL, teamA, teamB]);
+  }, [
+    API_URL,
+    teamA,
+    teamB,
+    totalOvers,
+    inning,
+    currentScore,
+    wicketsLost,
+    targetScore,
+    ballsBowled,
+  ]);
 
   if (loading)
     return (
-      <div className="text-[10px] text-slate-500 animate-pulse">
+      <div
+        className={`text-[10px] text-slate-500 animate-pulse ${compact ? "mt-1" : ""}`}
+      >
         🤖 Loading AI Prediction...
       </div>
     );
-  if (error || !prediction)
+  if (error || !prediction) {
+    if (compact) return null;
     return (
       <div className="bg-indigo-950/30 border border-indigo-500/20 rounded-2xl p-4 mt-4 shadow-inner">
         <div className="flex items-center justify-between mb-2">
@@ -82,6 +114,35 @@ export const AiMatchPrediction: React.FC<AiMatchPredictionProps> = ({
         </div>
       </div>
     );
+  }
+
+  if (compact) {
+    return (
+      <div className="flex flex-col gap-1 mt-1.5 w-full">
+        <div className="flex items-center justify-between w-full">
+          <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest">
+            🤖 Win Prediction
+          </span>
+          <span className="text-[8px] font-bold text-slate-400 uppercase">
+            {prediction.team1}{" "}
+            {Math.round(prediction.team1WinProbability * 100)}% -{" "}
+            {Math.round(prediction.team2WinProbability * 100)}%{" "}
+            {prediction.team2}
+          </span>
+        </div>
+        <div className="w-full h-1.5 rounded-full overflow-hidden flex bg-slate-700/50">
+          <div
+            className="bg-indigo-500 h-full transition-all duration-1000 shadow-[0_0_8px_rgba(99,102,241,0.6)]"
+            style={{ width: `${prediction.team1WinProbability * 100}%` }}
+          ></div>
+          <div
+            className="bg-slate-500 h-full transition-all duration-1000"
+            style={{ width: `${prediction.team2WinProbability * 100}%` }}
+          ></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-indigo-950/30 border border-indigo-500/20 rounded-2xl p-4 mt-4 shadow-inner">
