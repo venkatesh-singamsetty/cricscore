@@ -69,6 +69,21 @@ def handler(event, context):
         batting_team_prob = prediction_probs[0][1]
         bowling_team_prob = 1.0 - batting_team_prob
 
+        # HEURISTIC OVERRIDE: Impossible Chases
+        # If it's the 2nd innings, and the runs required are strictly greater than the maximum 
+        # possible runs that can be scored from the remaining legal deliveries (assuming 6 per ball).
+        if inning == 2 and target_score > 0:
+            runs_needed = target_score - current_score
+            max_possible_runs = balls_left * 6
+            if runs_needed > max_possible_runs:
+                # Mathematically impossible to win (ignoring massive no-ball/wide streaks)
+                batting_team_prob = 0.0
+                bowling_team_prob = 1.0
+            elif runs_needed <= 0:
+                # Already won
+                batting_team_prob = 1.0
+                bowling_team_prob = 0.0
+
         predicted_winner = batting_team if batting_team_prob > 0.5 else bowling_team
 
         return {
