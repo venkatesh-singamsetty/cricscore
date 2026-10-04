@@ -68,6 +68,13 @@ def handler(event, context):
         # predict_proba returns [prob_loss, prob_win] for the target class
         prediction_probs = model.predict_proba(input_data)
         batting_team_prob = prediction_probs[0][1]
+
+        # 1. Start of Match / 1st Innings Baseline:
+        # At the start of 1st innings when score is 0 and no wickets lost, 
+        # both teams have equal baseline chance (50% / 50%).
+        if inning == 1 and current_score == 0 and wickets_lost == 0:
+            batting_team_prob = 0.50
+
         bowling_team_prob = 1.0 - batting_team_prob
 
         # HEURISTIC OVERRIDE: Impossible Chases & Extreme Required Run Rates (RRR)
