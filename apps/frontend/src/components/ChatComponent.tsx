@@ -279,15 +279,17 @@ export function ChatComponent({
   return (
     <div className="flex flex-col flex-1 min-h-0 w-full max-w-4xl mx-auto bg-slate-900 rounded-xl border border-white/10 shadow-2xl overflow-hidden relative">
       <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-transparent pointer-events-none" />
-      <div className="shrink-0 p-3 sm:p-4 bg-slate-800/80 backdrop-blur-sm border-b border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 sm:gap-3 relative z-10">
-        <h3 className="text-base sm:text-xl font-bold text-white flex items-center gap-2">
-          <Bot className="text-indigo-400 shrink-0" size={20} />
-          <span>Live Match AI Assistant</span>
+      <div className="shrink-0 p-3 sm:p-4 bg-slate-800/95 backdrop-blur-sm border-b border-white/10 flex items-center justify-between gap-2 relative z-20 sticky top-0 shadow-md">
+        <h3 className="text-sm sm:text-xl font-bold text-white flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <Bot className="text-indigo-400 shrink-0" size={18} />
+          <span>
+            <span className="hidden sm:inline">Live Match </span>AI Assistant
+          </span>
         </h3>
-        <div className="flex items-center gap-2 sm:gap-3 flex-wrap w-full sm:w-auto justify-end">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           <button
             onClick={handleNewChat}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-700/50 hover:bg-slate-700/80 text-slate-300 text-xs font-bold rounded-lg transition-colors border border-slate-600/50 shrink-0"
+            className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 bg-slate-700/60 hover:bg-slate-700/90 text-slate-200 text-xs font-bold rounded-lg transition-colors border border-slate-600/50 shrink-0"
             title="Start a new chat"
           >
             <PlusCircle size={14} className="text-emerald-400 shrink-0" />
@@ -298,7 +300,7 @@ export function ChatComponent({
               <div className="relative">
                 <button
                   onClick={() => setShowDocsDropdown(!showDocsDropdown)}
-                  className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-700/50 hover:bg-slate-700/80 text-slate-300 text-xs font-bold rounded-lg transition-colors border border-slate-600/50"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-700/60 hover:bg-slate-700/90 text-slate-200 text-xs font-bold rounded-lg transition-colors border border-slate-600/50"
                 >
                   <FileText size={14} className="shrink-0" />
                   <span>Docs ({uploadedDocs.length})</span>
@@ -351,11 +353,14 @@ export function ChatComponent({
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploadingRules}
-                className="flex items-center gap-2 px-2.5 py-1.5 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 text-xs font-bold rounded-lg transition-colors border border-indigo-500/30 disabled:opacity-50 shrink-0"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 text-xs font-bold rounded-lg transition-colors border border-indigo-500/30 disabled:opacity-50 shrink-0"
               >
                 <Upload size={14} className="shrink-0" />
-                <span>
+                <span className="hidden sm:inline">
                   {isUploadingRules ? "Uploading..." : "Upload Rules"}
+                </span>
+                <span className="sm:hidden">
+                  {isUploadingRules ? "..." : "Upload"}
                 </span>
               </button>
             </>
