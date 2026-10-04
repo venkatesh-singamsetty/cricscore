@@ -132,6 +132,16 @@ export function ChatComponent({
   const [uploadedDocs, setUploadedDocs] = useState<string[]>([]);
   const [showDocsDropdown, setShowDocsDropdown] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleRulesUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Stub for now, can implement later
+    console.log("Upload rules clicked", e.target.files);
+  };
+
+  const handleDeleteDoc = (doc: string) => {
+    // Stub for now
+    setUploadedDocs(uploadedDocs.filter((d) => d !== doc));
+  };
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -150,9 +160,11 @@ export function ChatComponent({
       .replace(/\*\*/g, "")
       .replace(/\[Source:.*?\]/g, "")
       .replace(/[-•]/g, "");
+
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.rate = 1.0;
+    utterance.onerror = (e) => console.error("TTS Error:", e);
     window.speechSynthesis.speak(utterance);
   };
 
@@ -162,6 +174,17 @@ export function ChatComponent({
   ) => {
     const trimmed = textToSend.trim();
     if (!trimmed || loading) return;
+
+    // Unlock speech synthesis during the synchronous click event
+    if (
+      isSpeechEnabled &&
+      typeof window !== "undefined" &&
+      "speechSynthesis" in window
+    ) {
+      const unlockUtterance = new SpeechSynthesisUtterance("");
+      unlockUtterance.volume = 0;
+      window.speechSynthesis.speak(unlockUtterance);
+    }
 
     if (trimmed.startsWith("/login ")) {
       const pin = trimmed.split(" ")[1];
@@ -233,7 +256,9 @@ export function ChatComponent({
     }
 
     if (isListening) {
-      recognitionRef.current?.stop();
+      try {
+        recognitionRef.current?.stop();
+      } catch (e) {}
       setIsListening(false);
       return;
     }
@@ -241,7 +266,8 @@ export function ChatComponent({
     try {
       const recognition = new SpeechRecognition();
       recognition.continuous = false;
-      recognition.interimResults = true;
+      // Use false for interimResults on mobile for better compatibility
+      recognition.interimResults = false;
       recognition.lang = "en-US";
 
       let spokenText = "";
@@ -262,20 +288,40 @@ export function ChatComponent({
       recognition.onerror = (event: any) => {
         console.error("Speech recognition error:", event.error);
         setIsListening(false);
+
+        let errorMsg = event.error;
+        if (event.error === "not-allowed") {
+          errorMsg =
+            "Microphone permission denied. Please allow microphone access.";
+        } else if (event.error === "network") {
+          errorMsg =
+            "Network error. Note: Voice recognition on mobile often requires an HTTPS connection.";
+        } else if (event.error === "no-speech") {
+          // Don't alert for no-speech, just stop listening silently
+          return;
+        }
+
+        setAlertMessage(`Voice Error: ${errorMsg}`);
       };
 
       recognition.onend = () => {
         setIsListening(false);
         if (spokenText.trim()) {
-          submitText(spokenText.trim(), true);
+          // Delay submission slightly to allow UI to update
+          setTimeout(() => {
+            submitText(spokenText.trim(), true);
+          }, 100);
         }
       };
 
       recognitionRef.current = recognition;
       recognition.start();
     } catch (e: any) {
-      console.error(e);
+      console.error("Failed to start recognition:", e);
       setIsListening(false);
+      setAlertMessage(
+        "Failed to start voice recognition: " + (e.message || "Unknown error"),
+      );
     }
   };
 
@@ -324,11 +370,17 @@ export function ChatComponent({
               const next = !isSpeechEnabled;
               setIsSpeechEnabled(next);
               if (
-                !next &&
                 typeof window !== "undefined" &&
                 "speechSynthesis" in window
               ) {
-                window.speechSynthesis.cancel();
+                if (!next) {
+                  window.speechSynthesis.cancel();
+                } else {
+                  // Unlock audio context on user interaction
+                  const unlock = new SpeechSynthesisUtterance("");
+                  unlock.volume = 0;
+                  window.speechSynthesis.speak(unlock);
+                }
               }
             }}
             className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg transition-colors border text-xs font-bold ${
@@ -502,26 +554,10 @@ export function ChatComponent({
             data-form-type="other"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={
-              isListening
-                ? "Listening... Speak now..."
-                : "Ask about match, score, or players..."
-            }
+            placeholder="Ask about the match, score, or players..."
             className="flex-1 min-w-0 bg-slate-900 border border-white/10 rounded-2xl py-2.5 sm:py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-slate-500"
             disabled={loading}
           />
-          <button
-            type="button"
-            onClick={startListening}
-            className={`p-2.5 sm:p-3 rounded-2xl shrink-0 transition-all ${
-              isListening
-                ? "bg-rose-600 text-white animate-pulse shadow-lg shadow-rose-600/50"
-                : "bg-slate-900 border border-white/10 text-indigo-400 hover:text-white hover:bg-slate-700"
-            }`}
-            title={isListening ? "Stop listening" : "Speak question"}
-          >
-            {isListening ? <MicOff size={18} /> : <Mic size={18} />}
-          </button>
           <button
             type="submit"
             disabled={!input.trim() || loading}

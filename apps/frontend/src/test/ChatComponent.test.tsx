@@ -70,7 +70,7 @@ describe("ChatComponent", () => {
     );
     fireEvent.change(input, { target: { value: "Are leg byes extras?" } });
 
-    const sendBtn = screen.getByRole("button", { name: "" }); // icon button
+    const sendBtn = screen.getByRole("button", { name: "Send message" });
     await act(async () => {
       fireEvent.click(sendBtn);
     });
