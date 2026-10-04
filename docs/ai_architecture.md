@@ -530,13 +530,13 @@ The frontend `ChatComponent` is designed for a premium user experience and seaml
 
 ---
 
-## 🚀 Upcoming: Zero-Cost MLOps Pipeline (Live Win Predictor)
+## 🚀 Zero-Cost MLOps Pipeline (Live Win Predictor)
 
-We are actively developing a live **Match Win Predictor** (similar to WASP) that will calculate real-time win probabilities after every ball. This system is architected to run entirely within the **AWS Free Tier**.
+We have implemented a live **Match Win Predictor** (similar to WASP) that calculates real-time win probabilities after every ball. This system is architected to run entirely within the **AWS Free Tier**.
 
 ### Architecture Overview
 
-1. **Model Storage (AWS S3)**: The trained ML model (e.g., Logistic Regression or XGBoost) will be stored in an S3 bucket (zero cost).
-2. **Inference Engine (AWS Lambda - Python)**: A dedicated `ml-engine` Serverless Lambda running Python will expose a prediction API. Because Lambda scales to zero, there is zero cost when no matches are playing. Upon cold start, the Lambda will download the model from S3 into memory (`/tmp`) and serve high-speed predictions.
-3. **Automated Pipeline (GitHub Actions)**: A CI/CD workflow (`mlops-pipeline.yml`) will automatically train the model on historical Kaggle datasets and push the new `.pkl`/`.joblib` artifact to S3 upon any pushes to the `apps/ml-engine/` directory.
-4. **Monorepo Integration**: The model code and inference API will live in `apps/ml-engine/` inside the existing CricScore monorepo, keeping the data science and backend engineering perfectly synchronized.
+1. **Model Storage (AWS ECR)**: The trained ML model (e.g., Logistic Regression or XGBoost) and its heavy dependencies (Pandas, Scikit-Learn) are packaged into a Docker container. AWS ECR provides 500MB of free private storage per month.
+2. **Inference Engine (AWS Lambda - Container Image)**: A dedicated `ml-engine` Serverless Lambda runs the Docker image to expose a prediction API. Because Lambda scales to zero, there is zero cost when no matches are playing. AWS charges the exact same price for Container Image Lambdas as standard Zip Lambdas, allowing us to bypass the 250MB Zip limit while retaining the 1,000,000 free requests per month.
+3. **Automated Pipeline**: A Terraform `null_resource` handles the `docker build` and `docker push` lifecycle seamlessly during deployment.
+4. **Monorepo Integration**: The model code, Dockerfile, and inference API live in `apps/ml-engine/` inside the existing CricScore monorepo, keeping the data science and backend engineering perfectly synchronized.
