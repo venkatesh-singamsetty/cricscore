@@ -9,6 +9,7 @@ import { RunOutModal } from "./MatchView/RunOutModal";
 import { BatterSelectModal } from "./MatchView/BatterSelectModal";
 import { BowlerSelectModal } from "./MatchView/BowlerSelectModal";
 import { ExtraRunsModal } from "./MatchView/ExtraRunsModal";
+import { AiMatchPrediction } from "./AiMatchPrediction";
 
 interface MatchViewProps {
   initialState: InningsState;
@@ -1450,6 +1451,14 @@ const MatchView: React.FC<MatchViewProps> = ({
               </div>
             );
           })()}
+
+          {/* AI Match Prediction Section */}
+          <AiMatchPrediction
+            matchId={matchId}
+            teamA={innings.battingTeamName}
+            teamB={innings.bowlingTeamName}
+            totalOvers={totalOvers}
+          />
         </div>
       </div>
 

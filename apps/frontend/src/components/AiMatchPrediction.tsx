@@ -69,7 +69,19 @@ export const AiMatchPrediction: React.FC<AiMatchPredictionProps> = ({
         🤖 Loading AI Prediction...
       </div>
     );
-  if (error || !prediction) return null;
+  if (error || !prediction)
+    return (
+      <div className="bg-indigo-950/30 border border-indigo-500/20 rounded-2xl p-4 mt-4 shadow-inner">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-black text-indigo-400 uppercase tracking-widest flex items-center gap-1">
+            <span>🤖</span> AI Match Prediction
+          </h3>
+        </div>
+        <div className="text-[10px] text-red-400">
+          ⚠️ {error || "Failed to load prediction data."}
+        </div>
+      </div>
+    );
 
   return (
     <div className="bg-indigo-950/30 border border-indigo-500/20 rounded-2xl p-4 mt-4 shadow-inner">
