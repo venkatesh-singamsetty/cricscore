@@ -279,30 +279,30 @@ export function ChatComponent({
   return (
     <div className="flex flex-col flex-1 min-h-0 w-full max-w-4xl mx-auto bg-slate-900 rounded-xl border border-white/10 shadow-2xl overflow-hidden relative">
       <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-transparent pointer-events-none" />
-      <div className="shrink-0 p-4 bg-slate-800/80 backdrop-blur-sm border-b border-white/10 flex items-center justify-between relative z-10">
-        <h3 className="text-xl font-bold text-white flex items-center gap-2">
-          <Bot className="text-indigo-400" />
-          Live Match AI Assistant
+      <div className="shrink-0 p-3 sm:p-4 bg-slate-800/80 backdrop-blur-sm border-b border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 sm:gap-3 relative z-10">
+        <h3 className="text-base sm:text-xl font-bold text-white flex items-center gap-2">
+          <Bot className="text-indigo-400 shrink-0" size={20} />
+          <span>Live Match AI Assistant</span>
         </h3>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap w-full sm:w-auto justify-end">
           <button
             onClick={handleNewChat}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700/50 hover:bg-slate-700/80 text-slate-300 text-xs font-bold rounded-lg transition-colors border border-slate-600/50"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-700/50 hover:bg-slate-700/80 text-slate-300 text-xs font-bold rounded-lg transition-colors border border-slate-600/50 shrink-0"
             title="Start a new chat"
           >
-            <PlusCircle size={14} className="text-emerald-400" />
-            New Chat
+            <PlusCircle size={14} className="text-emerald-400 shrink-0" />
+            <span>New Chat</span>
           </button>
           {isAdmin && (
             <>
               <div className="relative">
                 <button
                   onClick={() => setShowDocsDropdown(!showDocsDropdown)}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-slate-700/50 hover:bg-slate-700/80 text-slate-300 text-xs font-bold rounded-lg transition-colors border border-slate-600/50"
+                  className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-700/50 hover:bg-slate-700/80 text-slate-300 text-xs font-bold rounded-lg transition-colors border border-slate-600/50"
                 >
-                  <FileText size={14} />
-                  Docs ({uploadedDocs.length})
-                  <ChevronDown size={14} />
+                  <FileText size={14} className="shrink-0" />
+                  <span>Docs ({uploadedDocs.length})</span>
+                  <ChevronDown size={14} className="shrink-0" />
                 </button>
 
                 {showDocsDropdown && (
@@ -328,7 +328,7 @@ export function ChatComponent({
                             </span>
                             <button
                               onClick={() => handleDeleteDoc(doc)}
-                              className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded opacity-0 group-hover:opacity-100 transition-all"
+                              className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
                               title="Delete this rulebook"
                             >
                               <Trash2 size={14} />
@@ -351,33 +351,35 @@ export function ChatComponent({
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploadingRules}
-                className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 text-xs font-bold rounded-lg transition-colors border border-indigo-500/30 disabled:opacity-50"
+                className="flex items-center gap-2 px-2.5 py-1.5 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 text-xs font-bold rounded-lg transition-colors border border-indigo-500/30 disabled:opacity-50 shrink-0"
               >
-                <Upload size={14} />
-                {isUploadingRules ? "Uploading..." : "Upload Rules"}
+                <Upload size={14} className="shrink-0" />
+                <span>
+                  {isUploadingRules ? "Uploading..." : "Upload Rules"}
+                </span>
               </button>
             </>
           )}
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
         {messages.map((msg, idx) => (
           <div
             key={idx}
-            className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
+            className={`flex gap-2.5 sm:gap-3 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
           >
             <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${msg.role === "user" ? "bg-indigo-500" : "bg-slate-700"}`}
+              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0 ${msg.role === "user" ? "bg-indigo-500" : "bg-slate-700"}`}
             >
               {msg.role === "user" ? (
-                <User size={16} className="text-white" />
+                <User size={14} className="text-white sm:w-4 sm:h-4" />
               ) : (
-                <Bot size={16} className="text-indigo-300" />
+                <Bot size={14} className="text-indigo-300 sm:w-4 sm:h-4" />
               )}
             </div>
             <div
-              className={`p-3 rounded-2xl max-w-[80%] shadow-md relative group ${msg.role === "user" ? "bg-indigo-600 text-white rounded-tr-none shadow-indigo-500/20" : "bg-slate-800 text-slate-200 rounded-tl-none border border-white/5"}`}
+              className={`p-3 rounded-2xl max-w-[85%] sm:max-w-[80%] shadow-md relative group ${msg.role === "user" ? "bg-indigo-600 text-white rounded-tr-none shadow-indigo-500/20" : "bg-slate-800 text-slate-200 rounded-tl-none border border-white/5 pr-8"}`}
             >
               <FormattedContent content={msg.content} />
 
@@ -385,7 +387,7 @@ export function ChatComponent({
                 msg.content !== "Hi! Ask me anything about the live match!" && (
                   <button
                     onClick={() => handleCopy(msg.content)}
-                    className="absolute -right-8 bottom-0 p-1.5 text-slate-500 hover:text-indigo-400 hover:bg-indigo-400/10 rounded-md opacity-0 group-hover:opacity-100 transition-all"
+                    className="absolute right-2 bottom-2 p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-indigo-500/20 rounded-md opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
                     title="Copy response"
                   >
                     <Copy size={14} />
@@ -395,9 +397,12 @@ export function ChatComponent({
           </div>
         ))}
         {loading && (
-          <div className="flex gap-3 flex-row">
-            <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center shrink-0">
-              <Bot size={16} className="text-indigo-300 animate-pulse" />
+          <div className="flex gap-2.5 sm:gap-3 flex-row">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-700 flex items-center justify-center shrink-0">
+              <Bot
+                size={14}
+                className="text-indigo-300 animate-pulse sm:w-4 sm:h-4"
+              />
             </div>
             <div className="p-3 rounded-2xl bg-slate-800 text-slate-400 rounded-tl-none border border-white/5 flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-slate-500 animate-bounce"></div>
@@ -415,22 +420,22 @@ export function ChatComponent({
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="shrink-0 p-4 bg-slate-800 border-t border-white/10">
+      <div className="shrink-0 p-3 sm:p-4 bg-slate-800 border-t border-white/10">
         <form onSubmit={sendMessage} className="relative flex items-center">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask about the match, score, or players..."
-            className="w-full bg-slate-900 border border-white/10 rounded-full py-3 px-6 pr-14 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-slate-500"
+            className="w-full bg-slate-900 border border-white/10 rounded-full py-2.5 sm:py-3 px-4 sm:px-6 pr-12 sm:pr-14 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-slate-500"
             disabled={loading}
           />
           <button
             type="submit"
             disabled={!input.trim() || loading}
-            className="absolute right-2 p-2 bg-indigo-500 text-white rounded-full hover:bg-indigo-600 disabled:opacity-50 disabled:hover:bg-indigo-500 transition-colors"
+            className="absolute right-1.5 sm:right-2 p-1.5 sm:p-2 bg-indigo-500 text-white rounded-full hover:bg-indigo-600 disabled:opacity-50 disabled:hover:bg-indigo-500 transition-colors"
           >
-            <Send size={18} />
+            <Send size={16} className="sm:w-[18px] sm:h-[18px]" />
           </button>
         </form>
       </div>
