@@ -1,3 +1,13 @@
+## [4.8.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.7.1...v4.8.0) (2026-10-04)
+
+### 🚀 Features
+
+* Enterprise-grade infrastructure protections & AI Governance ([#234](https://github.com/venkatesh-singamsetty/cricscore/issues/234)) ([5a6ee72](https://github.com/venkatesh-singamsetty/cricscore/commit/5a6ee72e173d581d1891bbf8a345a7aa9acc629c))
+
+### 🐛 Bug Fixes
+
+* Remove explicit reserved concurrency to respect AWS Sandbox limits ([#235](https://github.com/venkatesh-singamsetty/cricscore/issues/235)) ([f1e2a5a](https://github.com/venkatesh-singamsetty/cricscore/commit/f1e2a5a0839b37ea6700ff038efbf96fc8252d21))
+
 ## [4.7.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.7.0...v4.7.1) (2026-10-04)
 
 ### 🐛 Bug Fixes
