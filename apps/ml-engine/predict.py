@@ -4,6 +4,7 @@ import joblib
 import pandas as pd
 
 # Cold Start Initialization
+# Forces Terraform to rebuild the Docker container via null_resource triggers
 # Using the new live model
 MODEL_FILE = os.path.join(os.path.dirname(__file__), 'live_win_predictor_model.joblib')
 METADATA_FILE = os.path.join(os.path.dirname(__file__), 'live_metadata.json')
