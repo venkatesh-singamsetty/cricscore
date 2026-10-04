@@ -68,19 +68,26 @@ $$\text{model\_balls\_left} = \text{balls\_left} \times \text{scale\_factor}$$
 
 ---
 
-### 3. Hard Heuristic Overrides
+### 4. Wicket Sensitivity Analysis
 
-To guarantee mathematical sanity, the prediction engine applies strict rule-based overrides:
+Wickets lost (`wickets_lost`) are a major non-linear feature in the Logistic Regression model. Each wicket reduces remaining batting depth and increases pressure on lower-order batters.
 
-| Scenario               | Rule Condition                                                            | Resulting Win Probability       |
-| :--------------------- | :------------------------------------------------------------------------ | :------------------------------ |
-| **Match Start**        | `inning == 1` AND `score == 0` AND `wickets == 0` AND `balls_bowled == 0` | **50% Batting / 50% Bowling**   |
-| **Completed Chase**    | `inning == 2` AND `current_score >= target_score`                         | **100% Batting / 0% Bowling**   |
-| **All Out**            | `wickets_lost >= 10`                                                      | **0% Batting / 100% Bowling**   |
-| **Impossible Target**  | `inning == 2` AND `(target_score - current_score) > balls_left * 6`       | **0% Batting / 100% Bowling**   |
-| **Extreme RRR (> 18)** | `inning == 2` AND `RRR > 18.0`                                            | **Batting Win % Capped at 1%**  |
-| **High RRR (> 15)**    | `inning == 2` AND `RRR > 15.0`                                            | **Batting Win % Capped at 5%**  |
-| **Steep RRR (> 12)**   | `inning == 2` AND `RRR > 12.0`                                            | **Batting Win % Capped at 15%** |
+#### Probability Shifts by Wicket Loss (2nd Innings Chases):
+
+1. **Standard T20 Chase (Target 160, Score 80 in 10.0 overs — 60 balls left, 80 needed)**:
+   - **0 Wickets Lost (80/0)**: **78% Win Probability**
+   - **1 Wicket Lost (80/1)**: **70% Win Probability**
+   - **2 Wickets Lost (80/2)**: **60% Win Probability**
+   - **3 Wickets Lost (80/3)**: **50% Win Probability**
+   - **5 Wickets Lost (80/5)**: **30% Win Probability**
+   - **8 Wickets Lost (80/8)**: **11% Win Probability**
+   - **10 Wickets Lost (All Out)**: **0% Win Probability** (Loss)
+
+2. **1-Over Shortened Chase (Target 10, Score 5 in 0.3 overs — 3 balls left, 5 needed)**:
+   - **0 Wickets Lost (5/0)**: **59% Win Probability**
+   - **1 Wicket Lost (5/1)**: **49% Win Probability**
+   - **2 Wickets Lost (5/2)**: **39% Win Probability**
+   - **10 Wickets Lost (All Out)**: **0% Win Probability** (Loss)
 
 ---
 
