@@ -5,6 +5,7 @@ import Scoreboard from "./Scoreboard";
 import { AiMatchPrediction } from "./AiMatchPrediction";
 import { InningsState, ExtraType, WicketType } from "../types";
 import { getCurrentPartnership } from "../utils/partnershipUtils";
+import { calculateDlsParScore } from "../utils/dlsUtils";
 import {
   isHubRefreshType,
   isScoreEventType,
@@ -751,17 +752,41 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                       </div>
 
                       <div className="flex flex-col gap-1">
-                        {/* Previous Innings Summary (Tight) */}
+                        {/* Previous Innings Summary (Tight) & DLS Par Score Indicator */}
                         {matchDetails.innings.length > 1 && (
-                          <div className="flex items-center gap-2 mb-1 opacity-60">
-                            <span className="text-[8px] font-black bg-slate-700 px-1.5 py-0.5 rounded uppercase tracking-tighter">
-                              INN 1
-                            </span>
-                            <span className="text-xs font-bold text-slate-300">
-                              {matchDetails.innings[0].battingTeamName}:{" "}
-                              {matchDetails.innings[0].totalRuns}/
-                              {matchDetails.innings[0].totalWickets}
-                            </span>
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <div className="flex items-center gap-1 opacity-60">
+                              <span className="text-[8px] font-black bg-slate-700 px-1.5 py-0.5 rounded uppercase tracking-tighter">
+                                INN 1
+                              </span>
+                              <span className="text-xs font-bold text-slate-300">
+                                {matchDetails.innings[0].battingTeamName}:{" "}
+                                {matchDetails.innings[0].totalRuns}/
+                                {matchDetails.innings[0].totalWickets}
+                              </span>
+                            </div>
+                            {(() => {
+                              const dls = calculateDlsParScore(
+                                matchDetails.innings[0].totalRuns,
+                                currentInnings.totalRuns,
+                                currentInnings.totalWickets,
+                                currentInnings.overs * 6 + currentInnings.balls,
+                                matchMeta?.totalOvers || 20,
+                              );
+                              return (
+                                <span
+                                  className={`text-[8px] font-black px-2 py-0.5 rounded-full border uppercase tracking-wider ${
+                                    dls.isAhead
+                                      ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                                      : dls.isTied
+                                        ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                                        : "bg-red-500/20 text-red-300 border-red-500/30"
+                                  }`}
+                                >
+                                  🌧️ DLS PAR: {dls.parScore} ({dls.statusText})
+                                </span>
+                              );
+                            })()}
                           </div>
                         )}
 
