@@ -70,20 +70,37 @@ def handler(event, context):
         batting_team_prob = prediction_probs[0][1]
         bowling_team_prob = 1.0 - batting_team_prob
 
-        # HEURISTIC OVERRIDE: Impossible Chases
-        # If it's the 2nd innings, and the runs required are strictly greater than the maximum 
-        # possible runs that can be scored from the remaining legal deliveries (assuming 6 per ball).
+        # HEURISTIC OVERRIDE: Impossible Chases & Extreme Required Run Rates (RRR)
+        # The Logistic Regression model is trained purely on T20 data (average targets ~160).
+        # In shortened matches (e.g. 1-over matches), a target of 21 tricks the linear model 
+        # into thinking the chase is incredibly easy, leading to a 90%+ probability hallucination.
+        # We apply an RRR heuristic to cap the probability based on real cricket difficulty.
         if inning == 2 and target_score > 0:
             runs_needed = target_score - current_score
             max_possible_runs = balls_left * 6
+            
             if runs_needed > max_possible_runs:
-                # Mathematically impossible to win (ignoring massive no-ball/wide streaks)
+                # Mathematically impossible to win
                 batting_team_prob = 0.0
                 bowling_team_prob = 1.0
             elif runs_needed <= 0:
                 # Already won
                 batting_team_prob = 1.0
                 bowling_team_prob = 0.0
+            elif balls_left > 0:
+                # Calculate RRR
+                rrr = (runs_needed / balls_left) * 6
+                # Cap the maximum probability the batting team can have based on how steep the RRR is
+                if rrr > 18:
+                    batting_team_prob = min(batting_team_prob, 0.01)
+                elif rrr > 15:
+                    batting_team_prob = min(batting_team_prob, 0.05)
+                elif rrr > 12:
+                    batting_team_prob = min(batting_team_prob, 0.15)
+                elif rrr > 10:
+                    batting_team_prob = min(batting_team_prob, 0.35)
+                
+                bowling_team_prob = 1.0 - batting_team_prob
 
         predicted_winner = batting_team if batting_team_prob > 0.5 else bowling_team
 
