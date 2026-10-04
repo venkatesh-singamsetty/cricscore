@@ -9,6 +9,10 @@ import {
   ChevronDown,
   Copy,
   PlusCircle,
+  Mic,
+  MicOff,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { safeSessionStorageSet } from "../utils/storageSafety";
 
@@ -112,11 +116,94 @@ export function ChatComponent({
     ];
   });
 
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeechEnabled, setIsSpeechEnabled] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  const [isUploadingRules, setIsUploadingRules] = useState(false);
+  const [uploadedDocs, setUploadedDocs] = useState<string[]>([]);
+  const [showDocsDropdown, setShowDocsDropdown] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
   React.useEffect(() => {
     localStorage.setItem("cricscore-chat-memory", JSON.stringify(messages));
   }, [messages]);
 
+  const speakText = (text: string) => {
+    if (
+      !isSpeechEnabled ||
+      typeof window === "undefined" ||
+      !("speechSynthesis" in window)
+    ) {
+      return;
+    }
+    const cleanText = text
+      .replace(/\*\*/g, "")
+      .replace(/\[Source:.*?\]/g, "")
+      .replace(/[-•]/g, "");
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.rate = 1.0;
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const startListening = () => {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      setAlertMessage("Voice recognition is not supported on this browser.");
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = "en-US";
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = Array.from(event.results)
+          .map((result: any) => result[0].transcript)
+          .join("");
+        setInput(transcript);
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error("Speech recognition error:", event.error);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (e: any) {
+      console.error(e);
+      setIsListening(false);
+    }
+  };
+
   const handleNewChat = () => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
     setMessages([
       {
         role: "assistant",
@@ -129,13 +216,6 @@ export function ChatComponent({
     navigator.clipboard.writeText(text);
     setAlertMessage("✅ Copied to clipboard");
   };
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [isUploadingRules, setIsUploadingRules] = useState(false);
-  const [uploadedDocs, setUploadedDocs] = useState<string[]>([]);
-  const [showDocsDropdown, setShowDocsDropdown] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -240,7 +320,6 @@ export function ChatComponent({
     setLoading(true);
 
     try {
-      // Send chat history minus the initial greeting if it's the only one
       const history = messages.filter((m) => m.role !== "system");
 
       const res = await fetch(`${apiUrl}/chat`, {
@@ -260,6 +339,7 @@ export function ChatComponent({
           ...prev,
           { role: "assistant", content: data.reply },
         ]);
+        speakText(data.reply);
       } else {
         setMessages((prev) => [
           ...prev,
@@ -277,7 +357,7 @@ export function ChatComponent({
   };
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 w-full max-w-4xl mx-auto bg-slate-900 rounded-xl border border-white/10 shadow-2xl overflow-hidden relative">
+    <div className="flex flex-col flex-1 min-h-0 w-full max-w-4xl mx-auto bg-slate-900 rounded-none sm:rounded-xl border-0 sm:border border-white/10 shadow-2xl overflow-hidden relative">
       <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-transparent pointer-events-none" />
       <div className="shrink-0 p-3 sm:p-4 bg-slate-800/95 backdrop-blur-sm border-b border-white/10 flex items-center justify-between gap-2 relative z-20 sticky top-0 shadow-md">
         <h3 className="text-sm sm:text-xl font-bold text-white flex items-center gap-1.5 sm:gap-2 shrink-0">
@@ -287,6 +367,38 @@ export function ChatComponent({
           </span>
         </h3>
         <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+          <button
+            onClick={() => {
+              const next = !isSpeechEnabled;
+              setIsSpeechEnabled(next);
+              if (
+                !next &&
+                typeof window !== "undefined" &&
+                "speechSynthesis" in window
+              ) {
+                window.speechSynthesis.cancel();
+              }
+            }}
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg transition-colors border text-xs font-bold ${
+              isSpeechEnabled
+                ? "bg-indigo-600/40 border-indigo-500/50 text-indigo-300"
+                : "bg-slate-700/60 border-slate-600/50 text-slate-400 hover:text-slate-200"
+            }`}
+            title={
+              isSpeechEnabled
+                ? "Voice response enabled"
+                : "Enable voice response"
+            }
+          >
+            {isSpeechEnabled ? (
+              <Volume2 size={14} className="text-indigo-400 shrink-0" />
+            ) : (
+              <VolumeX size={14} className="shrink-0" />
+            )}
+            <span className="hidden sm:inline">
+              {isSpeechEnabled ? "Voice On" : "Voice Off"}
+            </span>
+          </button>
           <button
             onClick={handleNewChat}
             className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 bg-slate-700/60 hover:bg-slate-700/90 text-slate-200 text-xs font-bold rounded-lg transition-colors border border-slate-600/50 shrink-0"
@@ -425,7 +537,7 @@ export function ChatComponent({
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="shrink-0 p-3 sm:p-4 bg-slate-800 border-t border-white/10 sticky bottom-0 z-20">
+      <div className="shrink-0 p-2.5 sm:p-4 bg-slate-800 border-t border-white/10 sticky bottom-0 z-20">
         <form onSubmit={sendMessage} className="relative flex items-center">
           <input
             type="text"
@@ -434,17 +546,36 @@ export function ChatComponent({
             onFocus={() => {
               setTimeout(() => window.scrollTo(0, 0), 100);
             }}
-            placeholder="Ask about the match, score, or players..."
-            className="w-full bg-slate-900 border border-white/10 rounded-full py-2.5 sm:py-3 px-4 sm:px-6 pr-12 sm:pr-14 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-slate-500"
+            placeholder={
+              isListening
+                ? "Listening... Speak now..."
+                : "Ask about match, score, or players..."
+            }
+            className="w-full bg-slate-900 border border-white/10 rounded-full py-2.5 sm:py-3 px-4 sm:px-6 pr-20 sm:pr-24 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-slate-500"
             disabled={loading}
           />
-          <button
-            type="submit"
-            disabled={!input.trim() || loading}
-            className="absolute right-1.5 sm:right-2 p-1.5 sm:p-2 bg-indigo-500 text-white rounded-full hover:bg-indigo-600 disabled:opacity-50 disabled:hover:bg-indigo-500 transition-colors"
-          >
-            <Send size={16} className="sm:w-[18px] sm:h-[18px]" />
-          </button>
+          <div className="absolute right-1.5 sm:right-2 flex items-center gap-1">
+            <button
+              type="button"
+              onClick={startListening}
+              className={`p-1.5 sm:p-2 rounded-full transition-all ${
+                isListening
+                  ? "bg-rose-600 text-white animate-pulse shadow-lg shadow-rose-600/50"
+                  : "bg-slate-800 text-slate-400 hover:text-indigo-300 hover:bg-slate-700"
+              }`}
+              title={isListening ? "Stop listening" : "Speak question"}
+            >
+              {isListening ? <MicOff size={16} /> : <Mic size={16} />}
+            </button>
+            <button
+              type="submit"
+              disabled={!input.trim() || loading}
+              className="p-1.5 sm:p-2 bg-indigo-500 text-white rounded-full hover:bg-indigo-600 disabled:opacity-50 disabled:hover:bg-indigo-500 transition-colors"
+              title="Send message"
+            >
+              <Send size={16} className="sm:w-[18px] sm:h-[18px]" />
+            </button>
+          </div>
         </form>
       </div>
     </div>
