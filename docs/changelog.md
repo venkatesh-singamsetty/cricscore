@@ -1,3 +1,27 @@
+## [4.7.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.6.1...v4.7.0) (2026-10-04)
+
+### 🚀 Features
+
+* Add live ball-by-ball score prediction model ([787293d](https://github.com/venkatesh-singamsetty/cricscore/commit/787293db6a8b7c646c5a20c58ba3ce1d8322783d))
+
+### 🐛 Bug Fixes
+
+* Resolve CodeQL alerts and NPM audit vulnerabilities ([355a2ed](https://github.com/venkatesh-singamsetty/cricscore/commit/355a2edf978da38b799ba80f81b4d3661563a1e6))
+
+### 📚 Documentation
+
+* add Serverless execution and Lessons Learned to mlops tutorial ([a0a3c8e](https://github.com/venkatesh-singamsetty/cricscore/commit/a0a3c8e616085b6c73e0f87d3b4c403ead8ea6b8))
+* update mlops tutorial for live ML model ([3afa25e](https://github.com/venkatesh-singamsetty/cricscore/commit/3afa25eda18f176dd29a4b351914cc08fe3b8a35))
+* update root and ml-engine READMEs for live ML pipeline ([e1c0691](https://github.com/venkatesh-singamsetty/cricscore/commit/e1c0691594c933fcf5304b6db3b5033c5837b504))
+
+### 🧪 Tests
+
+* add industry standard pytest suite for mlops inference lambda ([3cf55a3](https://github.com/venkatesh-singamsetty/cricscore/commit/3cf55a329915572c2e0543bbf08e60753a53d463))
+
+### ⚙️ CI/CD Pipelines
+
+* add monthly cron schedule to automatically retrain the ml model on new data ([ef732ea](https://github.com/venkatesh-singamsetty/cricscore/commit/ef732ea1063500ab2bb7e98f5184ac832bc8b996))
+
 ## [4.6.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.6.0...v4.6.1) (2026-10-04)
 
 ### 🐛 Bug Fixes
