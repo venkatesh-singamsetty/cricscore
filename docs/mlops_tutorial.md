@@ -17,38 +17,37 @@ The MLOps pipeline consists of four main stages:
 
 ---
 
-## 📊 2. The Data Pipeline (`data_pipeline.py`)
+## 📊 2. The Data Pipeline (`live_data.csv`)
 
-**Location**: `apps/ml-engine/data_pipeline.py`
+**Location**: `apps/ml-engine/data/live_data.csv` (Ignored by Git)
 
-Cricsheet provides highly detailed JSON files for every match. The data pipeline's job is to parse thousands of these files and extract high-level features.
+The data pipeline extracts ball-by-ball match situations instead of just pre-match summaries.
 
-**Key Steps:**
+**Key Features Extracted:**
 
-1. **Download**: Fetches `t20s_json.zip` directly from Cricsheet.
-2. **Parsing**: Iterates through each JSON file to extract pre-match variables:
-   - `team1`, `team2`
-   - `venue`
-   - `toss_winner`, `toss_decision`
-3. **Label Extraction**: Determines the match winner.
-4. **Export**: Saves a clean, flattened `matches.csv` into a `.gitignore`'d directory (`apps/ml-engine/data/`) to prevent bloating the Git repository.
+- `current_score`: Total runs scored so far.
+- `wickets_lost`: Number of wickets fallen.
+- `balls_left`: Remaining balls in the innings.
+- `target_score`: The target score to win (if in the 2nd innings, otherwise -1).
+- `winner`: The team that ultimately won the match.
+
+The script compiles a highly structured `live_data.csv` into a `.gitignore`'d directory (`apps/ml-engine/data/`) to prevent bloating the Git repository.
 
 ---
 
-## 🧠 3. Model Training (`train.py`)
+## 🧠 3. Model Training (`live_train.py`)
 
-**Location**: `apps/ml-engine/train.py`
+**Location**: `apps/ml-engine/live_train.py`
 
-Because AWS Lambda has a strict 250MB uncompressed limit for deployment packages, we cannot use heavy libraries like XGBoost alongside Pandas and Scikit-Learn. We opted for `LogisticRegression` to keep the deployment footprint small (~50MB).
+We use a robust `LogisticRegression` model trained on in-match dynamic variables.
 
 **Key ML Concepts Applied:**
 
-- **Time-Series Validation**: Matches are sorted by date. The oldest 80% are used for training, and the newest 20% are used for testing. This mimics real-world conditions where the model must predict future matches.
-- **Categorical Encoding**: `OneHotEncoder` is used within a `ColumnTransformer` to handle string-based features like Team Names and Venues.
-- **Pipeline Abstraction**: The preprocessing steps and the estimator are bundled into a single Scikit-Learn `Pipeline` object. This ensures that the exact same transformations applied during training are automatically applied during live inference.
+- **Dynamic State Evaluation**: The model assesses win probability based on the _current match situation_ rather than static pre-match attributes.
+- **Categorical Encoding**: Handles string-based features (Team Names).
 - **Artifact Generation**: The pipeline outputs two files:
-  - `win_predictor_model.joblib`: The serialized model weights (only ~1MB).
-  - `metadata.json`: Contains model version, accuracy metrics, and timestamp.
+  - `live_win_predictor_model.joblib`: The serialized model weights.
+  - `live_metadata.json`: Contains model version, accuracy metrics, and timestamp.
 
 ---
 
@@ -63,22 +62,22 @@ This GitHub Action triggers whenever changes are made in `apps/ml-engine/`.
 1. It installs dependencies (`scikit-learn`, `pandas`).
 2. Runs the data pipeline.
 3. Runs the training script.
-4. **The Gate**: The training script exits with an error code (e.g., `sys.exit(1)`) if the model accuracy falls below 60%. If the accuracy is satisfactory, the GitHub Action proceeds.
-5. The resulting lightweight `.joblib` model artifact can then be securely included in the Lambda deployment package.
+4. **The Gate**: The training script exits with an error code if the model accuracy falls below acceptable thresholds.
+5. The resulting lightweight `.joblib` model artifact is then bundled for deployment.
 
 ---
 
-## ☁️ 5. Serverless Inference (`predict.py`)
+## ☁️ 5. Serverless Docker Inference (`predict.py`)
 
-**Location**: `apps/ml-engine/predict.py` & `infra/terraform/lambda.tf`
+**Location**: `apps/ml-engine/predict.py` & `apps/ml-engine/Dockerfile`
 
-Instead of deploying a container that runs 24/7, the model is served using AWS Lambda.
+Instead of deploying a traditional zipped Lambda package, the live model is containerized using Docker and hosted on **AWS ECR (Elastic Container Registry)**.
 
 **How it works:**
 
-1. **Bundling**: The `win_predictor_model.joblib` and `metadata.json` files are placed alongside the `predict.py` handler.
-2. **Cold Start Optimization**: The model is loaded into memory _outside_ the Lambda handler function. This means the model is only loaded from disk once per container initialization, making subsequent requests extremely fast (often <50ms).
-3. **Execution**: The handler accepts a JSON payload (teams, venue, toss info), creates a Pandas DataFrame, runs `model.predict_proba()`, and returns the win probability for both teams.
+1. **Containerization**: A `Dockerfile` bundles the `live_win_predictor_model.joblib`, `predict.py`, and dependencies into an AWS Lambda Python base image.
+2. **ECR Storage**: The image is pushed to a Private ECR Repository. Private ECR provides **500MB per month of free storage** under the AWS Free Tier. We overwrite the `latest` tag continuously to ensure we stay well under this 500MB free limit (even though Lambda container images can theoretically support up to 10GB sizes).
+3. **Execution**: The handler accepts a JSON payload of the live match state, executes `model.predict_proba()`, and returns live ball-by-ball win probabilities.
 
 ---
 
@@ -86,9 +85,9 @@ Instead of deploying a container that runs 24/7, the model is served using AWS L
 
 **Location**: `apps/frontend/src/components/AiMatchPrediction.tsx`
 
-The React frontend seamlessly integrates with the Lambda endpoint. Inside the Live Scoreboard view, an `AiMatchPrediction` component issues a `POST` request to the API Gateway.
+The React frontend seamlessly integrates with the Lambda endpoint. Inside the Live Scoreboard view, an `AiMatchPrediction` component issues a `POST` request to the API Gateway after every single ball.
 
-The UI visualizes the probabilities using a dynamic progress bar, providing fans and scorers with real-time AI insights while the match progresses.
+The UI visualizes the probabilities using a compact progress bar nestled right inside the scoreboard header, providing fans and scorers with real-time AI insights.
 
 ---
 
@@ -96,6 +95,5 @@ The UI visualizes the probabilities using a dynamic progress bar, providing fans
 
 As this is an experimental pipeline, there are several ways to scale it up:
 
-- **In-Match Live Predictions**: Currently, the model only uses pre-match features. A more advanced model could take the current score (`runs/wickets/overs`) and adjust the probability live.
-- **Player-Level Data**: Aggregating individual player statistics (strike rate, bowling economy) to determine team strength rather than relying solely on historical team-vs-team outcomes.
-- **Containerized Lambdas**: Migrating the Lambda deployment to an AWS ECR Docker Container (up to 10GB limit) to allow the use of more complex architectures like XGBoost or LightGBM.
+- **Player-Level Data**: Aggregating individual player statistics (strike rate, bowling economy) to determine team strength dynamically based on who is currently at the crease.
+- **Deep Learning**: Now that we use ECR Containers, we have the space to include heavier frameworks like PyTorch or TensorFlow if the model complexity increases.
