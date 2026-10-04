@@ -4,21 +4,27 @@ This directory contains the Zero-Cost MLOps pipeline for the CricScore live win 
 
 ## 📁 Directory Structure
 
-- `data/` - Drop your raw CSV files from Kaggle here (ignored by git).
-- `train.py` - Script to train the win predictor model on historical data and upload it to S3.
-- `predict.py` - Serverless AWS Lambda handler that downloads the model from S3 and serves live predictions.
+- `data/` - Location for processed datasets. The `data_pipeline.py` extracts Cricsheet JSONs here. (Ignored by git).
+- `data_pipeline.py` - Fetches historical T20 data from Cricsheet and extracts ball-by-ball dynamic features into `live_data.csv`.
+- `live_train.py` - Script to train the live win predictor model on dynamic variables (`runs`, `wickets`, `balls_left`) and output `live_win_predictor_model.joblib`.
+- `predict.py` - Serverless AWS Lambda handler that loads the joblib model from disk to serve live predictions.
+- `Dockerfile` - Containerizes the model and `predict.py` for deployment to AWS ECR.
 - `requirements.txt` - Python dependencies for the ML engine.
 
 ## 🚀 How to Train Locally
 
-1. **Get the Data:** Download a historical ball-by-ball dataset from Kaggle (e.g., IPL ball-by-ball dataset) and save it as `data/matches.csv`.
-2. **Install Dependencies:**
+1. **Install Dependencies:**
    ```bash
    pip install -r requirements.txt
    ```
+2. **Generate the Dataset:**
+   ```bash
+   python data_pipeline.py
+   ```
+   _(This downloads and parses Cricsheet JSON files into `data/live_data.csv`)_
 3. **Run Training:**
    ```bash
-   python train.py
+   python live_train.py
    ```
 
-The script will output a `win_predictor_model.joblib` file locally. In production, the GitHub Actions CI/CD pipeline will automatically run `train.py` and upload the resulting artifact to our AWS S3 bucket.
+The script will output `live_win_predictor_model.joblib` and `live_metadata.json` locally. In production, the GitHub Actions CI/CD pipeline will automatically run these scripts, build the Docker image, and push it to the AWS ECR Private repository.
