@@ -210,6 +210,7 @@ Instead of deploying heavy, always-on inference servers, the model is packaged i
 | PostgreSQL       | Match, player, score, and tournament persistence     |
 | pgvector         | Vector similarity search extension for RAG           |
 | HNSW Index       | High-performance approximate nearest-neighbor search |
+| DynamoDB         | NoSQL active connections registry for WebSockets     |
 
 ### Machine Learning & MLOps
 
@@ -231,6 +232,10 @@ Instead of deploying heavy, always-on inference servers, the model is packaged i
 | S3         | Static website hosting         |
 | Route53    | DNS management                 |
 | ACM        | SSL/TLS certificate management |
+| SES        | Simple Email Service reports   |
+| CloudWatch | Logging, Metrics, and Alarms   |
+| AWS X-Ray  | Distributed request tracing    |
+| Budgets    | Automated billing alerts       |
 
 ### DevSecOps & Security
 
@@ -295,9 +300,14 @@ cp .env.local.example .env.local
 
 If your repo does not include a `.env.local.example`, use the values already referenced by the infra scripts and Terraform variables as the source of truth.
 
-### 💰 Cost Notes
+### 🛡️ DDoS Protection & Cost Governance
 
-The recurring cost is expected to stay very low for normal usage. In practice, the main fixed monthly expense is typically the Route 53 hosted zone, while most other services are event-driven or usage-based. If you are not actively testing the dev site, you can destroy or pause it to keep costs near the minimum possible level.
+To ensure the repository is completely "viral-proof" and safe to deploy to the public internet, CricScore is strictly governed by automated cost-protection guardrails:
+
+- **API Rate Limiting**: API Gateway enforces a strict throttling rate (`rate_limit = 50`, `burst_limit = 100`) to prevent malicious DDoS attacks from racking up AWS bills.
+- **Database Connection Protection**: All AWS Lambda functions are hard-capped to `reserved_concurrent_executions = 20`. This guarantees that massive traffic spikes will be throttled natively by AWS rather than crashing the Aiven Free Tier PostgreSQL database.
+- **Automated Cost Alarms**: Terraform automatically provisions an AWS Budgets Cost Alert that instantly emails the administrator the moment monthly spending exceeds `$5.00`.
+- **Git History Scrubbing**: The entire git history is continuously scanned by GitLeaks, guaranteeing absolutely zero raw credentials exist anywhere in the repository.
 
 ---
 

@@ -58,6 +58,10 @@ resource "aws_apigatewayv2_stage" "websocket_stage" {
     destination_arn = aws_cloudwatch_log_group.ws_api_access_logs.arn
     format          = "$context.requestId $context.identity.sourceIp $context.requestTime $context.routeKey $context.status"
   }
+  default_route_settings {
+    throttling_burst_limit = 100
+    throttling_rate_limit  = 50
+  }
   depends_on = [aws_api_gateway_account.apigateway_account]
 }
 
