@@ -107,15 +107,6 @@ def train_model():
         json.dump(metadata, f, indent=2)
     print(f"💾 Metadata saved to {METADATA_FILE}")
     
-    # Upload to S3 if in CI
-    if os.environ.get('CI') == 'true':
-        import boto3
-        s3_bucket = os.environ.get('ML_S3_BUCKET', 'cricscore-ml-models-dev')
-        s3 = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
-        print(f"☁️ Uploading artifacts to S3 bucket: {s3_bucket}")
-        s3.upload_file(MODEL_FILE, s3_bucket, MODEL_FILE)
-        s3.upload_file(METADATA_FILE, s3_bucket, METADATA_FILE)
-        print("🚀 Successfully uploaded to AWS S3!")
 
 if __name__ == "__main__":
     train_model()
