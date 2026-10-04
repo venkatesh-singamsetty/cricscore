@@ -14,6 +14,9 @@ git clone https://github.com/venkatesh-singamsetty/cricscore.git && cd cricscore
 # Install all prerequisites (Node, Python3, Terraform, AWS CLI, security scanners)
 ./infra/scripts/setup.sh
 
+# Authenticate with AWS CLI (Required for local deployments and troubleshooting)
+aws configure
+
 # Copy environment templates
 cp .env.local.example .env.local
 cp apps/frontend/.env.example apps/frontend/.env
