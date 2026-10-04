@@ -297,6 +297,9 @@ resource "aws_lambda_function" "cognito_presignup" {
 # --- ML Predictor Lambda (Python via Docker ECR) ---
 
 resource "aws_ecr_repository" "ml_predict" {
+  # checkov:skip=CKV_AWS_163: "Image scanning not required for this demo project"
+  # checkov:skip=CKV_AWS_136: "AES256 default encryption is sufficient, no custom KMS keys to avoid costs"
+  # checkov:skip=CKV_AWS_51: "Image tags must be mutable for CI/CD latest tag reuse"
   name                 = "${var.project_name}-ml-predict"
   image_tag_mutability = "MUTABLE"
   force_delete         = true
