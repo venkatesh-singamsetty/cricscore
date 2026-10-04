@@ -174,6 +174,8 @@ CricScore features an integrated Machine Learning Operations (MLOps) pipeline th
 Instead of deploying heavy, always-on inference servers, the model is packaged into an **AWS ECR Docker Container** and executed via a Serverless Lambda (`/match/predict`), reducing idle compute costs to absolute zero.
 
 - 📖 **[MLOps Tutorial](./docs/mlops_tutorial.md)**: End-to-end guide on data ingestion, training gates, and Docker containerization.
+- 📖 **[Win Prediction Specification](./docs/mlops_win_prediction_spec.md)**: Detailed mathematical models, par-RPO scaling equations, RRR caps, 50-50 match start baselines, and wicket sensitivity analysis.
+- 📖 **[Duckworth-Lewis-Stern (DLS) Specification](./docs/mlops_dls_spec.md)**: ICC exponential resource decay formulas, resource tables, DLS par-score calculations, and rain interruption tiebreakers.
 
 ---
 

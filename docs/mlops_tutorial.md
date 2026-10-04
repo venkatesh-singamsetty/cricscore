@@ -4,6 +4,9 @@ This guide walks through the end-to-end Machine Learning Operations (MLOps) pipe
 
 Most importantly, this pipeline is designed to be **100% free** and highly scalable. It avoids expensive GPU instances, heavy ML platforms (like SageMaker), or large inference servers by leveraging GitHub Actions for training and AWS Lambda for inference.
 
+- 📖 **[Win Prediction Engine Specification](./mlops_win_prediction_spec.md)**: Deep-dive into 1st/2nd innings scaling math, RRR caps, 50-50 match start baselines, and wicket sensitivity.
+- 📖 **[Duckworth-Lewis-Stern (DLS) Specification](./mlops_dls_spec.md)**: Exponential resource decay equations ($R(u, w)$), ICC resource tables, DLS par-score calculations, and rain tiebreaker rules.
+
 ---
 
 ## 🏗️ 1. Architecture Overview
