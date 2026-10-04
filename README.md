@@ -166,18 +166,17 @@ Merge requests to `main` require passing status checks. The main pipeline deploy
 CricScore now features an integrated Machine Learning Operations (MLOps) pipeline that predicts the winner of a T20 match based on historical Cricsheet data.
 
 **What the ML feature does:**
-The ML model predicts the win probability for Team A vs Team B using an AWS Lambda serverless inference endpoint (`/match/predict`) integrated with the React frontend. It dynamically displays real-time prediction updates inside the `LiveScoreboard`.
+The ML model predicts the live win probability for Team A vs Team B using an AWS ECR Docker Container running on a Serverless Lambda (`/match/predict`). It dynamically evaluates the _current match situation_ (runs, wickets fallen, target score, balls left) and displays real-time prediction updates inside the `LiveScoreboard` header after every single ball.
 
 **Important Disclaimer:**
 
-> **Note**: This model is intended solely as an experimental/project prediction feature and is **not guaranteed to predict match outcomes accurately**. It currently relies on simplified historical features for lightweight deployment.
+> **Note**: This model is intended solely as an experimental/project prediction feature and is **not guaranteed to predict match outcomes accurately**. It relies on simplified historical features for lightweight deployment.
 
 **Future Improvements:**
 
-1. Incorporating live streaming match data (current score, wickets fallen) into the prediction rather than pre-match team features only.
-2. Including player-level statistics (strike rates, economy) to better represent squad strength.
-3. Training on larger, complete datasets across multiple formats (ODI, Tests) and leagues (IPL, BBL).
-4. Utilizing more complex models (e.g., XGBoost, LightGBM) if Serverless limits (e.g. 250MB size) can be bypassed using containerized Lambdas.
+1. Incorporating player-level statistics (strike rates, economy) to better represent squad strength rather than relying purely on team-vs-team history.
+2. Training on larger, complete datasets across multiple formats (ODI, Tests) and leagues (IPL, BBL).
+3. Moving to Deep Learning: Now that the pipeline supports 10GB Docker ECR Images, we can swap `LogisticRegression` for heavy frameworks like PyTorch or TensorFlow.
 
 ---
 

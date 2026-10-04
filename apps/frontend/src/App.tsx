@@ -1280,7 +1280,7 @@ const App: React.FC = () => {
               onClick={() => handleViewClick("CHAT")}
               className={`px-2.5 py-1 md:px-4 md:py-1.5 font-bold text-[11px] md:text-xs tracking-wide transition-colors whitespace-nowrap ${view === "CHAT" ? "text-amber-500 bg-slate-800/80 rounded-lg shadow-sm" : "text-gray-400 hover:text-amber-400"}`}
             >
-              AI CHAT ✨
+              CHAT BOT ✨
             </button>
             {hasAuthenticatedUser && !isGuestScorer && (
               <button
