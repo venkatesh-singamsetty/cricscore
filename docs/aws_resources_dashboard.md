@@ -99,7 +99,9 @@ AWS X-Ray visualizes the request path between API Gateway, Lambda, and SNS, help
 - [**Aiven PostgreSQL Console**](https://console.aiven.io/): Access the managed relational database.
 - [**S3 Buckets**](https://s3.console.aws.amazon.com/s3/buckets?region=us-east-1): Frontend static hosting assets and match backup data.
 - [**CloudFront Distributions**](https://us-east-1.console.aws.amazon.com/cloudfront/v4/home?region=us-east-1#/distributions): Global CDN caching configurations.
-- [**KMS (Key Management Service)**](https://us-east-1.console.aws.amazon.com/kms/home?region=us-east-1#/kms/keys): Manage encryption keys securing S3, SNS, and DynamoDB.
+- [**ECR Repositories (Docker ML)**](https://us-east-1.console.aws.amazon.com/ecr/repositories?region=us-east-1): Manage the container images used for the ML Predict engine.
+- [**AWS Cost Budgets**](https://us-east-1.console.aws.amazon.com/billing/home?region=us-east-1#/budgets): Monitor the .00 cost-defense guardrails.
+- [**SES (Simple Email Service)**](https://us-east-1.console.aws.amazon.com/ses/home?region=us-east-1#/identities): Manage verified email senders for match reporting.
 - [**IAM (Identity & Access Management)**](https://us-east-1.console.aws.amazon.com/iam/home#/roles): Review the least-privilege execution roles provisioned for Lambdas.
 
 ---
