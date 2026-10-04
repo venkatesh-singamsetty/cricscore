@@ -47,6 +47,27 @@ export const AiMatchPrediction: React.FC<AiMatchPredictionProps> = ({
       setLoading(true);
       try {
         const ballsLeft = Math.max(0, totalOvers * 6 - ballsBowled);
+
+        // Impossible Chase Override
+        if (inning === 2 && targetScore > 0) {
+          const runsNeeded = targetScore - currentScore;
+          // Assume max 6 runs per ball. If runsNeeded > ballsLeft * 6, it's mathematically impossible
+          if (runsNeeded > ballsLeft * 6) {
+            if (isMounted) {
+              setPrediction({
+                team1: teamA,
+                team2: teamB,
+                team1WinProbability: 1.0,
+                team2WinProbability: 0.0,
+                predictedWinner: teamA,
+                modelVersion: "override-v1",
+              });
+              setLoading(false);
+            }
+            return; // Skip calling the API
+          }
+        }
+
         const response = await fetch(`${API_URL}/match/predict`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
