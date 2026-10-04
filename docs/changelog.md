@@ -1,3 +1,9 @@
+## [4.7.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.7.0...v4.7.1) (2026-10-04)
+
+### 🐛 Bug Fixes
+
+* add heuristic override for mathematically impossible chases ([dcb1c3e](https://github.com/venkatesh-singamsetty/cricscore/commit/dcb1c3ecf48b8fc2eafbaeaf39acc4ce2edc892c))
+
 ## [4.7.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.6.1...v4.7.0) (2026-10-04)
 
 ### 🚀 Features
