@@ -1,4 +1,4 @@
-# 🛠️ CricScore Expert Engineer Cheatsheet
+# 🛠️ CricScore Cheatsheet
 
 This cheatsheet provides a comprehensive, quick reference for all commands needed to manage, develop, and troubleshoot the CricScore repository like an expert. It covers the entire end-to-end developer lifecycle.
 

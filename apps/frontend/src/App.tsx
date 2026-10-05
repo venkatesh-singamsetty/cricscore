@@ -177,10 +177,13 @@ const App: React.FC = () => {
   const prevEmailRef = React.useRef<string | null>(null); // track identity changes
 
   // Auto-position cursor before @gmail.com when modal opens
-
   const [view, setView] = useState<
     "VIEWER" | "SCORER" | "ADMIN_PANEL" | "CHAT"
   >(() => (safeSessionStorageGet("last_view") as any) || "VIEWER");
+  const [showMatchMenu, setShowMatchMenu] = useState(false);
+  const matchMenuRef = useRef<HTMLDivElement>(null);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
 
   // Security: Auto-open modal if unauthorized on a restricted view
   useEffect(() => {
@@ -220,7 +223,6 @@ const App: React.FC = () => {
           setUserToken(null);
           setIsAdmin(false);
           setUserEmail(null);
-          setIsGuestScorer(false);
         }
       } catch (err) {
         const fallbackAuth = getStoredAuthFromLocalStorage();
@@ -238,7 +240,6 @@ const App: React.FC = () => {
         setUserToken(null);
         setIsAdmin(false);
         setUserEmail(null);
-        setIsGuestScorer(false);
       }
     };
 
@@ -334,7 +335,9 @@ const App: React.FC = () => {
 
   const canUseAuth = hasCognitoAuthConfig();
   const shouldBypassAuth = !canUseAuth;
-  const hasAuthenticatedUser = Boolean(userToken || userEmail);
+  const hasAuthenticatedUser = Boolean(
+    (userToken || userEmail) && !isGuestScorer,
+  );
   const canAccessScorerView = canAccessScorer({
     shouldBypassAuth,
     isGuestScorer,
@@ -416,6 +419,7 @@ const App: React.FC = () => {
                 setCurrentInnings(null);
                 setPreviousInnings(undefined);
                 setIsGuestScorer(true);
+                setHasRestored(true); // Prevent restore flash wiping setup data
                 setView("SCORER");
               } catch (err: any) {
                 console.error("Guest login failed:", err);
@@ -477,6 +481,7 @@ const App: React.FC = () => {
                   setCurrentInnings(null);
                   setPreviousInnings(undefined);
                   setIsGuestScorer(true);
+                  setHasRestored(true); // Prevent restore flash wiping setup data
                   setView("SCORER");
                 } catch (err: any) {
                   console.error("Guest login failed:", err);
@@ -624,7 +629,47 @@ const App: React.FC = () => {
   // Persist the current view globally
   useEffect(() => {
     safeSessionStorageSet("last_view", view);
+    setShowMatchMenu(false);
+    setShowProfileMenu(false);
   }, [view]);
+
+  // Close match menu when clicking outside
+  useEffect(() => {
+    if (!showMatchMenu) return;
+    const handler = (e: MouseEvent | TouchEvent) => {
+      if (
+        matchMenuRef.current &&
+        !matchMenuRef.current.contains(e.target as Node)
+      ) {
+        setShowMatchMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
+  }, [showMatchMenu]);
+
+  // Close profile menu when clicking outside
+  useEffect(() => {
+    if (!showProfileMenu) return;
+    const handler = (e: MouseEvent | TouchEvent) => {
+      if (
+        profileMenuRef.current &&
+        !profileMenuRef.current.contains(e.target as Node)
+      ) {
+        setShowProfileMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
+  }, [showProfileMenu]);
 
   // 🕒 Auto-Cleanup Timer: If user stays on Completed screen for 5 mins, reset to setup
   useEffect(() => {
@@ -1044,6 +1089,7 @@ const App: React.FC = () => {
       setUserToken(null);
       setIsAdmin(false);
       setUserEmail(null);
+      setIsGuestScorer(false);
       setView("VIEWER");
     } catch (e) {
       console.error("Sign out error", e);
@@ -1057,6 +1103,11 @@ const App: React.FC = () => {
       setView(target);
     }
     setHubKey((k) => k + 1);
+
+    // Defer scrolling to next tick to ensure DOM is updated
+    setTimeout(() => {
+      window.scrollTo(0, 0);
+    }, 50);
   };
 
   const updateMatchOvers = async (newOvers: number) => {
@@ -1259,66 +1310,195 @@ const App: React.FC = () => {
   }, [matchStatus, matchId, hasSentAutoEmail]);
 
   return (
-    <div className="h-[100dvh] w-full bg-slate-950 font-sans text-slate-100 flex flex-col">
+    <div className="fixed inset-0 flex flex-col w-full bg-slate-950 font-sans text-slate-100 overflow-hidden">
       {/* Global Header Switcher - Always Visible & Clickable */}
       <div className="bg-slate-950 px-2 py-1.5 md:px-4 md:py-2 flex justify-between items-center shrink-0 border-b border-white/10 z-[500] sticky top-0 shadow-md">
         <div className="flex items-center gap-2 overflow-x-auto scrollbar-none max-w-full">
           <div className="flex bg-slate-900 p-1 rounded-xl border border-white/5 shrink-0">
             <button
               onClick={() => handleViewClick("VIEWER")}
-              className={`px-2.5 py-1 md:px-4 md:py-1.5 font-bold text-[11px] md:text-xs tracking-wide transition-colors whitespace-nowrap ${view === "VIEWER" ? "text-blue-500 bg-slate-800/80 rounded-lg shadow-sm" : "text-gray-400 hover:text-blue-400"}`}
+              className={`px-3 py-1.5 md:px-5 md:py-2 font-bold text-xs md:text-sm tracking-wide transition-colors whitespace-nowrap ${view === "VIEWER" ? "text-blue-500 bg-slate-800/80 rounded-lg shadow-sm" : "text-gray-400 hover:text-blue-400"}`}
             >
               VIEWER 🌍
             </button>
             <button
               onClick={() => handleViewClick("SCORER")}
-              className={`px-2.5 py-1 md:px-4 md:py-1.5 font-bold text-[11px] md:text-xs tracking-wide transition-colors whitespace-nowrap ${view === "SCORER" ? "text-green-500 bg-slate-800/80 rounded-lg shadow-sm" : "text-gray-400 hover:text-green-400"}`}
+              className={`px-3 py-1.5 md:px-5 md:py-2 font-bold text-xs md:text-sm tracking-wide transition-colors whitespace-nowrap ${view === "SCORER" ? "text-green-500 bg-slate-800/80 rounded-lg shadow-sm" : "text-gray-400 hover:text-green-400"}`}
             >
               SCORER 🎮
             </button>
             <button
               onClick={() => handleViewClick("CHAT")}
-              className={`px-2.5 py-1 md:px-4 md:py-1.5 font-bold text-[11px] md:text-xs tracking-wide transition-colors whitespace-nowrap ${view === "CHAT" ? "text-amber-500 bg-slate-800/80 rounded-lg shadow-sm" : "text-gray-400 hover:text-amber-400"}`}
+              className={`px-3 py-1.5 md:px-5 md:py-2 font-bold text-xs md:text-sm tracking-wide transition-colors whitespace-nowrap ${view === "CHAT" ? "text-amber-500 bg-slate-800/80 rounded-lg shadow-sm" : "text-gray-400 hover:text-amber-400"}`}
             >
               CHAT BOT ✨
             </button>
-            {hasAuthenticatedUser && !isGuestScorer && (
-              <button
-                onClick={handleSignOut}
-                className="px-2.5 py-1 md:px-4 md:py-1.5 font-bold text-[11px] md:text-xs tracking-wide text-slate-400 hover:text-slate-200 transition-colors whitespace-nowrap"
-              >
-                SIGN OUT
-              </button>
-            )}
           </div>
-
-          {isAdmin && (
-            <div className="flex bg-slate-900 p-1 rounded-xl border border-white/5 shrink-0">
-              <button
-                onClick={() => handleViewClick("ADMIN")}
-                title="Admin Control Center"
-                className={`px-3 py-1 font-bold text-sm tracking-wide transition-colors whitespace-nowrap ${view === "ADMIN_PANEL" ? "text-rose-400 bg-slate-800/80 rounded-lg shadow-sm" : "text-gray-400 hover:text-rose-400"}`}
-              >
-                ⚙️
-              </button>
-            </div>
-          )}
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {matchStatus !== MatchStatus.SETUP && view !== "VIEWER" && (
+          <div ref={matchMenuRef}>
+            {matchStatus !== MatchStatus.SETUP && view !== "VIEWER" && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowMatchMenu((v) => !v)}
+                  title="Match Options"
+                  className="w-7 h-7 flex items-center justify-center bg-rose-600 border border-rose-500 rounded-lg text-white hover:bg-rose-500 transition-all active:scale-95 text-xs font-black shadow-lg shadow-rose-900/20"
+                >
+                  ✖
+                </button>
+                {showMatchMenu && (
+                  <div className="absolute right-0 top-9 z-[600] bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden w-48 animate-in fade-in zoom-in-95 duration-150">
+                    <button
+                      onClick={() => {
+                        setShowMatchMenu(false);
+                        handleQuitMatch();
+                      }}
+                      className="w-full px-4 py-3 text-left text-sm font-bold text-rose-400 hover:bg-rose-900/30 transition-colors flex items-center gap-3 border-b border-white/5"
+                    >
+                      <span className="text-base">🚪</span>
+                      <div>
+                        <div className="text-xs font-black uppercase tracking-wider">
+                          Quit Match
+                        </div>
+                        <div className="text-[10px] text-slate-500 font-medium">
+                          Go back to Viewer
+                        </div>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowMatchMenu(false);
+                        setShowResetConfirm(true);
+                      }}
+                      className="w-full px-4 py-3 text-left text-sm font-bold text-amber-400 hover:bg-amber-900/20 transition-colors flex items-center gap-3"
+                    >
+                      <span className="text-base">🏏</span>
+                      <div>
+                        <div className="text-xs font-black uppercase tracking-wider">
+                          New Match
+                        </div>
+                        <div className="text-[10px] text-slate-500 font-medium">
+                          Reset &amp; start fresh
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Profile / Hamburger Menu — always visible when logged in or guest */}
+          {hasAuthenticatedUser ? (
+            <div className="relative" ref={profileMenuRef}>
+              <button
+                onClick={() => setShowProfileMenu((v) => !v)}
+                title="Profile & Settings"
+                className="w-7 h-7 flex items-center justify-center bg-slate-800 border border-white/10 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-all active:scale-95"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 14 14"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <rect
+                    y="1"
+                    width="14"
+                    height="1.5"
+                    rx="0.75"
+                    fill="currentColor"
+                  />
+                  <rect
+                    y="6.25"
+                    width="14"
+                    height="1.5"
+                    rx="0.75"
+                    fill="currentColor"
+                  />
+                  <rect
+                    y="11.5"
+                    width="14"
+                    height="1.5"
+                    rx="0.75"
+                    fill="currentColor"
+                  />
+                </svg>
+              </button>
+              {showProfileMenu && (
+                <div className="absolute right-0 top-9 z-[600] bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden w-56 animate-in fade-in zoom-in-95 duration-150">
+                  {/* Profile info header */}
+                  <div className="px-4 py-3 border-b border-white/5 bg-slate-800/50">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-black shrink-0">
+                        {userEmail ? userEmail[0].toUpperCase() : "?"}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[10px] font-black text-white uppercase tracking-wider truncate">
+                          {isAdmin ? "Admin" : "Scorer"}
+                        </div>
+                        <div className="text-[10px] text-slate-400 truncate font-medium">
+                          {userEmail || "—"}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Settings — admin only */}
+                  {isAdmin && (
+                    <button
+                      onClick={() => {
+                        setShowProfileMenu(false);
+                        handleViewClick("ADMIN");
+                      }}
+                      className={`w-full px-4 py-3 text-left flex items-center gap-3 hover:bg-slate-800 transition-colors border-b border-white/5 ${view === "ADMIN_PANEL" ? "text-rose-400" : "text-slate-300"}`}
+                    >
+                      <span className="text-base">⚙️</span>
+                      <div>
+                        <div className="text-xs font-black uppercase tracking-wider">
+                          Settings
+                        </div>
+                        <div className="text-[10px] text-slate-500 font-medium">
+                          Admin Control Center
+                        </div>
+                      </div>
+                    </button>
+                  )}
+                  {/* Sign Out */}
+                  <button
+                    onClick={() => {
+                      setShowProfileMenu(false);
+                      handleSignOut();
+                    }}
+                    className="w-full px-4 py-3 text-left flex items-center gap-3 text-rose-400 hover:bg-rose-900/20 transition-colors"
+                  >
+                    <span className="text-base">🚪</span>
+                    <div className="text-xs font-black uppercase tracking-wider">
+                      Sign Out
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : isGuestScorer ? (
             <button
-              onClick={() => setShowResetConfirm(true)}
-              title="Reset Match"
-              className="w-7 h-7 flex items-center justify-center bg-red-900/30 border border-red-500/20 rounded-lg text-red-500 hover:text-white hover:bg-red-600 transition-all active:scale-95 text-xs font-black"
+              onClick={async () => {
+                setIsGuestScorer(false);
+                try {
+                  await signOut();
+                } catch (e) {}
+              }}
+              className="px-3 py-1.5 bg-indigo-500/10 text-indigo-300 hover:text-white border border-indigo-500/20 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors shadow-sm"
+              title="Sign In to Save"
             >
-              ✖
+              GUEST
             </button>
-          )}
+          ) : null}
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden relative">
+      <div className="flex-1 flex flex-col relative w-full">
         {/* Custom Reset Confirmation Modal */}
         {showResetConfirm && (
           <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[200] p-4 backdrop-blur-sm">
@@ -1359,7 +1539,7 @@ const App: React.FC = () => {
         )}
 
         {view === "VIEWER" && (
-          <div className="h-full bg-slate-950 flex flex-col p-4 md:p-8 overflow-y-auto">
+          <div className="bg-slate-950 flex flex-col p-4 md:p-8 min-h-full">
             <div className="max-w-4xl mx-auto w-full space-y-8 animate-in fade-in zoom-in-95 duration-500">
               <div className="text-center space-y-2">
                 <h1 className="text-4xl font-black text-white uppercase tracking-tighter italic">
@@ -1414,7 +1594,7 @@ const App: React.FC = () => {
 
         {view === "SCORER" &&
           (canAccessScorerView ? (
-            <div className="h-full w-full flex flex-col">
+            <div className="w-full flex-1 flex flex-col min-h-0">
               {shouldBypassAuth && !isGuestScorer && (
                 <div className="h-full w-full flex items-center justify-center bg-slate-950 p-4">
                   <div className="w-full max-w-lg rounded-[2rem] border border-indigo-500/20 bg-slate-900/80 p-8 text-center shadow-2xl">
@@ -1443,22 +1623,7 @@ const App: React.FC = () => {
                   </div>
                 </div>
               )}
-              {isGuestScorer && (
-                <div className="bg-slate-900/90 border-b border-indigo-500/20 px-4 py-2 flex justify-between items-center text-xs font-bold text-indigo-300 shrink-0 relative z-[100]">
-                  <span>🎮 GUEST SCORER MODE</span>
-                  <button
-                    onClick={async () => {
-                      setIsGuestScorer(false);
-                      try {
-                        await signOut();
-                      } catch (e) {}
-                    }}
-                    className="underline hover:text-white uppercase tracking-wider text-[10px] relative z-[110] px-2 py-1 bg-indigo-500/10 rounded border border-indigo-500/20 hover:bg-indigo-500/20 active:scale-95 transition-all"
-                  >
-                    Sign In to Save
-                  </button>
-                </div>
-              )}
+
               {matchStatus === MatchStatus.SETUP && (
                 <MatchSetup
                   onStartMatch={startMatch}
@@ -1467,6 +1632,7 @@ const App: React.FC = () => {
                   hideResume={true}
                   canDelete={false}
                   token={userToken || undefined}
+                  isGuestMode={isGuestScorer}
                 />
               )}
 
@@ -1489,7 +1655,7 @@ const App: React.FC = () => {
               {matchStatus === MatchStatus.INNINGS_BREAK &&
                 currentInnings &&
                 previousInnings && (
-                  <div className="h-full overflow-y-auto flex items-center justify-center p-4 bg-slate-950 selection:bg-indigo-500/30">
+                  <div className="flex-1 min-h-0 overflow-y-auto flex items-center justify-center p-4 bg-slate-950 selection:bg-indigo-500/30">
                     <div className="relative w-full max-w-2xl animate-in zoom-in-95 duration-500 text-center">
                       <div className="bg-slate-900 border border-white/5 p-10 rounded-[3rem] shadow-2xl relative overflow-hidden backdrop-blur-3xl">
                         <h2 className="text-4xl font-black text-white uppercase tracking-tighter italic mb-4">
@@ -1511,23 +1677,11 @@ const App: React.FC = () => {
                 )}
 
               {matchStatus === MatchStatus.COMPLETED && currentInnings && (
-                <div className="h-full overflow-y-auto flex py-10 items-center justify-center p-4 bg-slate-950 selection:bg-indigo-500/30">
-                  <div className="relative w-full max-w-2xl animate-in zoom-in-95 duration-500">
-                    {/* Dramatic Glow Background */}
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-indigo-600/10 blur-[120px] rounded-full -z-10"></div>
-
-                    <div className="bg-slate-900 border border-white/5 p-10 rounded-[3rem] shadow-2xl relative overflow-hidden backdrop-blur-3xl">
-                      {/* Accent Header */}
-                      <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600"></div>
-
-                      <div className="text-center space-y-8">
+                <div className="flex-1 min-h-0 overflow-y-auto flex items-center justify-center p-4 bg-slate-950 selection:bg-indigo-500/30">
+                  <div className="relative w-full max-w-2xl animate-in zoom-in-95 duration-500 text-center">
+                    <div className="bg-slate-900 border border-white/5 p-6 md:p-8 rounded-2xl shadow-2xl relative overflow-hidden backdrop-blur-3xl">
+                      <div className="text-center space-y-6">
                         <div className="space-y-2">
-                          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-500/10 border border-yellow-500/20 mb-4">
-                            <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span>
-                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-yellow-500">
-                              Official Result
-                            </span>
-                          </div>
                           <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter italic">
                             {getWinnerMessage()}
                           </h2>
@@ -1578,20 +1732,58 @@ const App: React.FC = () => {
                           </div>
                         </div>
 
+                        {/* Action Buttons */}
+                        <div className="flex flex-row gap-2 pt-2">
+                          <button
+                            onClick={copyMatchLink}
+                            className={`flex-1 py-3 rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest border transition-all flex items-center justify-center gap-1 ${
+                              copyFeedback
+                                ? "bg-emerald-600/20 text-emerald-400 border-emerald-500/40"
+                                : "bg-slate-800/80 text-white border-white/10 hover:bg-slate-800"
+                            }`}
+                          >
+                            {copyFeedback ? (
+                              <>
+                                <span>COPIED!</span>
+                                <span className="text-xs md:text-sm">✅</span>
+                              </>
+                            ) : (
+                              <>
+                                <span>SHARE</span>
+                                <span className="text-xs md:text-sm">🔗</span>
+                              </>
+                            )}
+                          </button>
+                          <button
+                            onClick={() => setShowResetConfirm(true)}
+                            className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest shadow-xl shadow-indigo-600/20 active:scale-95 transition-all flex items-center justify-center gap-1"
+                          >
+                            <span>NEW MATCH</span>
+                            <span className="text-xs md:text-sm">🏏</span>
+                          </button>
+                          <button
+                            onClick={handleQuitMatch}
+                            className="flex-1 py-3 bg-rose-900/40 hover:bg-rose-900/60 text-rose-300 border border-rose-500/30 rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest shadow-xl shadow-rose-950/40 active:scale-95 transition-all flex items-center justify-center gap-1"
+                          >
+                            <span>QUIT</span>
+                            <span className="text-xs md:text-sm">🚪</span>
+                          </button>
+                        </div>
+
                         {/* AI Summary Block */}
                         <div className="mt-2">
                           {isGeneratingAi ? (
                             <div className="bg-slate-800/40 border border-indigo-500/20 rounded-2xl p-4 text-center animate-pulse">
                               <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center justify-center gap-2">
                                 <span className="animate-spin">⏳</span>{" "}
-                                GENERATING AI SUMMARY...
+                                GENERATING POM & MATCH SUMMARY...
                               </span>
                             </div>
                           ) : aiSummary ? (
                             <div className="bg-slate-800/50 border border-indigo-500/30 rounded-2xl p-4 text-left shadow-xl">
                               <div className="flex justify-between items-center mb-3">
                                 <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">
-                                  <span>🤖</span> AI MATCH SUMMARY & MOTM
+                                  <span>🤖</span> POM & MATCH SUMMARY
                                 </h4>
                                 <button
                                   onClick={() => handleGenerateAiSummary(true)}
@@ -1611,48 +1803,10 @@ const App: React.FC = () => {
                                 onClick={() => handleGenerateAiSummary(true)}
                                 className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-lg"
                               >
-                                ✨ GENERATE AI SUMMARY
+                                ✨ GENERATE POM & MATCH SUMMARY
                               </button>
                             </div>
                           )}
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                          <button
-                            onClick={copyMatchLink}
-                            className={`flex-1 py-4 rounded-2xl font-black text-xs uppercase tracking-widest border transition-all flex items-center justify-center gap-2 ${
-                              copyFeedback
-                                ? "bg-emerald-600/20 text-emerald-400 border-emerald-500/40"
-                                : "bg-slate-800/80 text-white border-white/10 hover:bg-slate-800"
-                            }`}
-                          >
-                            {copyFeedback ? (
-                              <>
-                                <span>COPIED LINK!</span>
-                                <span className="text-sm">✅</span>
-                              </>
-                            ) : (
-                              <>
-                                <span>SHARE SCORECARD</span>
-                                <span className="text-sm">🔗</span>
-                              </>
-                            )}
-                          </button>
-                          <button
-                            onClick={() => setShowResetConfirm(true)}
-                            className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-600/20 active:scale-95 transition-all flex items-center justify-center gap-2"
-                          >
-                            <span>START FRESH MATCH</span>
-                            <span className="text-sm">🏏</span>
-                          </button>
-                          <button
-                            onClick={handleQuitMatch}
-                            className="flex-1 py-4 bg-rose-900/40 hover:bg-rose-900/60 text-rose-300 border border-rose-500/30 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-rose-950/40 active:scale-95 transition-all flex items-center justify-center gap-2"
-                          >
-                            <span>QUIT</span>
-                            <span className="text-sm">🚪</span>
-                          </button>
                         </div>
                       </div>
                     </div>
@@ -1661,181 +1815,207 @@ const App: React.FC = () => {
               )}
             </div>
           ) : (
-            <Authenticator
-              signUpAttributes={["given_name", "family_name"]}
-              formFields={authFormFields}
-              components={authComponents}
-            >
-              {() => (
-                <div className="h-full w-full flex flex-col">
-                  {matchStatus === MatchStatus.SETUP && (
-                    <MatchSetup
-                      onStartMatch={startMatch}
-                      onResumeMatch={resumeMatch}
-                      initialEmail={userEmail || ""}
-                      hideResume={true}
-                      canDelete={false}
-                      token={userToken || undefined}
-                    />
-                  )}
-
-                  {matchStatus === MatchStatus.LIVE && currentInnings && (
-                    <MatchView
-                      initialState={currentInnings}
-                      previousInnings={previousInnings}
-                      totalOvers={totalOvers}
-                      matchId={matchId!}
-                      userToken={userToken || undefined}
-                      onInningsEnd={handleInningsEnd}
-                      onResetMatch={() => setShowResetConfirm(true)}
-                      onQuitMatch={handleQuitMatch}
-                      onForceReset={forceResetMatch}
-                      onUpdateOvers={updateMatchOvers}
-                      onStateChange={(state) => setCurrentInnings(state)}
-                    />
-                  )}
-
-                  {matchStatus === MatchStatus.INNINGS_BREAK &&
-                    currentInnings &&
-                    previousInnings && (
-                      <div className="h-full overflow-y-auto flex items-center justify-center p-4 bg-slate-950 selection:bg-indigo-500/30">
-                        <div className="relative w-full max-w-2xl animate-in zoom-in-95 duration-500 text-center">
-                          <div className="bg-slate-900 border border-white/5 p-10 rounded-[3rem] shadow-2xl relative overflow-hidden backdrop-blur-3xl">
-                            <h2 className="text-4xl font-black text-white uppercase tracking-tighter italic mb-4">
-                              Innings Break
-                            </h2>
-                            <p className="text-xl text-indigo-400 font-bold mb-8">
-                              Target: {currentInnings.target}
-                            </p>
-                            <button
-                              onClick={() => setMatchStatus(MatchStatus.LIVE)}
-                              className="w-full h-20 bg-indigo-600 text-white rounded-[1.5rem] font-black text-xl uppercase tracking-widest italic hover:bg-indigo-500 active:scale-[0.98] transition-all shadow-xl shadow-indigo-600/20 flex items-center justify-center gap-3"
-                            >
-                              START 2ND INNINGS
-                              <span className="text-2xl">🏏</span>
-                            </button>
-                          </div>
-                        </div>
-                      </div>
+            <div className="flex flex-col h-full w-full bg-slate-950 items-center justify-center p-4">
+              <Authenticator
+                signUpAttributes={["given_name", "family_name"]}
+                formFields={authFormFields}
+                components={authComponents}
+              >
+                {() => (
+                  <div className="h-full w-full flex flex-col">
+                    {matchStatus === MatchStatus.SETUP && (
+                      <MatchSetup
+                        onStartMatch={startMatch}
+                        onResumeMatch={resumeMatch}
+                        initialEmail={userEmail || ""}
+                        hideResume={true}
+                        canDelete={false}
+                        token={userToken || undefined}
+                      />
                     )}
 
-                  {matchStatus === MatchStatus.COMPLETED && currentInnings && (
-                    <div className="h-full overflow-y-auto flex py-10 items-center justify-center p-4 bg-slate-950 selection:bg-indigo-500/30">
-                      <div className="relative w-full max-w-2xl animate-in zoom-in-95 duration-500">
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-indigo-600/10 blur-[120px] rounded-full -z-10"></div>
+                    {matchStatus === MatchStatus.LIVE && currentInnings && (
+                      <MatchView
+                        initialState={currentInnings}
+                        previousInnings={previousInnings}
+                        totalOvers={totalOvers}
+                        matchId={matchId!}
+                        userToken={userToken || undefined}
+                        onInningsEnd={handleInningsEnd}
+                        onResetMatch={() => setShowResetConfirm(true)}
+                        onQuitMatch={handleQuitMatch}
+                        onForceReset={forceResetMatch}
+                        onUpdateOvers={updateMatchOvers}
+                        onStateChange={(state) => setCurrentInnings(state)}
+                      />
+                    )}
 
-                        <div className="bg-slate-900 border border-white/5 p-10 rounded-[3rem] shadow-2xl relative overflow-hidden backdrop-blur-3xl">
-                          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600"></div>
-
-                          <div className="text-center space-y-8">
-                            <div className="space-y-2">
-                              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-500/10 border border-yellow-500/20 mb-4">
-                                <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span>
-                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-yellow-500">
-                                  Official Result
-                                </span>
-                              </div>
-                              <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter italic">
-                                {getWinnerMessage()}
+                    {matchStatus === MatchStatus.INNINGS_BREAK &&
+                      currentInnings &&
+                      previousInnings && (
+                        <div className="h-full overflow-y-auto flex items-center justify-center p-4 bg-slate-950 selection:bg-indigo-500/30">
+                          <div className="relative w-full max-w-2xl animate-in zoom-in-95 duration-500 text-center">
+                            <div className="bg-slate-900 border border-white/5 p-10 rounded-[3rem] shadow-2xl relative overflow-hidden backdrop-blur-3xl">
+                              <h2 className="text-4xl font-black text-white uppercase tracking-tighter italic mb-4">
+                                Innings Break
                               </h2>
-                              <p className="text-xs font-black text-indigo-400 uppercase tracking-[0.3em]">
-                                Match{" "}
-                                {matchId ? `#${matchId.substring(0, 8)}` : ""}
+                              <p className="text-xl text-indigo-400 font-bold mb-8">
+                                Target: {currentInnings.target}
                               </p>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4 bg-slate-950/60 p-6 rounded-3xl border border-white/5 shadow-inner">
-                              <div className="text-center border-r border-white/5 pr-4">
-                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">
-                                  {previousInnings
-                                    ? previousInnings.battingTeamName
-                                    : currentInnings.battingTeamName}
-                                </span>
-                                <span className="text-2xl font-black text-white tracking-tighter tabular-nums">
-                                  {previousInnings
-                                    ? `${previousInnings.totalRuns}/${previousInnings.totalWickets}`
-                                    : `${currentInnings.totalRuns}/${currentInnings.totalWickets}`}
-                                </span>
-                                <span className="text-[10px] font-bold text-slate-500 block">
-                                  (
-                                  {previousInnings
-                                    ? `${previousInnings.overs}.${previousInnings.balls}`
-                                    : `${currentInnings.overs}.${currentInnings.balls}`}{" "}
-                                  Ovs)
-                                </span>
-                              </div>
-                              <div className="text-center pl-4">
-                                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest block mb-1">
-                                  {previousInnings
-                                    ? currentInnings.battingTeamName
-                                    : currentInnings.bowlingTeamName}
-                                </span>
-                                <span className="text-2xl font-black text-indigo-300 tracking-tighter tabular-nums">
-                                  {previousInnings
-                                    ? `${currentInnings.totalRuns}/${currentInnings.totalWickets}`
-                                    : "N/A"}
-                                </span>
-                                <span className="text-[10px] font-bold text-indigo-400/60 block">
-                                  (
-                                  {previousInnings
-                                    ? `${currentInnings.overs}.${currentInnings.balls}`
-                                    : "0.0"}{" "}
-                                  Ovs)
-                                </span>
-                              </div>
-                            </div>
-
-                            <div className="flex flex-col sm:flex-row gap-4 pt-4">
                               <button
-                                onClick={copyMatchLink}
-                                className={`flex-1 py-4 rounded-2xl font-black text-xs uppercase tracking-widest border transition-all flex items-center justify-center gap-2 ${
-                                  copyFeedback
-                                    ? "bg-emerald-600/20 text-emerald-400 border-emerald-500/40"
-                                    : "bg-slate-800/80 text-white border-white/10 hover:bg-slate-800"
-                                }`}
+                                onClick={() => setMatchStatus(MatchStatus.LIVE)}
+                                className="w-full h-20 bg-indigo-600 text-white rounded-[1.5rem] font-black text-xl uppercase tracking-widest italic hover:bg-indigo-500 active:scale-[0.98] transition-all shadow-xl shadow-indigo-600/20 flex items-center justify-center gap-3"
                               >
-                                {copyFeedback ? (
-                                  <>
-                                    <span>COPIED LINK!</span>
-                                    <span className="text-sm">✅</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <span>SHARE SCORECARD</span>
-                                    <span className="text-sm">🔗</span>
-                                  </>
-                                )}
-                              </button>
-                              <button
-                                onClick={() => setShowResetConfirm(true)}
-                                className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-600/20 active:scale-95 transition-all flex items-center justify-center gap-2"
-                              >
-                                <span>START FRESH MATCH</span>
-                                <span className="text-sm">🏏</span>
-                              </button>
-                              <button
-                                onClick={handleQuitMatch}
-                                className="flex-1 py-4 bg-rose-900/40 hover:bg-rose-900/60 text-rose-300 border border-rose-500/30 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-rose-950/40 active:scale-95 transition-all flex items-center justify-center gap-2"
-                              >
-                                <span>QUIT</span>
-                                <span className="text-sm">🚪</span>
+                                START 2ND INNINGS
+                                <span className="text-2xl">🏏</span>
                               </button>
                             </div>
                           </div>
                         </div>
+                      )}
 
-                        <p className="mt-8 text-[10px] font-black text-slate-600 uppercase tracking-[0.5em] text-center italic opacity-50">
-                          CricScore Record Log #77291-LIVE
-                        </p>
-                      </div>
-                    </div>
-                  )}
+                    {matchStatus === MatchStatus.COMPLETED &&
+                      currentInnings && (
+                        <div className="h-full overflow-y-auto flex py-10 items-center justify-center p-4 bg-slate-950 selection:bg-indigo-500/30">
+                          <div className="relative w-full max-w-2xl animate-in zoom-in-95 duration-500">
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-indigo-600/10 blur-[120px] rounded-full -z-10"></div>
+
+                            <div className="bg-slate-900 border border-white/5 p-10 rounded-[3rem] shadow-2xl relative overflow-hidden backdrop-blur-3xl">
+                              <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600"></div>
+
+                              <div className="text-center space-y-8">
+                                <div className="space-y-2">
+                                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-500/10 border border-yellow-500/20 mb-4">
+                                    <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span>
+                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-yellow-500">
+                                      Official Result
+                                    </span>
+                                  </div>
+                                  <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter italic">
+                                    {getWinnerMessage()}
+                                  </h2>
+                                  <p className="text-xs font-black text-indigo-400 uppercase tracking-[0.3em]">
+                                    Match{" "}
+                                    {matchId
+                                      ? `#${matchId.substring(0, 8)}`
+                                      : ""}
+                                  </p>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4 bg-slate-950/60 p-6 rounded-3xl border border-white/5 shadow-inner">
+                                  <div className="text-center border-r border-white/5 pr-4">
+                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">
+                                      {previousInnings
+                                        ? previousInnings.battingTeamName
+                                        : currentInnings.battingTeamName}
+                                    </span>
+                                    <span className="text-2xl font-black text-white tracking-tighter tabular-nums">
+                                      {previousInnings
+                                        ? `${previousInnings.totalRuns}/${previousInnings.totalWickets}`
+                                        : `${currentInnings.totalRuns}/${currentInnings.totalWickets}`}
+                                    </span>
+                                    <span className="text-[10px] font-bold text-slate-500 block">
+                                      (
+                                      {previousInnings
+                                        ? `${previousInnings.overs}.${previousInnings.balls}`
+                                        : `${currentInnings.overs}.${currentInnings.balls}`}{" "}
+                                      Ovs)
+                                    </span>
+                                  </div>
+                                  <div className="text-center pl-4">
+                                    <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest block mb-1">
+                                      {previousInnings
+                                        ? currentInnings.battingTeamName
+                                        : currentInnings.bowlingTeamName}
+                                    </span>
+                                    <span className="text-2xl font-black text-indigo-300 tracking-tighter tabular-nums">
+                                      {previousInnings
+                                        ? `${currentInnings.totalRuns}/${currentInnings.totalWickets}`
+                                        : "N/A"}
+                                    </span>
+                                    <span className="text-[10px] font-bold text-indigo-400/60 block">
+                                      (
+                                      {previousInnings
+                                        ? `${currentInnings.overs}.${currentInnings.balls}`
+                                        : "0.0"}{" "}
+                                      Ovs)
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                                  <button
+                                    onClick={copyMatchLink}
+                                    className={`flex-1 py-4 rounded-2xl font-black text-xs uppercase tracking-widest border transition-all flex items-center justify-center gap-2 ${
+                                      copyFeedback
+                                        ? "bg-emerald-600/20 text-emerald-400 border-emerald-500/40"
+                                        : "bg-slate-800/80 text-white border-white/10 hover:bg-slate-800"
+                                    }`}
+                                  >
+                                    {copyFeedback ? (
+                                      <>
+                                        <span>COPIED LINK!</span>
+                                        <span className="text-sm">✅</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <span>SHARE SCORECARD</span>
+                                        <span className="text-sm">🔗</span>
+                                      </>
+                                    )}
+                                  </button>
+                                  <button
+                                    onClick={() => setShowResetConfirm(true)}
+                                    className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-600/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                  >
+                                    <span>START FRESH MATCH</span>
+                                    <span className="text-sm">🏏</span>
+                                  </button>
+                                  <button
+                                    onClick={handleQuitMatch}
+                                    className="flex-1 py-4 bg-rose-900/40 hover:bg-rose-900/60 text-rose-300 border border-rose-500/30 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-rose-950/40 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                  >
+                                    <span>QUIT</span>
+                                    <span className="text-sm">🚪</span>
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+
+                            <p className="mt-8 text-[10px] font-black text-slate-600 uppercase tracking-[0.5em] text-center italic opacity-50">
+                              CricScore Record Log #77291-LIVE
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                  </div>
+                )}
+              </Authenticator>
+              <div className="mt-6 text-center max-w-sm mx-auto w-full animate-in fade-in zoom-in-95 duration-700 delay-300">
+                <div className="relative group">
+                  <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-emerald-500 rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsGuestScorer(true);
+                      setMatchStatus(MatchStatus.SETUP);
+                      setView("SCORER");
+                    }}
+                    className="relative w-full rounded-xl bg-slate-900 border border-white/10 px-6 py-4 font-black uppercase tracking-[0.2em] text-slate-300 hover:text-white shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3"
+                  >
+                    <span className="text-xl">🎮</span>
+                    <span>Demo Mode (Local Only)</span>
+                  </button>
                 </div>
-              )}
-            </Authenticator>
+                <p className="mt-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest px-4">
+                  Test scoring features without an account. Data will not sync
+                  to cloud.
+                </p>
+              </div>
+            </div>
           ))}
         {view === "CHAT" && (
-          <div className="flex-1 flex flex-col min-h-0 bg-slate-950 p-2 sm:p-4 md:p-8">
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-slate-950 p-2 sm:p-4 md:p-8">
             <ChatComponent
               matchId={matchId}
               apiUrl={import.meta.env.VITE_API_URL}
