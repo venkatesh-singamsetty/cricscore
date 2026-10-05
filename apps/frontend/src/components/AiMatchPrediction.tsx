@@ -151,19 +151,19 @@ export const AiMatchPrediction: React.FC<AiMatchPredictionProps> = ({
 
   if (compact) {
     return (
-      <div className="flex flex-col gap-1 mt-1.5 w-full">
+      <div className="flex flex-col gap-1.5 mt-2 w-full bg-slate-800/30 p-2 rounded-xl border border-white/5">
         <div className="flex items-center justify-between w-full">
-          <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest">
+          <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">
             🤖 Win Prediction
           </span>
-          <span className="text-[8px] font-bold text-slate-400 uppercase">
+          <span className="text-[9px] font-bold text-slate-400 uppercase">
             {prediction.team1}{" "}
             {Math.round(prediction.team1WinProbability * 100)}% -{" "}
             {Math.round(prediction.team2WinProbability * 100)}%{" "}
             {prediction.team2}
           </span>
         </div>
-        <div className="w-full h-1.5 rounded-full overflow-hidden flex bg-slate-700/50">
+        <div className="w-full h-2 rounded-full overflow-hidden flex bg-slate-700/50">
           <div
             className="bg-cyan-400 h-full transition-all duration-1000 shadow-[0_0_8px_rgba(34,211,238,0.8)]"
             style={{ width: `${prediction.team1WinProbability * 100}%` }}
@@ -178,23 +178,23 @@ export const AiMatchPrediction: React.FC<AiMatchPredictionProps> = ({
   }
 
   return (
-    <div className="bg-indigo-950/30 border border-indigo-500/20 rounded-2xl p-4 mt-4 shadow-inner">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-xs font-black text-indigo-400 uppercase tracking-widest flex items-center gap-1">
+    <div className="bg-indigo-950/30 border border-indigo-500/20 rounded-xl p-2.5 mt-2 shadow-inner">
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-1">
           <span>🤖</span> AI Match Prediction
         </h3>
-        <span className="text-[8px] text-slate-500 border border-slate-700/50 px-1.5 py-0.5 rounded uppercase">
+        <span className="text-[8px] text-slate-500 border border-slate-700/50 px-1 py-0.5 rounded uppercase">
           Model: {prediction.modelVersion}
         </span>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <div className="flex justify-between text-xs font-bold text-white">
+      <div className="flex flex-col gap-1.5">
+        <div className="flex justify-between text-[10px] font-bold text-white">
           <span>{prediction.team1}</span>
           <span>{prediction.team2}</span>
         </div>
 
-        <div className="w-full h-2 rounded-full overflow-hidden flex">
+        <div className="w-full h-1.5 rounded-full overflow-hidden flex">
           <div
             className="bg-cyan-400 h-full transition-all duration-1000 shadow-[0_0_8px_rgba(34,211,238,0.8)]"
             style={{ width: `${prediction.team1WinProbability * 100}%` }}
@@ -205,7 +205,7 @@ export const AiMatchPrediction: React.FC<AiMatchPredictionProps> = ({
           ></div>
         </div>
 
-        <div className="flex justify-between text-[10px] text-slate-400 font-black">
+        <div className="flex justify-between text-[9px] text-slate-400 font-black">
           <span
             className={
               prediction.team1WinProbability > 0.5 ? "text-indigo-400" : ""
@@ -222,8 +222,8 @@ export const AiMatchPrediction: React.FC<AiMatchPredictionProps> = ({
           </span>
         </div>
 
-        <div className="text-center mt-1">
-          <span className="text-[10px] text-slate-500 uppercase tracking-widest italic">
+        <div className="text-center mt-0.5">
+          <span className="text-[9px] text-slate-500 uppercase tracking-widest italic">
             Predicted Winner:{" "}
             <span className="text-white font-bold">
               {prediction.predictedWinner}

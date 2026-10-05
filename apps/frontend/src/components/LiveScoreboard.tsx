@@ -1164,7 +1164,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                       <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center justify-center gap-2 mb-3">
                         <span className="animate-spin">⏳</span>{" "}
                         {isGeneratingAiSummary
-                          ? "GENERATING AI SUMMARY & MOTM..."
+                          ? "GENERATING MATCH SUMMARY & POM..."
                           : "FETCHING AI SUMMARY..."}
                       </span>
                       {!isGeneratingAiSummary && (
@@ -1180,7 +1180,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                     <div className="bg-slate-800/50 border border-indigo-500/30 rounded-[2rem] p-6 text-left shadow-xl animate-in slide-in-from-bottom-4 duration-700">
                       <div className="flex justify-between items-center mb-4">
                         <h4 className="text-xs font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">
-                          <span>🤖</span> AI MATCH SUMMARY & MOTM
+                          <span>🤖</span> MATCH SUMMARY & POM
                         </h4>
                         <button
                           onClick={() => handleGenerateAiSummary(true)}
