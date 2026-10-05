@@ -16,6 +16,7 @@ interface MatchSetupProps {
   hideResume?: boolean;
   canDelete?: boolean;
   token?: string;
+  isGuestMode?: boolean;
 }
 
 const handleScroll = (
@@ -41,7 +42,7 @@ const SquadInput = ({
   lineNumbersRef: React.RefObject<HTMLDivElement | null>;
 }) => {
   const lines = value.split("\n");
-  const lineCount = Math.max(lines.length, 1);
+  const lineCount = Math.max(lines.length, 12);
 
   const handleBlur = () => {
     const cleaned = value
@@ -66,7 +67,7 @@ const SquadInput = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-0">
+    <div className="flex flex-col">
       <div className="flex justify-between items-center mb-1 shrink-0 px-1">
         <label
           className={`text-[10px] font-black uppercase tracking-widest ${accentColor}`}
@@ -89,7 +90,7 @@ const SquadInput = ({
           </span>
         </div>
       </div>
-      <div className="relative flex-1 min-h-[150px] max-h-[350px] flex bg-slate-950 rounded-[1.5rem] border border-white/10 overflow-hidden focus-within:border-indigo-500/50 transition-all shadow-2xl shrink-0">
+      <div className="relative flex bg-slate-950 rounded-[1.5rem] border border-white/10 overflow-hidden focus-within:border-indigo-500/50 transition-all shadow-2xl">
         <div
           ref={lineNumbersRef}
           className="w-10 bg-slate-900/50 border-r border-white/5 flex flex-col items-center pt-2 select-none overflow-hidden shrink-0"
@@ -97,7 +98,7 @@ const SquadInput = ({
           {Array.from({ length: lineCount }).map((_, i) => (
             <span
               key={i}
-              className="text-[11px] font-black text-slate-700 h-[28px] leading-[28px]"
+              className="text-xs font-black text-slate-600 h-[28px] leading-[28px]"
             >
               {i + 1}
             </span>
@@ -111,7 +112,8 @@ const SquadInput = ({
             lineNumbersRef.current &&
             handleScroll(textareaRef.current, lineNumbersRef.current)
           }
-          className="flex-1 bg-transparent px-4 pt-2 pb-8 text-sm font-black text-slate-300 outline-none resize-none scrollbar-hide uppercase leading-[28px] overflow-y-auto"
+          rows={12}
+          className="flex-1 bg-transparent px-3 pt-2 pb-6 text-base font-black text-slate-300 outline-none resize-none scrollbar-hide uppercase leading-[28px] overflow-y-auto"
           value={value}
           onChange={handleChange}
           placeholder="Enter player name..."
@@ -128,6 +130,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
   canDelete = true,
   token,
   initialEmail = import.meta.env.VITE_DEFAULT_EMAIL || "",
+  isGuestMode = false,
 }) => {
   const [teamAName, setTeamAName] = useState("TEAM A");
   const [teamBName, setTeamBName] = useState("TEAM B");
@@ -291,7 +294,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
   };
 
   const StepDots = () => (
-    <div className="flex items-center justify-center gap-2 py-2 shrink-0">
+    <div className="flex items-center justify-center gap-2 py-1.5 shrink-0">
       {([1, 2, 3] as const).map((s, i) => (
         <React.Fragment key={s}>
           <button
@@ -320,14 +323,14 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
   );
 
   return (
-    <div className="h-full bg-slate-950 text-slate-100 overflow-hidden flex flex-col selection:bg-indigo-500/30">
+    <div className="bg-slate-950 text-slate-100 flex-1 flex flex-col min-h-0 selection:bg-indigo-500/30">
       {/* ── MOBILE WIZARD (md:hidden) ── */}
-      <div className="md:hidden h-full flex flex-col">
+      <div className="md:hidden flex-1 flex flex-col min-h-0">
         <StepDots />
 
         {/* Step 1: Team A */}
         {mobileStep === 1 && (
-          <div className="flex-1 flex flex-col px-3 pb-3 gap-3 overflow-hidden animate-in fade-in duration-300">
+          <div className="flex flex-col px-2 pb-2 gap-2 animate-in fade-in duration-300">
             <div className="text-center shrink-0">
               <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-black uppercase tracking-widest text-indigo-400">
                 Team A · First Team
@@ -360,10 +363,10 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                 </div>
               </div>
             )}
-            <div className="flex-1 bg-slate-900/50 border border-indigo-500/20 p-4 rounded-[2rem] flex flex-col gap-3 min-h-0 overflow-y-auto scrollbar-hide shadow-2xl">
+            <div className="bg-slate-900/50 border border-indigo-500/20 p-3 rounded-3xl flex flex-col gap-2 shadow-2xl">
               <input
                 type="text"
-                className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-base font-black text-white focus:ring-2 focus:ring-indigo-500 outline-none uppercase text-center placeholder:opacity-30 shrink-0"
+                className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-sm md:text-base font-black text-white focus:ring-2 focus:ring-indigo-500 outline-none uppercase text-center placeholder:opacity-30 shrink-0"
                 value={teamAName}
                 placeholder="TEAM A NAME"
                 onChange={makeNameHandler(setTeamAName)}
@@ -390,7 +393,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                 }
                 setMobileStep(2);
               }}
-              className="w-full py-4 bg-indigo-600 rounded-2xl font-black text-sm uppercase tracking-widest text-white shadow-lg shadow-indigo-600/20 active:scale-95 transition-all shrink-0"
+              className="w-full py-3.5 bg-indigo-600 rounded-2xl font-black text-sm uppercase tracking-widest text-white shadow-lg shadow-indigo-600/20 active:scale-95 transition-all shrink-0"
             >
               Next: Team B →
             </button>
@@ -399,7 +402,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
 
         {/* Step 2: Team B */}
         {mobileStep === 2 && (
-          <div className="flex-1 flex flex-col px-3 pb-3 gap-3 overflow-hidden animate-in fade-in duration-300">
+          <div className="flex flex-col px-2 pb-2 gap-2 animate-in fade-in duration-300">
             <div className="text-center shrink-0">
               <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-[10px] font-black uppercase tracking-widest text-purple-400">
                 Team B · Second Team
@@ -408,10 +411,10 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                 vs <span className="text-indigo-400">{teamAName}</span>
               </p>
             </div>
-            <div className="flex-1 bg-slate-900/50 border border-purple-500/20 p-4 rounded-[2rem] flex flex-col gap-3 min-h-0 overflow-y-auto scrollbar-hide shadow-2xl">
+            <div className="bg-slate-900/50 border border-purple-500/20 p-3 rounded-3xl flex flex-col gap-2 shadow-2xl">
               <input
                 type="text"
-                className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-base font-black text-white focus:ring-2 focus:ring-purple-500 outline-none uppercase text-center placeholder:opacity-30 shrink-0"
+                className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-sm md:text-base font-black text-white focus:ring-2 focus:ring-purple-500 outline-none uppercase text-center placeholder:opacity-30 shrink-0"
                 value={teamBName}
                 placeholder="TEAM B NAME"
                 onChange={makeNameHandler(setTeamBName)}
@@ -429,7 +432,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
               <button
                 type="button"
                 onClick={() => setMobileStep(1)}
-                className="col-span-2 py-3.5 bg-slate-800 border border-white/5 rounded-2xl font-bold text-xs text-slate-300 uppercase tracking-wider active:scale-95"
+                className="col-span-2 py-3 bg-slate-800 border border-white/5 rounded-2xl font-bold text-xs text-slate-300 uppercase tracking-wider active:scale-95"
               >
                 ← Back
               </button>
@@ -446,7 +449,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                   }
                   setMobileStep(3);
                 }}
-                className="col-span-3 py-3.5 bg-purple-600 rounded-2xl font-black text-sm uppercase tracking-widest text-white shadow-lg shadow-purple-600/20 active:scale-95 transition-all"
+                className="col-span-3 py-3 bg-purple-600 rounded-2xl font-black text-sm uppercase tracking-widest text-white shadow-lg shadow-purple-600/20 active:scale-95 transition-all"
               >
                 Next: Overs &amp; Toss →
               </button>
@@ -458,7 +461,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
         {mobileStep === 3 && (
           <form
             onSubmit={handleSubmit}
-            className="flex-1 flex flex-col px-3 pb-3 gap-3 overflow-y-auto scrollbar-hide animate-in fade-in duration-300"
+            className="flex flex-grow flex-col px-3 pb-3 gap-3 overflow-y-auto scrollbar-hide animate-in fade-in duration-300"
           >
             <div className="text-center shrink-0">
               <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] font-black uppercase tracking-widest text-amber-400">
