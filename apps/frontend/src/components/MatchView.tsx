@@ -282,8 +282,8 @@ const MatchView: React.FC<MatchViewProps> = ({
     if (innings.inningNumber !== 2 || !innings.target) return null;
     const runsNeeded = innings.target - innings.totalRuns;
     const ballsRemaining = totalOvers * 6 - (innings.overs * 6 + innings.balls);
-    if (runsNeeded <= 0) return "Target Reached!";
-    return `Need ${runsNeeded} runs in ${ballsRemaining} balls`;
+    if (runsNeeded <= 0) return "Reached";
+    return `${runsNeeded} OFF ${ballsRemaining}`;
   };
 
   const saveToHistory = () => {
@@ -958,7 +958,7 @@ const MatchView: React.FC<MatchViewProps> = ({
   const equation = getEquation();
 
   return (
-    <div className="h-full bg-slate-900 text-slate-100 flex flex-col overflow-hidden selection:bg-indigo-500/30">
+    <div className="flex-1 flex flex-col min-h-0 bg-slate-900 text-slate-100 overflow-hidden selection:bg-indigo-500/30">
       {innings.strikerId === "" && (
         <BatterSelectModal
           innings={innings}
@@ -1108,19 +1108,21 @@ const MatchView: React.FC<MatchViewProps> = ({
                 </div>
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-xl font-black text-emerald-400 uppercase tracking-tighter mr-1 flex items-center gap-1">
+                <span className="text-xl md:text-2xl font-black text-emerald-400 uppercase tracking-tighter mr-1 flex items-center gap-1 truncate max-w-[140px] sm:max-w-[200px] md:max-w-[300px]">
                   <span>🏏</span> {innings.battingTeamName}:
                 </span>
-                <span className="text-2xl md:text-3xl font-black tracking-tighter text-white tabular-nums">
+                <span className="text-3xl md:text-4xl font-black tracking-tighter text-white tabular-nums">
                   {innings.totalRuns}
-                  <span className="text-slate-500 mx-0.5 text-xl">/</span>
+                  <span className="text-slate-500 mx-0.5 text-2xl md:text-3xl">
+                    /
+                  </span>
                   {innings.totalWickets}
                 </span>
-                <div className="flex items-center gap-1 text-indigo-400 font-black text-sm leading-none tabular-nums group/overs">
+                <div className="flex items-center gap-1 text-indigo-400 font-black text-base md:text-lg leading-none tabular-nums group/overs">
                   <span>
-                    {innings.overs}.{innings.balls}
+                    ({innings.overs}.{innings.balls}
                   </span>
-                  <span className="text-slate-600 text-[10px] mx-0.5">/</span>
+                  <span className="text-slate-600 text-xs mx-0.5">/</span>
                   {isEditingOvers ? (
                     <div className="flex items-center gap-1 animate-in zoom-in-75 duration-200">
                       <input
@@ -1156,7 +1158,7 @@ const MatchView: React.FC<MatchViewProps> = ({
                       className="cursor-pointer hover:text-indigo-300 transition-colors flex items-center gap-1"
                       onClick={() => setIsEditingOvers(true)}
                     >
-                      <span>{totalOvers}</span>
+                      <span>{totalOvers})</span>
                       <span className="text-[10px] opacity-0 group-hover/overs:opacity-100 ml-0.5">
                         ✏️
                       </span>
@@ -1177,32 +1179,19 @@ const MatchView: React.FC<MatchViewProps> = ({
                 Scorecard 📋
               </button>
               {Boolean(innings.target) && (
-                <span className="text-[10px] font-black text-yellow-500 uppercase tracking-tighter mt-1">
-                  TGT: {innings.target}
+                <span className="text-[11px] md:text-sm font-black text-yellow-500 uppercase tracking-tighter mt-1 truncate max-w-[160px] text-right whitespace-nowrap">
+                  {equation ? `🎯 ${equation}` : `TGT: ${innings.target}`}
                 </span>
               )}
             </div>
           </div>
-          {/* AI Match Prediction Section - Compact Mode in Header */}
-          <AiMatchPrediction
-            matchId={matchId}
-            teamA={innings.battingTeamName}
-            teamB={innings.bowlingTeamName}
-            totalOvers={totalOvers}
-            compact={true}
-            inning={innings.inningNumber}
-            currentScore={innings.totalRuns}
-            wicketsLost={innings.totalWickets}
-            targetScore={innings.target || -1}
-            ballsBowled={innings.overs * 6 + innings.balls}
-          />
         </div>
       </div>
 
       {/* Main Live Dashboard Area — top aligned, scrollable if needed */}
       <div
         ref={middleContainerRef}
-        className="flex-1 overflow-y-auto scrollbar-hide py-1"
+        className="flex-1 min-h-0 overflow-y-auto scrollbar-hide py-1"
       >
         <div className="max-w-4xl mx-auto w-full px-3 space-y-1 pb-4 md:pb-6">
           {/* Active Player Cards */}
@@ -1380,12 +1369,12 @@ const MatchView: React.FC<MatchViewProps> = ({
           </div>
 
           {/* Live Commentary */}
-          <div className="bg-indigo-600/5 rounded-lg py-0.5 px-2 border border-indigo-500/10 shadow-inner">
+          <div className="bg-indigo-600/5 rounded-lg py-1 px-3 border border-indigo-500/10 shadow-inner">
             <div className="flex items-center gap-2">
-              <span className="flex-shrink-0 text-[9px] font-black text-indigo-400 uppercase italic">
+              <span className="flex-shrink-0 text-[10px] font-black text-indigo-400 uppercase italic">
                 LIVE
               </span>
-              <p className="text-[11px] md:text-xs text-slate-200 font-bold tracking-wide italic uppercase leading-none truncate">
+              <p className="text-xs md:text-sm text-slate-200 font-bold tracking-wide italic uppercase leading-none truncate">
                 {lastCommentary}
               </p>
             </div>
@@ -1416,47 +1405,40 @@ const MatchView: React.FC<MatchViewProps> = ({
                     .reduce((s, b) => s + b.runs + b.extraRuns, 0)
                 : null;
             return (
-              <div className="space-y-1">
-                {equation && (
-                  <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg py-0.5 px-2 text-center">
-                    <span className="text-[10px] md:text-xs font-black text-yellow-400 uppercase tracking-[0.15em]">
-                      🎯 {equation}
-                    </span>
-                  </div>
-                )}
-                <div className="grid grid-cols-3 gap-1.5">
-                  <div className="bg-slate-800/50 rounded-xl py-0.5 px-1.5 text-center border border-white/5">
-                    <div className="text-[8px] md:text-[9px] font-black text-slate-500 uppercase tracking-wider">
+              <div className="space-y-1 mt-1">
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-slate-800/50 rounded-xl py-1.5 md:py-2 px-2 text-center border border-white/5">
+                    <div className="text-[10px] md:text-xs font-black text-slate-500 uppercase tracking-wider">
                       CRR
                     </div>
-                    <div className="text-xs md:text-sm font-black text-white tabular-nums leading-tight">
+                    <div className="text-base md:text-lg font-black text-white tabular-nums leading-tight mt-0.5">
                       {crr}
                     </div>
                   </div>
                   {rrr !== null ? (
-                    <div className="bg-yellow-500/10 rounded-xl py-0.5 px-1.5 text-center border border-yellow-500/20">
-                      <div className="text-[8px] md:text-[9px] font-black text-yellow-600 uppercase tracking-wider">
+                    <div className="bg-yellow-500/10 rounded-xl py-1.5 md:py-2 px-2 text-center border border-yellow-500/20">
+                      <div className="text-[10px] md:text-xs font-black text-yellow-600 uppercase tracking-wider">
                         RRR
                       </div>
-                      <div className="text-xs md:text-sm font-black text-yellow-400 tabular-nums leading-tight">
+                      <div className="text-base md:text-lg font-black text-yellow-400 tabular-nums leading-tight mt-0.5">
                         {rrr}
                       </div>
                     </div>
                   ) : (
-                    <div className="bg-slate-800/50 rounded-xl py-0.5 px-1.5 text-center border border-white/5">
-                      <div className="text-[8px] md:text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                    <div className="bg-slate-800/50 rounded-xl py-1.5 md:py-2 px-2 text-center border border-white/5">
+                      <div className="text-[10px] md:text-xs font-black text-slate-500 uppercase tracking-wider">
                         BALLS LEFT
                       </div>
-                      <div className="text-xs md:text-sm font-black text-white tabular-nums leading-tight">
+                      <div className="text-base md:text-lg font-black text-white tabular-nums leading-tight mt-0.5">
                         {ballsLeft}
                       </div>
                     </div>
                   )}
-                  <div className="bg-slate-800/50 rounded-xl py-0.5 px-1.5 text-center border border-white/5">
-                    <div className="text-[8px] md:text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                  <div className="bg-slate-800/50 rounded-xl py-1.5 md:py-2 px-2 text-center border border-white/5">
+                    <div className="text-[10px] md:text-xs font-black text-slate-500 uppercase tracking-wider">
                       LAST OVR
                     </div>
-                    <div className="text-xs md:text-sm font-black text-indigo-400 tabular-nums leading-tight">
+                    <div className="text-base md:text-lg font-black text-indigo-400 tabular-nums leading-tight mt-0.5">
                       {lastOverRuns !== null ? lastOverRuns : "—"}
                     </div>
                   </div>
@@ -1465,6 +1447,22 @@ const MatchView: React.FC<MatchViewProps> = ({
             );
           })()}
         </div>
+      </div>
+
+      {/* AI Match Prediction Section - Fixed Above Cockpit */}
+      <div className="shrink-0 px-3 pb-2 pt-1 border-t border-white/5 bg-slate-900/80 backdrop-blur-sm z-[80]">
+        <AiMatchPrediction
+          matchId={matchId}
+          teamA={innings.battingTeamName}
+          teamB={innings.bowlingTeamName}
+          totalOvers={totalOvers}
+          compact={true}
+          inning={innings.inningNumber}
+          currentScore={innings.totalRuns}
+          wicketsLost={innings.totalWickets}
+          targetScore={innings.target || -1}
+          ballsBowled={innings.overs * 6 + innings.balls}
+        />
       </div>
 
       {/* Operations Cockpit (Fixed at Bottom) */}

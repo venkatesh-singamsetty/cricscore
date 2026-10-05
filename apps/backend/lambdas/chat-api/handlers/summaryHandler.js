@@ -121,10 +121,10 @@ async function summaryHandler(
 Generate a concise 1-2 paragraph post-match summary for the following match using ONLY the exact factual numbers provided.
 
 CRITICAL INSTRUCTIONS:
-1. Start directly with the toss details: "${tossWinner} won the toss and elected to ${tossDecision}."
-2. You MUST state the EXACT final team scores as provided in the Score 1 and Score 2 lines. Do NOT alter, recalculate, or invent any score, ball count, or wicket count. For example: "${score1Text}" and "${score2Text}".
-3. State the official match winner: "${matchWinner}".
-4. Name the "Player of the Match" (POM) based on top individual performances and state their exact stats in 1 sentence.
+1. Start the summary directly with the "Player of the Match" (POM) and their stats in exactly 1 sentence.
+2. State the toss details: "${tossWinner} won the toss and elected to ${tossDecision}."
+3. You MUST state the EXACT final team scores as provided in the Score 1 and Score 2 lines. Do NOT alter, recalculate, or invent any score, ball count, or wicket count. For example: "${score1Text}" and "${score2Text}".
+4. State the official match winner: "${matchWinner}".
 
 Respond with a JSON object in this exact format:
 {
@@ -162,8 +162,12 @@ ${topBowlersText}`;
       }
 
       const rawSummary = resultJSON.summary || rawContent.trim();
-      const summary = stripPomSentenceFromSummary(rawSummary);
+      const baseSummary = stripPomSentenceFromSummary(rawSummary);
       const playerOfTheMatch = resultJSON.playerOfTheMatch || null;
+
+      const summary = playerOfTheMatch
+        ? `Player of the Match: ${playerOfTheMatch}.\n\n${baseSummary}`
+        : baseSummary;
 
       // Save summary and Player of the Match to DB for registered matches
       if (matchId && !String(matchId).startsWith("guest_")) {

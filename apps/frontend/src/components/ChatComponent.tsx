@@ -144,6 +144,10 @@ export function ChatComponent({
     safeLocalStorageSet("cricscore-chat-memory", JSON.stringify(messages));
   }, [messages]);
 
+  React.useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading]);
+
   const speakText = (text: string, force: boolean = false) => {
     if (
       (!isSpeechEnabled && !force) ||
@@ -270,62 +274,20 @@ export function ChatComponent({
   };
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 w-full max-w-4xl mx-auto bg-slate-900 rounded-none sm:rounded-xl border-0 sm:border border-white/10 shadow-2xl overflow-hidden relative">
+    <div className="flex-1 flex flex-col min-h-0 w-full max-w-4xl mx-auto bg-slate-900 rounded-none sm:rounded-xl border-0 sm:border border-white/10 shadow-2xl overflow-hidden relative">
       <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-transparent pointer-events-none" />
       <div className="shrink-0 p-3 sm:p-4 bg-slate-800/95 backdrop-blur-sm border-b border-white/10 flex items-center justify-between gap-2 relative z-20 sticky top-0 shadow-md">
-        <h3 className="text-sm sm:text-xl font-bold text-white flex items-center gap-1.5 sm:gap-2 shrink-0">
-          <Bot className="text-indigo-400 shrink-0" size={18} />
-          <span>
-            <span className="hidden sm:inline">Live Match </span>AI Assistant
-          </span>
-        </h3>
-        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-          <button
-            onClick={() => {
-              const next = !isSpeechEnabled;
-              setIsSpeechEnabled(next);
-              if (
-                typeof window !== "undefined" &&
-                "speechSynthesis" in window
-              ) {
-                if (!next) {
-                  window.speechSynthesis.cancel();
-                } else {
-                  // Unlock audio context on user interaction
-                  const unlock = new SpeechSynthesisUtterance("");
-                  unlock.volume = 0;
-                  window.speechSynthesis.speak(unlock);
-                }
-              }
-            }}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg transition-colors border text-xs font-bold ${
-              isSpeechEnabled
-                ? "bg-indigo-600/40 border-indigo-500/50 text-indigo-300"
-                : "bg-slate-700/60 border-slate-600/50 text-slate-400 hover:text-slate-200"
-            }`}
-            title={
-              isSpeechEnabled
-                ? "Voice response enabled"
-                : "Enable voice response"
-            }
-          >
-            {isSpeechEnabled ? (
-              <Volume2 size={14} className="text-indigo-400 shrink-0" />
-            ) : (
-              <VolumeX size={14} className="shrink-0" />
-            )}
-            <span className="hidden sm:inline">
-              {isSpeechEnabled ? "Voice On" : "Voice Off"}
-            </span>
-          </button>
+        <div className="flex items-center gap-1.5 shrink-0">
           <button
             onClick={handleNewChat}
-            className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 bg-slate-700/60 hover:bg-slate-700/90 text-slate-200 text-xs font-bold rounded-lg transition-colors border border-slate-600/50 shrink-0"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 text-sm font-bold rounded-xl transition-colors border border-indigo-500/30 shrink-0"
             title="Start a new chat"
           >
-            <PlusCircle size={14} className="text-emerald-400 shrink-0" />
+            <PlusCircle size={16} className="text-emerald-400 shrink-0" />
             <span>New Chat</span>
           </button>
+        </div>
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           {isAdmin && (
             <>
               <div className="relative">
@@ -456,8 +418,43 @@ export function ChatComponent({
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="shrink-0 p-2.5 sm:p-4 bg-slate-800 border-t border-white/10 sticky bottom-0 z-30">
+      <div className="shrink-0 p-2.5 sm:p-4 bg-slate-800 border-t border-white/10 z-30">
         <form onSubmit={sendMessage} className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              const next = !isSpeechEnabled;
+              setIsSpeechEnabled(next);
+              if (
+                typeof window !== "undefined" &&
+                "speechSynthesis" in window
+              ) {
+                if (!next) {
+                  window.speechSynthesis.cancel();
+                } else {
+                  const unlock = new SpeechSynthesisUtterance("");
+                  unlock.volume = 0;
+                  window.speechSynthesis.speak(unlock);
+                }
+              }
+            }}
+            className={`p-2.5 sm:p-3 rounded-2xl transition-colors shrink-0 shadow-lg ${
+              isSpeechEnabled
+                ? "bg-indigo-600/40 text-indigo-300 shadow-indigo-600/20"
+                : "bg-slate-700/60 text-slate-400 hover:text-slate-200"
+            }`}
+            title={
+              isSpeechEnabled
+                ? "Voice response enabled"
+                : "Enable voice response"
+            }
+          >
+            {isSpeechEnabled ? (
+              <Volume2 size={18} className="text-indigo-400 shrink-0" />
+            ) : (
+              <VolumeX size={18} className="shrink-0" />
+            )}
+          </button>
           <input
             type="text"
             name="cric_chat_query"
