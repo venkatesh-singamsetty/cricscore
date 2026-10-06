@@ -164,8 +164,8 @@ ${topBowlersText}`;
       const playerOfTheMatch = resultJSON.playerOfTheMatch || null;
 
       const summary = playerOfTheMatch
-        ? `🏆 Player of the Match: ${playerOfTheMatch}\n\n${rawSummary}`
-        : rawSummary;
+        ? `🏆 Player of the Match: ${playerOfTheMatch}\n\n${stripPomSentenceFromSummary(rawSummary)}`
+        : stripPomSentenceFromSummary(rawSummary);
 
       // Save summary and Player of the Match to DB for registered matches
       if (matchId && !String(matchId).startsWith("guest_")) {
@@ -358,8 +358,8 @@ ${bowlersRes.rows.length > 0 ? bowlersRes.rows.map((b) => `- ${b.name} (${b.bowl
     playerOfTheMatch = resultJSON.playerOfTheMatch || null;
 
     summary = playerOfTheMatch
-      ? `🏆 Player of the Match: ${playerOfTheMatch}\n\n${rawSummary}`
-      : rawSummary;
+      ? `🏆 Player of the Match: ${playerOfTheMatch}\n\n${stripPomSentenceFromSummary(rawSummary)}`
+      : stripPomSentenceFromSummary(rawSummary);
 
     // Cache the summary in the database for future requests
     await client.query(
