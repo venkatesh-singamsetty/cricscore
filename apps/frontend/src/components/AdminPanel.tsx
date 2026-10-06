@@ -34,6 +34,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     | "delete-all-guests"
     | "delete-all-guest-matches"
     | "delete-all-matches"
+    | "delete-all-incomplete-matches"
     | null
   >(null);
   const [purgeConfirmText, setPurgeConfirmText] = useState("");
@@ -218,6 +219,36 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to delete matches");
       setMessage(`✅ ${data.message || "All matches deleted successfully!"}`);
+    } catch (err: any) {
+      setMessage(`❌ Error: ${err.message}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const executeDeleteAllIncompleteMatches = async () => {
+    setActionLoading("delete-all-incomplete-matches");
+    setPendingBulkAction(null);
+    setMessage("");
+    try {
+      const session = await fetchAuthSession();
+      const token = session.tokens?.idToken?.toString();
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/admin/matches/incomplete`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      const data = await res.json();
+      if (!res.ok)
+        throw new Error(data.error || "Failed to delete incomplete matches");
+      const mCount = data.deletedMatchesCount ?? data.count ?? 0;
+      const msg = data.message || `Deleted ${mCount} incomplete matches.`;
+      setMessage(`✅ ${msg}`);
     } catch (err: any) {
       setMessage(`❌ Error: ${err.message}`);
     } finally {
@@ -479,6 +510,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 </p>
               )}
 
+              {pendingBulkAction === "delete-all-incomplete-matches" && (
+                <p className="text-slate-400 text-sm font-medium mb-8 leading-relaxed">
+                  Are you sure you want to permanently delete ALL incomplete
+                  matches from the database? This cannot be undone.
+                </p>
+              )}
+
               {pendingBulkAction === "delete-all-matches" && (
                 <div className="mb-6">
                   <p className="text-red-400 text-sm font-bold mb-4 leading-relaxed">
@@ -511,6 +549,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       executeDeleteAllGuests();
                     else if (pendingBulkAction === "delete-all-guest-matches")
                       executeDeleteAllGuestMatches();
+                    else if (
+                      pendingBulkAction === "delete-all-incomplete-matches"
+                    )
+                      executeDeleteAllIncompleteMatches();
                     else if (pendingBulkAction === "delete-all-matches")
                       executeDeleteAllMatches();
                   }}
@@ -586,6 +628,23 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   {actionLoading === "delete-all-matches"
                     ? "Deleting..."
                     : "Delete All Matches"}
+                </span>
+              </button>
+
+              <button
+                onClick={() =>
+                  setPendingBulkAction("delete-all-incomplete-matches")
+                }
+                disabled={!!actionLoading}
+                className="p-4 bg-orange-900/20 hover:bg-orange-900/40 border border-orange-500/30 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all group disabled:opacity-50"
+              >
+                <span className="text-2xl group-hover:scale-110 transition-transform">
+                  🗑️
+                </span>
+                <span className="text-xs font-black text-orange-400 uppercase tracking-widest text-center">
+                  {actionLoading === "delete-all-incomplete-matches"
+                    ? "Deleting..."
+                    : "Delete Incomplete Matches"}
                 </span>
               </button>
             </div>

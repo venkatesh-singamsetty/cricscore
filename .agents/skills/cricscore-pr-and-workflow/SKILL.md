@@ -22,6 +22,9 @@ When local validations pass:
 `git push origin <branch-name>`
 `gh pr create --title "<type>: <short summary>" --body "<detailed description>"`
 
+- **NEVER use the `--admin` flag** to force-merge a PR before remote GitHub Actions checks pass.
+- Always use `gh pr merge --auto` to queue the merge, or manually check `gh pr checks` and wait for all status checks to report success before merging.
+
 ## 4. Release Automation Lifecycle
 
 - Merging a PR into `main` automatically triggers `CricScore CI/CD` (DEV Deployment).

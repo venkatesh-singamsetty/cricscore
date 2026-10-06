@@ -145,7 +145,7 @@ export function ChatComponent({
   }, [messages]);
 
   React.useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
   }, [messages, loading]);
 
   const speakText = (text: string, force: boolean = false) => {

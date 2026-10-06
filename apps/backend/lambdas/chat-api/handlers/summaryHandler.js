@@ -121,15 +121,14 @@ async function summaryHandler(
 Generate a concise 1-2 paragraph post-match summary for the following match using ONLY the exact factual numbers provided.
 
 CRITICAL INSTRUCTIONS:
-1. Start the summary directly with the "Player of the Match" (POM) and their stats in exactly 1 sentence.
-2. State the toss details: "${tossWinner} won the toss and elected to ${tossDecision}."
-3. You MUST state the EXACT final team scores as provided in the Score 1 and Score 2 lines. Do NOT alter, recalculate, or invent any score, ball count, or wicket count. For example: "${score1Text}" and "${score2Text}".
-4. State the official match winner: "${matchWinner}".
+1. State the toss details: "${tossWinner} won the toss and elected to ${tossDecision}."
+2. You MUST state the EXACT final team scores based on the data below. Do NOT alter, recalculate, or invent any score, ball count, or wicket count. Write it naturally, e.g., "Team A scored 100 runs for 2 wickets in 10 overs."
+3. State the official match winner: "${matchWinner}".
 
 Respond with a JSON object in this exact format:
 {
-  "summary": "Your 4-paragraph summary...",
-  "playerOfTheMatch": "Name of the POM"
+  "summary": "Your concise summary...",
+  "playerOfTheMatch": "Name of the POM (based on top performances)"
 }
 
 MATCH STATISTICS:
@@ -162,12 +161,11 @@ ${topBowlersText}`;
       }
 
       const rawSummary = resultJSON.summary || rawContent.trim();
-      const baseSummary = stripPomSentenceFromSummary(rawSummary);
       const playerOfTheMatch = resultJSON.playerOfTheMatch || null;
 
       const summary = playerOfTheMatch
-        ? `Player of the Match: ${playerOfTheMatch}.\n\n${baseSummary}`
-        : baseSummary;
+        ? `🏆 Player of the Match: ${playerOfTheMatch}\n\n${rawSummary}`
+        : rawSummary;
 
       // Save summary and Player of the Match to DB for registered matches
       if (matchId && !String(matchId).startsWith("guest_")) {
@@ -317,15 +315,14 @@ Generate a concise 1-2 paragraph post-match summary for the following match usin
 
 CRITICAL INSTRUCTIONS:
 1. Start directly with the toss details: "${m.toss_winner || m.team_a_name} won the toss and elected to ${m.toss_decision || "BAT"}."
-2. You MUST state the EXACT final team scores as provided in the Score 1 and Score 2 lines. Do NOT alter, recalculate, or invent any score, ball count, or wicket count. For example: "${score1Text}" and "${score2Text}".
+2. You MUST state the EXACT final team scores based on the data below. Do NOT alter, recalculate, or invent any score, ball count, or wicket count. Write it naturally, e.g., "Team A scored 100 runs for 2 wickets in 10 overs."
 3. State the official match winner: "${m.match_winner || "Match Completed"}".
-4. Name the "Player of the Match" (POM) based on top individual performances and state their exact stats in 1 sentence.
-5. Add a 1-paragraph section analyzing "Game-Changing Moments" based STRICTLY on the top batting and bowling performances provided below. Do NOT hallucinate events, players, or boundaries that are not present in the statistics below.
+4. Add a brief section analyzing "Game-Changing Moments" based STRICTLY on the top batting and bowling performances provided below. Do NOT hallucinate events, players, or boundaries that are not present in the statistics below.
 
 Respond with a JSON object in this exact format:
 {
-  "summary": "Your 4-paragraph summary...",
-  "playerOfTheMatch": "Name of the POM"
+  "summary": "Your concise summary...",
+  "playerOfTheMatch": "Name of the POM (based on top performances)"
 }
 
 MATCH STATISTICS:
@@ -358,8 +355,11 @@ ${bowlersRes.rows.length > 0 ? bowlersRes.rows.map((b) => `- ${b.name} (${b.bowl
     }
 
     const rawSummary = resultJSON.summary || rawContent.trim();
-    summary = stripPomSentenceFromSummary(rawSummary);
     playerOfTheMatch = resultJSON.playerOfTheMatch || null;
+
+    summary = playerOfTheMatch
+      ? `🏆 Player of the Match: ${playerOfTheMatch}\n\n${rawSummary}`
+      : rawSummary;
 
     // Cache the summary in the database for future requests
     await client.query(

@@ -1482,6 +1482,53 @@ exports.handler = async (event) => {
       }
     }
 
+    // DELETE /admin/matches/incomplete (Delete all incomplete matches)
+    if (httpMethod === "DELETE" && path === "/admin/matches/incomplete") {
+      const claims = getClaims(event);
+      const isSuperAdmin =
+        claims.email && claims.email === process.env.ADMIN_REPORT_EMAIL;
+      const hasAdminGroup =
+        claims["cognito:groups"] && claims["cognito:groups"].includes("Admin");
+      const isAdmin = isSuperAdmin || hasAdminGroup;
+
+      const headers = {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      };
+
+      if (!isAdmin) {
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({ error: "Forbidden - Admins only" }),
+        };
+      }
+
+      try {
+        const res = await client.query(
+          "DELETE FROM matches WHERE status != 'COMPLETED' AND status != 'ABANDONED' RETURNING id",
+        );
+        const deletedCount = res.rowCount || 0;
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            deletedMatchesCount: deletedCount,
+            message: `Deleted ${deletedCount} incomplete matches.`,
+          }),
+        };
+      } catch (err) {
+        console.error("Failed to delete incomplete matches:", err);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ error: err.message }),
+        };
+      }
+    }
+
     // DELETE /admin/users (Delete user permanently from Cognito)
     if (httpMethod === "DELETE" && path === "/admin/users") {
       const claims = getClaims(event);

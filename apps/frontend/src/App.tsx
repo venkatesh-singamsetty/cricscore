@@ -1539,7 +1539,7 @@ const App: React.FC = () => {
         )}
 
         {view === "VIEWER" && (
-          <div className="bg-slate-950 flex flex-col p-4 md:p-8 min-h-full">
+          <div className="flex-1 min-h-0 overflow-y-auto bg-slate-950 flex flex-col p-4 md:p-8">
             <div className="max-w-4xl mx-auto w-full space-y-8 animate-in fade-in zoom-in-95 duration-500">
               <div className="text-center space-y-2">
                 <h1 className="text-4xl font-black text-white uppercase tracking-tighter italic">
@@ -1815,7 +1815,7 @@ const App: React.FC = () => {
               )}
             </div>
           ) : (
-            <div className="flex flex-col h-full w-full bg-slate-950 items-center justify-center p-4">
+            <div className="flex-1 min-h-0 overflow-y-auto flex flex-col w-full bg-slate-950 items-center justify-center p-4">
               <Authenticator
                 signUpAttributes={["given_name", "family_name"]}
                 formFields={authFormFields}

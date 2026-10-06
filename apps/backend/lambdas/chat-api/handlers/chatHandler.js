@@ -69,6 +69,7 @@ async function chatHandler(body, corsHeaders) {
     ? `
 6. DELETE MATCHES (ADMIN): If the user asks to delete matches, you MUST first call 'execute_sql' to fetch the matching records, show them to the user, and explicitly ask for confirmation. ONLY call 'delete_match' AFTER the user says "yes" or confirms the deletion.
 7. DELETE GUEST DATA (ADMIN): If the user asks to delete, clear, or prune guest users, guest matches, or guest details → ALWAYS call 'delete_guest_data'. Do NOT ask for confirmation first, just execute the tool.
+8. DELETE INCOMPLETE MATCHES (ADMIN): If the user asks to delete incomplete matches → ALWAYS call 'delete_incomplete_matches'. Do NOT ask for confirmation first, just execute the tool.
 `
     : `
 6. ADMIN-ONLY ACTIONS: Do not discuss, suggest, or perform guest cleanup, match deletion, or any other admin-only action unless the caller is explicitly an admin. If a non-admin asks for these actions, politely refuse and explain that admin privileges are required.
