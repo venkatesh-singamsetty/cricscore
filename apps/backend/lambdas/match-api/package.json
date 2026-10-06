@@ -14,8 +14,8 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@types/pg": "^8.20.0",
-    "pg": "^8.22.0"
+    "@types/pg": "^8.23.1",
+    "pg": "^8.23.1"
   },
   "devDependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.1136.0",
