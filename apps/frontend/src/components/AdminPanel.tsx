@@ -617,21 +617,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               </button>
 
               <button
-                onClick={() => setPendingBulkAction("delete-all-matches")}
-                disabled={!!actionLoading}
-                className="p-4 bg-red-900/20 hover:bg-red-900/40 border border-red-500/30 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all group disabled:opacity-50"
-              >
-                <span className="text-2xl group-hover:scale-110 transition-transform">
-                  🔥
-                </span>
-                <span className="text-xs font-black text-red-400 uppercase tracking-widest text-center">
-                  {actionLoading === "delete-all-matches"
-                    ? "Deleting..."
-                    : "Delete All Matches"}
-                </span>
-              </button>
-
-              <button
                 onClick={() =>
                   setPendingBulkAction("delete-all-incomplete-matches")
                 }
@@ -645,6 +630,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   {actionLoading === "delete-all-incomplete-matches"
                     ? "Deleting..."
                     : "Delete Incomplete Matches"}
+                </span>
+              </button>
+
+              <button
+                onClick={() => setPendingBulkAction("delete-all-matches")}
+                disabled={!!actionLoading}
+                className="p-4 bg-red-900/20 hover:bg-red-900/40 border border-red-500/30 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all group disabled:opacity-50"
+              >
+                <span className="text-2xl group-hover:scale-110 transition-transform">
+                  🔥
+                </span>
+                <span className="text-xs font-black text-red-400 uppercase tracking-widest text-center">
+                  {actionLoading === "delete-all-matches"
+                    ? "Deleting..."
+                    : "Delete All Matches"}
                 </span>
               </button>
             </div>

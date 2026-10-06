@@ -1335,7 +1335,7 @@ const App: React.FC = () => {
                 <button
                   onClick={() => setShowMatchMenu((v) => !v)}
                   title="Match Options"
-                  className="w-7 h-7 flex items-center justify-center bg-rose-600 border border-rose-500 rounded-lg text-white hover:bg-rose-500 transition-all active:scale-95 text-xs font-black shadow-lg shadow-rose-900/20"
+                  className="w-7 h-7 flex items-center justify-center bg-rose-600 border border-rose-500 rounded-lg text-white hover:bg-rose-500 transition-all active:scale-95 text-xs font-black shadow-lg shadow-rose-900/20 cursor-pointer"
                 >
                   ✖
                 </button>
@@ -1387,7 +1387,7 @@ const App: React.FC = () => {
               <button
                 onClick={() => setShowProfileMenu((v) => !v)}
                 title="Profile & Settings"
-                className="w-7 h-7 flex items-center justify-center bg-slate-800 border border-white/10 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-all active:scale-95"
+                className="w-7 h-7 flex items-center justify-center bg-slate-800 border border-white/10 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-all active:scale-95 cursor-pointer"
               >
                 <svg
                   width="14"
@@ -1558,7 +1558,7 @@ const App: React.FC = () => {
             components={authComponents}
           >
             {() => (
-              <div className="h-full bg-slate-950 flex flex-col p-4 md:p-8 overflow-y-auto">
+              <div className="absolute inset-0 bg-slate-950 flex flex-col p-4 md:p-8 overflow-y-auto">
                 <div className="max-w-4xl mx-auto w-full space-y-8 animate-in fade-in zoom-in-95 duration-500">
                   <div className="text-center space-y-2">
                     <h1 className="text-4xl font-black text-white uppercase tracking-tighter italic">
