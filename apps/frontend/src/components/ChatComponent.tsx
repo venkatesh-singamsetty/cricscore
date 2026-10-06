@@ -449,6 +449,29 @@ export function ChatComponent({
         style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.625rem)" }}
       >
         <form onSubmit={sendMessage} className="flex items-center gap-2">
+          <input
+            type="text"
+            name="search-chat-input"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            data-lpignore="true"
+            data-form-type="other"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onFocus={() => {
+              setTimeout(() => {
+                if (messageListRef.current) {
+                  messageListRef.current.scrollTop =
+                    messageListRef.current.scrollHeight;
+                }
+              }, 300);
+            }}
+            placeholder="Ask about the match, score, or players..."
+            className="flex-1 min-w-0 bg-slate-900 border border-white/10 rounded-2xl py-2.5 sm:py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-slate-500"
+            disabled={loading}
+          />
           <button
             type="button"
             onClick={() => {
@@ -484,29 +507,6 @@ export function ChatComponent({
               <VolumeX size={18} className="shrink-0" />
             )}
           </button>
-          <input
-            type="text"
-            name="search-chat-input"
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="off"
-            spellCheck={false}
-            data-lpignore="true"
-            data-form-type="other"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onFocus={() => {
-              setTimeout(() => {
-                if (messageListRef.current) {
-                  messageListRef.current.scrollTop =
-                    messageListRef.current.scrollHeight;
-                }
-              }, 300);
-            }}
-            placeholder="Ask about the match, score, or players..."
-            className="flex-1 min-w-0 bg-slate-900 border border-white/10 rounded-2xl py-2.5 sm:py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-slate-500"
-            disabled={loading}
-          />
           <button
             type="submit"
             disabled={!input.trim() || loading}

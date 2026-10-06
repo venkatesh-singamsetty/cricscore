@@ -1497,7 +1497,7 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col relative w-full">
+      <div className="flex-1 flex flex-col relative w-full min-h-0">
         {/* Custom Reset Confirmation Modal */}
         {showResetConfirm && (
           <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[200] p-4 backdrop-blur-sm">
