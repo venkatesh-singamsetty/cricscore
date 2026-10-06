@@ -444,7 +444,10 @@ export function ChatComponent({
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="shrink-0 p-2.5 sm:p-4 bg-slate-800 border-t border-white/10 z-30">
+      <div
+        className="shrink-0 p-2.5 sm:p-4 bg-slate-800 border-t border-white/10 z-30 sticky bottom-0"
+        style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.625rem)" }}
+      >
         <form onSubmit={sendMessage} className="flex items-center gap-2">
           <button
             type="button"
@@ -482,11 +485,11 @@ export function ChatComponent({
             )}
           </button>
           <input
-            type="search"
-            name="chat-message-input"
-            autoComplete="nope"
+            type="text"
+            name="search-chat-input"
+            autoComplete="off"
             autoCorrect="off"
-            autoCapitalize="sentences"
+            autoCapitalize="off"
             spellCheck={false}
             data-lpignore="true"
             data-form-type="other"
