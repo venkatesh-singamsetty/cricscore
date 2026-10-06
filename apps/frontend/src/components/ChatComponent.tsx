@@ -473,6 +473,14 @@ export function ChatComponent({
             disabled={loading}
           />
           <button
+            type="submit"
+            disabled={!input.trim() || loading}
+            className="p-2.5 sm:p-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl disabled:opacity-50 transition-colors shrink-0 shadow-lg shadow-indigo-600/20"
+            title="Send message"
+          >
+            <Send size={18} />
+          </button>
+          <button
             type="button"
             onClick={() => {
               const next = !isSpeechEnabled;
@@ -506,14 +514,6 @@ export function ChatComponent({
             ) : (
               <VolumeX size={18} className="shrink-0" />
             )}
-          </button>
-          <button
-            type="submit"
-            disabled={!input.trim() || loading}
-            className="p-2.5 sm:p-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl disabled:opacity-50 transition-colors shrink-0 shadow-lg shadow-indigo-600/20"
-            title="Send message"
-          >
-            <Send size={18} />
           </button>
         </form>
       </div>

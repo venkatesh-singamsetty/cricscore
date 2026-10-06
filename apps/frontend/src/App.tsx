@@ -1102,11 +1102,6 @@ const App: React.FC = () => {
     } else {
       setView(target);
     }
-
-    // Defer scrolling to next tick to ensure DOM is updated
-    setTimeout(() => {
-      window.scrollTo(0, 0);
-    }, 50);
   };
 
   const updateMatchOvers = async (newOvers: number) => {
