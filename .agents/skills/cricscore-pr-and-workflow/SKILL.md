@@ -29,6 +29,7 @@ When local validations pass:
 
 - Merging a PR into `main` automatically triggers `CricScore CI/CD` (DEV Deployment).
 - Upon success, Semantic Release updates CHANGELOG and creates a release tag.
+  - **Note:** Semantic Release requires `GITHUB_TOKEN` to push to `main` and bypass branch protection. The repository's Default Workflow Permissions must be set to "Read and write permissions" and "Allow GitHub Actions to create and approve pull requests" must be enabled.
 - Creating a release tag triggers `Deploy PROD`.
 
 ## 5. AI Governance Updates

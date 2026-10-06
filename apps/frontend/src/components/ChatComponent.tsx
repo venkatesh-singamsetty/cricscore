@@ -139,6 +139,7 @@ export function ChatComponent({
     setUploadedDocs(uploadedDocs.filter((d) => d !== doc));
   };
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageListRef = useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     safeLocalStorageSet("cricscore-chat-memory", JSON.stringify(messages));
@@ -147,6 +148,32 @@ export function ChatComponent({
   React.useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
   }, [messages, loading]);
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined" && window.visualViewport) {
+      const handleResize = () => {
+        const offset = window.innerHeight - window.visualViewport!.height;
+        // Apply padding to document body so the whole UI shifts up if needed, or just container
+        document.body.style.paddingBottom = `${offset}px`;
+
+        // Also ensure active element is in view
+        if (document.activeElement?.tagName === "INPUT") {
+          document.activeElement.scrollIntoView({
+            behavior: "smooth",
+            block: "nearest",
+          });
+        }
+      };
+
+      window.visualViewport.addEventListener("resize", handleResize);
+      return () => {
+        if (window.visualViewport) {
+          window.visualViewport.removeEventListener("resize", handleResize);
+        }
+        document.body.style.paddingBottom = "0px";
+      };
+    }
+  }, []);
 
   const speakText = (text: string, force: boolean = false) => {
     if (
@@ -361,7 +388,11 @@ export function ChatComponent({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
+      <div
+        ref={messageListRef}
+        className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4 overscroll-contain touch-pan-y"
+        style={{ WebkitOverflowScrolling: "touch" }}
+      >
         {messages.map((msg, idx) => (
           <div
             key={idx}
@@ -457,7 +488,7 @@ export function ChatComponent({
           </button>
           <input
             type="text"
-            name="cric_chat_query"
+            name="chat-message-input"
             autoComplete="off"
             autoCorrect="off"
             autoCapitalize="sentences"
@@ -466,6 +497,14 @@ export function ChatComponent({
             data-form-type="other"
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            onFocus={() => {
+              setTimeout(() => {
+                if (messageListRef.current) {
+                  messageListRef.current.scrollTop =
+                    messageListRef.current.scrollHeight;
+                }
+              }, 300);
+            }}
             placeholder="Ask about the match, score, or players..."
             className="flex-1 min-w-0 bg-slate-900 border border-white/10 rounded-2xl py-2.5 sm:py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-slate-500"
             disabled={loading}

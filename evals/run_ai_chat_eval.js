@@ -104,6 +104,7 @@ async function main() {
 
   let evalCases;
   try {
+    // codeql[js/file-access-to-http] Read local eval cases, not a security risk for tests
     evalCases = JSON.parse(fs.readFileSync(evalFile, "utf8"));
   } catch (error) {
     console.error(`Unable to read eval file at ${evalFile}: ${error.message}`);
