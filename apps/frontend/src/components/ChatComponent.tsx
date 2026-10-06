@@ -383,67 +383,70 @@ export function ChatComponent({
         </div>
       </div>
 
-      <div
-        ref={messageListRef}
-        className="flex-1 overflow-y-auto p-3 sm:p-4 overscroll-contain touch-pan-y flex flex-col"
-        style={{ WebkitOverflowScrolling: "touch" }}
-      >
-        <div className="space-y-3 sm:space-y-4 flex flex-col mt-auto">
-          {messages.map((msg, idx) => (
-            <div
-              key={idx}
-              className={`flex gap-2.5 sm:gap-3 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
-            >
+      <div className="flex-1 min-h-0 relative">
+        <div
+          ref={messageListRef}
+          className="absolute inset-0 overflow-y-auto p-3 sm:p-4 overscroll-contain touch-pan-y flex flex-col"
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >
+          <div className="flex-1 min-h-[1rem] shrink-0"></div>
+          <div className="space-y-3 sm:space-y-4 flex flex-col shrink-0">
+            {messages.map((msg, idx) => (
               <div
-                className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0 ${msg.role === "user" ? "bg-indigo-500" : "bg-slate-700"}`}
+                key={idx}
+                className={`flex gap-2.5 sm:gap-3 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
               >
-                {msg.role === "user" ? (
-                  <User size={14} className="text-white sm:w-4 sm:h-4" />
-                ) : (
-                  <Bot size={14} className="text-indigo-300 sm:w-4 sm:h-4" />
-                )}
-              </div>
-              <div
-                className={`p-3 rounded-2xl max-w-[85%] sm:max-w-[80%] shadow-md relative group ${msg.role === "user" ? "bg-indigo-600 text-white rounded-tr-none shadow-indigo-500/20" : "bg-slate-800 text-slate-200 rounded-tl-none border border-white/5 pr-8"}`}
-              >
-                <FormattedContent content={msg.content} />
-
-                {msg.role === "assistant" &&
-                  msg.content !==
-                    "Hi! Ask me anything about the live match!" && (
-                    <button
-                      onClick={() => handleCopy(msg.content)}
-                      className="absolute right-2 bottom-2 p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-indigo-500/20 rounded-md opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
-                      title="Copy response"
-                    >
-                      <Copy size={14} />
-                    </button>
+                <div
+                  className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0 ${msg.role === "user" ? "bg-indigo-500" : "bg-slate-700"}`}
+                >
+                  {msg.role === "user" ? (
+                    <User size={14} className="text-white sm:w-4 sm:h-4" />
+                  ) : (
+                    <Bot size={14} className="text-indigo-300 sm:w-4 sm:h-4" />
                   )}
-              </div>
-            </div>
-          ))}
-          {loading && (
-            <div className="flex gap-2.5 sm:gap-3 flex-row">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-700 flex items-center justify-center shrink-0">
-                <Bot
-                  size={14}
-                  className="text-indigo-300 animate-pulse sm:w-4 sm:h-4"
-                />
-              </div>
-              <div className="p-3 rounded-2xl bg-slate-800 text-slate-400 rounded-tl-none border border-white/5 flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-slate-500 animate-bounce"></div>
+                </div>
                 <div
-                  className="w-2 h-2 rounded-full bg-slate-500 animate-bounce"
-                  style={{ animationDelay: "0.2s" }}
-                ></div>
-                <div
-                  className="w-2 h-2 rounded-full bg-slate-500 animate-bounce"
-                  style={{ animationDelay: "0.4s" }}
-                ></div>
+                  className={`p-3 rounded-2xl max-w-[85%] sm:max-w-[80%] shadow-md relative group ${msg.role === "user" ? "bg-indigo-600 text-white rounded-tr-none shadow-indigo-500/20" : "bg-slate-800 text-slate-200 rounded-tl-none border border-white/5 pr-8"}`}
+                >
+                  <FormattedContent content={msg.content} />
+
+                  {msg.role === "assistant" &&
+                    msg.content !==
+                      "Hi! Ask me anything about the live match!" && (
+                      <button
+                        onClick={() => handleCopy(msg.content)}
+                        className="absolute right-2 bottom-2 p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-indigo-500/20 rounded-md opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
+                        title="Copy response"
+                      >
+                        <Copy size={14} />
+                      </button>
+                    )}
+                </div>
               </div>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
+            ))}
+            {loading && (
+              <div className="flex gap-2.5 sm:gap-3 flex-row">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-700 flex items-center justify-center shrink-0">
+                  <Bot
+                    size={14}
+                    className="text-indigo-300 animate-pulse sm:w-4 sm:h-4"
+                  />
+                </div>
+                <div className="p-3 rounded-2xl bg-slate-800 text-slate-400 rounded-tl-none border border-white/5 flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-slate-500 animate-bounce"></div>
+                  <div
+                    className="w-2 h-2 rounded-full bg-slate-500 animate-bounce"
+                    style={{ animationDelay: "0.2s" }}
+                  ></div>
+                  <div
+                    className="w-2 h-2 rounded-full bg-slate-500 animate-bounce"
+                    style={{ animationDelay: "0.4s" }}
+                  ></div>
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
         </div>
       </div>
 
