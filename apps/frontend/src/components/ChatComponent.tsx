@@ -296,7 +296,7 @@ export function ChatComponent({
   };
 
   return (
-    <div className="flex-1 h-full flex flex-col min-h-0 w-full max-w-4xl mx-auto bg-slate-900 rounded-none sm:rounded-xl border-0 sm:border border-white/10 shadow-2xl overflow-hidden relative">
+    <div className="h-full flex flex-col w-full max-w-4xl mx-auto bg-slate-900 rounded-none sm:rounded-xl border-0 sm:border border-white/10 shadow-2xl overflow-hidden relative">
       <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-transparent pointer-events-none" />
       <div className="shrink-0 p-3 sm:p-4 bg-slate-800/95 backdrop-blur-sm border-b border-white/10 flex items-center justify-between gap-2 relative z-20 sticky top-0 shadow-md">
         <div className="flex items-center gap-1.5 shrink-0">

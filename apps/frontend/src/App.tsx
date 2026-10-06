@@ -2007,7 +2007,7 @@ const App: React.FC = () => {
             </div>
           ))}
         {view === "CHAT" && (
-          <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-slate-950 p-2 sm:p-4 md:p-8">
+          <div className="absolute inset-0 bg-slate-950 p-0 sm:p-4 md:p-8">
             <ChatComponent
               matchId={matchId}
               apiUrl={import.meta.env.VITE_API_URL}
