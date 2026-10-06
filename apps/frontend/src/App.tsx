@@ -1102,7 +1102,6 @@ const App: React.FC = () => {
     } else {
       setView(target);
     }
-    setHubKey((k) => k + 1);
 
     // Defer scrolling to next tick to ensure DOM is updated
     setTimeout(() => {

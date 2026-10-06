@@ -150,28 +150,23 @@ export function ChatComponent({
   }, [messages, loading]);
 
   React.useEffect(() => {
+    // Relying strictly on CSS h-dvh for viewport resizing on iOS.
+    // The previous visualViewport padding offset broke fixed headers.
     if (typeof window !== "undefined" && window.visualViewport) {
       const handleResize = () => {
-        const offset = window.innerHeight - window.visualViewport!.height;
-        // Apply padding to document body so the whole UI shifts up if needed, or just container
-        document.body.style.paddingBottom = `${offset}px`;
-
-        // Also ensure active element is in view
+        // Just ensure active element is in view without changing body layout
         if (document.activeElement?.tagName === "INPUT") {
-          document.activeElement.scrollIntoView({
-            behavior: "smooth",
-            block: "nearest",
-          });
+          setTimeout(() => {
+            document.activeElement?.scrollIntoView({
+              behavior: "smooth",
+              block: "nearest",
+            });
+          }, 50);
         }
       };
-
       window.visualViewport.addEventListener("resize", handleResize);
-      return () => {
-        if (window.visualViewport) {
-          window.visualViewport.removeEventListener("resize", handleResize);
-        }
-        document.body.style.paddingBottom = "0px";
-      };
+      return () =>
+        window.visualViewport?.removeEventListener("resize", handleResize);
     }
   }, []);
 
@@ -487,9 +482,9 @@ export function ChatComponent({
             )}
           </button>
           <input
-            type="text"
+            type="search"
             name="chat-message-input"
-            autoComplete="off"
+            autoComplete="nope"
             autoCorrect="off"
             autoCapitalize="sentences"
             spellCheck={false}
