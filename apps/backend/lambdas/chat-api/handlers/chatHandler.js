@@ -55,7 +55,61 @@ async function chatHandler(body, corsHeaders) {
       );
       if (matchRes.rows.length > 0) {
         const m = matchRes.rows[0];
-        matchContext = `Active Match: ${m.team_a_name} vs ${m.team_b_name} (${m.status}). Total Overs: ${m.total_overs}. Score: ${m.team_a_score}/${m.team_a_wickets} & ${m.team_b_score}/${m.team_b_wickets}. Toss: ${m.toss_winner} elected to ${m.toss_decision}.`;
+        const tA = m.team_a_name || "Team A";
+        const tB = m.team_b_name || "Team B";
+        const isTeamABattingFirst = m.bat_first_team === tA;
+
+        const team1 = isTeamABattingFirst ? tA : tB;
+        const team1Score = isTeamABattingFirst
+          ? m.team_a_score || 0
+          : m.team_b_score || 0;
+        const team1Wickets = isTeamABattingFirst
+          ? m.team_a_wickets || 0
+          : m.team_b_wickets || 0;
+        const team1Overs = isTeamABattingFirst
+          ? m.team_a_overs || "0.0"
+          : m.team_b_overs || "0.0";
+
+        const team2 = isTeamABattingFirst ? tB : tA;
+        const team2Score = isTeamABattingFirst
+          ? m.team_b_score || 0
+          : m.team_a_score || 0;
+        const team2Wickets = isTeamABattingFirst
+          ? m.team_b_wickets || 0
+          : m.team_a_wickets || 0;
+        const team2Overs = isTeamABattingFirst
+          ? m.team_b_overs || "0.0"
+          : m.team_a_overs || "0.0";
+
+        const getBalls = (overStr) => {
+          const parts = String(overStr).split(".");
+          return (
+            (parseInt(parts[0], 10) || 0) * 6 + (parseInt(parts[1], 10) || 0)
+          );
+        };
+        const t1Balls = getBalls(team1Overs);
+        const t2Balls = getBalls(team2Overs);
+        const t1RR =
+          t1Balls > 0 ? (team1Score / (t1Balls / 6)).toFixed(1) : "0.0";
+        const t2RR =
+          t2Balls > 0 ? (team2Score / (t2Balls / 6)).toFixed(1) : "0.0";
+
+        matchContext = `Active Match: ${tA} vs ${tB} (Status: ${m.status}). Toss: ${m.toss_winner || "TBD"} elected to ${m.toss_decision || "TBD"}. Total Match Overs: ${m.total_overs || 0}.
+[1st Innings - ${team1}]: ${team1Score}/${team1Wickets} in ${team1Overs} overs (CRR: ${t1RR})
+[2nd Innings - ${team2}]: ${team2Score}/${team2Wickets} in ${team2Overs} overs (CRR: ${t2RR})`;
+
+        if (
+          t2Balls > 0 ||
+          t1Balls === m.total_overs * 6 ||
+          team1Wickets === 10
+        ) {
+          const target = team1Score + 1;
+          const runsNeeded = target - team2Score;
+          const ballsLeft = (m.total_overs || 0) * 6 - t2Balls;
+          if (m.status !== "COMPLETED") {
+            matchContext += `\nTarget for ${team2}: ${target} runs. They need ${runsNeeded} runs to win from ${ballsLeft} balls.`;
+          }
+        }
       }
     }
   } catch (err) {
@@ -85,6 +139,7 @@ async function chatHandler(body, corsHeaders) {
 6. COMPLETE RESPONSES: When the user requests details for N items (e.g., "latest 10 matches"), you MUST list ALL requested items. Use a clear, concise bullet/number format (Match #, Teams, Score, Winner) so all items are presented fully.
 7. COMPREHENSIVE RULE SYNTHESIS: When answering rulebook queries, read all retrieved chunks thoroughly and cover all relevant sub-rules (such as Mandatory Powerplay, Batting Powerplay, and Fielding Restrictions) completely.
 8. STRICT RULEBOOK TRUTH (NO HALLUCINATIONS): Tournament rules override standard international rules. If the retrieved rulebook chunk states "No runs for Leg Byes", you MUST explicitly state that NO RUNS are scored for leg byes in this tournament and that leg byes do NOT count as extras or add to team totals. NEVER state that leg byes add to team totals if the retrieved rulebook says otherwise. State EXACTLY what the retrieved rulebook specifies.
+9. ACTIVE MATCH CONTEXT: If the user asks about the "live match" or "current match", you MUST use the provided 'Current Active Match Context' below. You do not need to query the database to summarize the current active match score, as the detailed context is provided directly in this prompt. Summarize it in a friendly, conversational, and highly detailed manner.
 ${adminOnlyInstructions}## Database Schema:
 ${DB_SCHEMA}
 
@@ -197,6 +252,7 @@ Current Date and Time: ${new Date().toISOString()}
       response = await openai.chat.completions.create({
         model: LLM_MODEL,
         messages,
+        tools,
         temperature: 0.5,
         max_tokens: 2000,
       });
@@ -210,10 +266,14 @@ Current Date and Time: ${new Date().toISOString()}
     }
   }
 
+  const finalReply =
+    responseMessage.content ||
+    "The operation was completed, but no detailed summary was generated.";
+
   return {
     statusCode: 200,
     headers: corsHeaders,
-    body: JSON.stringify({ reply: responseMessage.content }),
+    body: JSON.stringify({ reply: finalReply }),
   };
 }
 

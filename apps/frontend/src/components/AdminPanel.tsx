@@ -31,8 +31,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   // Custom Modals for Bulk Actions
   const [pendingBulkAction, setPendingBulkAction] = useState<
-    | "delete-all-guests"
-    | "delete-all-guest-matches"
+    | "delete-all-guest-data"
     | "delete-all-matches"
     | "delete-all-incomplete-matches"
     | null
@@ -138,45 +137,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
-  const executeDeleteAllGuests = async () => {
-    setActionLoading("delete-all-guests");
+  const executeDeleteAllGuestData = async () => {
+    setActionLoading("delete-all-guest-data");
     setPendingBulkAction(null);
     setMessage("");
     try {
       const session = await fetchAuthSession();
       const token = session.tokens?.idToken?.toString();
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/admin/users/guests`,
-        {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-      const data = await res.json();
-      if (!res.ok)
-        throw new Error(data.error || "Failed to delete guest users");
-      const uCount = data.deletedUsersCount ?? 0;
-      const msg = data.message || `Deleted ${uCount} guest users.`;
-      setMessage(`✅ ${msg}`);
-      fetchUsers(true); // Refresh the list while keeping success message
-    } catch (err: any) {
-      setMessage(`❌ Error: ${err.message}`);
-    } finally {
-      setActionLoading(null);
-    }
-  };
 
-  const executeDeleteAllGuestMatches = async () => {
-    setActionLoading("delete-all-guest-matches");
-    setPendingBulkAction(null);
-    setMessage("");
-    try {
-      const session = await fetchAuthSession();
-      const token = session.tokens?.idToken?.toString();
-      const res = await fetch(
+      const resMatches = await fetch(
         `${import.meta.env.VITE_API_URL}/admin/matches/guests`,
         {
           method: "DELETE",
@@ -186,12 +155,30 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           },
         },
       );
-      const data = await res.json();
-      if (!res.ok)
-        throw new Error(data.error || "Failed to delete guest matches");
-      const mCount = data.deletedMatchesCount ?? data.count ?? 0;
-      const msg = data.message || `Deleted ${mCount} guest matches.`;
-      setMessage(`✅ ${msg}`);
+      const dataMatches = await resMatches.json();
+      if (!resMatches.ok)
+        throw new Error(dataMatches.error || "Failed to delete guest matches");
+
+      const resUsers = await fetch(
+        `${import.meta.env.VITE_API_URL}/admin/users/guests`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      const dataUsers = await resUsers.json();
+      if (!resUsers.ok)
+        throw new Error(dataUsers.error || "Failed to delete guest users");
+
+      const mCount = dataMatches.deletedMatchesCount ?? dataMatches.count ?? 0;
+      const uCount = dataUsers.deletedUsersCount ?? 0;
+      setMessage(
+        `✅ Deleted ${mCount} guest matches and ${uCount} guest users.`,
+      );
+      fetchUsers(true);
     } catch (err: any) {
       setMessage(`❌ Error: ${err.message}`);
     } finally {
@@ -496,17 +483,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 Confirm Action
               </h3>
 
-              {pendingBulkAction === "delete-all-guests" && (
-                <p className="text-slate-400 text-sm font-medium mb-8 leading-relaxed">
-                  Are you sure you want to permanently delete ALL guest users
-                  from Cognito? This action cannot be undone.
-                </p>
-              )}
-
-              {pendingBulkAction === "delete-all-guest-matches" && (
+              {pendingBulkAction === "delete-all-guest-data" && (
                 <p className="text-slate-400 text-sm font-medium mb-8 leading-relaxed">
                   Are you sure you want to permanently delete ALL guest matches
-                  from the database? This cannot be undone.
+                  AND guest users? This cannot be undone.
                 </p>
               )}
 
@@ -545,10 +525,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 </button>
                 <button
                   onClick={() => {
-                    if (pendingBulkAction === "delete-all-guests")
-                      executeDeleteAllGuests();
-                    else if (pendingBulkAction === "delete-all-guest-matches")
-                      executeDeleteAllGuestMatches();
+                    if (pendingBulkAction === "delete-all-guest-data")
+                      executeDeleteAllGuestData();
                     else if (
                       pendingBulkAction === "delete-all-incomplete-matches"
                     )
@@ -587,32 +565,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <button
-                onClick={() => setPendingBulkAction("delete-all-guests")}
+                onClick={() => setPendingBulkAction("delete-all-guest-data")}
                 disabled={!!actionLoading}
                 className="p-4 bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all group disabled:opacity-50"
               >
                 <span className="text-2xl group-hover:scale-110 transition-transform">
-                  👤
+                  🧹
                 </span>
                 <span className="text-xs font-black text-slate-300 uppercase tracking-widest text-center">
-                  {actionLoading === "delete-all-guests"
+                  {actionLoading === "delete-all-guest-data"
                     ? "Deleting..."
-                    : "Delete All Guest Users"}
-                </span>
-              </button>
-
-              <button
-                onClick={() => setPendingBulkAction("delete-all-guest-matches")}
-                disabled={!!actionLoading}
-                className="p-4 bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all group disabled:opacity-50"
-              >
-                <span className="text-2xl group-hover:scale-110 transition-transform">
-                  🏏
-                </span>
-                <span className="text-xs font-black text-slate-300 uppercase tracking-widest text-center">
-                  {actionLoading === "delete-all-guest-matches"
-                    ? "Deleting..."
-                    : "Delete Guest Matches"}
+                    : "Delete Guest Data"}
                 </span>
               </button>
 

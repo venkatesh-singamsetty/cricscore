@@ -296,7 +296,7 @@ export function ChatComponent({
   };
 
   return (
-    <div className="h-full flex flex-col w-full max-w-4xl mx-auto bg-slate-900 rounded-none sm:rounded-xl border-0 sm:border border-white/10 shadow-2xl overflow-hidden relative">
+    <div className="flex-1 min-h-0 flex flex-col w-full max-w-4xl mx-auto bg-slate-900 rounded-none sm:rounded-xl border-0 sm:border border-white/10 shadow-2xl overflow-hidden relative">
       <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-transparent pointer-events-none" />
       <div className="shrink-0 p-3 sm:p-4 bg-slate-800/95 backdrop-blur-sm border-b border-white/10 flex items-center justify-between gap-2 relative z-20 sticky top-0 shadow-md">
         <div className="flex items-center gap-1.5 shrink-0">
@@ -383,10 +383,10 @@ export function ChatComponent({
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 relative">
+      <div className="flex-1 min-h-0 flex flex-col relative">
         <div
           ref={messageListRef}
-          className="absolute inset-0 overflow-y-auto p-3 sm:p-4 overscroll-contain touch-pan-y flex flex-col"
+          className="flex-1 overflow-y-auto p-3 sm:p-4 overscroll-contain touch-pan-y flex flex-col"
           style={{ WebkitOverflowScrolling: "touch" }}
         >
           <div className="flex-1 min-h-[1rem] shrink-0"></div>

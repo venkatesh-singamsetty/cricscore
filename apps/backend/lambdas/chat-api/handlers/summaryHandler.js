@@ -128,7 +128,7 @@ CRITICAL INSTRUCTIONS:
 Respond with a JSON object in this exact format:
 {
   "summary": "Your concise summary...",
-  "playerOfTheMatch": "Name of the POM (based on top performances)"
+  "playerOfTheMatch": "Name of the POM - brief reason (e.g., scored 50 runs, or took 3 wickets)"
 }
 
 MATCH STATISTICS:
@@ -322,7 +322,7 @@ CRITICAL INSTRUCTIONS:
 Respond with a JSON object in this exact format:
 {
   "summary": "Your concise summary...",
-  "playerOfTheMatch": "Name of the POM (based on top performances)"
+  "playerOfTheMatch": "Name of the POM - brief reason (e.g., scored 50 runs, or took 3 wickets)"
 }
 
 MATCH STATISTICS:

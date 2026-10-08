@@ -17,6 +17,7 @@ interface MatchSetupProps {
   canDelete?: boolean;
   token?: string;
   isGuestMode?: boolean;
+  onCancel?: () => void;
 }
 
 const handleScroll = (
@@ -131,6 +132,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
   token,
   initialEmail = import.meta.env.VITE_DEFAULT_EMAIL || "",
   isGuestMode = false,
+  onCancel,
 }) => {
   const [teamAName, setTeamAName] = useState("TEAM A");
   const [teamBName, setTeamBName] = useState("TEAM B");
@@ -380,23 +382,34 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                 lineNumbersRef={lineNumbersRefA}
               />
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                if (!teamAName.trim()) {
-                  setAlertMessage("Please enter Team A name.");
-                  return;
-                }
-                if (parsedTeamA.length < 2) {
-                  setAlertMessage("Team A needs at least 2 players.");
-                  return;
-                }
-                setMobileStep(2);
-              }}
-              className="w-full py-3.5 bg-indigo-600 rounded-2xl font-black text-sm uppercase tracking-widest text-white shadow-lg shadow-indigo-600/20 active:scale-95 transition-all shrink-0"
-            >
-              Next: Team B →
-            </button>
+            <div className="grid grid-cols-5 gap-2 shrink-0">
+              {onCancel && (
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  className="col-span-2 py-3.5 bg-slate-800 border border-white/5 rounded-2xl font-bold text-xs text-slate-300 uppercase tracking-wider active:scale-95 transition-all"
+                >
+                  Cancel
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  if (!teamAName.trim()) {
+                    setAlertMessage("Please enter Team A name.");
+                    return;
+                  }
+                  if (parsedTeamA.length < 2) {
+                    setAlertMessage("Team A needs at least 2 players.");
+                    return;
+                  }
+                  setMobileStep(2);
+                }}
+                className={`${onCancel ? "col-span-3" : "w-full"} py-3.5 bg-indigo-600 rounded-2xl font-black text-sm uppercase tracking-widest text-white shadow-lg shadow-indigo-600/20 active:scale-95 transition-all`}
+              >
+                Next: Team B →
+              </button>
+            </div>
           </div>
         )}
 

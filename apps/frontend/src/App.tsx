@@ -168,6 +168,7 @@ const App: React.FC = () => {
   const [userToken, setUserToken] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [isGuestScorer, setIsGuestScorer] = useState(false);
 
   const [emailTo, setEmailTo] = useState("");
   const [hasRestored, setHasRestored] = useState(false);
@@ -213,8 +214,6 @@ const App: React.FC = () => {
           setUserEmail(emailStr || null);
           const groups = (payload?.["cognito:groups"] as string[]) || [];
 
-          const isGuest = isGuestEmail(emailStr);
-          setIsGuestScorer(isGuest);
           setIsAdmin(groups.includes("Admin"));
           if (emailStr) {
             setEmailTo(emailStr);
@@ -229,7 +228,6 @@ const App: React.FC = () => {
         if (fallbackAuth.token && fallbackAuth.email) {
           setUserToken(fallbackAuth.token);
           setUserEmail(fallbackAuth.email);
-          setIsGuestScorer(isGuestEmail(fallbackAuth.email));
           setIsAdmin(false);
           if (fallbackAuth.email) {
             setEmailTo(fallbackAuth.email);
@@ -274,12 +272,6 @@ const App: React.FC = () => {
       setPreviousInnings(undefined);
       setHasSentAutoEmail(false);
       setHasRestored(false);
-      setIsGuestScorer(
-        !!(
-          currentEmail?.startsWith("guest-") &&
-          currentEmail?.endsWith("@cricscore.local")
-        ),
-      );
       setHubKey((k) => k + 1); // Force LiveScoreboard to refresh
     }
     prevEmailRef.current = currentEmail;
@@ -330,14 +322,11 @@ const App: React.FC = () => {
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
 
-  const [isGuestScorer, setIsGuestScorer] = useState(false);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
 
   const canUseAuth = hasCognitoAuthConfig();
   const shouldBypassAuth = !canUseAuth;
-  const hasAuthenticatedUser = Boolean(
-    (userToken || userEmail) && !isGuestScorer,
-  );
+  const hasAuthenticatedUser = Boolean(userToken || userEmail);
   const canAccessScorerView = canAccessScorer({
     shouldBypassAuth,
     isGuestScorer,
@@ -361,74 +350,8 @@ const App: React.FC = () => {
         <div>
           <button
             type="button"
-            onClick={async () => {
-              try {
-                try {
-                  await signOut();
-                  // Give Amplify a moment to clear local storage tokens
-                  await new Promise((resolve) => setTimeout(resolve, 500));
-                } catch (e) {
-                  console.warn(
-                    "Sign out before guest login failed or no user:",
-                    e,
-                  );
-                }
-
-                // Generate a shadow account email
-                const guestEmail = `guest-${Date.now()}@cricscore.local`;
-                const guestPassword = "GuestPassword#12345";
-
-                await signUp({
-                  username: guestEmail,
-                  password: guestPassword,
-                  options: {
-                    userAttributes: { email: guestEmail },
-                  },
-                });
-
-                // Sign in immediately
-                try {
-                  await signIn({
-                    username: guestEmail,
-                    password: guestPassword,
-                  });
-                } catch (signInErr: any) {
-                  if (
-                    signInErr.name === "UserAlreadyAuthenticatedException" ||
-                    signInErr.message?.includes("already signed in")
-                  ) {
-                    console.warn(
-                      "User already signed in, forcing sign out and retrying...",
-                    );
-                    await signOut();
-                    await new Promise((resolve) => setTimeout(resolve, 1000));
-                    await signIn({
-                      username: guestEmail,
-                      password: guestPassword,
-                    });
-                  } else {
-                    throw signInErr;
-                  }
-                }
-
-                // Clear state
-                setMatchStatus(MatchStatus.SETUP);
-                setMatchId(null);
-                setTeamA(null);
-                setTeamB(null);
-                setCurrentInnings(null);
-                setPreviousInnings(undefined);
-                setIsGuestScorer(true);
-                setHasRestored(true); // Prevent restore flash wiping setup data
-                setView("SCORER");
-              } catch (err: any) {
-                console.error("Guest login failed:", err);
-                setAlertMessage(
-                  `Failed to start guest session: ${err.message || JSON.stringify(err)}`,
-                );
-              }
-            }}
-            className="text-xs font-black text-indigo-400 hover:text-indigo-300 uppercase tracking-wider py-2 px-4 bg-slate-900/90 rounded-xl border border-indigo-500/30 hover:border-indigo-500/60 shadow-lg transition-all"
+            onClick={() => setIsGuestScorer(true)}
+            className="w-full rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 font-black uppercase tracking-[0.25em] text-white shadow-lg shadow-indigo-600/30 transition-all hover:scale-[1.01] active:scale-[0.99]"
           >
             🎮 Continue as Guest (Start & Score Match)
           </button>
@@ -442,61 +365,17 @@ const App: React.FC = () => {
       Footer: SignInFooter,
     },
     SignUp: {
-      Footer() {
-        return (
-          <div className="text-center pt-3 border-t border-slate-800/80 mt-3">
-            <button
-              type="button"
-              onClick={async () => {
-                try {
-                  try {
-                    await signOut();
-                  } catch (e) {
-                    // Ignore
-                  }
-
-                  // Generate a shadow account email
-                  const guestEmail = `guest-${Date.now()}@cricscore.local`;
-                  const guestPassword = "GuestPassword#12345";
-
-                  await signUp({
-                    username: guestEmail,
-                    password: guestPassword,
-                    options: {
-                      userAttributes: { email: guestEmail },
-                    },
-                  });
-
-                  // Sign in immediately
-                  await signIn({
-                    username: guestEmail,
-                    password: guestPassword,
-                  });
-
-                  // Clear state
-                  setMatchStatus(MatchStatus.SETUP);
-                  setMatchId(null);
-                  setTeamA(null);
-                  setTeamB(null);
-                  setCurrentInnings(null);
-                  setPreviousInnings(undefined);
-                  setIsGuestScorer(true);
-                  setHasRestored(true); // Prevent restore flash wiping setup data
-                  setView("SCORER");
-                } catch (err: any) {
-                  console.error("Guest login failed:", err);
-                  setAlertMessage(
-                    `Failed to start guest session: ${err.message || JSON.stringify(err)}`,
-                  );
-                }
-              }}
-              className="text-xs font-black text-indigo-400 hover:text-indigo-300 uppercase tracking-wider py-2 px-4 bg-slate-900/90 rounded-xl border border-indigo-500/30 hover:border-indigo-500/60 shadow-lg transition-all"
-            >
-              🎮 Continue as Guest (Start & Score Match)
-            </button>
-          </div>
-        );
-      },
+      Footer: () => (
+        <div className="text-center pt-3 border-t border-slate-800/80 mt-3">
+          <button
+            type="button"
+            onClick={() => setIsGuestScorer(true)}
+            className="w-full rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 font-black uppercase tracking-[0.25em] text-white shadow-lg shadow-indigo-600/30 transition-all hover:scale-[1.01] active:scale-[0.99]"
+          >
+            🎮 Continue as Guest (Start & Score Match)
+          </button>
+        </div>
+      ),
     },
   };
 
@@ -1089,7 +968,6 @@ const App: React.FC = () => {
       setUserToken(null);
       setIsAdmin(false);
       setUserEmail(null);
-      setIsGuestScorer(false);
       setView("VIEWER");
     } catch (e) {
       console.error("Sign out error", e);
@@ -1484,7 +1362,7 @@ const App: React.FC = () => {
               className="px-3 py-1.5 bg-indigo-500/10 text-indigo-300 hover:text-white border border-indigo-500/20 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors shadow-sm"
               title="Sign In to Save"
             >
-              GUEST
+              SIGN IN
             </button>
           ) : null}
         </div>
@@ -1587,43 +1465,17 @@ const App: React.FC = () => {
         {view === "SCORER" &&
           (canAccessScorerView ? (
             <div className="w-full flex-1 flex flex-col min-h-0">
-              {shouldBypassAuth && !isGuestScorer && (
-                <div className="h-full w-full flex items-center justify-center bg-slate-950 p-4">
-                  <div className="w-full max-w-lg rounded-[2rem] border border-indigo-500/20 bg-slate-900/80 p-8 text-center shadow-2xl">
-                    <div className="text-xs font-black uppercase tracking-[0.4em] text-indigo-400 mb-4">
-                      Demo Mode
-                    </div>
-                    <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tighter italic text-white mb-3">
-                      Match{" "}
-                      <span className="text-indigo-500">Configuration</span>
-                    </h1>
-                    <p className="text-sm text-slate-300 leading-relaxed mb-6">
-                      Authentication is not configured in this environment, so
-                      guest scoring is available without sign-in.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsGuestScorer(true);
-                        setMatchStatus(MatchStatus.SETUP);
-                        setView("SCORER");
-                      }}
-                      className="w-full rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 font-black uppercase tracking-[0.25em] text-white shadow-lg shadow-indigo-600/30 transition-all hover:scale-[1.01] active:scale-[0.99]"
-                    >
-                      🎮 Continue as Guest
-                    </button>
-                  </div>
-                </div>
-              )}
-
               {matchStatus === MatchStatus.SETUP && (
                 <MatchSetup
                   onStartMatch={startMatch}
                   onResumeMatch={resumeMatch}
-                  initialEmail={userEmail || "guest@cricscore.local"}
+                  initialEmail={
+                    userEmail || (isGuestScorer ? "guest@cricscore.local" : "")
+                  }
                   hideResume={true}
                   canDelete={false}
                   token={userToken || undefined}
+                  onCancel={handleQuitMatch}
                   isGuestMode={isGuestScorer}
                 />
               )}
@@ -1819,10 +1671,14 @@ const App: React.FC = () => {
                       <MatchSetup
                         onStartMatch={startMatch}
                         onResumeMatch={resumeMatch}
-                        initialEmail={userEmail || ""}
+                        initialEmail={
+                          userEmail ||
+                          (isGuestScorer ? "guest@cricscore.local" : "")
+                        }
                         hideResume={true}
                         canDelete={false}
                         token={userToken || undefined}
+                        isGuestMode={isGuestScorer}
                       />
                     )}
 
@@ -1983,31 +1839,10 @@ const App: React.FC = () => {
                   </div>
                 )}
               </Authenticator>
-              <div className="mt-6 text-center max-w-sm mx-auto w-full animate-in fade-in zoom-in-95 duration-700 delay-300">
-                <div className="relative group">
-                  <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-emerald-500 rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsGuestScorer(true);
-                      setMatchStatus(MatchStatus.SETUP);
-                      setView("SCORER");
-                    }}
-                    className="relative w-full rounded-xl bg-slate-900 border border-white/10 px-6 py-4 font-black uppercase tracking-[0.2em] text-slate-300 hover:text-white shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3"
-                  >
-                    <span className="text-xl">🎮</span>
-                    <span>Demo Mode (Local Only)</span>
-                  </button>
-                </div>
-                <p className="mt-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest px-4">
-                  Test scoring features without an account. Data will not sync
-                  to cloud.
-                </p>
-              </div>
             </div>
           ))}
         {view === "CHAT" && (
-          <div className="absolute inset-0 bg-slate-950 p-0 sm:p-4 md:p-8">
+          <div className="flex-1 w-full flex flex-col bg-slate-950 p-0 sm:p-4 md:p-8 min-h-0 relative">
             <ChatComponent
               matchId={matchId}
               apiUrl={import.meta.env.VITE_API_URL}
