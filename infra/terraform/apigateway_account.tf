@@ -1,4 +1,10 @@
-// API Gateway account-level CloudWatch role
+// API Gateway account settings are regional singletons shared by dev and prod.
+// Production owns the canonical role; other environments look it up.
+data "aws_iam_role" "account_owner_cloudwatch" {
+  count = var.project_name == var.api_gateway_account_owner_project_name ? 0 : 1
+  name  = "${var.api_gateway_account_owner_project_name}-apigw-cloudwatch-role"
+}
+
 resource "aws_iam_role" "apigateway_cloudwatch_role" {
   name = "${var.project_name}-apigw-cloudwatch-role"
 
@@ -34,5 +40,5 @@ resource "aws_iam_role_policy" "apigateway_cloudwatch_policy" {
 }
 
 resource "aws_api_gateway_account" "apigateway_account" {
-  cloudwatch_role_arn = aws_iam_role.apigateway_cloudwatch_role.arn
+  cloudwatch_role_arn = var.project_name == var.api_gateway_account_owner_project_name ? aws_iam_role.apigateway_cloudwatch_role.arn : data.aws_iam_role.account_owner_cloudwatch[0].arn
 }

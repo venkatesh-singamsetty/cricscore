@@ -678,10 +678,10 @@ test.describe("User Journey - Full Match Scoring", () => {
       .click({ force: true });
     await page.waitForTimeout(2000);
 
-    // Assert Team B won (Team B batted first, scored 25/4; Team A only scored 20/3 chasing)
+    // Assert Team A won after chasing Team B's 25/4 total.
     await page.screenshot({ path: "match-end.png" });
-    await expect(page.getByText(/TEAM B WON/i)).toBeVisible({
-      timeout: 15000,
-    });
+    await expect(
+      page.getByRole("heading", { name: /TEAM A WON BY 7 WICKETS/i }),
+    ).toBeVisible({ timeout: 15000 });
   });
 });

@@ -25,7 +25,7 @@ git checkout -b fix/auth-token-refresh
 
 ### 2. Make & Test Your Changes Locally
 
-Before committing, you can run the full local verification script which perfectly mirrors the CI/CD pipeline. This script includes Linting, Unit Tests, `npm audit`, Terraform formatting, DynamoDB lock checks, Trivy security scans, and Playwright E2E tests:
+Before committing, you can run the local verification script. It includes frontend and backend lint/tests, `npm audit`, Terraform formatting and validation, DynamoDB lock checks, security scans, and (unless skipped) Playwright E2E tests against the configured live environment. Its checks do not exactly mirror CI: pull requests do not run E2E, while deployment workflows run E2E after deploying:
 
 ```bash
 # Run the full validation suite (takes 1-3 minutes)

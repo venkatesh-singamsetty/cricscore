@@ -8,14 +8,16 @@ const { OpenAI } = require("openai");
 const apiKey = process.env.OPENAI_API_KEY || process.env.LLM_API_KEY;
 const baseURL = process.env.LLM_BASE_URL || "https://api.openai.com/v1";
 
+const defaultHeaders = { "X-Title": "CricScore" };
+if (process.env.FRONTEND_URL) {
+  defaultHeaders["HTTP-Referer"] = process.env.FRONTEND_URL;
+}
+
 const openai = new OpenAI({
   apiKey: apiKey,
   baseURL: baseURL,
   fetch: globalThis.fetch,
-  defaultHeaders: {
-    "HTTP-Referer": "https://cricscore.venkateshsingamsetty.com",
-    "X-Title": "CricScore",
-  },
+  defaultHeaders,
 });
 
 /**

@@ -1,17 +1,16 @@
 ---
 name: cricscore-mlops-standards
-description: Standards for modifying, training, and deploying the CricScore Python Machine Learning models.
+description: Use when changing CricScore win-prediction features, Python training or inference, model artifacts, or the ML GitHub Actions workflow.
 ---
 
 # CricScore MLOps Standards
 
-## 1. Model Training & Artifacts
+## Training and inference compatibility
 
-- The ML engine uses Scikit-Learn (Logistic Regression).
-- Do not check `.joblib` model artifacts into source control manually unless required. The `mlops-pipeline.yml` GitHub action will train the model, test the inference, and package the artifact on PR merges.
-- If you add a new predictive feature to the model, you MUST update both `live_train.py` (to compute the feature during training) and `predict.py` (to parse the feature during live API inference).
+- Keep feature names, ordering, preprocessing, and expected values consistent between `apps/ml-engine/live_train.py` and `apps/ml-engine/predict.py`. Update both and add inference tests when model inputs change.
+- Do not commit generated model or data artifacts unless the deployment design explicitly requires a tracked artifact. Check `.github/workflows/mlops-pipeline.yml` and `apps/ml-engine/README.md` for the current training, artifact, and release behavior before making claims about automation.
+- Keep API request/response fields compatible with the prediction Lambda and frontend consumer. If response semantics or model metadata change, update both sides and their tests.
 
-## 2. API Inference
+## Validation
 
-- The ML API is served via AWS Lambda using a custom Docker container.
-- If the model schema changes, ensure you bump the `modelVersion` metadata field returned in the API response so the frontend knows how to process it.
+Run `cd apps/ml-engine && python -m pytest test_predict.py` for inference tests. For model or feature changes, also test data preparation/training assumptions and inspect the workflow that packages the model.

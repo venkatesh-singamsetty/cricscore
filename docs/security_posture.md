@@ -2,7 +2,7 @@
 
 This document explicitly records the intentional architectural compromises and accepted security risks made in the CricScore platform, balanced against our enterprise security foundations.
 
-As a guiding principle, the CricScore architecture prioritizes **Zero-Cost Operation ($0/month)** and **Application Functionality (React/SPA viability)**. When enterprise-grade security tools conflict with these two pillars, they are intentionally omitted or relaxed.
+As a guiding principle, the CricScore architecture balances operating cost with application functionality. Some controls are omitted or relaxed; deployments can incur AWS and external-provider charges depending on configuration and usage.
 
 ---
 
@@ -12,21 +12,21 @@ While we make specific cost-saving tradeoffs at the edge, the core architecture 
 
 ### 1. Identity & Access Management (IAM) Least-Privilege
 
-All AWS Lambda functions are strictly bound by Terraform-provisioned IAM roles. A Lambda function can only execute the exact DynamoDB or SQS actions it requires. We explicitly forbid wildcard (`*`) IAM permissions, isolating blast radiuses in the event of code vulnerabilities.
+AWS Lambda functions use Terraform-provisioned IAM roles. Policies grant access to the AWS services used by the application, including DynamoDB, SNS/SQS, WebSocket connections, SES, S3 backups, Cognito, and X-Ray. Some policies include wildcard resource scopes, so permissions should not be described as exclusively resource-scoped.
 
 ### 2. Branch Protection & GitHub Governance
 
-The `main` branch is entirely locked down. Administrators cannot force-push, and no developer can merge code without passing **8 strict status checks**, ensuring the CI/CD pipeline acts as an un-bypassable gatekeeper.
+The repository includes branch-protection guidance in [branch_protection.md](./branch_protection.md). Required checks, administrator enforcement, and force-push settings are configured in GitHub and should be verified there; they are not established by the workflow files alone.
 
 ### 3. Automated DevSecOps CI/CD Scanners
 
-Our GitHub Actions pipelines automatically enforce 5 layers of security scanning on every Pull Request:
+GitHub Actions run security checks on pull requests to `main`, including:
 
-- **GitLeaks**: Deep historical scanning blocks hardcoded API keys and AWS tokens.
-- **Trivy & npm audit**: Native `npm audit` provides instant local dependency checks, while Trivy comprehensively scans NPM and OS dependencies for known CVEs.
+- **GitLeaks**: Scans for secrets in CI; the local pre-commit hook scans staged changes when GitLeaks is installed.
+- **Trivy**: Filesystem scans frontend and backend Lambda dependencies for fixable HIGH and CRITICAL findings. CI does not run `npm audit`.
 - **Checkov**: Statically analyzes Terraform logic to prevent IaC misconfigurations (e.g., public S3 buckets).
 - **CodeQL**: Deep SAST analysis to detect logical vulnerabilities in our TypeScript code.
-- **Syft**: Automatically generates a Software Bill of Materials (SBOM) on every release for supply-chain transparency.
+- **Syft**: Generates an SPDX JSON SBOM on pushes to `main`, weekly, and by manual dispatch.
 
 ---
 
@@ -38,7 +38,7 @@ Our GitHub Actions pipelines automatically enforce 5 layers of security scanning
 **The Tradeoff:** We do not have real-time edge protection (WAF) or internal execution monitoring (RASP) to instantly block active SQL Injection (SQLi) or Cross-Site Scripting (XSS) attacks.
 **The Reason (Cost & Performance):**
 
-- **AWS WAF** is excluded from the Free Tier and costs a baseline of **$5.00/month**.
+- **AWS WAF** is not currently provisioned; adding it would introduce additional service costs.
 - **RASP** requires injecting heavy APM agents into AWS Lambda, which severely degrades "cold start" times, violates our sub-100ms performance goal, and requires paid enterprise licenses.
   **The Mitigation:** The Aiven PostgreSQL driver uses strict parameterized queries natively (neutralizing SQLi), and our serverless architecture removes physical OS vulnerabilities.
 
@@ -49,16 +49,16 @@ Our GitHub Actions pipelines automatically enforce 5 layers of security scanning
 ### 2. Content Security Policy (CSP) Restrictions
 
 **Status:** ⚠️ Intentionally Relaxed  
-**The Tradeoff:** Our CSP explicitly allows `'unsafe-inline'` for scripts and styles, theoretically lowering defense against advanced DOM-based XSS. ZAP scanners flag this.
-**The Reason (Functionality):** React physically requires the ability to inject dynamic inline styles and scripts into the DOM to render the SPA. Without `'unsafe-inline'`, the screen goes completely blank.
-**The Mitigation:** React automatically escapes all string variables in JSX.
+**The Tradeoff:** The configured CSP allows `'unsafe-inline'` for scripts and styles, which weakens protection against some injection attacks.
+**The Reason (Functionality):** This is the current policy configuration; it should not be treated as a React requirement. Tighten the policy only after verifying application and third-party asset compatibility.
+**The Mitigation:** React escapes text interpolated through JSX by default, but that does not replace a restrictive CSP or safe handling of HTML content.
 
 ### 3. Cross-Origin Isolation (COEP / COOP / CORP)
 
 **Status:** ❌ Intentionally Omitted  
 **The Tradeoff:** We do not enforce strict Cross-Origin-Embedder, Opener, or Resource policies.
 **The Reason (Functionality):** Strict Cross-Origin isolation instantly blocks external CDNs, Google Fonts, and AWS API Gateway WebSockets from loading.
-**The Mitigation:** Strict CORS (`Access-Control-Allow-Origin`) at the AWS API Gateway level ensures only our official domain can fetch backend data.
+**The Mitigation:** API Gateway currently allows wildcard origins for HTTP API CORS; this is not an origin allowlist. Authentication and route-level authorization are separate controls and apply only to configured routes.
 
 ### 4. Sub-Resource Integrity (SRI)
 
@@ -74,13 +74,13 @@ Our GitHub Actions pipelines automatically enforce 5 layers of security scanning
 
 **Status:** ⚠️ Intentionally Relaxed  
 **The Tradeoff:** Checkov flags our S3 buckets for lacking access logging (`CKV_AWS_18`) and versioning (`CKV_AWS_21`). Trivy flags our CloudFront for missing WAF (`AWS-0011`), our logging S3 bucket for missing CMK encryption (`AWS-0132`), and our alerts SNS topic for missing CMK encryption (`AWS-0095`).
-**The Reason (Cost):** Enabling these features introduces baseline monthly costs (WAF is $5/mo, KMS CMKs are $1/mo). We explicitly bypassed these rules in Terraform (`# trivy:ignore:AWS-...`) and Checkov to aggressively protect our $0/month Free Tier mandate.
+**The Reason (Cost):** Enabling these features can add service costs. The Terraform configuration includes documented scanner suppressions for selected findings; review those suppressions before changing the controls.
 
 ### 6. Pipeline Stability vs Upstream Deprecations
 
-**Status:** ⚠️ Intentionally Bypassed  
-**The Tradeoff:** We forcibly upgrade runner environments (`actions/checkout@v7`) and silence internal deprecation warnings (`NODE_OPTIONS: "--no-deprecation"`).
-**The Reason (CI/CD Stability):** Legacy third-party Docker images (like OWASP ZAP) rely on deprecated native Node modules (e.g., `punycode`). We silence these to keep CI/CD logs clean and actionable.
+**Status:** ⚠️ Workflow compatibility setting present
+**The Tradeoff:** The workflows set `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"`, which permits actions that use a Node.js runtime GitHub marks as unsecure.
+**The Reason (CI/CD Stability):** Review and remove this setting when all actions in the workflows use supported runtimes.
 
 ### 7. Explicit Git Bypasses (`.gitignore` & `.gitleaksignore`)
 
@@ -95,12 +95,12 @@ Our GitHub Actions pipelines automatically enforce 5 layers of security scanning
 **Status:** 🛡️ Strictly Enforced
 **The Strategy:** We deliberately duplicate security scans (like `gitleaks` for secrets and `vitest` for code integrity) across three layers to prevent local bypasses:
 
-1. **Pre-Commit (First Line of Defense)**: Hooks stop secrets (`gitleaks`) from ever entering your local `.git` history instantly.
+1. **Pre-Commit (First Line of Defense)**: The hook scans staged content with Gitleaks when Gitleaks is installed; otherwise it warns and skips the scan.
 2. **Pre-Push (Safety Net)**: Hooks catch secrets, failing tests, NPM vulnerabilities (`npm audit`), and active Terraform state locks locally before network transmission, saving developer time.
-3. **GitHub Actions (Ultimate Gatekeeper)**: Because local hooks can fail (e.g., missing dependencies) or be intentionally bypassed (`--no-verify`), GitHub Actions run in a centralized environment. They serve as an un-bypassable lock protecting the `main` branch from regressions and leaks.
+3. **GitHub Actions**: Centralized checks run independently of local hooks. Whether they block merges depends on the repository's current GitHub branch-protection settings.
 
 ---
 
 ## Conclusion
 
-By intentionally accepting these specific, low-probability risks, CricScore maintains a **100% free cloud footprint** while delivering a highly dynamic, modern React experience. All DAST pipeline warnings related to these items (rules `10055`, `90003`, `10017`, `90004`, `10109`, `10049`, and `10050`) have been permanently muted in the `.zap/rules.tsv` configuration.
+These tradeoffs are documented to make the current controls and limitations explicit. Review the infrastructure and workflow configuration before deployment, and reassess controls against the deployment's security and cost requirements.

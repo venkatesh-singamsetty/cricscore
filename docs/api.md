@@ -6,20 +6,35 @@ CricScore provides a RESTful interface for scoring actions and a real-time WebSo
 
 ## 🚦 RESTful Service Endpoints (Aiven PostgreSQL)
 
-**Base URL**: `https://<api-id>.execute-api.us-east-1.amazonaws.com` (Dynamically injected as `VITE_API_URL` by `infra/scripts/deploy.sh`)
+**Base URL**: `https://api.<domain>` (The custom domain is configured by Terraform and injected as `VITE_API_URL` by `infra/scripts/deploy.sh`)
 
-| Endpoint              | Method   | Role                                | Auth Required   |
-| :-------------------- | :------- | :---------------------------------- | :-------------- |
-| `/match`              | `POST`   | Initialize fresh match UUID         | None            |
-| `/match/{id}`         | `GET`    | Fetch basic match metadata          | None            |
-| `/match/{id}`         | `PATCH`  | Update match metadata (overs)       | **Cognito JWT** |
-| `/match/{id}`         | `DELETE` | Permanent Match Cleanup             | **Cognito JWT** |
-| `/match/{id}/details` | `GET`    | **Deep-Link Recovery**              | None            |
-| `/match/{id}/innings` | `POST`   | Register 2nd Innings                | **Cognito JWT** |
-| `/match/{id}/email`   | `POST`   | Trigger SES Match Report            | **Cognito JWT** |
-| `/matches`            | `GET`    | Discovery Hub (Browse active games) | None            |
-| `/matches`            | `DELETE` | **Global Purge** (All matches)      | **Cognito JWT** |
-| `/update-score`       | `POST`   | SNS Fan-Out Producer                | None            |
+| Endpoint                    | Method          | Role / behavior                            | Auth Required                              |
+| :-------------------------- | :-------------- | :----------------------------------------- | :----------------------------------------- |
+| `/health`                   | `GET`           | Health check                               | None                                       |
+| `/match`                    | `POST`          | Create a match                             | Cognito JWT                                |
+| `/match/{matchId}`          | `GET`           | Fetch match metadata                       | None                                       |
+| `/match/{matchId}`          | `PATCH`         | Update match metadata                      | Cognito JWT; owner/admin checked by Lambda |
+| `/match/{matchId}`          | `DELETE`        | Delete a match                             | Cognito JWT; owner/admin checked by Lambda |
+| `/match/{matchId}/details`  | `GET`           | Fetch persisted match details for recovery | None                                       |
+| `/match/{matchId}/innings`  | `POST`          | Add an innings                             | Cognito JWT; owner/admin checked by Lambda |
+| `/match/{matchId}/email`    | `POST`          | Send a match report                        | Cognito JWT; owner/admin checked by Lambda |
+| `/matches`                  | `GET`           | Browse matches                             | None                                       |
+| `/matches`                  | `DELETE`        | Delete all matches                         | Cognito JWT; admin checked by Lambda       |
+| `/update-score`             | `POST`          | Publish a score event to SNS and SQS       | Cognito JWT; owner/admin checked by Lambda |
+| `/match/predict`            | `POST`          | Request a win prediction                   | None                                       |
+| `/chat`                     | `POST`          | AI chat                                    | None                                       |
+| `/chat/summary`             | `POST`          | Generate or retrieve a match summary       | None                                       |
+| `/rules`                    | `GET`           | List rule documents                        | None                                       |
+| `/rules`                    | `DELETE`        | Delete a rule document                     | None                                       |
+| `/rules/upload`             | `POST`          | Upload and embed a PDF rule document       | None                                       |
+| `/admin/users`              | `GET`           | List Cognito users                         | Cognito JWT; admin checked by Lambda       |
+| `/admin/users`              | `DELETE`        | Delete a Cognito user                      | Cognito JWT; admin checked by Lambda       |
+| `/admin/users/roles`        | `POST`/`DELETE` | Add or remove a user role                  | Cognito JWT; admin checked by Lambda       |
+| `/admin/users/guests`       | `DELETE`        | Delete guest users                         | Cognito JWT; admin checked by Lambda       |
+| `/admin/matches/guests`     | `DELETE`        | Delete guest matches                       | Cognito JWT; admin checked by Lambda       |
+| `/admin/matches/incomplete` | `DELETE`        | Delete incomplete matches                  | Cognito JWT; admin checked by Lambda       |
+
+> **Authorization note:** These entries reflect API Gateway route authorizer settings. Routes marked `None` do not require a JWT at API Gateway. In particular, `/chat` receives an `isAdmin` value from the request body, which the chat handler uses to expose destructive MCP tools; this value is not validated against a Cognito claim. `/chat/summary` can also invoke the LLM without a JWT, and `/rules/upload` and `DELETE /rules` are not protected by the API Gateway authorizer. Do not treat these chat or rule-management routes as admin-protected based only on frontend UI visibility.
 
 ---
 
@@ -29,20 +44,20 @@ CricScore provides a RESTful interface for scoring actions and a real-time WebSo
 
 `GET /match/{matchId}/details`
 
-This is the primary engine for **Viral Sharing**. When a spectator arrives via a sharable link (`?matchId=xxx`), the client performs a high-fidelity hydration:
+This supports shared-match recovery. When a spectator arrives via a sharable link (`?matchId=xxx`), the client loads persisted match state:
 
-- **Response**: A complete JSON snapshot of the match state from Aiven PostgreSQL.
-- **Includes**: Match metadata, innings objects, player/bowler stats, and full event history.
-- **Goal**: Instant scoreboard recovery without account creation or email verification.
+- **Response**: Match state read from Aiven PostgreSQL.
+- **Includes**: Match metadata and persisted innings, player/bowler statistics, and ball events where available.
+- **Goal**: Restore the scoreboard without requiring account creation or email verification.
 
 ### 2. **Score Update (The Engine)**
 
 `POST /update-score`
 
-This endpoint triggers the **SNS Fan-Out Protocol**. It instantly publishes the ball event to AWS SNS returning a `200 OK` in milliseconds. AWS SQS then responsibly persists it to Aiven PostgreSQL for history.
+This endpoint requires a Cognito JWT. The score-update Lambda checks match ownership or configured admin access, then sends the event to AWS SNS and directly to FIFO AWS SQS in parallel. It returns `200 OK` only after both sends succeed; delivery and response time depend on AWS and network conditions.
 
 - **Payload**: `{ matchId, inningId, ballData }`
-- **Error States**: Returns `404` if the match has been deleted from the registry (triggering a client-side force reset).
+- **Error States**: Returns `403` when the caller is not authorized for the match; failures to send to SNS or SQS produce an error response.
 
 ### 3. **Administrative Match Cleanup**
 
@@ -56,13 +71,13 @@ Restricted endpoint for match management. Purges the record and all child ball e
 
 ## 🌐 WebSocket Stream (Spectator Feed)
 
-**URL**: `wss://<ws-id>.execute-api.us-east-1.amazonaws.com/prod` (Dynamically injected as `VITE_WS_URL` by `infra/scripts/deploy.sh`)
+**URL**: `wss://ws.<domain>` (Dynamically injected as `VITE_WS_URL` by `infra/scripts/deploy.sh`)
 
 The WebSocket gateway handles the high-throughput broadcast from AWS SNS to spectators globally.
 
-- **Fast-Path Broadcast**: Messages are distributed directly via SNS triggers with **<100ms** internal latency.
+- **Broadcast**: SNS triggers the broadcaster Lambda, which sends updates to connected clients; no fixed delivery-latency guarantee is made.
 - **Identity Registry**: Client connection IDs are managed via **AWS DynamoDB**.
-- **Event Type**: `LIVE_SCORE_UPDATE` - Unified JSON payload containing real-time ball metrics.
+- **Event Types**: `LIVE_SCORE_UPDATE` for scoring events and `STATE_SYNC` for state-sync/undo events.
 
 ---
 

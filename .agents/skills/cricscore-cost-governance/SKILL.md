@@ -1,19 +1,18 @@
 ---
 name: cricscore-cost-governance
-description: Guidelines for managing and optimizing AWS cloud infrastructure costs to ensure operations remain within the free tier.
+description: Use when proposing or reviewing AWS resource, scaling, observability, storage, network, or deployment changes that may affect CricScore operating costs.
 ---
 
 # CricScore Cost Governance
 
-This skill documents proven patterns to optimize cloud costs and manage serverless resources efficiently.
+Check current Terraform, [cost management guidance](../../../docs/cost_management.md), and current AWS pricing before estimating costs. Free-tier eligibility and prices vary by account, region, and time.
 
-## 1. Cloud Cost Optimization & Free-Tier Guardrails
+## Review checklist
 
-- **Forbidden Expensive AWS Resources (DO NOT CREATE)**:
-  - **No NAT Gateways** (~$32/mo each): Place Lambdas in public subnets with public IP assignment or use API Gateway endpoints.
-  - **No AWS KMS Customer Managed Keys** ($1/mo per key): Use AWS-managed default keys (`aws/ssm`, `aws/s3`).
-  - **No CloudWatch Custom Dashboards** ($3/mo each): Rely on CloudWatch metric logs and free console views.
+- Estimate recurring charges, request/compute charges, data transfer, storage growth, and per-resource multipliers for realistic and peak traffic.
+- The project currently avoids NAT gateways and paid custom CloudWatch dashboards. Do not add them without an explicit cost/architecture review; never recommend assigning public IPs to Lambda functions as a NAT substitute.
+- Prefer the existing serverless and managed-service patterns where they meet the requirement. Do not sacrifice security, availability, or data durability solely to claim free-tier operation.
+- Treat AWS Budgets as notifications, not spending caps. Verify the configured budget and alert scope rather than promising a maximum bill.
+- Use the encryption approach required by the service and threat model. Compare AWS-managed and customer-managed key costs; do not weaken a security requirement to avoid a small recurring charge.
 
-## 2. Serverless Efficiency
-
-- **ECR Management**: For ML models deployed via Docker, push directly to the `:latest` tag and overwrite it rather than using unique version tags. This ensures the total storage size never exceeds the 500MB free-tier limit.
+Describe assumptions and likely cost drivers with every material infrastructure proposal. Do not treat mutable image tags, service free tiers, or low expected traffic as guarantees of low cost.

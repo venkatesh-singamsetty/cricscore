@@ -13,6 +13,7 @@ jobs:
   drift-check:
     name: Drift Check (${{ matrix.environment }})
     runs-on: ubuntu-latest
+    environment: ${{ matrix.environment }}
     strategy:
       fail-fast: false
       matrix:
@@ -22,22 +23,24 @@ jobs:
         working-directory: ./infra/terraform
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
-          terraform_version: '~1.9'
+          terraform_version: "~1.10"
 
       - name: Terraform Init
-        run: terraform init -backend-config="key=cricscore/${{ matrix.environment }}/terraform.tfstate"
+        env:
+          TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET || 'venky-2026-terraform-state' }}
+        run: terraform init -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=cricscore/${{ matrix.environment }}/terraform.tfstate"
 
       - name: Terraform Plan (Detailed Exitcode)
         # -detailed-exitcode returns 0 if no changes, 1 if error, 2 if there are changes (drift)
@@ -45,8 +48,12 @@ jobs:
           TF_IN_AUTOMATION: "true"
           TF_VAR_environment: ${{ matrix.environment }}
           TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+          TF_VAR_domain_name: ${{ vars.DOMAIN_NAME }}
+          TF_VAR_zone_domain: ${{ vars.ZONE_DOMAIN }}
+          TF_VAR_subdomain_prefix: ${{ vars.SUBDOMAIN_PREFIX }}
+          TF_VAR_project_name: ${{ vars.PROJECT_NAME }}
           TF_VAR_ses_source_email: ${{ secrets.TF_SES_SOURCE_EMAIL }}
           TF_VAR_database_url: ${{ secrets.TF_DATABASE_URL }}
           TF_VAR_admin_email: ${{ vars.ADMIN_EMAIL }}
           TF_VAR_llm_api_key: ${{ secrets.OPENAI_API_KEY }}
-        run: terraform plan -input=false -detailed-exitcode -var-file="environments/${{ matrix.environment }}.tfvars"
+        run: terraform plan -input=false -detailed-exitcode -var-file="environments/${{ matrix.environment }}.tfvars" -var="domain_name=$TF_VAR_domain_name" -var="zone_domain=$TF_VAR_zone_domain" -var="subdomain_prefix=$TF_VAR_subdomain_prefix" -var="project_name=$TF_VAR_project_name"

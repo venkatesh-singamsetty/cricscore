@@ -5,34 +5,24 @@ data "archive_file" "match_api_zip" {
   output_path = "${path.module}/match_api.zip"
 }
 
-resource "aws_lambda_function" "match_api" {
-  filename         = data.archive_file.match_api_zip.output_path
+module "match_api" {
+  source           = "./modules/zip_lambda"
   function_name    = "${var.project_name}-match-api"
-  role             = aws_iam_role.lambda_role.arn
-  handler          = "index.handler"
-  runtime          = "nodejs24.x"
+  role_arn         = aws_iam_role.lambda_role.arn
+  filename         = data.archive_file.match_api_zip.output_path
   source_code_hash = data.archive_file.match_api_zip.output_base64sha256
   timeout          = 30
+  tags             = { Project = var.project_name }
 
-  tracing_config {
-    mode = "Active"
-  }
-
-  environment {
-    variables = {
-      DATABASE_URL         = var.database_url
-      DB_SCHEMA            = var.environment
-      SES_SOURCE           = var.ses_source_email
-      ADMIN_REPORT_EMAIL   = var.admin_email
-      BROADCASTER_LAMBDA   = aws_lambda_function.score_update.function_name
-      FRONTEND_URL         = "https://${var.domain_name}"
-      BACKUP_BUCKET        = aws_s3_bucket.match_backups.bucket
-      COGNITO_USER_POOL_ID = aws_cognito_user_pool.pool.id
-    }
-  }
-
-  tags = {
-    Project = var.project_name
+  environment_variables = {
+    DATABASE_URL         = var.database_url
+    DB_SCHEMA            = var.environment
+    SES_SOURCE           = var.ses_source_email
+    ADMIN_REPORT_EMAIL   = var.admin_email
+    BROADCASTER_LAMBDA   = module.score_update.function_name
+    FRONTEND_URL         = "https://${var.domain_name}"
+    BACKUP_BUCKET        = aws_s3_bucket.match_backups.bucket
+    COGNITO_USER_POOL_ID = aws_cognito_user_pool.pool.id
   }
 }
 
@@ -43,32 +33,22 @@ data "archive_file" "score_update_zip" {
   output_path = "${path.module}/score_update.zip"
 }
 
-resource "aws_lambda_function" "score_update" {
-  filename         = data.archive_file.score_update_zip.output_path
+module "score_update" {
+  source           = "./modules/zip_lambda"
   function_name    = "${var.project_name}-score-upd"
-  role             = aws_iam_role.lambda_role.arn
-  handler          = "index.handler"
-  runtime          = "nodejs24.x"
-  memory_size      = 256
+  role_arn         = aws_iam_role.lambda_role.arn
+  filename         = data.archive_file.score_update_zip.output_path
   source_code_hash = data.archive_file.score_update_zip.output_base64sha256
+  memory_size      = 256
   timeout          = 30
+  tags             = { Project = var.project_name }
 
-  tracing_config {
-    mode = "Active"
-  }
-
-  environment {
-    variables = {
-      MATCH_EVENTS_TOPIC   = aws_sns_topic.match_events.arn
-      STORAGE_BUFFER_QUEUE = aws_sqs_queue.storage_buffer.url
-      DATABASE_URL         = var.database_url
-      DB_SCHEMA            = var.environment
-      ADMIN_REPORT_EMAIL   = var.admin_email
-    }
-  }
-
-  tags = {
-    Project = var.project_name
+  environment_variables = {
+    MATCH_EVENTS_TOPIC   = aws_sns_topic.match_events.arn
+    STORAGE_BUFFER_QUEUE = aws_sqs_queue.storage_buffer.url
+    DATABASE_URL         = var.database_url
+    DB_SCHEMA            = var.environment
+    ADMIN_REPORT_EMAIL   = var.admin_email
   }
 }
 
@@ -79,22 +59,15 @@ data "archive_file" "onconnect_zip" {
   output_path = "${path.module}/onconnect.zip"
 }
 
-resource "aws_lambda_function" "onconnect" {
-  filename         = data.archive_file.onconnect_zip.output_path
+module "onconnect" {
+  source           = "./modules/zip_lambda"
   function_name    = "${var.project_name}-onconnect"
-  role             = aws_iam_role.lambda_role.arn
-  handler          = "index.handler"
-  runtime          = "nodejs24.x"
+  role_arn         = aws_iam_role.lambda_role.arn
+  filename         = data.archive_file.onconnect_zip.output_path
   source_code_hash = data.archive_file.onconnect_zip.output_base64sha256
 
-  tracing_config {
-    mode = "Active"
-  }
-
-  environment {
-    variables = {
-      TABLE_NAME = aws_dynamodb_table.connections.name
-    }
+  environment_variables = {
+    TABLE_NAME = aws_dynamodb_table.connections.name
   }
 }
 
@@ -105,22 +78,15 @@ data "archive_file" "ondisconnect_zip" {
   output_path = "${path.module}/ondisconnect.zip"
 }
 
-resource "aws_lambda_function" "ondisconnect" {
-  filename         = data.archive_file.ondisconnect_zip.output_path
+module "ondisconnect" {
+  source           = "./modules/zip_lambda"
   function_name    = "${var.project_name}-ondisconnect"
-  role             = aws_iam_role.lambda_role.arn
-  handler          = "index.handler"
-  runtime          = "nodejs24.x"
+  role_arn         = aws_iam_role.lambda_role.arn
+  filename         = data.archive_file.ondisconnect_zip.output_path
   source_code_hash = data.archive_file.ondisconnect_zip.output_base64sha256
 
-  tracing_config {
-    mode = "Active"
-  }
-
-  environment {
-    variables = {
-      TABLE_NAME = aws_dynamodb_table.connections.name
-    }
+  environment_variables = {
+    TABLE_NAME = aws_dynamodb_table.connections.name
   }
 }
 
@@ -131,23 +97,16 @@ data "archive_file" "broadcaster_zip" {
   output_path = "${path.module}/broadcaster.zip"
 }
 
-resource "aws_lambda_function" "broadcaster" {
-  filename         = data.archive_file.broadcaster_zip.output_path
+module "broadcaster" {
+  source           = "./modules/zip_lambda"
   function_name    = "${var.project_name}-broadcaster"
-  role             = aws_iam_role.lambda_role.arn
-  handler          = "index.handler"
-  runtime          = "nodejs24.x"
+  role_arn         = aws_iam_role.lambda_role.arn
+  filename         = data.archive_file.broadcaster_zip.output_path
   source_code_hash = data.archive_file.broadcaster_zip.output_base64sha256
 
-  tracing_config {
-    mode = "Active"
-  }
-
-  environment {
-    variables = {
-      TABLE_NAME    = aws_dynamodb_table.connections.name
-      WEBSOCKET_URL = "${aws_apigatewayv2_api.websocket_api.api_endpoint}/prod"
-    }
+  environment_variables = {
+    TABLE_NAME    = aws_dynamodb_table.connections.name
+    WEBSOCKET_URL = "${aws_apigatewayv2_api.websocket_api.api_endpoint}/prod"
   }
 }
 
@@ -158,31 +117,24 @@ data "archive_file" "storage_worker_zip" {
   output_path = "${path.module}/storage_worker.zip"
 }
 
-resource "aws_lambda_function" "storage_worker" {
-  filename         = data.archive_file.storage_worker_zip.output_path
+module "storage_worker" {
+  source           = "./modules/zip_lambda"
   function_name    = "${var.project_name}-storage-worker"
-  role             = aws_iam_role.lambda_role.arn
-  handler          = "index.handler"
-  runtime          = "nodejs24.x"
+  role_arn         = aws_iam_role.lambda_role.arn
+  filename         = data.archive_file.storage_worker_zip.output_path
+  source_code_hash = data.archive_file.storage_worker_zip.output_base64sha256
   memory_size      = 256
   timeout          = 30
-  source_code_hash = data.archive_file.storage_worker_zip.output_base64sha256
 
-  tracing_config {
-    mode = "Active"
-  }
-
-  environment {
-    variables = {
-      DATABASE_URL = var.database_url
-      DB_SCHEMA    = var.environment
-    }
+  environment_variables = {
+    DATABASE_URL = var.database_url
+    DB_SCHEMA    = var.environment
   }
 }
 
 resource "aws_lambda_event_source_mapping" "sqs_trigger" {
   event_source_arn = aws_sqs_queue.storage_buffer.arn
-  function_name    = aws_lambda_function.storage_worker.arn
+  function_name    = module.storage_worker.arn
   batch_size       = 1
 }
 
@@ -211,7 +163,7 @@ resource "aws_cloudwatch_metric_alarm" "match_api_errors" {
   alarm_actions       = [aws_sns_topic.lambda_alerts.arn]
 
   dimensions = {
-    FunctionName = aws_lambda_function.match_api.function_name
+    FunctionName = module.match_api.function_name
   }
 }
 
@@ -228,7 +180,7 @@ resource "aws_cloudwatch_metric_alarm" "score_update_errors" {
   alarm_actions       = [aws_sns_topic.lambda_alerts.arn]
 
   dimensions = {
-    FunctionName = aws_lambda_function.score_update.function_name
+    FunctionName = module.score_update.function_name
   }
 }
 
@@ -239,34 +191,25 @@ data "archive_file" "chat_api_zip" {
   output_path = "${path.module}/chat_api.zip"
 }
 
-resource "aws_lambda_function" "chat_api" {
-  filename         = data.archive_file.chat_api_zip.output_path
+module "chat_api" {
+  source           = "./modules/zip_lambda"
   function_name    = "${var.project_name}-chat-api"
-  role             = aws_iam_role.lambda_role.arn
-  handler          = "index.handler"
-  runtime          = "nodejs24.x"
+  role_arn         = aws_iam_role.lambda_role.arn
+  filename         = data.archive_file.chat_api_zip.output_path
   source_code_hash = data.archive_file.chat_api_zip.output_base64sha256
   timeout          = 30
   memory_size      = 1024
+  tags             = { Project = var.project_name }
 
-  tracing_config {
-    mode = "Active"
-  }
-
-  environment {
-    variables = {
-      DATABASE_URL         = var.database_url
-      DB_SCHEMA            = var.environment
-      LLM_API_KEY          = var.llm_api_key
-      OPENAI_API_KEY       = var.openai_api_key != "" ? var.openai_api_key : var.llm_api_key
-      LLM_BASE_URL         = var.llm_base_url
-      LLM_MODEL            = var.llm_model
-      COGNITO_USER_POOL_ID = aws_cognito_user_pool.pool.id
-    }
-  }
-
-  tags = {
-    Project = var.project_name
+  environment_variables = {
+    DATABASE_URL         = var.database_url
+    DB_SCHEMA            = var.environment
+    LLM_API_KEY          = var.llm_api_key
+    OPENAI_API_KEY       = var.openai_api_key != "" ? var.openai_api_key : var.llm_api_key
+    LLM_BASE_URL         = var.llm_base_url
+    LLM_MODEL            = var.llm_model
+    COGNITO_USER_POOL_ID = aws_cognito_user_pool.pool.id
+    FRONTEND_URL         = "https://${var.domain_name}"
   }
 }
 
@@ -277,21 +220,13 @@ data "archive_file" "cognito_presignup_zip" {
   output_path = "${path.module}/cognito_presignup.zip"
 }
 
-resource "aws_lambda_function" "cognito_presignup" {
-  filename         = data.archive_file.cognito_presignup_zip.output_path
+module "cognito_presignup" {
+  source           = "./modules/zip_lambda"
   function_name    = "${var.project_name}-cognito-presignup"
-  role             = aws_iam_role.lambda_role.arn
-  handler          = "index.handler"
-  runtime          = "nodejs24.x"
+  role_arn         = aws_iam_role.lambda_role.arn
+  filename         = data.archive_file.cognito_presignup_zip.output_path
   source_code_hash = data.archive_file.cognito_presignup_zip.output_base64sha256
-
-  tracing_config {
-    mode = "Active"
-  }
-
-  tags = {
-    Project = var.project_name
-  }
+  tags             = { Project = var.project_name }
 }
 
 # --- ML Predictor Lambda (Python via Docker ECR) ---
@@ -312,11 +247,27 @@ resource "null_resource" "docker_build_push" {
   }
 
   provisioner "local-exec" {
-    command = <<EOF
+    interpreter = ["/bin/bash", "-c"]
+    command     = <<EOF
+      set -euo pipefail
       aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin ${aws_ecr_repository.ml_predict.repository_url}
       docker build --platform linux/amd64 --provenance=false -t ${aws_ecr_repository.ml_predict.repository_url}:latest ${path.module}/../../apps/ml-engine
       docker push ${aws_ecr_repository.ml_predict.repository_url}:latest
-      aws lambda update-function-code --function-name ${var.project_name}-ml-predict --image-uri ${aws_ecr_repository.ml_predict.repository_url}:latest || true
+
+      set +e
+      lambda_info=$(aws lambda get-function --function-name ${var.project_name}-ml-predict --region ${var.aws_region} 2>&1)
+      lambda_status=$?
+      set -e
+
+      if [ "$lambda_status" -eq 0 ]; then
+        aws lambda update-function-code --function-name ${var.project_name}-ml-predict --image-uri ${aws_ecr_repository.ml_predict.repository_url}:latest --region ${var.aws_region}
+        aws lambda wait function-updated --function-name ${var.project_name}-ml-predict --region ${var.aws_region}
+      elif [[ "$lambda_info" == *"ResourceNotFoundException"* ]]; then
+        echo "Lambda function is not created yet; Terraform will create it from the pushed image."
+      else
+        printf '%s\n' "$lambda_info" >&2
+        exit "$lambda_status"
+      fi
     EOF
   }
 }

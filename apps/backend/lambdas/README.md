@@ -25,7 +25,7 @@ chat-api/
 ├── index.js                      ← Thin Lambda router
 ├── config/
 │   ├── db.js                     ← Shared PostgreSQL pool + setSearchPath()
-│   └── llm.js                    ← OpenAI/OpenRouter client + model config
+│   └── llm.js                    ← OpenAI client + model config
 ├── handlers/
 │   ├── chatHandler.js            ← Main agentic chat loop (MCP client)
 │   ├── summaryHandler.js         ← AI post-match summary generation
@@ -51,7 +51,7 @@ chat-api/
 User Question
      │
      ▼
- LLM (OpenRouter)         ← Only sees: tool schemas + result text
+ LLM (OpenAI)             ← Only sees: tool schemas + result text
      │ decides to call tool
      ▼
  MCP Server               ← Has: DATABASE_URL, LLM_API_KEY
@@ -76,10 +76,11 @@ cd apps/backend && npm test
 
 ## Required Environment Variables (chat-api)
 
-| Variable       | Description                             |
-| -------------- | --------------------------------------- |
-| `DATABASE_URL` | Aiven PostgreSQL connection string      |
-| `DB_SCHEMA`    | `dev` or `prod` (injected by Terraform) |
-| `LLM_API_KEY`  | OpenRouter API key                      |
-| `LLM_BASE_URL` | `https://openrouter.ai/api/v1`          |
-| `LLM_MODEL`    | _(Optional)_ Override model name        |
+| Variable         | Description                             |
+| ---------------- | --------------------------------------- |
+| `DATABASE_URL`   | Aiven PostgreSQL connection string      |
+| `DB_SCHEMA`      | `dev` or `prod` (injected by Terraform) |
+| `OPENAI_API_KEY` | OpenAI API key                          |
+| `LLM_API_KEY`    | (Fallback) OpenRouter/Groq API key      |
+| `LLM_BASE_URL`   | (Fallback) `https://api.openai.com/v1`  |
+| `LLM_MODEL`      | _(Optional)_ Override model name        |

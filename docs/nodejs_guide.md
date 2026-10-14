@@ -33,12 +33,12 @@ However, in order to _create_ those squished files, the frontend desperately nee
 
 For your AWS Lambdas (Backend), there is no "build" step. The AWS Lambda actually takes your raw JavaScript files **and** your entire `node_modules` folder, zips them up, and runs them natively in the cloud.
 
-- **Action**: We must strictly run `npm install --omit=dev` (formerly `--production`). This tells NPM to completely ignore heavy testing tools and only download the bare essentials. If we uploaded massive testing libraries to AWS, our Lambdas would be slow, bloated, and hit AWS size limits.
+- **Action**: The deployment process runs `npm install --omit=dev` for Lambda packages, excluding dependencies declared as development-only. Runtime dependencies still need to be included in the deployment package, so the result is not necessarily tiny.
 
 **In Short:**
 
 - **Frontend (AWS S3)**: Needs a massive install to build, but uploads _nothing_ from `node_modules`.
-- **Backend (AWS Lambda)**: Needs a tiny install, because it uploads _everything_ from `node_modules`.
+- **Backend (AWS Lambda)**: Includes the production dependencies required at runtime in the deployment package.
 
 ---
 
@@ -49,7 +49,7 @@ In modern frontend development (using Vite), there are three primary commands yo
 ### 🛠️ `npm run dev` (The Sandbox)
 
 - **What it does:** Starts up a lightweight, hyper-fast local server for you to write code on.
-- **Special Powers:** Hot Module Replacement (HMR). When you click "Save" in your IDE, the changes appear instantly on your screen without a browser refresh.
+- **Special Powers:** Hot Module Replacement (HMR) applies many code and style changes without a full browser refresh; some changes may still require a reload.
 - **When to use it:** 99% of the time you are actively writing code.
 
 ### 🏭 `npm run build` (The Factory)
@@ -73,13 +73,13 @@ Before you push your code to GitHub and wait for the CI/CD pipeline to analyze i
 ### 🧪 `npm run test` (The Test Suite)
 
 - **What it does:** Runs **Vitest** to execute the entire suite of automated unit tests.
-- **Special Powers:** You can use `npm run test:watch` to keep the test runner open. Every time you save a file, it will instantly re-run only the tests related to that specific file!
+- **Special Powers:** You can use `npm run test:watch --prefix apps/frontend` to keep the frontend test runner open. When files change, Vitest reruns affected tests when it can determine the dependency relationship.
 - **When to use it:** While writing new logic, or right before pushing a branch to ensure you haven't broken any existing features.
 
 ### 🧹 `npm run lint` (The Code Police)
 
 - **What it does:** Runs the TypeScript Compiler (`tsc --noEmit`) to verify that all of your data types are perfectly aligned across the entire application without actually building the app.
-- **Special Powers:** We also have `npm run lint:eslint` which sweeps through your files and enforces strict coding standards (like preventing unused variables or bad React hooks).
+- **Special Powers:** The frontend also has `npm run lint:eslint --prefix apps/frontend`, which checks its `src` files for lint issues such as unused variables and invalid React hooks.
 - **When to use it:** If you want to make absolutely sure the GitHub Actions pipeline won't reject your code for a silly typo.
 
 ---
@@ -92,15 +92,15 @@ To protect against this, NPM has a built-in security scanner:
 
 ### 🛡️ `npm audit`
 
-- **What it does:** It cross-references the exact versions of every library in your `package-lock.json` against the global GitHub Advisory Database of known vulnerabilities (CVEs).
-- **When to use it:** We actually automated this! It runs automatically via our `./infra/scripts/validate_local.sh` script every time you type `git push`. If it finds a `High` or `Critical` vulnerability, it will intentionally block your push.
+- **What it does:** It checks dependencies recorded in the relevant lockfile against vulnerability advisories available through the configured npm registry. It does not guarantee that every vulnerability is known or detected.
+- **When to use it:** The configured Husky pre-push hook runs `./infra/scripts/validate_local.sh`, which runs `npm audit --audit-level=high` for the frontend and backend root package. A high- or critical-severity finding in those audited dependency trees causes the local validation script to fail. Lambda package dependencies are scanned separately by Trivy.
 
 ### 🔧 How to fix a vulnerability
 
-If `npm audit` ever blocks your push by flagging a vulnerable package, you can almost always fix it instantly by running:
+If `npm audit` reports a vulnerability, you can try updating compatible dependencies and the lockfile with:
 
 ```bash
 npm audit fix
 ```
 
-This tells NPM to automatically upgrade the compromised package to the newest, safe version patched by the community.
+Review the resulting manifest and lockfile changes, then rerun the audit and tests. This command may not resolve every finding; some fixes require changing a direct dependency or waiting for an upstream release.

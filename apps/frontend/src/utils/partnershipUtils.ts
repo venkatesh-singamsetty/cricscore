@@ -22,13 +22,21 @@ export const getPartnerships = (allBalls: BallEvent[]): Partnership[] => {
     // Add runs to the partnership
     currentRuns += (ball.runs || 0) + (ball.extraRuns || 0);
 
-    // Add legal balls to the partnership count
-    if (ball.extraType !== "WIDE" && ball.extraType !== "NO_BALL") {
+    const isRetiredHurt = ball.wicketType === "RETIRED_HURT";
+    const isRetiredOut = ball.wicketType === "RETIRED_OUT";
+
+    // Retirement events are not deliveries; retired hurt also is not a wicket.
+    if (
+      !isRetiredHurt &&
+      !isRetiredOut &&
+      ball.extraType !== "WIDE" &&
+      ball.extraType !== "NO_BALL"
+    ) {
       currentBalls += 1;
     }
 
     // End of partnership if wicket falls
-    if (ball.isWicket) {
+    if (ball.isWicket && !isRetiredHurt) {
       wicketCount += 1;
       partnerships.push({
         wicketNumber: wicketCount,

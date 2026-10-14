@@ -20,17 +20,17 @@ We take security vulnerabilities seriously and will acknowledge receipt of your 
 
 CricScore enforces enterprise-grade security controls at every layer:
 
-| Security Domain            | Defense Controls                                                                                                    |
-| :------------------------- | :------------------------------------------------------------------------------------------------------------------ |
-| **Authentication**         | AWS Cognito User Pools with RS256 JWT signatures & short-lived access tokens                                        |
-| **API Authorization**      | Amazon API Gateway JWT Authorizers on all REST and WebSocket routes                                                 |
-| **Secret Protection**      | Zero hardcoded keys in source code; secrets stored in GitHub Repository Secrets and injected securely via Terraform |
-| **Static Code Analysis**   | GitHub CodeQL SAST scanning enabled on all PRs                                                                      |
-| **Secret Leak Prevention** | GitLeaks automated pre-commit and CI diff scanning                                                                  |
-| **Dependency Security**    | Trivy vulnerability scanning for Node.js dependencies & containers                                                  |
-| **Dynamic Testing (DAST)** | OWASP ZAP Baseline Security Scan automated in CD deployment pipelines                                               |
-| **Supply Chain**           | Syft automated SPDX Software Bill of Materials (SBOM) generation                                                    |
-| **Database Security**      | TLS-encrypted Aiven PostgreSQL with schema-level dev/prod data isolation                                            |
+| Security Domain            | Defense Controls                                                                                                                                          |
+| :------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Authentication**         | AWS Cognito User Pools with RS256 JWT signatures & short-lived access tokens                                                                              |
+| **API Authorization**      | Amazon API Gateway JWT Authorizers protect selected HTTP routes; public HTTP routes and the current WebSocket routes do not use API Gateway authorization |
+| **Secret Protection**      | Zero hardcoded keys in source code; secrets stored in GitHub Repository Secrets and injected securely via Terraform                                       |
+| **Static Code Analysis**   | GitHub CodeQL JavaScript/TypeScript analysis on pull requests targeting `main`, pushes to `main`, weekly, and manual runs                                 |
+| **Secret Leak Prevention** | GitLeaks scans staged files in the local pre-commit hook and the repository in CI                                                                         |
+| **Dependency Security**    | CI runs Trivy filesystem scans on frontend and backend Lambda dependencies for fixable HIGH and CRITICAL findings                                         |
+| **Dynamic Testing (DAST)** | OWASP ZAP Baseline Security Scan automated in CD deployment pipelines                                                                                     |
+| **Supply Chain**           | Syft automated SPDX Software Bill of Materials (SBOM) generation                                                                                          |
+| **Database Security**      | TLS-encrypted Aiven PostgreSQL with schema-level dev/prod data isolation                                                                                  |
 
 For full architectural details, see our **[Security Posture & Tradeoffs Guide](./docs/security_posture.md)**.
 

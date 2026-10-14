@@ -192,7 +192,7 @@ resource "aws_iam_role_policy_attachment" "lambda_cognito_admin_attach" {
 resource "aws_lambda_permission" "allow_cognito_presignup" {
   statement_id  = "AllowExecutionFromCognito"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.cognito_presignup.function_name
+  function_name = module.cognito_presignup.function_name
   principal     = "cognito-idp.amazonaws.com"
   source_arn    = aws_cognito_user_pool.pool.arn
 }

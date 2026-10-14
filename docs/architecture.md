@@ -43,10 +43,11 @@ sequenceDiagram
 
     Scorer->>Producer: POST /update-score
     Producer->>SNS: Publish Match Event
-    Producer-->>Scorer: HTTP 200 OK (Sub-100ms)
+    Producer->>SQS: Enqueue Persistence Event
+    Producer-->>Scorer: HTTP 200 after both sends succeed
 
     rect rgb(0, 0, 0, 0.1)
-        Note right of SNS: Phase 1: Zero-Latency Spectator Sync
+        Note right of SNS: Spectator Broadcast
         SNS-)Broadcaster: SNS Invoke (Fast-Path)
         Broadcaster->>DDB: Scan Connection Registry
         DDB-->>Broadcaster: Return Connection[]
@@ -55,8 +56,7 @@ sequenceDiagram
     end
 
     rect rgb(100, 100, 100, 0.1)
-        Note right of SNS: Phase 2: Reliable Data Persistence
-        SNS->>SQS: Buffer Event
+        Note right of SQS: Asynchronous Data Persistence
         SQS-)Consumer: Pull/Trigger Batch
         Consumer->>Aiven_Hub: Pg SQL Save
     end
@@ -66,15 +66,15 @@ sequenceDiagram
 
 ## 🏛️ Technical Pillars & Specifications
 
-CricScore implements a high-performance **Event-Driven Architecture (EDA)** using 100% serverless and managed services:
+CricScore implements an **Event-Driven Architecture (EDA)** using serverless and managed services:
 
-- **Decoupled Fan-Out:** Leverages AWS SNS for instant UI responses and AWS SQS for asynchronous background persistence to Aiven PostgreSQL.
-- **Zero-Latency Broadcast:** Achieves sub-100ms global score delivery using an asynchronous broadcaster lambda driven instantly by SNS.
-- **State Restoration:** Automated deep-link hydration for instant bypass-routing to active match scoreboards via UUID-anchored URLs.
-- **X-Ray Distributed Tracing:** AWS X-Ray is actively enabled across the Lambda stack using a strict 5% sampling rule, providing deep insights into cold starts and bottlenecks while mathematically guaranteeing $0 cost.
-- **Aiven TLS Bypass:** Explicit fallback overriding Node v24 strict intermediate CAs (`NODE_TLS_REJECT_UNAUTHORIZED = '0'`) allowing seamless PostgreSQL scaling.
+- **Decoupled Fan-Out:** The score-update Lambda publishes to AWS SNS for spectator broadcasts and sends a separate message directly to AWS SQS for asynchronous persistence to Aiven PostgreSQL. The HTTP request waits for both sends to succeed.
+- **Asynchronous Broadcast:** An SNS-triggered broadcaster sends updates to connected spectators; delivery latency depends on service and network conditions.
+- **State Restoration:** Deep links load persisted match state by match UUID for scoreboard recovery.
+- **X-Ray Distributed Tracing:** AWS X-Ray tracing is enabled across the Lambda stack with a 5% fixed sampling rate and a one-request-per-second reservoir. Actual trace volume and cost depend on traffic and sampling behavior.
+- **Aiven TLS Configuration:** The chat API PostgreSQL pool currently disables certificate verification (`rejectUnauthorized: false`). Configure certificate verification with the Aiven CA rather than relying on this setting.
 - **UI Render Debouncing:** Synchronous `useRef` execution locks prevent React async state-drifts during rapid scoring bursts, enforcing exact chronological network sequences.
-- **Secure Isolation:** Enterprise-grade multi-tenant scoring engine with **AWS Cognito JWT** record governance.
+- **Scoring Authorization:** Cognito JWTs protect scoring routes, with Lambda checks for match ownership or admin access where applicable. Public match-read routes expose match state to anyone with its UUID.
 
 ---
 
@@ -84,17 +84,17 @@ CricScore implements a high-performance **Event-Driven Architecture (EDA)** usin
 
 CricScore uses **AWS Cognito User Pools** with a 4-tier role model:
 
-| Role          | Access                                                                 |
-| ------------- | ---------------------------------------------------------------------- |
-| **Viewer 🌍** | Public-only, no sign-in required                                       |
-| **Guest 🎮**  | Auto-provisioned Cognito shadow account (`guest-{ts}@cricscore.local`) |
-| **Scorer 🎮** | Full scorer access; owns their own matches                             |
-| **Admin ⚡**  | Full access — delete any match/user, user management                   |
+| Role          | Access                                                                                            |
+| ------------- | ------------------------------------------------------------------------------------------------- |
+| **Viewer 🌍** | Public-only, no sign-in required                                                                  |
+| **Guest 🎮**  | Cognito account (`guest-{ts}@cricscore.local`); guest matches are persisted and can be cleaned up |
+| **Scorer 🎮** | Authenticated scorer access; owns their own matches                                               |
+| **Admin ⚡**  | Admin-group access, with a configured super-admin email bypass for backend operations             |
 
-Authorization is enforced at two layers:
+Authorization for protected operations is enforced at two layers:
 
 1. **Frontend** — JWT presence and `cognito:groups` group check in React state
-2. **Backend** — API Gateway JWT Authorizer validates every token; Lambda checks ownership per resource
+2. **Backend** — API Gateway JWT Authorizer validates tokens on protected routes; Lambda checks ownership or admin access where applicable. Public routes do not use this authorizer.
 
 ---
 
@@ -104,7 +104,7 @@ Authorization is enforced at two layers:
 
 - **Match Registry**: Games are anchored to a unique UUID provided by **Aiven PostgreSQL** during initialization.
 - **score_update Lambda**: Validates ball-by-ball payloads and publishes them to AWS SNS for downstream fan-out.
-- **State Persistence**: ACID-compliant transactions ensure innings, scores, and ball records are atomically committed.
+- **State Persistence**: Score events are queued through FIFO SQS for asynchronous storage; the live broadcast and database write are separate operations.
 - **Cross-Session Identity Guard**: A `prevEmailRef` ref in `App.tsx` detects user identity changes (e.g., guest → real account) and automatically clears all match state, preventing data bleed across sessions.
 
 ### **2. Managed Fan Hub (The Discovery Engine)**
@@ -116,27 +116,27 @@ Authorization is enforced at two layers:
 
 ### **3. Reliability & Persistence (The Storage Buffer)**
 
-- **storage_worker Lambda**: Subscribed to AWS SQS. Processes match events in reliable batches ensuring consistent, ordered commits to Aiven PostgreSQL.
+- **storage_worker Lambda**: Triggered by FIFO AWS SQS batches to persist queued match events to Aiven PostgreSQL.
 
 ### **4. Security Strategy**
 
-- **Cognito SSO Authentication**: All scorer and admin operations require a valid Cognito JWT. API Gateway uses a JWT Authorizer to validate tokens on every request.
+- **Cognito Authentication**: Scoring and administrative routes require a valid Cognito JWT. API Gateway applies its JWT Authorizer only to configured protected routes; public routes do not use it.
 - **Per-Resource Authorization**: The `isAuthorized()` function in `match-api` checks that the requesting user is either the match owner, a super-admin email, or in the Cognito `Admin` group.
-- **Admin Group**: Managed in Cognito via Terraform. Admin users can perform privileged operations (delete any match, manage users) regardless of match ownership.
+- **Admin Group**: Managed in Cognito via Terraform. Administrative routes check group membership; selected backend operations also permit the configured super-admin email.
 - **Guest Isolation**: Guest accounts use shadow Cognito accounts (`guest-*@cricscore.local`) that can be cleaned up by Admins without affecting real user data.
-- **SSL Enforcement**: Mandatory for all Aiven PostgreSQL persistence sessions.
-- **Multi-Tenant Isolation**: Match states are isolated by `scorer_email` + `matchId`, preventing cross-tenant data leakage.
+- **TLS**: PostgreSQL connections use TLS; the chat API currently disables server-certificate verification.
+- **Match Ownership**: Scoring changes check `scorer_email` and `matchId`; public match-read routes remain accessible by match UUID.
 - **Role-Based Access Hierarchy**:
   - **Viewer 🌍**: Public/No-Auth spectator access based solely on the sharable match UUID.
   - **Scorer 🎮**: Cognito-authenticated access for persistence and ball-by-ball updates. Can only manage matches they created.
-  - **Admin ⚡**: Cognito group membership required. Full access to global record management, user administration, and database maintenance.
+  - **Admin ⚡**: Cognito `Admin` group membership is checked for administrative operations; selected backend operations also allow the configured super-admin email.
 
 ### **5. Infrastructure Automation & CI/CD**
 
 - **Automated Bootstrapping**: `infra/scripts/setup.sh` provides intelligent OS-aware dependency installation.
 - **Dynamic Variable Hydration**: `./infra/scripts/deploy.sh --env dev` bridges environment variables into Terraform format.
 - **Non-Destructive Configuration**: Local deployment cleanly appends live API Gateway and WebSocket URLs into `apps/frontend/.env`.
-- **Pipeline Dynamics**: `.github/workflows/ci-cd.yml` uses GitHub Repository Variables for perfectly portable CI/CD workflows.
+- **Pipeline Dynamics**: `.github/workflows/ci.yml` validates changes and deploys DEV; `.github/workflows/cd.yml` handles PROD releases. Both use GitHub environment variables and secrets.
 
 ---
 

@@ -1,0 +1,37 @@
+{
+  "url": "https://api.github.com/repos/venkatesh-singamsetty/cricscore/branches/main/protection",
+  "required_status_checks": {
+    "url": "https://api.github.com/repos/venkatesh-singamsetty/cricscore/branches/main/protection/required_status_checks",
+    "strict": true,
+    "contexts": [
+      "Analyze Code (javascript-typescript)",
+      "Lint & Test",
+      "Backend & Terraform Validation",
+      "CodeQL",
+      "Infrastructure & Secrets Security"
+    ],
+    "contexts_url": "https://api.github.com/repos/venkatesh-singamsetty/cricscore/branches/main/protection/required_status_checks/contexts",
+    "checks": [
+      { "context": "Analyze Code (javascript-typescript)", "app_id": 15368 },
+      { "context": "Lint & Test", "app_id": 15368 },
+      { "context": "Backend & Terraform Validation", "app_id": 15368 },
+      { "context": "CodeQL", "app_id": 57789 },
+      { "context": "Infrastructure & Secrets Security", "app_id": null }
+    ]
+  },
+  "required_signatures": {
+    "url": "https://api.github.com/repos/venkatesh-singamsetty/cricscore/branches/main/protection/required_signatures",
+    "enabled": false
+  },
+  "enforce_admins": {
+    "url": "https://api.github.com/repos/venkatesh-singamsetty/cricscore/branches/main/protection/enforce_admins",
+    "enabled": false
+  },
+  "required_linear_history": { "enabled": false },
+  "allow_force_pushes": { "enabled": false },
+  "allow_deletions": { "enabled": false },
+  "block_creations": { "enabled": false },
+  "required_conversation_resolution": { "enabled": false },
+  "lock_branch": { "enabled": false },
+  "allow_fork_syncing": { "enabled": false }
+}

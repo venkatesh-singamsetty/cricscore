@@ -9,7 +9,7 @@ resource "aws_apigatewayv2_api" "websocket_api" {
 resource "aws_apigatewayv2_integration" "onconnect" {
   api_id           = aws_apigatewayv2_api.websocket_api.id
   integration_type = "AWS_PROXY"
-  integration_uri  = aws_lambda_function.onconnect.invoke_arn
+  integration_uri  = module.onconnect.invoke_arn
 }
 
 resource "aws_apigatewayv2_route" "onconnect" {
@@ -22,7 +22,7 @@ resource "aws_apigatewayv2_route" "onconnect" {
 resource "aws_lambda_permission" "websocket_onconnect" {
   statement_id  = "AllowExecutionFromAPIGatewayOnConnect"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.onconnect.function_name
+  function_name = module.onconnect.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.websocket_api.execution_arn}/*/*"
 }
@@ -31,7 +31,7 @@ resource "aws_lambda_permission" "websocket_onconnect" {
 resource "aws_apigatewayv2_integration" "ondisconnect" {
   api_id           = aws_apigatewayv2_api.websocket_api.id
   integration_type = "AWS_PROXY"
-  integration_uri  = aws_lambda_function.ondisconnect.invoke_arn
+  integration_uri  = module.ondisconnect.invoke_arn
 }
 
 resource "aws_apigatewayv2_route" "ondisconnect" {
@@ -44,7 +44,7 @@ resource "aws_apigatewayv2_route" "ondisconnect" {
 resource "aws_lambda_permission" "websocket_ondisconnect" {
   statement_id  = "AllowExecutionFromAPIGatewayOnDisconnect"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.ondisconnect.function_name
+  function_name = module.ondisconnect.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.websocket_api.execution_arn}/*/*"
 }

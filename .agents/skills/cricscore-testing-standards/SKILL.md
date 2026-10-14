@@ -1,24 +1,19 @@
 ---
 name: cricscore-testing-standards
-description: Standards for unit, integration, and E2E testing across the diverse CricScore stack.
+description: Use when adding, changing, or selecting tests for CricScore frontend, backend, ML inference, AI chat, or deployed-site behavior.
 ---
 
 # CricScore Testing Standards
 
-## 1. Frontend & Backend Node.js Tests
+## Test layers and commands
 
-- We use **Vitest** for all TypeScript/JavaScript testing across both the React frontend and the Node.js Serverless Backend.
-- Do not use Jest.
-- Run tests via `npm run test` in the respective `apps/frontend` or `apps/backend` directories.
+- Frontend and Node.js backend tests use Vitest. Run `npm test --prefix apps/frontend` and `npm test --prefix apps/backend`.
+- Python ML inference tests use Pytest: `cd apps/ml-engine && python -m pytest test_predict.py`.
+- Browser E2E tests use Playwright under `apps/e2e`. They exercise deployed environments in CI; inspect `apps/e2e/package.json` and `apps/e2e/playwright.config.ts` before assuming a local test is isolated or safe.
+- The root `npm run test:all` also runs AI evaluation and may call a configured live API. Check its target and credentials before running it.
 
-## 2. Machine Learning Tests
+## Test quality
 
-- We use **Pytest** for testing the Python ML engine.
-- ML tests must cover both the inference handler (`predict.py`) and edge cases (e.g., negative runs, impossible scores).
-- Run tests via `pytest apps/ml-engine/test_predict.py`.
-
-## 3. End-to-End (E2E) UI Tests
-
-- We use **Playwright** for browser-based UI automation tests.
-- E2E tests are located in `apps/e2e`.
-- Run locally via `npx playwright test`.
+- Add focused regression tests for externally observable behavior and edge cases. For scoring, cover legal balls, extras, retirements, undo, persistence, and broadcast state as relevant.
+- Mock external APIs and avoid mutating live Dev/Prod data in unit tests. E2E suites that target deployed systems require explicit environment and data-safety awareness.
+- Run type checks and builds where the changed code path requires them; state which tests and validations actually ran.
