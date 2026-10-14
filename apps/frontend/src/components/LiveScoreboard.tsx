@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useWebSocket } from "../hooks/useWebSocket";
 import MatchList from "./MatchList"; // Added Phase 6+
 import Scoreboard from "./Scoreboard";
@@ -27,6 +27,7 @@ interface LiveScoreboardProps {
   showDeleteControls?: boolean;
   onResumeMatch?: (matchId: string) => void;
   initialMatchId?: string;
+  scorecardDismissRequest?: number;
 }
 
 const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
@@ -34,6 +35,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
   showDeleteControls = false,
   onResumeMatch,
   initialMatchId,
+  scorecardDismissRequest = 0,
 }) => {
   const WS_URL = import.meta.env.VITE_WS_URL || "";
   const API_URL = import.meta.env.VITE_API_URL || "";
@@ -56,6 +58,24 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
   const [hubUpdateTrigger, setHubUpdateTrigger] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const [isGeneratingAiSummary, setIsGeneratingAiSummary] = useState(false);
+  const previousScorecardDismissRequest = useRef(scorecardDismissRequest);
+
+  const closeScorecard = useCallback(() => {
+    setShowFullScorecard(false);
+    if (matchMeta?.status === "COMPLETED") {
+      setTargetMatchId("");
+    }
+  }, [matchMeta?.status]);
+
+  useEffect(() => {
+    if (scorecardDismissRequest === previousScorecardDismissRequest.current) {
+      return;
+    }
+    previousScorecardDismissRequest.current = scorecardDismissRequest;
+    if (showFullScorecard) {
+      closeScorecard();
+    }
+  }, [scorecardDismissRequest, showFullScorecard, closeScorecard]);
 
   const handleGenerateAiSummary = useCallback(
     async (force = false) => {
@@ -653,12 +673,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                   ? matchDetails.innings[0]
                   : undefined
               }
-              onClose={() => {
-                setShowFullScorecard(false);
-                if (matchMeta?.status === "COMPLETED") {
-                  setTargetMatchId(""); // Return to Hub on completion
-                }
-              }}
+              onClose={closeScorecard}
               isSpectator={true}
               totalOvers={matchMeta?.totalOvers}
               playerOfTheMatch={matchMeta?.playerOfTheMatch}

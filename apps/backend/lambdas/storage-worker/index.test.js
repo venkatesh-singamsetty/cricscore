@@ -148,6 +148,43 @@ describe("Storage Worker Lambda", () => {
     );
   });
 
+  it("should restore innings overs and balls when undoing a delivery", async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [
+        {
+          id: "ball_123",
+          runs: 4,
+          is_wicket: false,
+          batter_name: "Batter 1",
+          bowler_name: "Bowler 1",
+          extra_type: null,
+        },
+      ],
+    });
+
+    await handler({
+      Records: [
+        {
+          body: JSON.stringify({
+            matchId: "match_123",
+            inningId: "inn_123",
+            undo: true,
+            currentOvers: 2,
+            currentBalls: 3,
+            explicitTotalRuns: 30,
+            explicitTotalWickets: 1,
+          }),
+        },
+      ],
+    });
+
+    const inningsUpdate = mockQuery.mock.calls.find(([query]) =>
+      String(query).includes("UPDATE innings SET"),
+    );
+    expect(inningsUpdate?.[1][3]).toBe(2);
+    expect(inningsUpdate?.[1][4]).toBe(3);
+  });
+
   it.each(["RETIRED_HURT", "RETIRED_OUT"])(
     "does not decrement balls faced when undoing %s",
     async (wicketType) => {
