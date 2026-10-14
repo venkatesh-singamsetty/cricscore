@@ -102,7 +102,10 @@ export const AiMatchPrediction: React.FC<AiMatchPredictionProps> = ({
       }
     };
 
-    if (teamA && teamB) {
+    // Skip transient states (no overs yet, or 2nd innings without a target)
+    // and keep the last valid prediction instead of showing a bogus swing.
+    const inputsReady = totalOvers > 0 && (inning !== 2 || targetScore > 0);
+    if (teamA && teamB && inputsReady) {
       fetchPrediction();
     }
 
