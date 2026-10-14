@@ -1,3 +1,9 @@
+## [4.10.2](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.10.1...v4.10.2) (2026-10-14)
+
+### 🐛 Bug Fixes
+
+* **viewer:** stop live score flicker and bogus win prediction ([#254](https://github.com/venkatesh-singamsetty/cricscore/issues/254)) ([6a62a54](https://github.com/venkatesh-singamsetty/cricscore/commit/6a62a54ebac040e393f088e33b8a407fcef7837d))
+
 ## [4.10.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.10.0...v4.10.1) (2026-10-14)
 
 ### 🐛 Bug Fixes
