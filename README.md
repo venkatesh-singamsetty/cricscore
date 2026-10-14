@@ -326,19 +326,16 @@ CricScore includes a model-training workflow and a win-probability inference Lam
 
 CricScore includes repository-specific instructions and an **AI Skills Library** to guide coding assistants. The tools' support for automatically loading these files varies.
 
-The `.agents/skills/` directory currently contains 11 skill modules:
+The `.agents/skills/` directory contains focused, on-demand guidance for:
 
-1. `cricscore-code-review-standards`
-2. `cricscore-security-standards`
-3. `cricscore-pr-and-workflow`
-4. `cricscore-cost-governance`
-5. `cricscore-infrastructure-standards`
-6. `cricscore-frontend-architecture`
-7. `cricscore-backend-architecture`
-8. `cricscore-mlops-standards`
-9. `cricscore-testing-standards`
-10. `cricscore-agentic-rag-architecture`
-11. `cricscore-cheatsheet-maintenance`
+- Pull-request code review and review findings
+- Secure implementation and validation
+- Branch, PR, CI/CD, and developer-command workflows
+- AWS cost and Terraform/infrastructure changes
+- Frontend, backend, and AI/RAG architecture
+- Node.js, browser, and ML testing
+- ML training and inference compatibility
+- PostgreSQL schema changes and migrations
 
 ### 🔌 Agent Guidance Integration
 

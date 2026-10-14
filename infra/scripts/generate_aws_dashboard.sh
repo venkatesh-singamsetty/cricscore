@@ -1,6 +1,12 @@
 #!/bin/bash
 set -e
 
+if [ -f ".env.local" ]; then
+  set -a
+  . ./.env.local
+  set +a
+fi
+
 DOC_PATH="docs/aws_resources_dashboard.md"
 LAMBDA_TF="infra/terraform/lambda.tf"
 REGION="${AWS_REGION:-us-east-1}"
@@ -38,11 +44,31 @@ generate_env_block() {
   local ENV_NAME=$1
   local EMOJI=$2
   local TFVARS=$3
+  local ENVIRONMENT=$4
   local PROJECT
   local DOMAIN
+  local ZONE
+  local BASE_PROJECT="${PROJECT_NAME:-cricscore}"
+  local BASE_PREFIX="${SUBDOMAIN_PREFIX:-cricscore}"
+  local TF_PROJECT
+  local TF_DOMAIN
 
-  PROJECT=$(awk -F '"' '/^[[:space:]]*project_name[[:space:]]*=/ { print $2; exit }' "$TFVARS")
-  DOMAIN=$(awk -F '"' '/^[[:space:]]*domain_name[[:space:]]*=/ { print $2; exit }' "$TFVARS")
+  TF_PROJECT=$(awk -F '"' '/^[[:space:]]*project_name[[:space:]]*=/ { print $2; exit }' "$TFVARS")
+  TF_DOMAIN=$(awk -F '"' '/^[[:space:]]*domain_name[[:space:]]*=/ { print $2; exit }' "$TFVARS")
+  ZONE="${ZONE_DOMAIN:-$(awk -F '"' '/^[[:space:]]*zone_domain[[:space:]]*=/ { print $2; exit }' "$TFVARS")}"
+
+  if [ "$ENVIRONMENT" = "dev" ]; then
+    PROJECT="${DEV_PROJECT_NAME:-}"
+    [[ -n "$PROJECT" ]] || PROJECT="${PROJECT_NAME:+${BASE_PROJECT}dev}"
+    PROJECT="${PROJECT:-$TF_PROJECT}"
+    DOMAIN="${DEV_DOMAIN_NAME:-}"
+    [[ -n "$DOMAIN" ]] || DOMAIN="${ZONE_DOMAIN:+${BASE_PREFIX}dev.${ZONE}}"
+    DOMAIN="${DOMAIN:-$TF_DOMAIN}"
+  else
+    PROJECT="${PROD_PROJECT_NAME:-${PROJECT_NAME:-$TF_PROJECT}}"
+    DOMAIN="${PROD_DOMAIN_NAME:-${DOMAIN_NAME:-$TF_DOMAIN}}"
+  fi
+
   if [ -z "$PROJECT" ] || [ -z "$DOMAIN" ]; then
     echo "❌ Missing project_name or domain_name in $TFVARS" >&2
     exit 1
@@ -85,11 +111,11 @@ EOF
 
 # Dev Environment
 generate_env_block \
-  "Development (DEV)" "🟢" "infra/terraform/environments/dev.tfvars"
+  "Development (DEV)" "🟢" "infra/terraform/environments/dev.tfvars" "dev"
 
 # Prod Environment
 generate_env_block \
-  "Production (PROD)" "🔵" "infra/terraform/environments/prod.tfvars"
+  "Production (PROD)" "🔵" "infra/terraform/environments/prod.tfvars" "prod"
 
 cat << EOF >> $DOC_PATH
 

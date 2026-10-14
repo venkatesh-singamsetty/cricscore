@@ -84,7 +84,7 @@ Check each provider's current plan limits and pricing:
 
 1. Create a free account on either service.
 2. Add a new **HTTP(s) Monitor** pointing to your production URL:
-   - `https://cricscore.venkateshsingamsetty.com`
+   - `https://<your-production-domain>`
 3. Set ping interval to **3–5 minutes**.
 4. Configure email/SMS alerts on downtime.
 

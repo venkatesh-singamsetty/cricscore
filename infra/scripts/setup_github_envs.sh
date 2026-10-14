@@ -19,6 +19,12 @@ if [ -f ".env.local" ]; then
   set +a
 fi
 
+STATE_BUCKET="${TF_STATE_BUCKET:-venky-2026-terraform-state}"
+if [[ "$STATE_BUCKET" == *yourname* || "$STATE_BUCKET" == *example* ]]; then
+  echo "❌ Replace the example TF_STATE_BUCKET in .env.local before configuring GitHub Environments." >&2
+  exit 1
+fi
+
 # Set Secrets (same for both for now, schema isolates data)
 gh secret set TF_DATABASE_URL -b"$TF_DATABASE_URL" --env dev
 gh secret set TF_DATABASE_URL -b"$TF_DATABASE_URL" --env prod
@@ -51,39 +57,43 @@ gh variable set AWS_REGION -b"$AWS_REGION" --env dev
 gh variable set AWS_REGION -b"$AWS_REGION" --env prod
 gh variable set ADMIN_EMAIL -b"$ADMIN_EMAIL" --env dev
 gh variable set ADMIN_EMAIL -b"$ADMIN_EMAIL" --env prod
+gh variable set TF_STATE_BUCKET -b"$STATE_BUCKET" --env dev
+gh variable set TF_STATE_BUCKET -b"$STATE_BUCKET" --env prod
 
 # Set environment-specific variables
 for ENV in dev prod; do
-  TFVARS="infra/terraform/environments/${ENV}.tfvars"
-  
-  if [ -f "$TFVARS" ]; then
-    DOMAIN=$(grep '^domain_name' "$TFVARS" | awk -F'"' '{print $2}')
-    ZONE=$(grep '^zone_domain' "$TFVARS" | awk -F'"' '{print $2}')
-    PREFIX=$(grep '^subdomain_prefix' "$TFVARS" | awk -F'"' '{print $2}')
-    PROJ=$(grep '^project_name' "$TFVARS" | awk -F'"' '{print $2}')
-    
-    gh variable set DOMAIN_NAME -b"$DOMAIN" --env $ENV
-    gh variable set ZONE_DOMAIN -b"$ZONE" --env $ENV
-    gh variable set SUBDOMAIN_PREFIX -b"$PREFIX" --env $ENV
-    gh variable set PROJECT_NAME -b"$PROJ" --env $ENV
+  ZONE="${ZONE_DOMAIN:-}"
+  BASE_PREFIX="${SUBDOMAIN_PREFIX:-cricscore}"
+  BASE_PROJECT="${PROJECT_NAME:-cricscore}"
 
-    # Deployment jobs sync the built SPA and invalidate the matching CDN.
-    terraform -chdir=infra/terraform init -input=false -reconfigure \
-      -backend-config="key=cricscore/${ENV}/terraform.tfstate" >/dev/null
-    S3_BUCKET=$(terraform -chdir=infra/terraform output -raw s3_bucket_name)
-    CLOUDFRONT_DISTRIBUTION_ID=$(terraform -chdir=infra/terraform output -raw cloudfront_distribution_id)
-    gh variable set S3_BUCKET -b"$S3_BUCKET" --env "$ENV"
-    gh variable set CLOUDFRONT_DISTRIBUTION_ID -b"$CLOUDFRONT_DISTRIBUTION_ID" --env "$ENV"
-
-    if [[ -n "${LLM_BASE_URL:-}" ]]; then
-      gh variable set LLM_BASE_URL -b"$LLM_BASE_URL" --env "$ENV"
-    fi
-    if [[ -n "${LLM_MODEL:-}" ]]; then
-      gh variable set LLM_MODEL -b"$LLM_MODEL" --env "$ENV"
-    fi
-    
-    echo "✅ Populated variables for $ENV environment"
+  if [[ "$ENV" == "dev" ]]; then
+    DOMAIN="${DEV_DOMAIN_NAME:-${BASE_PREFIX}dev.${ZONE}}"
+    PREFIX="${DEV_SUBDOMAIN_PREFIX:-${BASE_PREFIX}dev}"
+    PROJ="${DEV_PROJECT_NAME:-${BASE_PROJECT}dev}"
+  else
+    DOMAIN="${PROD_DOMAIN_NAME:-${DOMAIN_NAME:-${BASE_PREFIX}.${ZONE}}}"
+    PREFIX="${PROD_SUBDOMAIN_PREFIX:-$BASE_PREFIX}"
+    PROJ="${PROD_PROJECT_NAME:-$BASE_PROJECT}"
   fi
+
+  if [[ -z "$ZONE" || -z "$DOMAIN" || "$DOMAIN" == *yourdomain* || "$ZONE" == *yourdomain* || "$DOMAIN" == *example.com* ]]; then
+    echo "❌ Set your real ZONE_DOMAIN and environment domain values in .env.local before continuing." >&2
+    exit 1
+  fi
+
+  gh variable set DOMAIN_NAME -b"$DOMAIN" --env "$ENV"
+  gh variable set ZONE_DOMAIN -b"$ZONE" --env "$ENV"
+  gh variable set SUBDOMAIN_PREFIX -b"$PREFIX" --env "$ENV"
+  gh variable set PROJECT_NAME -b"$PROJ" --env "$ENV"
+
+  if [[ -n "${LLM_BASE_URL:-}" ]]; then
+    gh variable set LLM_BASE_URL -b"$LLM_BASE_URL" --env "$ENV"
+  fi
+  if [[ -n "${LLM_MODEL:-}" ]]; then
+    gh variable set LLM_MODEL -b"$LLM_MODEL" --env "$ENV"
+  fi
+
+  echo "✅ Populated variables for $ENV environment"
 done
 
 echo "✅ GitHub Environments setup complete."

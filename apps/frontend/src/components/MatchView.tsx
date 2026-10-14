@@ -1453,18 +1453,20 @@ const MatchView: React.FC<MatchViewProps> = ({
 
       {/* AI Match Prediction Section - Fixed Above Cockpit */}
       <div className="shrink-0 px-3 pb-2 pt-1 border-t border-white/5 bg-slate-900/80 backdrop-blur-sm z-[80]">
-        <AiMatchPrediction
-          matchId={matchId}
-          teamA={innings.battingTeamName}
-          teamB={innings.bowlingTeamName}
-          totalOvers={totalOvers}
-          compact={true}
-          inning={innings.inningNumber}
-          currentScore={innings.totalRuns}
-          wicketsLost={innings.totalWickets}
-          targetScore={innings.target || -1}
-          ballsBowled={innings.overs * 6 + innings.balls}
-        />
+        <div className="w-full md:max-w-4xl md:mx-auto">
+          <AiMatchPrediction
+            matchId={matchId}
+            teamA={innings.battingTeamName}
+            teamB={innings.bowlingTeamName}
+            totalOvers={totalOvers}
+            compact={true}
+            inning={innings.inningNumber}
+            currentScore={innings.totalRuns}
+            wicketsLost={innings.totalWickets}
+            targetScore={innings.target || -1}
+            ballsBowled={innings.overs * 6 + innings.balls}
+          />
+        </div>
       </div>
 
       {/* Operations Cockpit (Fixed at Bottom) */}

@@ -4,15 +4,15 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment to unlock'
+        description: "Environment to unlock"
         required: true
-        default: 'dev'
+        default: "dev"
         type: choice
         options:
           - dev
           - prod
       lock_id:
-        description: 'The Terraform Lock ID to force unlock (e.g., e-12345678-abcd)'
+        description: "The Terraform Lock ID to force unlock (e.g., e-12345678-abcd)"
         required: true
         type: string
 
@@ -25,7 +25,7 @@ jobs:
     name: Force Unlock Terraform State
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -43,10 +43,12 @@ jobs:
           aws-region: ${{ vars.AWS_REGION }}
 
       - name: Terraform Init & Force Unlock
+        env:
+          TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET || 'venky-2026-terraform-state' }}
         working-directory: infra/terraform
         run: |
           echo "Initializing Terraform backend for environment: ${{ inputs.environment }}"
-          terraform init -backend-config="key=cricscore/${{ inputs.environment }}/terraform.tfstate"
-          
+          terraform init -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=cricscore/${{ inputs.environment }}/terraform.tfstate"
+
           echo "Executing Force Unlock for Lock ID: ${{ inputs.lock_id }}"
           terraform force-unlock -force "${{ inputs.lock_id }}"

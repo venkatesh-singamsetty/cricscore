@@ -128,5 +128,6 @@ check_cmd syft
 echo ""
 echo "🚀 All tools are installed! You are ready to deploy."
 echo "Next steps:"
-echo "1. Ensure your .env.local is configured with your database and SES email."
-echo "2. Run './infra/scripts/deploy.sh' to start the deployment."
+echo "1. Copy .env.local.example to .env.local and configure your AWS, database, email, domain, and state bucket values."
+echo "2. Run './infra/scripts/deploy.sh --env dev --use-local-env --bootstrap-only' to create AWS state/DNS resources and print nameservers."
+echo "3. Delegate your domain nameservers, verify SES, then run './infra/scripts/deploy.sh --env dev --use-local-env --migrate'."

@@ -2,26 +2,18 @@
 
 This is the full deployment reference for CricScore — from registering a domain to having a live, fully-featured cricket scoring platform running in the cloud.
 
-<details>
-<summary><b>⚡ TL;DR — Clone-to-Deploy Quick Checklist</b> (click to expand)</summary>
+> [!IMPORTANT]
+> A fresh clone is not a one-command cloud deployment. You need accounts and configuration for AWS, a domain/Route 53, PostgreSQL, SES, and an OpenAI-compatible LLM provider. AWS resources and external database/provider services may incur costs.
 
-> Important: this project is not a pure local-only app. A fresh clone still needs AWS, Aiven PostgreSQL, domain/DNS, SES, Cognito, and an OpenAI API key.
+## Fresh-clone path at a glance
 
-1. `git clone https://github.com/venkatesh-singamsetty/cricscore.git && cd cricscore`
-2. `./infra/scripts/setup.sh` — Install Node.js, Terraform, AWS CLI
-3. `cp .env.local.example .env.local` — Fill in AWS, Aiven, domain, OpenAI values
-4. `cp apps/frontend/.env.example apps/frontend/.env` — Optional Sentry DSN
-5. Edit `infra/terraform/environments/dev.tfvars` and `prod.tfvars` with your domain
-6. Bootstrap: `cd infra/terraform/bootstrap && terraform init && terraform apply`
-7. Point domain registrar nameservers → Route 53 NS records
-8. Verify SES domain identity in AWS Console
-9. Deploy: `./infra/scripts/deploy.sh --env dev --use-local-env`
-10. CI/CD: `gh auth login && ./infra/scripts/setup_github_envs.sh`
-11. Create account → add to Cognito `Admin` group → sign out/in
+1. Get the prerequisites in Step 0, then clone the repository.
+2. Copy `.env.local.example` to `.env.local` and fill in **your own** values.
+3. Run the one-time bootstrap command. Add its Route 53 nameservers at your registrar and verify your SES sender/domain.
+4. After DNS is delegated, run the Dev deployment command with `--migrate`.
+5. Sign in and grant your account the Cognito `Admin` group if you need admin access.
 
-**Required external dependencies:** AWS account + IAM, Route 53 / domain, Aiven PostgreSQL, Cognito (via Terraform), SES domain verification, OpenAI API key.
-
-</details>
+Follow the full steps below in order. The deploy script applies AWS changes automatically; review the configuration and target environment before running it.
 
 ---
 
@@ -33,48 +25,35 @@ This is the full deployment reference for CricScore — from registering a domai
 
 ---
 
-## Step 0: Get Your Accounts & Domain
+## Step 0: Prerequisites and accounts
 
-You need four things before deploying the application.
+Install or configure the following before deployment:
 
-### 1. A Domain Name
+- Node.js 24+, Terraform 1.10+, AWS CLI, Docker Engine, and PostgreSQL client (`psql`). Local deployment builds and pushes the ML inference Lambda image with Docker. The repository's `infra/scripts/setup.sh` can help install some tools; install Docker Desktop separately on macOS and make sure Docker is running.
+- AWS credentials authorized to create the resources managed by Terraform. Prefer AWS CLI/role-based credentials for local use; avoid root credentials. Verify access with `aws sts get-caller-identity`.
+- A domain you control. The bootstrap creates a Route 53 hosted zone for its root domain. Do **not** run bootstrap blindly if a hosted zone for this domain already exists; use/adopt the existing DNS configuration instead.
+- An Aiven PostgreSQL service and its connection URI. Dev and prod use separate schemas (`dev` and `prod`) in the configured database by default. Back up existing data and use the correct database before running migrations.
+- A verified SES sender/domain. SES sandbox accounts may only send to verified recipients.
+- An OpenAI-compatible API key for chat. The current template also uses OpenAI credentials for embeddings; configure a provider and key that support the embedding endpoint/model.
 
-Buy a domain from [Spaceship](https://www.spaceship.com/), [Porkbun](https://porkbun.com/), [Cloudflare](https://www.cloudflare.com/products/registrar/), or [GoDaddy](https://godaddy.com).
-
-### 2. An AWS Account
-
-Sign up at [aws.amazon.com](https://aws.amazon.com/). After signing in:
-
-1. Configure local AWS CLI credentials using IAM Identity Center, an assumed role, or a dedicated IAM identity.
-2. Use a dedicated deployment identity with only the permissions required for the resources managed by Terraform; avoid using root credentials or granting broad administrator access for routine deploys.
-3. The current GitHub deployment workflows use `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` environment secrets. If using those workflows, configure credentials for a dedicated deploy identity and store them as GitHub environment secrets.
-
-### 3. An Aiven PostgreSQL Database
-
-Sign up at [console.aiven.io](https://console.aiven.io/) and create a PostgreSQL service on a plan available to your account:
-
-1. Click **Create Service → PostgreSQL**
-2. Choose an available plan that fits your workload and budget; availability, eligibility, and pricing can change.
-3. After it starts, click your service → **Overview** → copy the **Service URI** (starts with `postgres://avnadmin:...`)
-
-> [!NOTE]
-> Dev and prod use separate PostgreSQL schemas when configured to share a database instance. Configure each environment's database connection string as appropriate.
-
-### 4. An OpenAI API Key (for AI features)
-
-Sign up at [openai.com](https://openai.com) and create an API key. This powers the AI chat assistant.
-
----
-
-## Step 1: Clone & Install Tools
+## Step 1: Clone the repository
 
 ```bash
 git clone https://github.com/venkatesh-singamsetty/cricscore.git
 cd cricscore
-
-# Install Node.js, Terraform, AWS CLI, and security tools automatically
-./infra/scripts/setup.sh
 ```
+
+Install the prerequisites listed above if they are not already available. `infra/scripts/setup.sh` is optional; it installs some development/security tools, but does not replace installing Docker Desktop on macOS or the PostgreSQL client (`psql`). Start Docker before deploying. Confirm the tools and AWS credentials are available:
+
+```bash
+node --version
+terraform version
+aws sts get-caller-identity
+docker info
+psql --version
+```
+
+GitHub Actions setup later also requires GitHub CLI (`gh`).
 
 ---
 
@@ -91,11 +70,13 @@ cp .env.local.example .env.local
 Edit `.env.local`:
 
 ```bash
-# AWS credentials
+# AWS credentials: use AWS CLI/role credentials and leave these blank where possible,
+# or fill in a dedicated deployment identity's credentials.
 AWS_ACCESS_KEY_ID=your-access-key
 AWS_SECRET_ACCESS_KEY=your-secret-key
 AWS_REGION=us-east-1
 AWS_DEFAULT_REGION=us-east-1
+TF_STATE_BUCKET='yourname-cricscore-terraform-state'
 
 # Aiven PostgreSQL connection string
 TF_DATABASE_URL='postgres://avnadmin:PASSWORD@HOST:PORT/defaultdb?sslmode=require'
@@ -112,108 +93,48 @@ ZONE_DOMAIN='yourdomain.com'
 SUBDOMAIN_PREFIX='cricscore'
 PROJECT_NAME='cricscore'
 
-# AI / LLM
-LLM_API_KEY='your-openai-api-key'
+# Chat provider (OpenAI-compatible)
+LLM_API_KEY='your-provider-api-key'
 LLM_BASE_URL='https://api.openai.com/v1'
+
+# Embeddings: provide an OpenAI key if using the default embedding configuration.
+OPENAI_API_KEY='your-openai-api-key'
 ```
 
 > [!CAUTION]
 > Never commit `.env.local` to version control. It is in `.gitignore` by default.
 
-### 2b. Set your domain in the Terraform config files
+### 2b. Configure domains and Terraform state
 
-Open **`infra/terraform/environments/dev.tfvars`** and update all four values:
+The deploy script reads `ZONE_DOMAIN`, `DOMAIN_NAME`, `SUBDOMAIN_PREFIX`, and `PROJECT_NAME` from `.env.local`. For example, with `ZONE_DOMAIN=example.org` and the base prefix/project name `cricscore`, Dev defaults to `cricscoredev.example.org`, `cricscoredev` resources, and Prod uses `cricscore.example.org`, `cricscore` resources. The deploy script verifies that each app domain is under the configured hosted zone. Set `DEV_DOMAIN_NAME`, `DEV_PROJECT_NAME`, or `DEV_SUBDOMAIN_PREFIX` to override Dev; use the matching `PROD_*` variables for Prod.
 
-```hcl
-environment      = "dev"
-project_name     = "myappdev"
-domain_name      = "cricscoredev.yourdomain.com"
-zone_domain      = "yourdomain.com"
-subdomain_prefix = "cricscoredev"
-```
+`TF_STATE_BUCKET` must be a globally unique S3 bucket name. The same value is used for bootstrap, local deployment, and the GitHub Actions environment. You no longer need to edit Terraform backend configuration or the environment `.tfvars` files.
 
-Open **`infra/terraform/environments/prod.tfvars`** and update:
-
-```hcl
-environment      = "prod"
-project_name     = "myapp"
-domain_name      = "cricscore.yourdomain.com"
-zone_domain      = "yourdomain.com"
-subdomain_prefix = "cricscore"
-```
-
-> [!IMPORTANT]
-> `zone_domain` must match exactly the root domain you registered (e.g., `yourdomain.com`).
-> `domain_name` is the full URL your app will be served at.
-
-### 2c. Frontend config — `apps/frontend/.env`
-
-```bash
-cp apps/frontend/.env.example apps/frontend/.env
-```
-
-You only need to set the optional Sentry DSN if you want crash reporting. Everything else is auto-populated by the deploy script.
-
-```bash
-# (Optional) Sentry Crash Reporting DSN
-VITE_SENTRY_DSN=
-```
+The deploy script writes the generated API and Cognito settings to `apps/frontend/.env`. To enable optional Sentry crash reporting, create that file from `apps/frontend/.env.example` before deployment and set `VITE_SENTRY_DSN`.
 
 ---
 
 ## Step 3: Bootstrap — One-Time AWS Setup
 
-This creates the S3 state bucket and Route 53 hosted zone for your domain. **Run this once.**
+This creates the S3 Terraform state bucket and a Route 53 hosted zone for your domain. **Run it once per new deployment only.** Bootstrap Terraform state is local under `infra/terraform/bootstrap`; keep it safe and do not delete it. Do not repeat bootstrap after losing that state or when you already have a hosted zone without first reviewing the import/adoption path.
 
-### 3a. Configure and Run Bootstrap
+### 3a. Create initial AWS resources
 
-The bootstrap creates the S3 state bucket and Route 53 hosted zone. Terraform uses native S3 lock files; the bootstrap's legacy DynamoDB lock table is not used by the current backend.
-
-1. Navigate to the bootstrap folder:
+Run the bootstrap-only command; it creates the state bucket and Route 53 hosted zone, then prints the nameservers:
 
 ```bash
-cd infra/terraform/bootstrap
+./infra/scripts/deploy.sh --env dev --use-local-env --bootstrap-only
 ```
 
-2. Copy the example variables file:
+### 3b. Point your domain to AWS
 
-```bash
-cp terraform.tfvars.example terraform.tfvars
-```
+Add the printed nameservers at your domain registrar:
 
-3. Open `terraform.tfvars` and fill in your desired bucket name and domain name.
-4. Apply the configuration:
+1. Log in to your domain registrar.
+2. Replace the domain's nameservers with the Route 53 nameservers printed by the script.
+3. Wait for DNS delegation to propagate; timing varies by registrar and DNS cache.
 
-```bash
-terraform init
-terraform apply
-```
-
-### 3b. Update `infra/terraform/providers.tf`
-
-Now that your bucket exists, tell the main infrastructure where to store its state. Open `infra/terraform/providers.tf` and match the exact bucket name you just used in the bootstrap:
-
-```hcl
-backend "s3" {
-  bucket         = "yourname-cricscore-state"   # Match the bootstrap bucket name
-  key            = "cricscore/terraform.tfstate"
-  region         = "us-east-1"
-  use_lockfile   = true
-  encrypt        = true
-}
-```
-
-### 3c. Point your domain to AWS
-
-After the bootstrap runs, AWS gives you 4 nameservers:
-
-1. Go to **AWS Console → Route 53 → Hosted Zones → your domain**
-2. Copy the 4 NS record values
-3. Log into your domain registrar (GoDaddy / Namecheap)
-4. Replace the default nameservers with your 4 AWS nameservers
-5. Wait **15–60 minutes** for DNS propagation
-
-### 3d. Verify SES email
+### 3c. Verify SES email
 
 1. Go to **AWS Console → SES → Verified Identities → Create Identity**
 2. Enter `yourdomain.com` and verify ownership via the DNS TXT record shown
@@ -226,11 +147,11 @@ After the bootstrap runs, AWS gives you 4 nameservers:
 Run the canonical deploy script for your target environment:
 
 ```bash
-# Deploy dev
-./infra/scripts/deploy.sh --env dev --use-local-env
+# First and later development deployments (requires DNS delegation and SES verification)
+./infra/scripts/deploy.sh --env dev --use-local-env --migrate
 
-# Deploy prod
-./infra/scripts/deploy.sh --env prod --use-local-env
+# Production is a separate, explicit operation
+./infra/scripts/deploy.sh --env prod --use-local-env --migrate
 ```
 
 The script automatically:
@@ -242,22 +163,14 @@ The script automatically:
 5. Builds the React app
 6. Uploads to S3 and invalidates CloudFront cache
 
-The local deploy script does **not** run database migrations. Run them separately
-from `infra/database`, using the connection string for the target environment:
-
-```bash
-set -a
-source .env.local
-set +a
-(cd infra/database && ./migrate.sh "$TF_DATABASE_URL" dev)
-```
-
-Use `prod` instead of `dev` only when intentionally migrating the production
-schema. The GitHub deployment workflows run the corresponding migration step.
+The local deploy script runs database migrations only when `--migrate` is supplied. Migrations run **before** Terraform apply, so confirm the database URL and environment are correct first. Use `prod` only when intentionally migrating the production schema. The GitHub deployment workflows run the corresponding migration step automatically.
 
 After a successful local deploy, the script prints the deployed website URL.
 
-Your app is live at `https://cricscoredev.yourdomain.com` (or your configured domain).
+Your app is live at the configured Dev domain, for example `https://cricscoredev.example.org`.
+
+> [!CAUTION]
+> The deploy script runs `terraform apply -auto-approve` and then publishes the frontend. It has no plan-only mode. Before deploying to Prod, review the plan for the exact production configuration (see [the Terraform guide](./terraform_guide.md)), verify the production database and SES settings, and confirm any destructive changes are intentional.
 
 ---
 
@@ -275,7 +188,7 @@ This starts a local dev server that points to your deployed backend APIs.
 To run the frontend and backend test suites followed by the HTTP-based chat evaluation (set `CHAT_API_URL` to a reachable API; this does not run Playwright E2E tests):
 
 ```bash
-CHAT_API_URL=https://api.yourdomain.com npm run test:all
+CHAT_API_URL='<your deployed HTTP API URL from Terraform output http_api_url>' npm run test:all
 ```
 
 ---
@@ -284,7 +197,7 @@ CHAT_API_URL=https://api.yourdomain.com npm run test:all
 
 ### 6a. Upload your secrets to GitHub
 
-We provide a script that reads your `.env.local` and `.tfvars` files and uploads everything to GitHub automatically:
+The setup script reads `.env.local` and configures the GitHub `dev` and `prod` environments with the variables and secrets used by the workflows. It does not read `.tfvars` files:
 
 ```bash
 # Install GitHub CLI first

@@ -2,7 +2,7 @@ terraform {
   required_version = ">= 1.10.0"
 
   backend "s3" {
-    bucket       = "venky-2026-terraform-state"
+    bucket       = "configure-your-terraform-state-bucket"
     key          = "cricscore/terraform.tfstate"
     region       = "us-east-1"
     use_lockfile = true

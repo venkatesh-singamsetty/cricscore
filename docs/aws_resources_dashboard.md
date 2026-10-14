@@ -11,6 +11,40 @@ This document provides quick-access UI links to view the live AWS resources, tel
 
 ### Application Endpoints
 
+- **Frontend App**: [https://cricscoredevdev.venkateshsingamsetty.com](https://cricscoredevdev.venkateshsingamsetty.com)
+- **HTTP API Gateway**: `https://api.cricscoredevdev.venkateshsingamsetty.com`
+- **WebSocket API**: `wss://ws.cricscoredevdev.venkateshsingamsetty.com`
+
+### Serverless Compute (AWS Lambda)
+
+- [**broadcaster**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredevdev-broadcaster)
+- [**chat-api**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredevdev-chat-api)
+- [**cognito-presignup**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredevdev-cognito-presignup)
+- [**match-api**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredevdev-match-api)
+- [**ml-predict**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredevdev-ml-predict)
+- [**onconnect**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredevdev-onconnect)
+- [**ondisconnect**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredevdev-ondisconnect)
+- [**score-upd**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredevdev-score-upd)
+- [**storage-worker**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredevdev-storage-worker)
+
+### Application Logs (CloudWatch Logs)
+
+- [**broadcaster Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredevdev-broadcaster)
+- [**chat-api Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredevdev-chat-api)
+- [**cognito-presignup Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredevdev-cognito-presignup)
+- [**match-api Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredevdev-match-api)
+- [**ml-predict Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredevdev-ml-predict)
+- [**onconnect Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredevdev-onconnect)
+- [**ondisconnect Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredevdev-ondisconnect)
+- [**score-upd Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredevdev-score-upd)
+- [**storage-worker Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredevdev-storage-worker)
+
+---
+
+## 🔵 Production (PROD)
+
+### Application Endpoints
+
 - **Frontend App**: [https://cricscoredev.venkateshsingamsetty.com](https://cricscoredev.venkateshsingamsetty.com)
 - **HTTP API Gateway**: `https://api.cricscoredev.venkateshsingamsetty.com`
 - **WebSocket API**: `wss://ws.cricscoredev.venkateshsingamsetty.com`
@@ -38,40 +72,6 @@ This document provides quick-access UI links to view the live AWS resources, tel
 - [**ondisconnect Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredev-ondisconnect)
 - [**score-upd Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredev-score-upd)
 - [**storage-worker Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredev-storage-worker)
-
----
-
-## 🔵 Production (PROD)
-
-### Application Endpoints
-
-- **Frontend App**: [https://cricscore.venkateshsingamsetty.com](https://cricscore.venkateshsingamsetty.com)
-- **HTTP API Gateway**: `https://api.cricscore.venkateshsingamsetty.com`
-- **WebSocket API**: `wss://ws.cricscore.venkateshsingamsetty.com`
-
-### Serverless Compute (AWS Lambda)
-
-- [**broadcaster**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-broadcaster)
-- [**chat-api**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-chat-api)
-- [**cognito-presignup**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-cognito-presignup)
-- [**match-api**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-match-api)
-- [**ml-predict**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-ml-predict)
-- [**onconnect**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-onconnect)
-- [**ondisconnect**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-ondisconnect)
-- [**score-upd**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-score-upd)
-- [**storage-worker**](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-storage-worker)
-
-### Application Logs (CloudWatch Logs)
-
-- [**broadcaster Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-broadcaster)
-- [**chat-api Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-chat-api)
-- [**cognito-presignup Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-cognito-presignup)
-- [**match-api Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-match-api)
-- [**ml-predict Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-ml-predict)
-- [**onconnect Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-onconnect)
-- [**ondisconnect Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-ondisconnect)
-- [**score-upd Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-score-upd)
-- [**storage-worker Logs**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-storage-worker)
 
 ---
 

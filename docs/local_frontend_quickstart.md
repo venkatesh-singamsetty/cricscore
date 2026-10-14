@@ -1,10 +1,10 @@
 # CricScore: Quickstart (Frontend Only)
 
-If you are an interviewer or a developer who just wants to evaluate the CricScore frontend and its functionality **without** going through the complex AWS Terraform and database setup, this guide is for you.
+This guide explains how to run the CricScore frontend locally against a CricScore backend you are authorized to use. It does not configure or connect to a shared live backend.
 
-By following these steps, you will run the React frontend locally on your laptop, but it will seamlessly connect to the **live, cloud-hosted DEV backend** (AWS API Gateway, Lambda, Cognito, and Aiven PostgreSQL).
+You need the API Gateway and WebSocket URLs, and Cognito configuration, from your own deployment or its administrator. Do not use another deployment's accounts or send test data to a backend without permission.
 
-## 🚀 5-Minute Setup (Copy & Paste)
+## Local setup
 
 Ensure you have **Node.js 24+** installed.
 <details>
@@ -15,39 +15,29 @@ You can install it instantly via terminal:
 Or download the official installer from <a href="https://nodejs.org/">nodejs.org</a>.
 </details>
 
-Then, open your terminal and paste this entire block:
+Clone the repository and install its dependencies:
 
 ```bash
-# 1. Clone & enter the repository
 git clone https://github.com/venkatesh-singamsetty/cricscore.git
 cd cricscore
-
-# 2. Install monorepo dependencies
 npm install
-
-# 3. Configure frontend to point to the live AWS Cloud
-cd apps/frontend
-cat << 'EOF' > .env
-VITE_API_URL=https://api.cricscoredev.venkateshsingamsetty.com
-VITE_WS_URL=wss://ws.cricscoredev.venkateshsingamsetty.com
-VITE_COGNITO_USER_POOL_ID=us-east-1_InxzxljX7
-VITE_COGNITO_CLIENT_ID=1n4m9rm96nhkd1vnqpnfsr1eg9
-VITE_COGNITO_DOMAIN=cricscoredev-auth-dev
-VITE_COGNITO_REGION=us-east-1
-VITE_APP_TITLE=CricScore (Local against Cloud Backend)
-EOF
-
-# 4. Start the application
-npm run dev
 ```
 
-That's literally it!
+Configure the frontend with values from your own deployment:
 
-The application will start at `http://localhost:3000`.
+```bash
+cp apps/frontend/.env.example apps/frontend/.env
+```
 
-- **Authentication**: You can sign up for a new account. The confirmation emails will be handled by the live AWS Cognito service.
-- **Match Scoring**: If you view a match, your local frontend will receive live updates via AWS API Gateway WebSockets from the cloud backend.
-- **AI Chat**: You can test the AI RAG capabilities; your local frontend will send requests to the live `chat-api` Lambda function.
+Set `VITE_API_URL`, `VITE_WS_URL`, `VITE_COGNITO_USER_POOL_ID`, `VITE_COGNITO_CLIENT_ID`, and `VITE_COGNITO_DOMAIN` in `apps/frontend/.env` to the values for that deployment. Keep this file local; do not commit credentials or environment-specific configuration.
+
+Start the frontend:
+
+```bash
+npm run dev --prefix apps/frontend
+```
+
+The app starts at `http://localhost:3000`. Authentication, scoring, and AI features depend on the configured backend and its authorization settings.
 
 ---
 

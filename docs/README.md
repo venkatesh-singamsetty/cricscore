@@ -30,6 +30,7 @@ Welcome to the CricScore documentation directory. This folder contains all archi
 ## 🛠️ Engineering & Development
 
 - [**Contributing & Developer Workflow**](../CONTRIBUTING.md) — Step-by-step feature branch and PR workflow guide.
+- [**Agent Skills**](./agent_skills.md) — CricScore's task-specific AI coding guidance and host-integration notes.
 - [**Testing Strategy**](./testing.md) — E2E tests via Playwright, unit tests, and security tests.
 - [**Node.js Guidelines**](./nodejs_guide.md) — Best practices and configuration for the Lambda backend.
 - [**MLOps & Prediction Guide**](./mlops_tutorial.md) — ML pipeline, win prediction math, and DLS method specification.
