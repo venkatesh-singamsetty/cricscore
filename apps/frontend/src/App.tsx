@@ -48,10 +48,20 @@ export const isGuestEmail = (email?: string | null) =>
 
 /** Generates credentials for an auto-confirmed Cognito guest shadow account. */
 export const buildGuestCredentials = (now: number = Date.now()) => {
-  const rand =
-    typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? crypto.randomUUID()
-      : `${Math.random().toString(36).slice(2)}${now}`;
+  const cryptoApi = globalThis.crypto;
+  let rand: string;
+
+  if (typeof cryptoApi?.randomUUID === "function") {
+    rand = cryptoApi.randomUUID();
+  } else if (typeof cryptoApi?.getRandomValues === "function") {
+    const randomBytes = cryptoApi.getRandomValues(new Uint8Array(24));
+    rand = Array.from(randomBytes, (byte) =>
+      byte.toString(16).padStart(2, "0"),
+    ).join("");
+  } else {
+    throw new Error("Secure randomness is unavailable for guest credentials.");
+  }
+
   return {
     email: `guest-${now}@cricscore.local`,
     password: `Gs!${rand}Aa1`,

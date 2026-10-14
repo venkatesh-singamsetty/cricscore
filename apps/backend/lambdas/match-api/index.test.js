@@ -167,6 +167,15 @@ describe("match-api Lambda handler", () => {
     expect(stripPlayerOfMatchLine(summary)).toBe("TEAM A won the toss.");
   });
 
+  it("should remove decorated POM lines and preserve regular mentions", () => {
+    const summary =
+      "🏏 # POM – PLAYER A1\nPlayer of the Matchday: keep this line\n# pom: PLAYER B2\nMatch summary";
+
+    expect(stripPlayerOfMatchLine(summary)).toBe(
+      "Player of the Matchday: keep this line\nMatch summary",
+    );
+  });
+
   it("should fetch all matches for GET /matches", async () => {
     mockQuery
       .mockResolvedValueOnce() // Mock the proactive cleanup UPDATE

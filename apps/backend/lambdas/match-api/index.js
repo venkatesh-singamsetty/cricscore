@@ -31,15 +31,39 @@ const escapeHtml = (value) =>
     .replace(/\"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
+const isPlayerOfMatchLine = (line) => {
+  let prefixLength = 0;
+  for (const character of line) {
+    if (
+      character.trim() === "" ||
+      ["🏆", "*", "#", ">", "-"].includes(character) ||
+      /^\p{Extended_Pictographic}$/u.test(character)
+    ) {
+      prefixLength += character.length;
+    } else {
+      break;
+    }
+  }
+
+  const content = line.slice(prefixLength).trimStart().toLowerCase();
+  for (const label of ["player of the match", "pom"]) {
+    if (!content.startsWith(label)) continue;
+
+    const nextCharacter = content[label.length];
+    if (nextCharacter && /[a-z0-9_]/i.test(nextCharacter)) continue;
+
+    let delimiterIndex = label.length;
+    while (content[delimiterIndex]?.trim() === "") delimiterIndex += 1;
+    if ([":", "-", "–"].includes(content[delimiterIndex])) return true;
+  }
+
+  return false;
+};
+
 const stripPlayerOfMatchLine = (summary) =>
   String(summary ?? "")
     .split(/\r?\n/)
-    .filter(
-      (line) =>
-        !/^\s*(?:[🏆*#>\-\s]|\p{Extended_Pictographic})*\s*(?:player of the match|pom)\b\s*[:\-–]/iu.test(
-          line,
-        ),
-    )
+    .filter((line) => !isPlayerOfMatchLine(line))
     .join("\n")
     .replace(/^\s*\n+/, "")
     .trim();
