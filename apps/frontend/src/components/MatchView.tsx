@@ -469,9 +469,7 @@ const MatchView: React.FC<MatchViewProps> = ({
     });
   };
 
-  const API_URL =
-    import.meta.env.VITE_API_URL ||
-    "https://api.cricscoredev.venkateshsingamsetty.com";
+  const API_URL = import.meta.env.VITE_API_URL || "";
 
   const syncMatchState = async () => {
     if (matchId.startsWith("guest_") || !userToken) return;
@@ -640,6 +638,10 @@ const MatchView: React.FC<MatchViewProps> = ({
     const isNoBall = pendingExtra === ExtraType.NO_BALL;
     const isBye = pendingExtra === ExtraType.BYE;
     const isLegBye = pendingExtra === ExtraType.LEG_BYE;
+    const isRetirement =
+      isWicket &&
+      (wicketType === WicketType.RETIRED_HURT ||
+        wicketType === WicketType.RETIRED_OUT);
 
     // Calculate runs added to total score
     let totalRunsToAdd = runs;
@@ -677,7 +679,7 @@ const MatchView: React.FC<MatchViewProps> = ({
     // Update Runs
     nextInnings.totalRuns += totalRunsToAdd;
     nextStriker.runs += batterRuns;
-    if (!isWide) {
+    if (!isWide && !isRetirement) {
       nextStriker.ballsFaced += 1;
     }
 
@@ -690,7 +692,7 @@ const MatchView: React.FC<MatchViewProps> = ({
     }
 
     // Valid Ball Calculation
-    const isValidBall = !isWide && !isNoBall;
+    const isValidBall = !isWide && !isNoBall && !isRetirement;
     let overCompleted = false;
 
     if (isValidBall) {

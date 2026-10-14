@@ -15,14 +15,14 @@ Welcome to the CricScore documentation directory. This folder contains all archi
 - [**Local Frontend Quickstart**](./local_frontend_quickstart.md) — How to run the React app locally against the live cloud endpoints.
 - [**Terraform Infrastructure Guide & Tutorial**](./terraform_guide.md) — Comprehensive HCL architecture walkthrough and hands-on tutorial.
 - [**Real-Time WebSockets & Event Fan-Out Tutorial**](./websocket_tutorial.md) — Architecture and implementation guide for live score streaming.
-- [**GitHub Actions CI/CD**](./github_actions.md) — Explains the automated pipeline that runs on every push.
+- [**GitHub Actions CI/CD**](./github_actions.md) — Explains validation, deployment, and security workflows and their triggers.
 - [**Aiven PostgreSQL**](./aiven.md) — How to set up and manage the primary database.
 - [**Domain Migration Log**](./domain_migration.md) — Historical log of the Route 53 and SES domain migration.
 
 ## 🛡️ Operations & Security
 
 - [**Security Posture**](./security_posture.md) — DevSecOps pipeline, automated static/dynamic scanning, and IAM strategies.
-- [**Branch Protection**](./branch_protection.md) — Rules ensuring code quality and automated testing.
+- [**Branch Protection**](./branch_protection.md) — Guidance for branch-protection settings and pull-request checks.
 - [**Cost Management**](./cost_management.md) — Breakdown of the free-tier optimizations and cost analysis per AWS service.
 - [**AWS Resources Dashboard**](./aws_resources_dashboard.md) — An auto-generated dashboard providing direct links to the live AWS infrastructure in the console.
 - [**Observability**](./observability.md) — AWS X-Ray distributed tracing and CloudWatch monitoring.

@@ -50,7 +50,7 @@ resource "aws_apigatewayv2_integration" "match_api" {
   connection_type    = "INTERNET"
   description        = "Match API Lambda Integration"
   integration_method = "POST"
-  integration_uri    = aws_lambda_function.match_api.invoke_arn
+  integration_uri    = module.match_api.invoke_arn
 }
 
 # Routes for Match API
@@ -189,7 +189,7 @@ resource "aws_apigatewayv2_route" "get_health" {
 resource "aws_lambda_permission" "api_gw" {
   statement_id  = "AllowExecutionFromAPIGateway"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.match_api.function_name
+  function_name = module.match_api.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.http_api.execution_arn}/*/*"
 }
@@ -202,7 +202,7 @@ resource "aws_apigatewayv2_integration" "score_update" {
   connection_type    = "INTERNET"
   description        = "Score Update Lambda Integration"
   integration_method = "POST"
-  integration_uri    = aws_lambda_function.score_update.invoke_arn
+  integration_uri    = module.score_update.invoke_arn
 }
 
 resource "aws_apigatewayv2_route" "post_score_update" {
@@ -216,7 +216,7 @@ resource "aws_apigatewayv2_route" "post_score_update" {
 resource "aws_lambda_permission" "api_gw_score" {
   statement_id  = "AllowExecutionFromAPIGatewayScore"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.score_update.function_name
+  function_name = module.score_update.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.http_api.execution_arn}/*/*"
 }
@@ -228,7 +228,7 @@ resource "aws_apigatewayv2_integration" "chat_api" {
   connection_type    = "INTERNET"
   description        = "Chat API Lambda Integration"
   integration_method = "POST"
-  integration_uri    = aws_lambda_function.chat_api.invoke_arn
+  integration_uri    = module.chat_api.invoke_arn
 }
 
 resource "aws_apigatewayv2_route" "post_chat" {
@@ -269,7 +269,7 @@ resource "aws_apigatewayv2_route" "delete_rules" {
 resource "aws_lambda_permission" "api_gw_chat" {
   statement_id  = "AllowExecutionFromAPIGatewayChat"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.chat_api.function_name
+  function_name = module.chat_api.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.http_api.execution_arn}/*/*"
 }

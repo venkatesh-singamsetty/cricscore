@@ -13,7 +13,6 @@ import {
   VolumeX,
 } from "lucide-react";
 import {
-  safeSessionStorageSet,
   safeLocalStorageGet,
   safeLocalStorageSet,
   safeLocalStorageRemove,
@@ -206,23 +205,6 @@ export function ChatComponent({
       const unlockUtterance = new SpeechSynthesisUtterance("");
       unlockUtterance.volume = 0;
       window.speechSynthesis.speak(unlockUtterance);
-    }
-
-    if (trimmed.startsWith("/login ")) {
-      const pin = trimmed.split(" ")[1];
-      const ADMIN_PIN = import.meta.env.VITE_ADMIN_PIN || "2403";
-      if (pin === ADMIN_PIN) {
-        safeSessionStorageSet("auth_admin", "true");
-        window.location.reload();
-      } else {
-        setMessages((prev) => [
-          ...prev,
-          { role: "user", content: trimmed },
-          { role: "assistant", content: "❌ Invalid Admin PIN." },
-        ]);
-        setInput("");
-      }
-      return;
     }
 
     const userMsg = { role: "user" as const, content: trimmed };

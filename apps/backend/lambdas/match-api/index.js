@@ -1,4 +1,14 @@
-const { Client } = require("pg");
+const { Pool } = require("pg");
+
+const pool = new Pool({
+  connectionString: (process.env.DATABASE_URL || "").split("?")[0],
+  // codeql[js/disabling-certificate-validation] Aiven DB requires this unless explicit CA bundle is provided
+  ssl: { rejectUnauthorized: false },
+  max: 1,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
+});
+pool.on("error", (err) => console.error("Idle PostgreSQL client error:", err));
 const { SESClient, SendEmailCommand } = require("@aws-sdk/client-ses");
 const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 const {
@@ -20,6 +30,21 @@ const escapeHtml = (value) =>
     .replace(/>/g, "&gt;")
     .replace(/\"/g, "&quot;")
     .replace(/'/g, "&#39;");
+
+const stripPlayerOfMatchLine = (summary) =>
+  String(summary ?? "")
+    .split(/\r?\n/)
+    .filter(
+      (line) =>
+        !/^\s*(?:[🏆*#>\-\s]|\p{Extended_Pictographic})*\s*(?:player of the match|pom)\b\s*[:\-–]/iu.test(
+          line,
+        ),
+    )
+    .join("\n")
+    .replace(/^\s*\n+/, "")
+    .trim();
+
+exports.stripPlayerOfMatchLine = stripPlayerOfMatchLine;
 
 const broadcastHubUpdate = async (matchId = "global") => {
   if (!process.env.BROADCASTER_LAMBDA) return;
@@ -55,13 +80,17 @@ const getPartnerships = (allBalls = []) => {
 
     const isExtra = ball.isExtra || ball.is_extra;
     const extraType = ball.extraType || ball.extra_type;
+    const wicketType = ball.wicketType || ball.wicket_type;
+    const isRetirement = ["RETIRED_HURT", "RETIRED_OUT"].includes(wicketType);
 
-    if (!isExtra || extraType === "LEG_BYE" || extraType === "BYE") {
+    if (
+      !isRetirement &&
+      (!isExtra || extraType === "LEG_BYE" || extraType === "BYE")
+    ) {
       currentBalls++;
     }
 
     const isWicket = ball.isWicket || ball.is_wicket;
-    const wicketType = ball.wicketType || ball.wicket_type;
 
     if (isWicket && wicketType !== "RETIRED_HURT") {
       currentWickets++;
@@ -430,7 +459,9 @@ const sendMatchReportEmail = async (
   }
 
   if (matchRecord.ai_summary) {
-    const safeAiSummary = escapeHtml(matchRecord.ai_summary);
+    const safeAiSummary = escapeHtml(
+      stripPlayerOfMatchLine(matchRecord.ai_summary),
+    );
     const safePomName = escapeHtml(matchRecord.player_of_the_match || "");
 
     htmlBody += `
@@ -526,24 +557,28 @@ const sendMatchReportEmail = async (
   return { adminEmailSent, scorerEmailSent };
 };
 
-exports.handler = async (event) => {
-  const cleanDbUrl = (process.env.DATABASE_URL || "").split("?")[0];
-  const client = new Client({
-    connectionString: cleanDbUrl,
-    // codeql[js/disabling-certificate-validation] Aiven DB requires this unless explicit CA bundle is provided
-    ssl: {
-      rejectUnauthorized: false,
-    },
-  });
+exports.handler = async (event, context) => {
+  if (context) context.callbackWaitsForEmptyEventLoop = false;
+  const { path, httpMethod, body, pathParameters } = event || {};
+  if (httpMethod === "OPTIONS") {
+    return {
+      statusCode: 200,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type,Authorization",
+      },
+      body: "",
+    };
+  }
 
+  let client;
   try {
-    await client.connect();
+    client = await pool.connect();
     const dbSchema = process.env.DB_SCHEMA || "public";
     if (process.env.NODE_ENV !== "test") {
       await client.query(`SET search_path TO ${dbSchema}`);
     }
-
-    const { path, httpMethod, body, pathParameters } = event;
 
     // GET /health — DB connectivity check
     if (httpMethod === "GET" && path === "/health") {
@@ -672,19 +707,6 @@ exports.handler = async (event) => {
           },
         };
       }
-    }
-
-    // Handle CORS Preflight (Updated Methods)
-    if (httpMethod === "OPTIONS") {
-      return {
-        statusCode: 200,
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type,Authorization",
-        },
-        body: "",
-      };
     }
 
     if (httpMethod === "POST" && path === "/match") {
@@ -1706,8 +1728,6 @@ exports.handler = async (event) => {
       headers: { "Content-Type": "application/json" },
     };
   } finally {
-    // Important: In Lambda, frequently connecting/disconnecting is slow.
-    // For production, use pooling. For now, closing the client.
-    await client.end();
+    if (client) client.release();
   }
 };

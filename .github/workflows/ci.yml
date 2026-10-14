@@ -110,7 +110,7 @@ jobs:
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v4
         with:
-          terraform_version: '~1.9'
+          terraform_version: '~1.10'
       - name: Terraform Format Check
         run: terraform fmt -check -recursive
         working-directory: infra/terraform
@@ -139,8 +139,8 @@ jobs:
       TF_VAR_database_url: ${{ secrets.TF_DATABASE_URL }}
       TF_VAR_admin_email: ${{ vars.ADMIN_EMAIL }}
       TF_VAR_llm_api_key: ${{ secrets.OPENAI_API_KEY }}
-      API_GATEWAY_ID: ${{ vars.API_GATEWAY_ID }}
-      WS_API_GATEWAY_ID: ${{ vars.WS_API_GATEWAY_ID }}
+      TF_VAR_llm_base_url: ${{ vars.LLM_BASE_URL }}
+      TF_VAR_llm_model: ${{ vars.LLM_MODEL }}
       S3_BUCKET: ${{ vars.S3_BUCKET }}
       CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
       COGNITO_USER_POOL_ID: ""
@@ -166,7 +166,7 @@ jobs:
         with:
           node-version: '24'
           cache: 'npm'
-          cache-dependency-path: apps/frontend/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install PostgreSQL Client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
@@ -190,7 +190,7 @@ jobs:
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v4
         with:
-          terraform_version: '~1.9'
+          terraform_version: '~1.10'
       
       - name: Terraform Init
         working-directory: infra/terraform
@@ -221,7 +221,6 @@ jobs:
           VITE_APP_TITLE: CricScoreDev
           VITE_API_URL: https://api.${{ vars.DOMAIN_NAME }}
           VITE_WS_URL: wss://ws.${{ vars.DOMAIN_NAME }}
-          VITE_ADMIN_PIN: ${{ secrets.VITE_ADMIN_PIN }}
           VITE_COGNITO_USER_POOL_ID: ${{ env.COGNITO_USER_POOL_ID }}
           VITE_COGNITO_CLIENT_ID: ${{ env.COGNITO_CLIENT_ID }}
           VITE_COGNITO_DOMAIN: ${{ env.COGNITO_DOMAIN }}
@@ -276,5 +275,3 @@ jobs:
           target: 'https://${{ vars.DOMAIN_NAME }}'
           rules_file_name: '.zap/rules.tsv'
           fail_action: false
-
-

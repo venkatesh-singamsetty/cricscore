@@ -31,6 +31,12 @@ variable "project_name" {
   default     = "cricscore"
 }
 
+variable "api_gateway_account_owner_project_name" {
+  type        = string
+  description = "Project name that owns the shared API Gateway account logging role."
+  default     = "cricscore"
+}
+
 variable "ses_source_email" {
   type        = string
   description = "The email address to use as the SES source for sending emails."

@@ -1,12 +1,12 @@
-# Enterprise Testing Strategy for CricScore
+# Testing Strategy for CricScore
 
-This repository follows a rigorous **Enterprise Standard Testing Pyramid**. Tests are structured from the fastest and most isolated to the most comprehensive and integrated.
+This repository's tests range from isolated unit tests to integration and deployed-environment checks. The sections below describe what the current test scripts and workflows actually run.
 
 ---
 
 ## 🚀 Quick Start: Running Local Tests
 
-We have provided a unified script in the root folder to run all fast Unit, Integration, and API tests at once.
+The root script runs the frontend and backend test suites, followed by the HTTP-based chat evaluation. It does not run the Playwright E2E suite.
 
 Run this command from the **root** of the repository:
 
@@ -14,7 +14,11 @@ Run this command from the **root** of the repository:
 npm run test:all
 ```
 
-_(This command automatically runs `npm run test --prefix apps/frontend` and `npm run test --prefix apps/backend` sequentially.)_
+The chat evaluation requires a reachable chat API. Set `CHAT_API_URL` to the API base URL; without it, the runner defaults to `http://localhost:3000`.
+
+```bash
+CHAT_API_URL=https://api.example.com npm run test:all
+```
 
 ---
 
@@ -55,9 +59,9 @@ npm run test --prefix apps/frontend
 
 ## 3. API Tests
 
-API tests explicitly validate the HTTP contract and REST endpoints of the backend architecture. They mock the database but execute the full API request lifecycle.
+Backend handler tests validate selected route behavior using API Gateway-style events and mocked dependencies; deployed HTTP API behavior is covered separately by Playwright request tests.
 
-- **REST API Validation**: We test the API Gateway proxy paths (e.g., `/health`, `GET /matches`, `POST /match`) to guarantee proper status codes (200, 201, 404, 500) and data structures.
+- **REST Handler Tests**: Backend tests call the Lambda handler with API Gateway-style events and mock database interactions. They check selected routes and response codes; they do not send requests through a deployed API Gateway.
   - _Location:_ `apps/backend/lambdas/match-api/index.test.js`
 - **Auth & Authorization Tests**: Per-endpoint authorization is validated:
   - `DELETE /match/{id}` by the match owner → 200
@@ -82,16 +86,16 @@ npm run test --prefix apps/backend
 
 ## 4. Smoke Tests
 
-Smoke tests are the fastest End-to-End checks. They ping the live production application using a real Chromium browser just to verify that the app is online, the DNS is resolving, and critical UI shells are visible.
+Smoke tests use Playwright to check that the app at the configured base URL loads and that the create-match form can be opened when its button is visible.
 
-- **Live Availability Checks**: Validates that the Viewer Dashboard and Match Setup modes successfully render without crashing.
+- **Homepage and Match Setup Checks**: Checks the page title and, when the create-match button is visible, opens the form and checks for team-name inputs. The modal check is skipped if the button is not visible.
   - _Location:_ `apps/e2e/tests/smoke.spec.ts`
-- **AI API Smoke Tests**: Validates that the Agentic RAG endpoints (`/chat` and `/chat/summary`) are deployed, accessible via API Gateway, and correctly handle missing payload schemas without returning 500 errors.
+- **AI API Checks**: Sends requests to `/chat` and `/chat/summary` and checks expected responses for missing fields and a non-existent match ID.
   - _Location:_ `apps/e2e/tests/ai-api.spec.ts`
 
 ### Running Smoke Tests
 
-Run these via Playwright inside the `e2e/` folder:
+Run the smoke checks via Playwright inside the `e2e/` folder:
 
 ```bash
 cd apps/e2e
@@ -104,7 +108,7 @@ npx playwright test tests/smoke.spec.ts
 
 E2E tests sit at the very top of the testing pyramid. They utilize **Playwright** to spin up an actual browser instance, navigate to the application, and simulate a real human being performing complex, multi-step actions.
 
-- **Critical User Journeys**: Automates the entire match lifecycle—navigating the UI, entering authentication credentials, creating a match, selecting squads, winning a toss, scoring an over on the live scoreboard, and gracefully ending the inning.
+- **Critical User Journey**: Automates a two-over match using the guest scorer flow—creating a match, selecting squads, winning a toss, recording scoring and wicket events, completing both innings, and checking the result.
   - _Location:_ `apps/e2e/tests/user-journey.spec.ts`
 
 ### Running E2E Tests
@@ -120,7 +124,7 @@ Because E2E tests require specific browser binaries, you must run them directly 
    npm install
    npx playwright install --with-deps
    ```
-3. Run **both** Smoke and E2E User Journey tests in headless mode (Invisible):
+3. Run all configured Playwright tests (smoke, HTTP API, AI API, and user journey) in headless mode:
    ```bash
    npx playwright test
    ```
@@ -134,7 +138,7 @@ Because E2E tests require specific browser binaries, you must run them directly 
    ```
 
 > [!WARNING]
-> By default, `npx playwright test` targets the live production URL. Do not run this command locally unless you intend to create test records in your production database! To test against a local server, specify the `BASE_URL`:
+> By default, `npx playwright test` uses `http://localhost:3000`. Set `BASE_URL` when targeting a deployed environment, and be aware that journey tests can create or modify test data:
 >
 > ```bash
 > BASE_URL=http://localhost:3000 npx playwright test
@@ -144,66 +148,44 @@ Because E2E tests require specific browser binaries, you must run them directly 
 
 ## 6. AI Chat Evaluation
 
-The AI layer should be validated independently from generic frontend and API testing because chat quality depends on tool selection, grounded reasoning, and safety behavior rather than only HTTP correctness.
+The root `npm run test:ai` script runs `evals/run_ai_chat_eval.js` against the API URL passed with `--url` or `CHAT_API_URL` (default: `http://localhost:3000`). The runner sends prompts from `evals/ai-chat-eval.json` to `/chat` and records HTTP status, latency, and a reply preview in `evals/latest-ai-chat-eval-results.json`.
 
-We recommend a small evaluation baseline under the `evals/` folder that includes:
-
-- tool selection checks (`execute_sql`, `search_tournament_rules`, or no tool)
-- answer grounding checks against live DB results or rulebook context
-- refusal / safety checks for dangerous prompts
-- latency tracking for the chat workflow
-
-Suggested files:
-
-- `evals/ai-chat-eval.json`
-- `evals/run_ai_chat_eval.js` (see [AI Architecture Guide](./ai_architecture.md))
-
-Example evaluation dimensions:
-
-- tool chosen correctly
-- answer uses evidence from the tool result
-- no hallucinated match data
-- no credential leakage
-- rulebook answers cite the correct source document
-
-This gives a measurable quality gate before shipping model or prompt changes.
+The current pass/fail check is based on HTTP success. Although evaluation cases include an `expected_tool` field, the runner does not assert tool selection, answer grounding, or safety quality; those need separate review or additional evaluators.
 
 ---
 
 ## 7. Availability & Reliability Testing
 
-At an enterprise scale, it is crucial to validate that the system survives severe infrastructure degradation and high-concurrency traffic without data loss.
+The repository includes selected reliability tests, but does not provide a comprehensive high-concurrency or infrastructure-failure test suite.
 
-- **Chaos Testing & Fault Injection**: We periodically perform manual fault injection (e.g., forcing the `storage-worker` Lambda to fail or simulating Aiven database throttling) to verify that AWS SQS automatically captures the failed events into a Dead Letter Queue (DLQ).
-- **Dead-Letter Queue (DLQ) Recovery**: We test the DLQ redrive mechanisms to guarantee that dropped events (like boundary updates or wickets) can be seamlessly re-processed once the downstream database recovers.
-- **Multi-AZ Resilience**: AWS API Gateway, Lambda, and DynamoDB automatically distribute across 3 Availability Zones. We test failovers by monitoring CloudWatch latency when regional loads spike.
+- **Queue failure handling**: The current Terraform configures a FIFO SQS persistence queue with a one-day message-retention period, but does not configure a dead-letter queue or redrive policy. DLQ recovery is therefore not part of the current automated tests.
+- **Multi-AZ Resilience**: This repository does not include an automated multi-AZ failover test. Availability and recovery depend on the AWS services and deployment configuration.
 
 ---
 
-## 7. Environment Testing Strategy (Staging vs. Production)
+## 8. Environment Testing Strategy (Dev and Production)
 
-When operating with multiple environments, we strictly divide our testing responsibilities to prevent "noisy" or destructive test data from polluting the live system:
+When operating with multiple environments, consider the impact of test data, especially in production:
 
-### 🔬 Staging Environment
+### 🔬 Development Environment
 
-All heavy, automated, and potentially destructive tests are run against the Staging environment. This prevents dummy data (e.g., "CHICAGO SPARTANS") from appearing to real users.
+The CI workflow deploys to and runs Playwright tests against the development environment on `main` (and on manual dispatch). These tests may create test data in that environment.
 
 - **Full E2E Playwright Suite**: Executes the complete User Journey, creates matches, and interacts with the database.
-- **OWASP ZAP (DAST)**: Actively attacks the API Gateway endpoints and fuzzes the inputs.
+- **OWASP ZAP (DAST)**: Runs a baseline scan against the deployed development site URL. The configured ZAP action does not fail the workflow on findings.
 
 ### 🌐 Direct Production Environment
 
-Production testing is strictly limited to passive observability and lightweight, non-destructive validation.
+The production deployment workflow runs AI evaluation and Playwright tests against the production API and site, followed by a ZAP baseline scan. Playwright tests should be reviewed for their production data impact.
 
-- **Smoke Tests**: A lightweight Playwright test that only verifies the homepage loads and returns `200 OK`, without creating any data.
-- **Synthetic Monitoring**: Tools like our `keepalive.yml` workflow and CloudWatch that ping the `/health` endpoint every 5 minutes to ensure uptime.
+- **Database keep-alive**: `keepalive.yml` runs a database query daily; it is not an application uptime monitor and does not ping the `/health` endpoint.
 - **Passive Observability**: Using AWS CloudWatch Logs and Sentry to monitor real-user traffic for unexpected crashes.
 
 ---
 
 ## Continuous Integration (CI)
 
-Our GitHub Actions pipelines automatically enforce this entire testing pyramid on all Pull Requests and merges to the `main` branch.
+GitHub Actions run validation on pull requests to `main`; deployment, AI evaluation, and deployed-site Playwright tests run in the development or production workflow.
 
-- **DEV & PROD Deployment CI**: `.github/workflows/ci-cd.yml` (for DEV) and `.github/workflows/deploy-prod.yml` (for PROD) automatically execute all Unit, API, Integration, and E2E tests during their respective deployment phases to prevent regressions.
-- **Pull Request E2E CI**: `.github/workflows/e2e.yml` acts as a placeholder check for Pull Requests, as actual E2E execution is deferred to the deployment workflows.
+- **Development**: `.github/workflows/ci.yml` validates changes on pull requests and deploys/tests Dev on `main` or manual dispatch.
+- **Production**: `.github/workflows/cd.yml` deploys on a version tag or manual dispatch, then runs AI evaluation, Playwright tests, and a ZAP baseline scan.

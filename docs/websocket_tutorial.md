@@ -32,18 +32,18 @@ sequenceDiagram
     Scorer->>REST: POST /match/{id}/score { ballData }
     REST->>ScoreLambda: Trigger score-update Lambda
 
-    %% 3. SNS Fan-Out
+    %% 3. SNS broadcast and direct SQS persistence
     ScoreLambda->>SNS: Publish Event to SNS Topic
+    ScoreLambda->>SQS: Send persistence event to FIFO queue
 
     %% Fast-Path Push
     par Fast-Path Push (Spectators)
         SNS->>BroadcasterLambda: Forward Event immediately
         BroadcasterLambda->>DDB: Fetch active connection_ids
         BroadcasterLambda->>WS_GW: Push payload via PostToConnection API
-        WS_GW-->>Spectator: Real-time UI Update (< 100ms)
+        WS_GW-->>Spectator: Real-time UI Update
     %% Reliability Path (Database)
     and Reliability Path (ACID Persistence)
-        SNS->>SQS: Buffer Event in SQS Queue
         SQS->>StorageLambda: Trigger storage-worker Lambda
         StorageLambda->>PG: ACID Commit to PostgreSQL
     end
@@ -55,10 +55,10 @@ sequenceDiagram
 
 ### 1. Dual-Path Architecture (Fast-Path vs Reliability Path)
 
-To guarantee sub-second delivery while ensuring zero data loss during high load:
+The event-driven flow separates spectator updates from database persistence. Delivery time and recovery depend on service availability and queue processing:
 
-- **Fast-Path (Spectator Delivery)**: `score-update` -> `SNS` -> `broadcaster` -> `WebSocket API Gateway` -> `Spectators`. Updates spectators in **< 100ms** by bypassing database writes entirely during the push.
-- **Reliability Path (Persistence Buffer)**: `score-update` -> `SNS` -> `SQS Queue` -> `storage-worker` -> `Aiven PostgreSQL`. SQS buffers incoming events during traffic spikes. If the database experiences transient slowness, SQS safely retains events for up to 14 days with Dead Letter Queue (DLQ) retry logic.
+- **Fast-Path (Spectator Delivery)**: `score-update` -> `SNS` -> `broadcaster` -> `WebSocket API Gateway` -> `Spectators`. Spectator delivery does not wait for the database write, but end-to-end latency depends on service and network conditions.
+- **Persistence Path**: `score-update` sends the event to the FIFO `SQS Queue` -> `storage-worker` -> `Aiven PostgreSQL`. The same score-update function publishes separately to SNS for the broadcaster path. The SQS queue retains messages for up to one day; no dead-letter queue or redrive policy is configured.
 
 ---
 
@@ -74,8 +74,7 @@ Live spectator connection IDs are managed by serverless session Lambdas (`onconn
    ```json
    {
      "connection_id": "conn-12345",
-     "connected_at": 1774343400000,
-     "ttl": 1774429800
+     "connected_at": 1774343400000
    }
    ```
 
@@ -199,8 +198,8 @@ Once connected:
 ## 🛡️ Reliability & Scale Characteristics
 
 - **Zero-Downtime Fan-Out**: Adding more spectators scales automatically via API Gateway WebSockets and Lambda concurrency.
-- **Dead Letter Queue (DLQ)**: Failed database persistence jobs are sent to `cricscore-{env}-storage-dlq` for inspection and replay without losing ball events.
-- **DynamoDB Time-To-Live (TTL)**: Stale connection IDs automatically expire after 24 hours if not pruned manually.
+- **Queue recovery**: The current Terraform does not configure a dead-letter queue or redrive policy. Monitor queue processing and define an operational recovery procedure for failures.
+- **Stale connection cleanup**: Disconnect handlers and broadcaster handling of gone connections remove stale IDs. The current DynamoDB table does not configure TTL expiration.
 
 ---
 

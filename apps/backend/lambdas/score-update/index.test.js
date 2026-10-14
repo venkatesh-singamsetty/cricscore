@@ -10,12 +10,13 @@ import { SQSClient } from "@aws-sdk/client-sqs";
 import pg from "pg";
 
 export const mockQuery = vi
-  .spyOn(pg.Client.prototype, "query")
+  .fn()
   .mockResolvedValue({ rows: [{ scorer_email: "scorer@test.com" }] });
+export const mockRelease = vi.fn();
+const mockClient = { query: mockQuery, release: mockRelease };
 export const mockConnect = vi
-  .spyOn(pg.Client.prototype, "connect")
-  .mockResolvedValue();
-export const mockEnd = vi.spyOn(pg.Client.prototype, "end").mockResolvedValue();
+  .spyOn(pg.Pool.prototype, "connect")
+  .mockResolvedValue(mockClient);
 
 // Mock SNS Client using prototype
 export const mockSend = vi
@@ -83,5 +84,6 @@ describe("score-update Lambda handler", () => {
     const responseBody = JSON.parse(response.body);
     expect(responseBody.success).toBe(true);
     expect(responseBody.messageId).toBe("mock-sns-id-123");
+    expect(mockRelease).toHaveBeenCalled();
   });
 });

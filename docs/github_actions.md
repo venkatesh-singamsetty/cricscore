@@ -1,108 +1,70 @@
-# 🤖 GitHub Actions Architecture & Organization
+# GitHub Actions Architecture
 
-This document explains the architectural constraints and organizational philosophy for CricScore's automated CI/CD and security pipelines.
+This document describes the workflows currently present in `.github/workflows/`.
 
-## 1. Directory Structure Constraints
+## Workflow files
 
-GitHub enforces extremely strict directory constraints for its automated services. We must adhere to these rules; any deviation will cause the pipelines to fail silently.
+GitHub Actions workflow files are stored directly in `.github/workflows/`:
 
-### ❌ What is NOT Allowed:
+| Workflow               | Trigger and purpose                                                                                                                                                                                                    |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ci.yml`               | Runs on pull requests, pushes to `main`, and manual dispatch. Validates frontend, backend, and infrastructure changes. On `main` pushes and manual dispatches, it also deploys to DEV and runs post-deployment checks. |
+| `cd.yml`               | Runs for version tags (`v*`) or manual dispatch with a tag input. Deploys to PROD, then runs AI evaluation, E2E tests, and a ZAP baseline scan.                                                                        |
+| `release.yml`          | Runs after a successful `CI` workflow on `main`, or by manual dispatch, to create a semantic release.                                                                                                                  |
+| `codeql.yml`           | Runs CodeQL analysis on pull requests and pushes to `main`, weekly, and by manual dispatch.                                                                                                                            |
+| `drift.yml`            | Runs scheduled Terraform drift checks and can be started manually.                                                                                                                                                     |
+| `keepalive.yml`        | Scheduled database keepalive workflow.                                                                                                                                                                                 |
+| `mlops-pipeline.yml`   | Trains and evaluates the win-prediction model when ML engine files change, monthly, or by manual dispatch; uploads model artifacts.                                                                                    |
+| `sbom.yml`             | Generates and uploads an SPDX SBOM on pushes to `main`, weekly, or by manual dispatch.                                                                                                                                 |
+| `terraform-unlock.yml` | Manual workflow for unlocking Terraform state.                                                                                                                                                                         |
 
-- **No Subdirectories**: GitHub Actions does not support scanning inside subfolders (e.g., `.github/workflows/cron/dast.yml` will be ignored).
-- **Dependabot Isolation**: Dependabot is a native GitHub service, not a GitHub Action. Its configuration **must** sit exactly at `.github/dependabot.yml`. Moving it into the `workflows` directory will break automated dependency updates.
+Dependabot configuration is separate from workflows and belongs at
+`.github/dependabot.yml`.
 
-### ✅ Correct Structure:
+## Validation and deployment flow
 
-```text
-.github/
-├── dependabot.yml           <-- Native Service (Must be here)
-└── workflows/               <-- Flat folder structure
-    ├── cd.yml
-    ├── ci.yml
-    ├── codeql.yml
-    ├── drift.yml
-    ├── keepalive.yml
-    ├── pr-summary.yml
-    ├── release.yml
-    ├── sbom.yml
-    └── terraform-unlock.yml
-```
+### Pull requests and pushes to `main`
 
-## 2. Naming Conventions & Logical Grouping
+`ci.yml` first runs frontend validation, backend tests and dependency scanning,
+and repository/IaC security checks. Pull requests stop after validation; they do
+not deploy or run Playwright E2E tests.
 
-Because we are forced to keep all workflow files completely flat inside the `.github/workflows/` directory, we use strict naming conventions to logically group them by their trigger and purpose:
+For pushes to `main` and manual dispatches, the workflow also runs the DEV
+deployment job after validation. That job runs the DEV database migrations,
+plans and applies Terraform, builds the frontend with DEV settings, uploads the
+bundle to S3, and invalidates CloudFront. It then runs AI evaluation, Playwright
+tests against DEV, and the configured ZAP baseline scan.
 
-### Core CI/CD (Triggered on Push to `main`)
+`release.yml` is a separate workflow triggered after a successful `CI` workflow
+on `main`. It resets to the exact tested commit before running semantic release.
+Although the workflow declares `workflow_dispatch`, its job condition checks for
+a successful `workflow_run`; a manual dispatch by itself does not meet that
+condition and skips the release job.
 
-These pipelines validate, deploy, and verify the application end-to-end on the DEV environment.
+### Production releases
 
-```mermaid
-graph TD
-    Push[Push to 'main'] --> Validate
-    Validate[1. Validate<br>Unit tests, Checkov, TF Lint] --> DeployDev
+`cd.yml` deploys when a `v*` tag is pushed or when manually dispatched with a
+tag input. It runs production database migrations, Terraform plan/apply, builds
+the frontend with production settings, uploads it to S3, invalidates CloudFront,
+then runs AI evaluation, Playwright E2E tests, and a ZAP baseline scan.
 
-    DeployDev[2. Deploy DEV<br>Terraform Apply (Backend)] --> E2E
-    DeployDev -.->|Parallel| DeployDevFront[2b. Deploy DEV Frontend<br>React Build & S3 Sync]
-    DeployDevFront --> E2E
+Whether a run pauses for approval depends on the protection rules configured
+for the GitHub `prod` environment; the workflow file alone does not guarantee
+manual approval.
 
-    E2E[3. Playwright E2E<br>Test against live DEV site] --> Release
-    Release[4. Semantic Release<br>Auto-generates tag e.g. v2.0.0]
+## Environment-specific frontend builds
 
-    style Push fill:#2c3e50,stroke:#fff
-    style Release fill:#27ae60,stroke:#fff
-```
+Vite embeds `VITE_*` values in the frontend bundle at build time. The CI
+deployment jobs therefore build the frontend separately with the target
+environment's API, WebSocket, and Cognito configuration. The frontend bundle
+is uploaded to S3, and CloudFront is invalidated after upload.
 
-### PROD Deployment (Triggered on Tag Push)
+## Security checks
 
-PROD deployments are strictly tied to semantic version tags, allowing immediate rollbacks to previous versions.
-
-```mermaid
-graph TD
-    TagPush[Push tag 'v*'] --> Approval
-    Approval{Manual Approval<br>GitHub Environments} -->|Approved| DeployProd
-
-    DeployProd[1. Deploy PROD<br>Terraform Apply (Backend)] --> E2EProd
-    DeployProd -.->|Parallel| DeployProdFront[1b. Deploy PROD Frontend<br>React Build & S3 Sync]
-    DeployProdFront --> E2EProd
-
-    E2EProd[2. Playwright E2E<br>Test against live PROD site]
-    DeployProdFront --> ZAP
-    ZAP[2b. DAST ZAP Scan<br>Security scan against PROD]
-
-    style TagPush fill:#2c3e50,stroke:#fff
-    style Approval fill:#f39c12,stroke:#fff
-    style ZAP fill:#c0392b,stroke:#fff
-```
-
-**Key gates:**
-
-- **DEV E2E must pass** before a semantic version tag is created.
-- **A SINGLE Manual approval is required** before any PROD deployment runs (GitHub environment protection on `deploy_prod`).
-- **Rollbacks are instant** by manually triggering the `Deploy PROD` workflow and providing an older tag.
-
-**Workflows:**
-
-- `ci.yml`: Validates code, deploys to DEV, runs ZAP & E2E against DEV.
-- `cd.yml`: Deploys a specific tag to PROD, runs ZAP & E2E against PROD.
-
-### Rebuilding vs. Artifact Promotion
-
-While traditional "D.R.Y." CI/CD principles suggest compiling an artifact only once, CricScore uses **Vite** for the frontend React application. Vite statically bakes environment variables (like `VITE_API_URL` and Cognito IDs) directly into the minified Javascript at build-time.
-Therefore, `ci.yml` performs a "dry-run" build without variables to validate compilation, but the `deploy_and_test_dev` job and `cd.yml` workflow MUST explicitly re-compile the source code to securely inject the correct DEV and PROD environment variables into the static bundles.
-
-### Security & Governance (Triggered on Pull Request)
-
-These pipelines perform deep static analysis and compliance checks. All primary checks (Checkov, GitLeaks, Trivy) run natively in the `ci.yml` matrix.
-
-- `codeql.yml`: GitHub Native Static Application Security Testing (SAST).
-- `sbom.yml`: Generates the SPDX Software Bill of Materials.
-- `pr-summary.yml`: AI-powered workflow that automatically generates a summary of the PR and tracks status check completions.
-
-### Automated Operations (CRON / Triggers)
-
-These pipelines run asynchronously on schedules or specific deployment events.
-
-- `keepalive.yml`: Scheduled CRON job that pings the Aiven Database to prevent inactivity pauses.
-- `drift.yml`: Nightly scheduled Terraform Drift Detection. Runs as a matrix check across both `dev` and `prod` environments, using environment-specific state keys and loading the correct environment secrets/variables to detect manual infrastructure modifications.
-- `release.yml`: Triggered automatically on merge to `main` to generate Semantic Versions and changelogs.
-- `terraform-unlock.yml`: Manual workflow triggered via `workflow_dispatch` to safely force unlock stuck Terraform state files for specific environments.
+- `ci.yml` runs GitLeaks and Checkov, Trivy dependency scans, frontend/backend
+  tests, and Terraform formatting and validation.
+- `codeql.yml` performs JavaScript/TypeScript CodeQL analysis for pull requests,
+  pushes to `main`, scheduled runs, and manual dispatches.
+- `cd.yml` runs the configured OWASP ZAP baseline scan against Production;
+  `ci.yml` runs the corresponding scan against DEV after deployment.
+- `sbom.yml` creates an SPDX-format SBOM and uploads it as a workflow artifact.

@@ -1,6 +1,6 @@
 # 💰 Cloud Cost & Infrastructure Management
 
-This document provides a breakdown of the estimated operational costs for the CricScore platform. The architecture is designed to stay within **Free Tier** limits for small-to-medium deployments.
+This document provides estimated operational costs for the CricScore platform. Free-tier eligibility, allowances, and service pricing vary; treat the figures below as estimates and check the current AWS pricing for your account, region, and deployment.
 
 ## 🏗️ AWS Infrastructure (US-East-1 Estimates)
 
@@ -10,7 +10,7 @@ This document provides a breakdown of the estimated operational costs for the Cr
 - **The Fan-Out Multiplier (3x)**: Every single ball event (1 click) triggers **3 Lambda invocations** (`score-update` -> `broadcaster` -> `storage-worker`).
 - **Cognito Pre-Signup Lambda**: A lightweight `cognito-presignup` Lambda is invoked on each new user registration. Guest accounts (`guest-*@cricscore.local`) auto-confirm; normal accounts go through standard Cognito email verification. This is negligible — well within free tier.
 - **Est. Max Load**: 1M requests / 3 lambdas = 333,333 ball events = **~1,350 Matches per month** remaining at absolutely $0 cost.
-- **Memory Optimization**: Core routing lambdas run at **256MB RAM** (preventing CPU throttling on PostgreSQL handshakes). The AI `chat-api` runs at **1024MB RAM** to handle heavy `pdf-parse` operations. Because AWS bills by GB-seconds, running the 1024MB container for 2 seconds is cheaper than thrashing a 128MB container for 30 seconds.
+- **Memory Configuration**: ZIP-based functions default to **128MB** unless configured otherwise; `score-update` uses **256MB** and `chat-api` uses **1024MB**. The prediction Lambda uses **512MB**. Actual cost depends on each function's configured memory and execution duration.
 
 ### 2. **Real-time: WebSocket API Gateway**
 
@@ -21,8 +21,8 @@ This document provides a breakdown of the estimated operational costs for the Cr
 ### 3. **Messaging & Buffering (AWS SNS & SQS)**
 
 - **SNS (Fan-Out Hub)**: First 1,000,000 Publishes + 100,000 HTTP Deliveries per month are **FREE**.
-- **SQS (Reliability Buffer)**: First 1,000,000 Standard Requests per month are **FREE**.
-- **The Multiplier**: 1 Ball = 1 SNS Publish + 2 SNS Deliveries (Lambda + SQS) + 1 SQS Write.
+- **SQS (Reliability Buffer)**: The configured queue is FIFO, so do not apply the Standard SQS free-request allowance to its requests. Check current FIFO pricing and free-tier eligibility.
+- **The Multiplier**: A score update sends one SNS publish and one direct SQS message. The SNS topic has a Lambda subscription for the broadcaster; SQS is not an SNS subscription in the current Terraform.
 - **Est. Usage**: 300,000 ball events comfortably fit within these limits.
 - **Encryption**: SNS uses `alias/aws/sns` (AWS-managed, **free**). SQS uses `sqs_managed_sse_enabled` (**free**).
 
@@ -52,14 +52,14 @@ This document provides a breakdown of the estimated operational costs for the Cr
 ### 8. **Distributed Tracing: AWS X-Ray**
 
 - **Cost**: First 100,000 traces recorded per month are **FREE**.
-- **Usage**: A strict 5% Sampling Rule is enforced in `infra/terraform/xray.tf`. Even at 1,000,000 API requests, we will only trace ~50,000 requests, guaranteeing $0/month cost.
+- **Usage**: The sampling rule in `infra/terraform/xray.tf` has a 5% fixed rate and a one-request-per-second reservoir. Actual trace volume depends on traffic and sampling behavior; it is not guaranteed to equal 5% of requests.
 
 ### 9. **CloudWatch Dashboard** _(removed — paid)_
 
 - **Cost**: **$3.00/month** per dashboard. No free tier.
-- **Decision**: The Terraform-provisioned `aws_cloudwatch_dashboard` (Mission Control) was removed in Sept 2026 to maintain a strict $0 observability footprint.
-- **Alternative**: All the same metrics (Lambda errors, API traffic, SQS depth) are still accessible individually in the [CloudWatch Metrics console](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#metricsV2) at no cost — just not aggregated into a single screen.
-- **Saving**: **$3.00/month** eliminated.
+- **Decision**: The current Terraform configuration does not provision an `aws_cloudwatch_dashboard`, avoiding the dashboard charge where applicable.
+- **Alternative**: Metrics such as Lambda errors, API traffic, and SQS depth can be inspected individually in the [CloudWatch Metrics console](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#metricsV2); costs may still apply for other observability usage.
+- **Saving**: Avoids any applicable recurring dashboard charge.
 
 ### 10. **CI/CD Automation: GitHub Actions**
 
@@ -77,7 +77,7 @@ This document provides a breakdown of the estimated operational costs for the Cr
 
 ### 12. **Identity: AWS Cognito User Pool** _(new)_
 
-- **Free Tier Limit**: **50,000 Monthly Active Users (MAUs)** per month, permanently free.
+- **Free Tier Limit**: Published Cognito free-tier allowances depend on plan and account eligibility; check current pricing before estimating.
 - **What's included**: Sign-up, sign-in, token issuance (JWT), user pool storage, group management (`Admin` group), and pre-signup Lambda triggers.
 - **Guest accounts**: Each guest scorer creates a shadow Cognito account (`guest-*@cricscore.local`) that counts as 1 MAU per month. Admins can purge stale guest accounts via the Admin Panel or AI Chat to keep MAU count low.
 - **After free tier**: $0.0055 per MAU (e.g., 100,000 MAUs = $275/mo). For a small tournament platform this threshold is extremely unlikely to be reached.
@@ -85,20 +85,20 @@ This document provides a breakdown of the estimated operational costs for the Cr
 
 ### 13. **ML Inference: AWS ECR & Containerized Lambda** _(new)_
 
-- **Free Tier Limit**: **500MB of Private ECR Storage** per month, permanently free. Containerized Lambdas share the standard 1,000,000 free requests per month.
-- **Usage**: The XGBoost Machine Learning model (`ml-engine`) requires heavy dependencies like Pandas and Scikit-Learn that exceed the 250MB Lambda zip limit. By packaging it as a Docker image and deploying it via ECR, we bypass the zip limit entirely (Docker images support up to 10GB).
-- **Cost Efficiency**: AWS charges the **exact same price** for a Docker-based Lambda as a zip-based Lambda. By disabling ECR image scanning (which incurs a fee) in Terraform, the entire ML infrastructure remains at **$0/month**.
+- **Free Tier Limit**: ECR storage allowances and eligibility vary; check current pricing for the account and region. Containerized Lambdas use Lambda's normal invocation and compute pricing.
+- **Usage**: The Scikit-Learn Logistic Regression model (`ml-engine`) and its dependencies are packaged as a Lambda container image in ECR. Container images support up to 10GB.
+- **Cost**: Lambda execution, ECR image storage, and image transfer can incur charges; disabling ECR image scanning does not make the full inference deployment free.
 
 ---
 
 ## 🛡️ Cost Defense & DDoS Guardrails
 
-Because CricScore is a fully serverless platform on the AWS Free Tier, it is critically important to prevent malicious traffic (e.g., DDoS attacks or scrapers) from triggering runaway auto-scaling and incurring unexpected bills. The infrastructure enforces the following strict limits:
+Because CricScore uses serverless AWS services, unplanned traffic can increase usage and cost. The configured controls below provide some traffic and cost safeguards, but do not prevent all DDoS activity or guarantee a maximum bill:
 
-1. **API Gateway Rate Limiting**: Both the HTTP and WebSocket API Gateways have `default_route_settings` enabled with a `throttling_rate_limit = 50` and `throttling_burst_limit = 100`. This instantly drops abusive traffic before it reaches AWS Lambda.
-2. **Lambda Concurrency Caps**: The AWS Sandbox account inherently enforces a strict total concurrency limit of `10` across all Lambdas. This natural ceiling guarantees that massive traffic spikes will be throttled natively by AWS rather than crashing the Aiven Free Tier PostgreSQL database (which has a hard limit of ~25 connections) under heavy load.
-3. **Automated AWS Cost Budgets**: Terraform automatically provisions a `aws_budgets_budget` resource that monitors your account daily. If your projected or actual monthly spend ever exceeds **$5.00**, it will instantly fire an email alert to the `admin_email` specified in your Terraform variables.
-4. **Automated Secrets Scanning**: The CI/CD pipeline and the Git history are continuously monitored by **GitLeaks** to ensure that OpenAI/OpenRouter keys and AWS credentials are never accidentally leaked to the public, which prevents automated crypto-mining bots from hijacking the account.
+1. **API Gateway Throttling**: Both the HTTP and WebSocket API Gateways have `default_route_settings` with a `throttling_rate_limit = 50` and `throttling_burst_limit = 100`. Requests exceeding these limits can be throttled before invoking the backend; this is not comprehensive DDoS protection.
+2. **Lambda Concurrency**: This Terraform configuration does not set a reserved concurrency cap. Any account-level concurrency quota depends on the AWS account and region; do not rely on it as a database protection or cost limit.
+3. **AWS Cost Budget**: Terraform configures an actual-cost email notification at 100% of a **$5.00 monthly budget**. Notifications can be delayed and are not a spending cap; no projected-cost alert is configured here.
+4. **Secrets Scanning**: GitLeaks runs in CI, and the local pre-commit hook scans staged files when GitLeaks is installed. These checks reduce risk but cannot guarantee that secrets have never been exposed.
 
 ---
 
@@ -135,8 +135,8 @@ For a standard **20-Overs Match** (120 balls per innings = **240 total events/ma
 ### 1. **Compute (AWS Lambda / API Gateway)**
 
 - **Limit**: 1,000,000 requests per month.
-- **Conversion**: 1,000,000 / 240 = **~4,166 full matches per month**.
-- **Usage**: You can host over **130 matches per day for free**.
+- **Conversion**: At three Lambda invocations per ball event, 1,000,000 / (240 events × 3) = **~1,388 full matches per month**, before counting other Lambda invocations or charges.
+- **Usage**: This is a theoretical estimate using the stated request allowance; actual free usage depends on account eligibility and all other invocations and service charges.
 
 ### 2. **Storage (Aiven PostgreSQL)**
 
@@ -162,10 +162,10 @@ The AI Assistant uses native OpenAI models with extreme cost efficiency:
 | **Chat & SQL Agent**  | `gpt-4o-mini`            | $0.15 / 1M input<br>$0.60 / 1M output | ~1,500 input tokens<br>~300 output tokens | **~$0.0004** per query      |
 | **Vector Embeddings** | `text-embedding-3-small` | $0.02 / 1M tokens                     | ~15,000 tokens / PDF                      | **~$0.0003** per PDF upload |
 
-### Balance Utilization ($4.50 OpenAI Credit):
+### AI Usage Planning
 
-- **Chat Capacity**: ~$4.50 / $0.0004 = **~11,250 chat queries**.
-- **Rulebook Upload Capacity**: ~$4.50 / $0.0003 = **~15,000 PDF uploads**.
+- **Estimated Capacity**: Divide the available provider balance or usage budget by the estimated average cost per action to approximate the number of chat queries or document uploads it can support.
+- **Actual Usage**: Costs vary with the selected models, input and output sizes, and provider pricing. Check the provider's usage dashboard to monitor actual spend.
 
 ---
 
@@ -174,7 +174,7 @@ The AI Assistant uses native OpenAI models with extreme cost efficiency:
 1.  **Match Lifecycle Management**: Set a matches `status` to `COMPLETED` to stop unnecessary WebSocket polling.
 2.  **Log Retention**: Configure CloudWatch logs for 7-day retention to avoid storage creep.
 3.  **Domain Selection**: Use low-cost TLDs (like `.site` or `.me`) via registrars like **Spaceship** or **Porkbun** to keep your yearly overhead under **$2.00**.
-4.  **Strict Zero-Cost Infrastructure**: We have explicitly disabled **S3 Versioning** and **DynamoDB Point-in-Time Recovery (PITR)** across the Terraform stack to guarantee $0 hidden backup costs.
+4.  **Review Backup Storage**: Frontend S3 bucket versioning is enabled; DynamoDB point-in-time recovery is not configured in the current Terraform. Review retained versions and backups for storage costs.
 5.  **Avoid Customer Managed KMS Keys (CMKs)**: Each CMK costs $1.00/month regardless of usage. Use free AWS-managed alternatives: `AES256` for S3, `alias/aws/sns` for SNS, `sqs_managed_sse_enabled` for SQS.
 6.  **Purge Guest Cognito Accounts**: Guest shadow accounts (`guest-*@cricscore.local`) each count as 1 Cognito MAU/month. Use the Admin Panel or AI Chat (`delete all guest users`) to remove stale accounts before they accumulate.
 7.  **Match Backup Size**: S3 match backup snapshots are small (~5–15KB each) but grow over time. The Admin Panel cleanup also removes match records; pair it with periodic S3 lifecycle rules if needed.

@@ -29,13 +29,13 @@ This is the full deployment reference for CricScore — from registering a domai
 
 - A **dev environment** (e.g., `cricscoredev.yourdomain.com`) for testing
 - A **prod environment** (e.g., `cricscore.yourdomain.com`) for live matches
-- Fully automated CI/CD that deploys on every push to `main`
+- CI validates pull requests; pushes to `main` can trigger the development deployment workflow.
 
 ---
 
 ## Step 0: Get Your Accounts & Domain
 
-You need three things before touching any code.
+You need four things before deploying the application.
 
 ### 1. A Domain Name
 
@@ -45,20 +45,20 @@ Buy a domain from [Spaceship](https://www.spaceship.com/), [Porkbun](https://por
 
 Sign up at [aws.amazon.com](https://aws.amazon.com/). After signing in:
 
-1. Go to **IAM → Users → Create User**
-2. Attach the **AdministratorAccess** policy
-3. Go to **Security Credentials → Create Access Key** and save the `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
+1. Configure local AWS CLI credentials using IAM Identity Center, an assumed role, or a dedicated IAM identity.
+2. Use a dedicated deployment identity with only the permissions required for the resources managed by Terraform; avoid using root credentials or granting broad administrator access for routine deploys.
+3. The current GitHub deployment workflows use `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` environment secrets. If using those workflows, configure credentials for a dedicated deploy identity and store them as GitHub environment secrets.
 
 ### 3. An Aiven PostgreSQL Database
 
-Sign up at [console.aiven.io](https://console.aiven.io/) and create a **free** PostgreSQL service:
+Sign up at [console.aiven.io](https://console.aiven.io/) and create a PostgreSQL service on a plan available to your account:
 
 1. Click **Create Service → PostgreSQL**
-2. Choose the **Free** plan
+2. Choose an available plan that fits your workload and budget; availability, eligibility, and pricing can change.
 3. After it starts, click your service → **Overview** → copy the **Service URI** (starts with `postgres://avnadmin:...`)
 
 > [!NOTE]
-> Both `dev` and `prod` share one Aiven database. They are isolated via PostgreSQL schemas (`dev` and `prod`).
+> Dev and prod use separate PostgreSQL schemas when configured to share a database instance. Configure each environment's database connection string as appropriate.
 
 ### 4. An OpenAI API Key (for AI features)
 
@@ -163,11 +163,11 @@ VITE_SENTRY_DSN=
 
 ## Step 3: Bootstrap — One-Time AWS Setup
 
-This creates the S3 bucket and DynamoDB table that store your Terraform state, plus the Route 53 hosted zone for your domain. **Run this once.**
+This creates the S3 state bucket and Route 53 hosted zone for your domain. **Run this once.**
 
 ### 3a. Configure and Run Bootstrap
 
-The bootstrap creates the S3 state bucket, DynamoDB lock table, and Route 53 hosted zone.
+The bootstrap creates the S3 state bucket and Route 53 hosted zone. Terraform uses native S3 lock files; the bootstrap's legacy DynamoDB lock table is not used by the current backend.
 
 1. Navigate to the bootstrap folder:
 
@@ -198,7 +198,7 @@ backend "s3" {
   bucket         = "yourname-cricscore-state"   # Match the bootstrap bucket name
   key            = "cricscore/terraform.tfstate"
   region         = "us-east-1"
-  dynamodb_table = "terraform-state-locking"
+  use_lockfile   = true
   encrypt        = true
 }
 ```
@@ -217,7 +217,7 @@ After the bootstrap runs, AWS gives you 4 nameservers:
 
 1. Go to **AWS Console → SES → Verified Identities → Create Identity**
 2. Enter `yourdomain.com` and verify ownership via the DNS TXT record shown
-3. This lets SES send match report emails from `noreply@yourdomain.com`
+3. Verify the sender identity used by the app. If the SES account is still in the sandbox, recipients must also be verified; request production access if the app needs to email unverified recipients.
 
 ---
 
@@ -235,18 +235,27 @@ Run the canonical deploy script for your target environment:
 
 The script automatically:
 
-1. Runs PostgreSQL database schema migrations
-2. Provisions all AWS infrastructure via Terraform
+1. Installs frontend and Lambda dependencies
+2. Initializes Terraform and applies AWS infrastructure
 3. Reads the live API Gateway and WebSocket URLs from Terraform output
-4. Injects them into `apps/frontend/.env`
+4. Rewrites the generated `VITE_*` entries in `apps/frontend/.env`
 5. Builds the React app
 6. Uploads to S3 and invalidates CloudFront cache
 
-After a successful deploy you'll see:
+The local deploy script does **not** run database migrations. Run them separately
+from `infra/database`, using the connection string for the target environment:
 
+```bash
+set -a
+source .env.local
+set +a
+(cd infra/database && ./migrate.sh "$TF_DATABASE_URL" dev)
 ```
-✅ Local DEV Deployment Complete!
-```
+
+Use `prod` instead of `dev` only when intentionally migrating the production
+schema. The GitHub deployment workflows run the corresponding migration step.
+
+After a successful local deploy, the script prints the deployed website URL.
 
 Your app is live at `https://cricscoredev.yourdomain.com` (or your configured domain).
 
@@ -263,10 +272,10 @@ npm run dev
 
 This starts a local dev server that points to your deployed backend APIs.
 
-To run all unit and API tests:
+To run the frontend and backend test suites followed by the HTTP-based chat evaluation (set `CHAT_API_URL` to a reachable API; this does not run Playwright E2E tests):
 
 ```bash
-npm run test:all
+CHAT_API_URL=https://api.yourdomain.com npm run test:all
 ```
 
 ---
@@ -291,11 +300,14 @@ gh auth login
 
 ### 6b. How the pipeline works
 
-| Event               | What Happens                                                                     |
-| ------------------- | -------------------------------------------------------------------------------- |
-| **Open/Update PR**  | Runs formatters, security scans, unit tests, and E2E tests. No deployment.       |
-| **Merge to `main`** | Deploys strictly to **DEV**, runs E2E, and auto-generates semantic version tags. |
-| **Tag Push `v*`**   | Deploys to **PROD** after a manual GitHub Environment approval step.             |
+| Event              | What Happens                                                                                               |
+| ------------------ | ---------------------------------------------------------------------------------------------------------- |
+| **Open/Update PR** | Runs security checks, frontend/backend tests, build, and Terraform validation. No deployment or E2E run.   |
+| **Push to `main`** | After validation passes, deploys to **DEV** and runs E2E, AI evaluation, and the configured security scan. |
+| **Tag Push `v*`**  | Runs the **PROD** deployment workflow, followed by AI evaluation, E2E, and the configured security scan.   |
+
+Production approval depends on the GitHub `prod` environment protection rules
+configured in the repository; a tag push alone does not imply manual approval.
 
 ---
 

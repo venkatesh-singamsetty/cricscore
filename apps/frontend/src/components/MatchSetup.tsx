@@ -94,12 +94,12 @@ const SquadInput = ({
       <div className="relative flex bg-slate-950 rounded-[1.5rem] border border-white/10 overflow-hidden focus-within:border-indigo-500/50 transition-all shadow-2xl">
         <div
           ref={lineNumbersRef}
-          className="w-10 bg-slate-900/50 border-r border-white/5 flex flex-col items-center pt-2 select-none overflow-hidden shrink-0"
+          className="w-10 bg-slate-900/50 border-r border-white/5 flex flex-col items-center pt-2 md:pt-1 select-none overflow-hidden shrink-0"
         >
           {Array.from({ length: lineCount }).map((_, i) => (
             <span
               key={i}
-              className="text-xs font-black text-slate-600 h-[28px] leading-[28px]"
+              className="text-xs md:text-[10px] font-black text-slate-600 h-[28px] leading-[28px] md:h-4 md:leading-4"
             >
               {i + 1}
             </span>
@@ -114,7 +114,7 @@ const SquadInput = ({
             handleScroll(textareaRef.current, lineNumbersRef.current)
           }
           rows={12}
-          className="flex-1 bg-transparent px-3 pt-2 pb-6 text-base font-black text-slate-300 outline-none resize-none scrollbar-hide uppercase leading-[28px] overflow-y-auto"
+          className="flex-1 bg-transparent px-3 pt-2 pb-6 md:pt-1 md:pb-2 text-base md:text-xs font-black text-slate-300 outline-none resize-none scrollbar-hide uppercase leading-[28px] md:leading-4 overflow-y-auto"
           value={value}
           onChange={handleChange}
           placeholder="Enter player name..."
@@ -157,9 +157,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
   const lineNumbersRefA = useRef<HTMLDivElement>(null);
   const lineNumbersRefB = useRef<HTMLDivElement>(null);
 
-  const API_URL =
-    import.meta.env.VITE_API_URL ||
-    "https://api.cricscoredev.venkateshsingamsetty.com";
+  const API_URL = import.meta.env.VITE_API_URL || "";
 
   const parsedTeamA = teamASquad
     .split("\n")
@@ -639,7 +637,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
           )}
           <div className="flex-1 grid grid-cols-2 gap-3 min-h-0">
             <div className="relative group flex flex-col flex-1 min-h-0">
-              <div className="relative flex-1 bg-slate-900/50 border border-white/5 p-4 rounded-[2rem] flex flex-col space-y-3 backdrop-blur-sm shadow-2xl overflow-y-auto scrollbar-hide min-h-[220px]">
+              <div className="relative flex-1 bg-slate-900/50 border border-white/5 p-4 md:p-3 rounded-[2rem] flex flex-col space-y-3 md:space-y-2 backdrop-blur-sm shadow-2xl overflow-y-auto scrollbar-hide min-h-[220px] md:min-h-0">
                 <div className="shrink-0 text-center">
                   <label className="text-[9px] font-black uppercase tracking-[0.3em] text-indigo-400 mb-1 block">
                     Team Name
@@ -663,7 +661,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
               </div>
             </div>
             <div className="relative group flex flex-col flex-1 min-h-0">
-              <div className="relative flex-1 bg-slate-900/50 border border-white/5 p-4 rounded-[2rem] flex flex-col space-y-3 backdrop-blur-sm shadow-2xl overflow-y-auto scrollbar-hide min-h-[220px]">
+              <div className="relative flex-1 bg-slate-900/50 border border-white/5 p-4 md:p-3 rounded-[2rem] flex flex-col space-y-3 md:space-y-2 backdrop-blur-sm shadow-2xl overflow-y-auto scrollbar-hide min-h-[220px] md:min-h-0">
                 <div className="shrink-0 text-center">
                   <label className="text-[9px] font-black uppercase tracking-[0.3em] text-purple-400 mb-1 block">
                     Team Name
@@ -687,7 +685,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
               </div>
             </div>
           </div>
-          <div className="bg-slate-900/80 border border-indigo-500/20 p-4 rounded-[2rem] shadow-2xl backdrop-blur-xl shrink-0">
+          <div className="bg-slate-900/80 border border-indigo-500/20 p-4 md:p-3 rounded-[2rem] shadow-2xl backdrop-blur-xl shrink-0">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center px-4">
               <div className="flex items-center gap-6">
                 <div className="shrink-0">

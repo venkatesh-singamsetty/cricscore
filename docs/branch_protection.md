@@ -1,42 +1,33 @@
 # 🛡️ Branch Protection & Governance
 
-This document outlines the strict repository governance and branch protection rules enforced on the `main` branch to ensure zero-downtime deployments, maintain code quality, and block security vulnerabilities.
+This document describes the repository's branch-protection guidance. Verify which rules and required status checks are currently enabled in the GitHub repository settings; those settings are not defined by the workflow files.
 
-These rules are enforced at the repository level via GitHub.
+The `CI` and `CodeQL Analysis` workflows run validation on pull requests targeting `main`.
 
-## 1. Required Status Checks
+## 1. Pull Request Workflow Checks
 
-Before any Pull Request can be merged into `main`, it must successfully pass the following **8 automated CI/CD checks**. These checks cannot be bypassed.
+The workflows produce the following checks on pull requests. Whether GitHub requires a check before merging depends on the repository's branch-protection settings.
 
-| Check Name                                 | Purpose                                                                                                                                      | Workflow Source                 |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
-| **`GitLeaks Scan`**                        | Scans the PR diff for over 150 types of secrets (AWS Keys, Admin PINs, Passwords). Blocks the merge if any hardcoded secret is detected.     | `.github/workflows/secrets.yml` |
-| **`playwright-tests`**                     | A placeholder check ensuring E2E tests are acknowledged; actual execution is deferred to the CI/CD deployment pipelines (Dev and Prod).      | `.github/workflows/e2e.yml`     |
-| **`Analyze Code (javascript-typescript)`** | Runs GitHub CodeQL Static Application Security Testing (SAST) for JS/TS code.                                                                | `.github/workflows/codeql.yml`  |
-| **`Lint & Test`**                          | Executes the `vitest` unit testing suite and `prettier` code formatter for the frontend application. Prevents broken UI code from deploying. | `.github/workflows/ci-cd.yml`   |
-| **`Backend & Terraform Validation`**       | Runs `npm test` on lambdas, `trivy` container scanning, `terraform validate`, and Checkov static analysis for AWS IaC.                       | `.github/workflows/ci-cd.yml`   |
-| **`CodeQL`**                               | GitHub SAST status check wrapper.                                                                                                            | `.github/workflows/codeql.yml`  |
-| **`Syft SBOM Generation`**                 | Automatically generates an SPDX Software Bill of Materials (SBOM) for the entire repository to track supply-chain vulnerabilities.           | `.github/workflows/sbom.yml`    |
-| **`AI Chat Evaluation`**                   | Validates AI eval dataset schema and runs Vitest unit tests for LLM chat handler functions.                                                  | `.github/workflows/ci-cd.yml`   |
+| Workflow check                          | What it runs                                                                        |
+| --------------------------------------- | ----------------------------------------------------------------------------------- |
+| **`Infrastructure & Secrets Security`** | GitLeaks and Checkov                                                                |
+| **`Lint & Test`**                       | Frontend Trivy scan, type-check/lint, unit tests, and production build              |
+| **`Backend & Terraform Validation`**    | Backend tests, backend Trivy scan, Terraform format check, and Terraform validation |
+| **`Analyze Code`**                      | JavaScript/TypeScript CodeQL analysis                                               |
 
-## 2. Administrator Enforcement
+The deployment and Playwright jobs in `ci.yml` run on `main` (or manual dispatch), not on pull requests. The SBOM workflow runs on pushes to `main`, weekly, and by manual dispatch.
 
-By default, GitHub allows repository administrators to click "Merge" even if the checks fail.
-CricScore explicitly disables this bypass:
+## 2. Recommended Branch Protection
 
-- **`enforce_admins: true`**: "Do not allow bypassing the above settings". This physically blocks the merge button for all users, including the repository owner, until the pipelines turn green.
+Consider requiring the appropriate pull-request checks and enabling administrator enforcement. Confirm the actual values in GitHub settings before relying on them.
 
-## 3. Strict Branch Updating
+## 3. Recommended Branch Updating
 
-- **`strict: true`**: "Require branches to be up to date before merging".
-  If another developer merges a PR before you, your PR will block merging until you pull the latest `main` branch into your code and re-run all 8 status checks against the newest codebase. This prevents merge conflicts from breaking the live site.
+Requiring branches to be up to date before merging can ensure changes are validated against the latest `main`. Confirm whether this setting is enabled in GitHub.
 
-## 4. History Preservation
+## 4. History Protection
 
-To preserve an auditable and immutable history of code changes:
-
-- **Allow Force Pushes (`allow_force_pushes`)**: `false`. No one can rewrite the git history of the `main` branch.
-- **Allow Deletions (`allow_deletions`)**: `false`. The `main` branch cannot be accidentally or maliciously deleted.
+Consider disabling force pushes and branch deletion for `main`; verify these settings in GitHub.
 
 ---
 

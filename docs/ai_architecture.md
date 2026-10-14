@@ -9,7 +9,7 @@ Our chatbot is a fully autonomous AI Agent capable of two primary RAG methodolog
 
 ## 🏗️ Architecture
 
-The AI Chat system is built as a serverless Lambda (`chat-api`) integrated with Amazon API Gateway, communicating directly with OpenAI using **OpenAI Tool Calling (Functions)**.
+The AI Chat system runs in the `chat-api` Lambda behind Amazon API Gateway. It uses OpenAI-compatible chat completions and tool calling; the provider and model are configurable.
 
 ```mermaid
 sequenceDiagram
@@ -19,12 +19,12 @@ sequenceDiagram
     participant APIGW as API Gateway (/chat)
     participant ChatAPI as chat-api Lambda (MCP Client)
     participant MCPServer as MCP Server (In-Memory)
-    participant LLM as Chat LLM (OpenAI gpt-4o-mini)
-    participant EmbedLLM as Embedding LLM (text-embedding-3-small)
+    participant LLM as Configured Chat LLM
+    participant EmbedLLM as Configured Embedding Provider
     participant Aiven_PG as Aiven PostgreSQL
 
     Viewer->>App: Sends Chat Message
-    App->>APIGW: POST /chat { message, matchId }
+    App->>APIGW: POST /chat { message, matchId, history, isAdmin }
     APIGW->>ChatAPI: Trigger Event
 
     rect rgb(200, 200, 200, 0.1)
@@ -58,10 +58,10 @@ sequenceDiagram
             Note right of ChatAPI: 2. Vector RAG Routing
             LLM-->>ChatAPI: Generate Tool Call: `search_tournament_rules`
             ChatAPI->>MCPServer: Delegate: Call `search_tournament_rules`
-            MCPServer->>EmbedLLM: Request Embedding (text-embedding-3-small)
+            MCPServer->>EmbedLLM: Request Embedding (configured model)
             EmbedLLM-->>MCPServer: Return Vector (Embeddings)
-            MCPServer->>Aiven_PG: SELECT chunk_text ORDER BY embedding <=> $1 LIMIT 3
-            Aiven_PG-->>MCPServer: Return top 3 rule chunks
+            MCPServer->>Aiven_PG: SELECT chunk_text ORDER BY embedding <=> $1 LIMIT 8
+            Aiven_PG-->>MCPServer: Return up to 8 rule chunks
             MCPServer-->>ChatAPI: Return MCP Standard Response
             ChatAPI->>LLM: Return Tool Result
             LLM-->>ChatAPI: Generate Final Rule-based Answer
@@ -89,71 +89,66 @@ To understand why it is designed this way, think of it like a **Manager (the LLM
 
 ### The Exact Flow: Answering a Fan's Question
 
-When a fan asks a question (e.g., _"Who scored the most runs today?"_), the following strictly separated execution occurs:
+When a fan asks a question (e.g., _"Who scored the most runs today?"_), The request is handled as follows:
 
 1. **The Question Arrives:** API Gateway triggers the `chat-api` Lambda.
 2. **The MCP Client Checks Tools:** Inside the Lambda, the MCP Client asks the local MCP Server (also inside the Lambda): _"What tools do you have?"_ The server responds with schemas for tools like `execute_sql`.
-3. **The LLM "Thinks" (External Call):** The MCP Client sends the question and the tool schemas across the internet to the OpenAI LLM (`gpt-4o-mini`). The LLM thinks: _"I don't know the answer, but I can use `execute_sql` to find out!"_ The LLM replies with a request to execute a specific SQL query.
+3. **The LLM "Thinks" (External Call):** The MCP Client sends the question and tool schemas to the configured OpenAI-compatible provider and model. The model may request a tool call such as `execute_sql`.
 4. **The MCP Server "Acts" (Local Execution):** The MCP Client receives this request and turns to the local MCP Server. The MCP Server uses its secret `DATABASE_URL`, connects to Aiven PostgreSQL, executes the query, and gets the JSON result.
 5. **The LLM Answers:** The MCP Client sends the raw database JSON back to the LLM. The LLM reads it and generates a friendly, natural response (e.g., _"Virat was the top scorer with 85 runs!"_).
 6. **The Response:** The final friendly answer is returned to the Fan.
 
-**Why is this brilliant?** The LLM never connected to your database. Your `DATABASE_URL` password never left your AWS cloud. The LLM is strictly kept in a "sandbox" where it can only _request_ that actions be taken, while the MCP Server acts as the secure bouncer.
+The LLM does not connect directly to PostgreSQL, and the database connection credentials remain in the Lambda environment. Tool results and generated SQL are sent to the configured LLM provider. Read-only SQL execution limits database writes, but does not by itself authenticate callers or make other tools safe.
 
 ### Technical Implementation
 
 Instead of tightly coupling database and vector logic directly into the LLM chat router loop, the `chat-api` Lambda operates using an **MCP Client-Server Architecture**:
 
-1. **MCP Server (`mcpServer.js`):** A standalone module that defines the tools (`execute_sql`, `search_tournament_rules`) using the `@modelcontextprotocol/sdk`. It manages the database pooling and security parameters internally.
-2. **MCP Client (`index.js`):** The main Lambda handler instantiates an MCP Client, connects to the MCP Server via `InMemoryTransport`, and dynamically lists the tools. When the LLM decides to call a tool, the client simply delegates the call via the standardized `client.callTool()` interface.
+1. **MCP Server (`mcp/server.js`):** Defines `execute_sql` and `search_tournament_rules`, plus destructive tools when the `isAdmin` argument passed to the chat handler is truthy.
+2. **MCP Client (`handlers/chatHandler.js`):** Connects to the in-process server via `InMemoryTransport`, lists its tools, and delegates model-requested tool calls with `client.callTool()`.
 
-_Why use `InMemoryTransport`?_ Standard MCP typically runs over `stdio` or WebSockets/SSE for local IDE or distributed execution. By utilizing the `InMemoryTransport` within the Lambda, we achieve the perfect architectural decoupling and standardization of MCP without needing to provision expensive, long-running ECS/EC2 containers to host an SSE server!
+_Why use `InMemoryTransport`?_ The MCP client and server communicate inside the Lambda process, so a separate MCP host service is not needed. Lambda, database, and provider usage can still incur costs.
 
 ### ⏳ The Serverless Execution Lifecycle
 
 Because the MCP Client and Server run on AWS Lambda via `InMemoryTransport`, their execution speed is determined by the Serverless lifecycle:
 
-1. **The "Cold Start" (The first question in a while)**
-   If no questions have been asked for ~15 minutes, AWS terminates the container to save money. When a new question arrives, AWS spins up a new micro-container and boots Node.js. Because the MCP Client & Server are just JavaScript classes in memory, they initialize in just **~2 to 5 milliseconds**. The entire boot process takes roughly **500ms to 1 second** before sending the prompt to the LLM.
-
-2. **The "Warm Start" (Subsequent questions)**
-   If another question is asked shortly after, AWS reuses the "frozen" container. The Node.js environment, database connection pool, and **MCP Client/Server are already initialized and waiting in memory**. The boot time is **~0 milliseconds**, and the prompt is instantly routed to the LLM.
-
-**How long does the MCP Server stay alive?**
-It stays alive exactly as long as the Lambda container stays alive. Between questions, AWS freezes the container (you do not pay for frozen time). After roughly 15 to 45 minutes of complete inactivity, AWS destroys the container and the MCP Server with it, returning your AWS bill to $0.00.
+AWS Lambda may reuse an execution environment between invocations or create a new one. The MCP client, server, and database pool are initialized in that environment; startup time, reuse duration, and request latency vary and are not fixed guarantees.
 
 ## 📚 Vector RAG: Multi-Document PDF Tournament Rules
 
 We have extended the PostgreSQL database with the `pgvector` extension to serve as a native Vector Database alongside our relational data. This completely removes the need for a third-party vector database (like Pinecone).
 
-1. **Multi-Document PDF Processing (`/rules/upload`):** Admins can upload multiple distinct PDF rulebooks via the AI Chatbot (shown only when logged in as Admin). The `chat-api` Lambda receives the base64 encoded PDF along with the `fileName`, uses `pdf-parse` (v2) to extract text, and splits the text into chunks.
+1. **Multi-Document PDF Processing (`/rules/upload`):** The chatbot UI shows rulebook controls to admins. The `chat-api` Lambda receives a base64-encoded PDF and `fileName`, uses `pdf-parse` (v2) to extract text, and splits the text into chunks.
 2. **Scoped Replacements:** If a document with the same `fileName` is uploaded, the backend first issues a scoped `DELETE FROM tournament_rules WHERE document_name = $1` to wipe the old chunks for that specific document before inserting the new ones.
-3. **Batch Embedding Generation:** To prevent AWS API Gateway from timing out (30-second hard limit), the backend passes all chunks in a single batched array request to OpenAI's `text-embedding-3-small` model.
-4. **Storage:** The chunks, their 1536-dimensional embeddings, and the `document_name` are stored in the `tournament_rules` table.
-5. **Agentic Tool:** The LLM is provided the `search_tournament_rules` tool. If a user asks a rule-related question, the LLM calls this tool, and the backend performs a semantic vector search (`<=>`) against `pgvector` to return the 3 most relevant paragraphs to the LLM, including their source `document_name`.
-6. **Explicit Citations:** The LLM is strictly instructed via its system prompt to explicitly cite `[Source: document_name]` in its final response, so users can trust exactly which rulebook the regulation came from.
+3. **Batch Embedding Generation:** The backend sends the chunks in one batched request to the configured embedding endpoint. The embedding provider and model are configurable.
+4. **Storage:** The chunks, their embeddings, and the `document_name` are stored in the `tournament_rules` table. The current default embedding model produces 1536-dimensional vectors.
+5. **Agentic Tool:** The LLM is provided the `search_tournament_rules` tool. The backend performs a semantic vector search (`<=>`) against `pgvector` and returns up to 8 matching chunks with their source `document_name`.
+6. **Citations:** The system prompt instructs the model to cite `[Source: document_name]`; generated citations are model output and are not independently verified.
+
+> **Authorization warning:** The API Gateway route for `/rules/upload`, as well as the chat and rule-management routes, is configured without a JWT authorizer. Hiding the controls in the frontend does not protect these endpoints. Add server-side admin authorization before relying on them for administrative actions.
 
 ## 🔑 LLM API Key Configuration & Provider Setup
 
-The backend connects directly to **OpenAI** for high-precision inference and embedding generation:
+The backend uses an OpenAI-compatible API. `LLM_BASE_URL` selects the endpoint, `LLM_API_KEY` (or `OPENAI_API_KEY`) supplies credentials, and `LLM_MODEL` can override the selected chat model:
 
-- **Chat & Tool Calling Engine:** `gpt-4o-mini` (lightning-fast, structured reasoning, full tool-calling support)
-- **Vector Embedding Engine:** `text-embedding-3-small` (1536-dimensional semantic vector embeddings for `pgvector`)
+- **Chat & Tool Calling Engine:** Defaults to `gpt-4o-mini`, or `llama-3.3-70b-versatile` when the configured base URL contains `groq`.
+- **Vector Embedding Engine:** Defaults to `text-embedding-3-small`; `EMBEDDING_MODEL` can override it.
 
-### ⚡ Why OpenAI Responses Are Superior (Model vs Settings Breakdown)
+The selected provider must support the chat-completions, tool-calling, embeddings, and JSON response features used by the handlers.
 
-The AI Assistant produces accurate, well-formatted, and reliable answers due to a combination of model capabilities and RAG configuration tuning:
+### ⚙️ Model and Retrieval Settings
 
-| Aspect                 | Optimization / Tuning                                  | Impact on Response Quality                                                                                                                            |
-| :--------------------- | :----------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Model Choice**       | `gpt-4o-mini`                                          | Superior instruction-following, multi-step SQL synthesis, and strict adherence to rulebook parameters compared to legacy open-source models.          |
-| **Paragraph Chunking** | ~1,000 char paragraph blocks (`uploadRulesHandler.js`) | Replaced arbitrary line-count cuts with double-newline paragraph boundaries, preventing split sentences and preserving context.                       |
-| **pgvector Retrieval** | `LIMIT 8` chunks (`searchRules.js`)                    | Increased vector search limit from 3/6 to 8 chunks, feeding up to ~6,400 characters of exact rulebook context per query.                              |
-| **Token Limit**        | `max_tokens: 2000` (`chatHandler.js`)                  | Prevents response truncation when formatting 10-match tables or complex multi-paragraph explanations.                                                 |
-| **Temperature**        | `temperature: 0.1`                                     | Ensures deterministic, factual responses without creative hallucination on match stats or rulebook provisions.                                        |
-| **Guardrail Rule 8**   | System Prompt Rule 8                                   | Explicitly instructs model: _"ALWAYS prefer the uploaded rulebook text as absolute truth over general knowledge"_ (e.g. Leg Byes counting as extras). |
-| **Time Awareness**     | System Prompt Date Injection                           | Injects real-time `Date().toISOString()` to prevent the LLM from defaulting to its training cutoff year (e.g., assuming "August" means August 2023).  |
-| **SQL Generation**     | System Prompt PostgreSQL Hints                         | Explicitly enforces strict `GROUP BY` rules and corrects common column hallucinations (e.g., `team_name` -> `batting_team_name`) for player stats.    |
+These settings describe the current implementation; they do not guarantee answer accuracy:
+
+| Aspect                 | Current setting                                                            |
+| :--------------------- | :------------------------------------------------------------------------- |
+| **Model**              | Provider-dependent default; override with `LLM_MODEL`                      |
+| **Paragraph chunking** | Splits on paragraph boundaries, targeting about 1,000 characters per chunk |
+| **pgvector retrieval** | Returns up to 8 chunks                                                     |
+| **Chat token limit**   | Up to 2,000 tokens for each chat completion call                           |
+| **Temperature**        | Initial chat call uses `0.1`; follow-up tool-result call uses `0.5`        |
+| **Prompt guidance**    | Includes rulebook-priority, date, and PostgreSQL schema/query hints        |
 
 ---
 
@@ -161,30 +156,20 @@ The AI Assistant produces accurate, well-formatted, and reliable answers due to 
 
 1. Log in to [OpenAI Platform](https://platform.openai.com/).
 2. Navigate to **API Keys** under your Account Dashboard.
-3. Click **Create new secret key**, name it `CricScore-Prod` (or `CricScore-Dev`), and set permissions to **All**.
+3. Create a key for the application and grant only the permissions needed for chat completions and embeddings.
 4. Copy the secret key starting with `sk-proj-...`.
 5. Add the key to your `.env.local` file:
    ```bash
    LLM_API_KEY="sk-proj-..."
    LLM_BASE_URL="https://api.openai.com/v1"
    ```
-6. In AWS SSM Parameter Store / GitHub Secrets, store `LLM_API_KEY` for CI/CD deployments.
+6. Store the key as a GitHub Actions secret or supply it through the deployment's protected secret configuration. Do not commit it to the repository.
 
 ---
 
 ### 💵 Cost Analysis & Query Economics
 
-Operating CricScore with native OpenAI models is extremely cost-effective:
-
-- **Input Token Cost (`gpt-4o-mini`)**: $0.15 per 1,000,000 tokens
-- **Output Token Cost (`gpt-4o-mini`)**: $0.60 per 1,000,000 tokens
-- **Embedding Cost (`text-embedding-3-small`)**: $0.02 per 1,000,000 tokens
-
-#### Per-Query Breakdown:
-
-- **Average Chat Query**: ~1,500 input tokens + ~300 output tokens = **~$0.0004 per chat query** (~2,500 queries per $1.00).
-- **Rulebook Upload**: 20-page PDF (~15,000 tokens) = **~$0.0003 per document upload**.
-- **$4.50 OpenAI Balance**: Provides approximately **~11,250 chat queries** or **~15,000 PDF document uploads**.
+LLM and embedding costs depend on the selected provider and model, token usage, and current provider pricing. Check the provider's usage dashboard for current balance and charges; the number of requests supported by a balance is not fixed.
 
 ---
 
@@ -206,11 +191,6 @@ Use the following curated prompts during live demos or automated regression test
 
    > _"How many points does a team get if their opponent forfeits the match?"_
 
-7. **Backend Logic (`apps/backend/lambdas/chat-api/summaryHandler.js`)**
-   - The default model identifier (e.g., `gpt-4o-mini` or `llama-3.3-70b-versatile`) is hardcoded in the `generateSummary` fallback logic. Update it to match the model you wish to use on the new provider.
-
-_(Note: You do not need to modify the Terraform files directly, as `variables.tf` expects these to be passed down dynamically)._
-
 ## ⚙️ How Agentic Text-to-SQL Works
 
 Instead of using a Vector Database (which introduces sync latency), the CricScore RAG system operates directly on the relational data:
@@ -221,22 +201,22 @@ Instead of using a Vector Database (which introduces sync latency), the CricScor
 4. **Security & Governance:**
    - **Read-Only:** All LLM-generated queries are strictly wrapped in a `BEGIN READ ONLY;` transaction to prevent data corruption or hallucinated `DROP TABLE` commands.
    - **Performance Protection:** A strict `statement_timeout = 3000` is enforced at the transaction level to prevent the LLM from generating wildly complex joins that could bottleneck the database.
-   - **Schema Isolation:** The `chat-api` Lambda dynamically sets the PostgreSQL `search_path` (e.g., `SET search_path TO dev;`) before executing any queries. This ensures that the Agentic AI only has access to the exact schema for the environment it is deployed in, preventing cross-environment data leakage.
-   - **Guest Restrictions:** The system distinguishes between authenticated users and guests using Cognito tokens (`isGuest` flag). Guest users are restricted from invoking the LLM via the `/chat` endpoint (returning a graceful refusal) to protect against unrestricted API usage costs.
+   - **Schema Selection:** The `chat-api` Lambda sets its configured search path before queries; it includes the environment schema and `public` for pgvector.
+   - **Caller Authentication:** `/chat` is configured without an API Gateway JWT authorizer. The handler accepts `isAdmin` from the request body and does not validate it against Cognito claims. Do not rely on the frontend or this flag to authorize admin tools.
 
 ### Database Connection Notes
 
-When connecting the Node.js `pg` client to the Aiven PostgreSQL database, the connection string (`DATABASE_URL`) provided by Terraform includes `?sslmode=require`. To prevent `self-signed certificate in certificate chain` errors, the Lambda explicitly strips this query parameter and configures the connection pool with `ssl: { rejectUnauthorized: false }`.
+The chat Lambda's PostgreSQL pool currently configures TLS with `rejectUnauthorized: false`. This encrypts the connection but does not verify the database server certificate; configure certificate verification with the Aiven CA for server identity validation.
 
 ---
 
 ## 📊 AI Post-Match Summary (`summaryHandler.js`)
 
-After a match concludes, the scorer can trigger an **AI-generated post-match report** via the Chat interface. The summary is generated once and then cached in the `matches.ai_summary` column for all subsequent requests.
+The `/chat/summary` handler can generate an **AI-generated post-match report**. For registered matches, it reuses a valid cached value unless `forceRefresh` is requested, and stores newly generated summaries in `matches.ai_summary`. Local/guest match payloads are also sent to the configured LLM, but that branch does not cache the result in the database.
 
 ### How It Works
 
-For authenticated matches, the summary is generated by querying the OpenAI compatible endpoint. For matches prefixed with `guest_` (created by unauthenticated users), the AI Summary is NOT generated via the LLM API to prevent abuse. Instead, a local fallback summary is deterministically generated on the backend and returned immediately without consuming LLM credits.
+For registered matches, the handler reads summary facts from PostgreSQL and sends them to the configured OpenAI-compatible endpoint. For local/guest matches it builds a prompt from the supplied match payload and also calls the LLM; this route has no API Gateway JWT authorizer.
 
 ```mermaid
 sequenceDiagram
@@ -245,7 +225,7 @@ sequenceDiagram
     participant APIGW as API Gateway (/chat/summary)
     participant SummaryHandler as summaryHandler.js
     participant DB as Aiven PostgreSQL
-    participant LLM as OpenAI
+    participant LLM as Configured LLM Provider
 
     Scorer->>Frontend: Click "Generate AI Report"
     Frontend->>APIGW: POST /chat/summary { matchId }
@@ -259,7 +239,7 @@ sequenceDiagram
     else Generate fresh
         SummaryHandler->>DB: SELECT batters (top 5 by runs)
         SummaryHandler->>DB: SELECT bowlers (top 5 by wickets)
-        SummaryHandler->>DB: COUNT legal ball_events per innings
+        SummaryHandler->>DB: Read innings scores, overs, and balls
         SummaryHandler->>LLM: Send factual match prompt
         LLM-->>SummaryHandler: Return summary text
         SummaryHandler->>DB: UPDATE matches SET ai_summary = $1
@@ -269,42 +249,34 @@ sequenceDiagram
 
 ### Data Sources
 
-The summary prompt is built from **database facts only** — no estimation or model inference:
+The prompt is built from match and innings data read from the database. The resulting prose and Player of the Match selection are model-generated and can contain errors:
 
-| Data Point               | Source                                                          |
-| ------------------------ | --------------------------------------------------------------- |
-| Match result & winner    | `matches.match_winner`, `matches.status`                        |
-| Team scores & wickets    | `matches.team_a_score`, `team_b_score`, etc.                    |
-| Toss winner & decision   | `matches.toss_winner`, `matches.toss_decision`                  |
-| Overs bowled per innings | `COUNT(ball_events)` where extra_type NOT IN ('WIDE','NO_BALL') |
-| Top batters              | `players` JOIN `innings` — sorted by runs DESC                  |
-| Top bowlers              | `bowlers` JOIN `innings` — sorted by wickets DESC               |
+| Data Point                  | Source                                                           |
+| --------------------------- | ---------------------------------------------------------------- |
+| Match result & winner       | `matches.match_winner`, `matches.status`                         |
+| Team scores & wickets       | `innings.total_runs`, `innings.total_wickets`                    |
+| Toss winner & decision      | `matches.toss_winner`, `matches.toss_decision`                   |
+| Overs and balls per innings | `innings.overs` and `innings.balls`, formatted as plain language |
+| Top batters                 | `players` JOIN `innings` — sorted by runs DESC                   |
+| Top bowlers                 | `bowlers` JOIN `innings` — sorted by wickets DESC                |
 
 ### Overs Calculation Strategy
 
-Rather than using the stored `team_a_overs`/`team_b_overs` decimal fields (which can be stale when a match ends mid-over), the handler counts actual legal `ball_events` per innings:
+For registered matches, the handler reads `overs` and `balls` from each `innings` row and formats them as plain language; it does not count `ball_events` to calculate overs. Local/guest matches use overs and balls from the supplied payload:
 
 ```js
-// Total legal balls → plain English using floor division
-const completedOvers = Math.floor(totalLegalBalls / 6);
-const remainder = totalLegalBalls % 6;
-// → "1 over", "5 balls", "1 over and 2 balls" etc.
+// Read the stored innings overs and balls, then format them as plain language.
 ```
 
-This guarantees accuracy even when the match ended on ball 6 (which would otherwise read as `0.5` in the decimal field).
+The formatted text reflects the stored innings values; it is not an independent audit of ball events.
 
 ### Prompt Engineering
 
-The LLM receives a tightly-scoped, factual prompt:
-
-- Overs are pre-computed to plain English **before** the prompt — no decimals are ever passed to the model.
-- The toss winner/decision is injected verbatim from the DB as a concrete instruction.
-- The model is told: _"Overs are already pre-calculated in plain English for you below. Use them exactly as written."_
-- Creativity is intentionally constrained: _"Do not be overly creative or dramatic. Keep it straightforward."_
+For registered matches, the LLM receives match data read from PostgreSQL; the handler formats stored overs and balls as plain English and inserts the database toss details. The separate local/guest branch uses the supplied payload and formats overs as `${overs}.${balls}`. Both prompts ask the model to use the supplied scores, result, and batting/bowling performances; this does not guarantee error-free output.
 
 ### Caching
 
-Once generated, the summary is cached in `matches.ai_summary`. Subsequent requests return the cached value instantly without calling the LLM again. Admins can clear the cache by setting `ai_summary = NULL` in the DB (or a future admin API endpoint).
+For registered matches, the summary and Player of the Match are cached in `matches.ai_summary` and `matches.player_of_the_match`. A valid cached result is reused unless forced to refresh; guest/local payload summaries are not cached in the database.
 
 ---
 
@@ -338,7 +310,7 @@ While building the Agentic SQL RAG, we encountered and resolved several common h
    - **Bug:** When executing complex tool chains, the `chat_api` Lambda repeatedly crashed with `Error: undefined`. CloudWatch logs revealed it was hitting the default 3-second AWS Lambda timeout, and sometimes hanging indefinitely due to Groq's API server stability issues/rate limits for the `llama-3.3-70b-versatile` model.
    - **Fix:**
      - Increased the AWS Lambda timeout to `30` seconds in Terraform (`infra/terraform/lambda.tf`).
-     - Swapped the default LLM provider from Groq to native OpenAI in deployment scripts (`./infra/scripts/deploy.sh --env dev`), defaulting to `gpt-4o-mini` for lightning-fast and reliable responses that bypass the timeouts.
+     - The default endpoint is OpenAI; the current provider and model can be overridden with `LLM_BASE_URL` and `LLM_MODEL`. Provider choice does not guarantee requests will avoid timeouts.
 
 7. **Vector RAG - PDF-Parse Canvas Crash:**
    - **Bug:** Deploying `pdf-parse` inside the Lambda environment crashed instantly during initialization with `ReferenceError: DOMMatrix is not defined`. This is due to the underlying `pdf.js` library attempting to use browser-specific canvas APIs on modern Node.js environments without native canvas bindings.
@@ -355,17 +327,17 @@ While building the Agentic SQL RAG, we encountered and resolved several common h
 10. **Vector RAG - Lambda Out of Memory (OOM) Timeout:**
 
 - **Bug:** The Lambda function was still randomly timing out at exactly 30 seconds when uploading larger PDFs. CloudWatch logs showed `Max Memory Used: 127 MB | Memory Size: 128 MB`. The `pdf-parse` library loads the entire PDF into memory; when it hit the default 128MB ceiling, V8's garbage collector aggressively thrashed to keep the function alive. This slowed down parsing to an absolute crawl, inevitably hitting the 30-second timeout limit.
-- **Fix:** Increased the Lambda memory allocation in `lambda.tf` from `128 MB` to `1024 MB`. Because AWS bills on duration (GB-seconds) and 1024MB parses the PDF in just 2 seconds (compared to 128MB thrashing for 30 seconds), it is incredibly fast and completely free due to the generous AWS Free Tier limits (400,000 GB-seconds/month). This upgrade allowed the Lambda to instantly chunk and embed over 230+ rules sections seamlessly in a single execution!
+- **Fix:** Increased the Lambda memory allocation in `lambda.tf` from `128 MB` to `1024 MB`. The configured memory is current, but parsing duration and charges depend on the input document, runtime, and AWS account; the earlier timing and free-tier statements were not guarantees.
 
 11. **MCP - OpenAI Strict Schema Rejection:**
 
-- **Bug:** When trying to pass the MCP tools (`client.listTools()`) directly into the OpenAI LLM `tools` parameter, the API violently rejected the request with a `400 Bad Request`.
-- **Fix:** The MCP SDK standardizes inputs using JSON Schema Draft-07, automatically injecting `"$schema": "http://json-schema.org/draft-07/schema#"` into the tool definitions. However, OpenAI's API strictly prohibits additional root properties outside of standard OpenAPI types. To fix this, we map over the MCP tools and explicitly execute `delete toolDef.inputSchema.$schema` before passing them to the LLM.
+- **Bug:** Passing MCP tool schemas directly to the configured chat-completions provider caused a `400 Bad Request`.
+- **Fix:** The handler removes schema properties (`$schema` and `additionalProperties`) that are not accepted by the provider's tool schema format before sending the tools.
 
 12. **Vector RAG - pgvector `<=>` Operator Not Found:**
 
 - **Bug:** After successfully routing to the `search_tournament_rules` MCP tool and generating an embedding, the vector similarity query failed with `operator does not exist: public.vector <=> public.vector`. The `pgvector` extension registers its `<=>` cosine operator inside the `public` schema. However, the MCP Server was executing `SET search_path TO dev` (or `prod`), which **removes `public` from the path entirely**. PostgreSQL found the `vector` type but could not locate its operators.
-- **Fix:** Changed the `SET search_path` query to always include `public` as a fallback: `SET search_path TO ${dbSchema}, public`. This preserves strict data isolation (queries land in `dev` or `prod`) while keeping all pgvector extension operators globally visible. This single-line fix works for both environments dynamically via the `DB_SCHEMA` env variable injected by Terraform.
+- **Fix:** Changed the `SET search_path` query to include `public`: `SET search_path TO ${dbSchema}, public`. Environment tables are resolved from the configured schema first, while `public` remains available for pgvector operators; database permissions should still be used to enforce isolation.
 
 13. **LLM Answering from General Knowledge Instead of Rulebook:**
 
@@ -381,12 +353,12 @@ While building the Agentic SQL RAG, we encountered and resolved several common h
 15. **AI Post-Match Summary — Decimal Over Notation ("0.5 overs", "1.1 overs"):**
 
 - **Bug:** The AI wrote "Team B chased in 0.5 overs" instead of "5 balls". The original `formatOvers()` helper produced strings like `"0.5 overs (0 completed overs and 5 balls)"`. The LLM latched onto the decimal prefix and used it verbatim, ignoring the parenthetical description.
-- **Fix:** Replaced `formatOvers()` with `ballsToOversText()` which emits **only** plain English from a raw ball count — no decimals at all. The prompt was updated from _"Always write out overs in plain English"_ to _"Overs are already pre-calculated in plain English for you below. Use them exactly as written."_ This completely removes any ambiguity.
+- **Current implementation:** The handler formats the persisted `innings.overs` and `innings.balls` values as plain English (see **Overs Calculation Strategy** above). It does not use the earlier `ballsToOversText()` helper or independently count legal balls.
 
-16. **AI Post-Match Summary — "5 Balls" Shown for a Complete 1-Over Innings:**
+16. **AI Post-Match Summary — Innings Over Formatting:**
 
 - **Bug:** A team that chased the target on ball 6 (completing exactly 1 over) was shown as having batted "5 balls" in the summary. The root cause was a race condition in the scoring engine: when the match-winning ball is recorded, the match immediately moves to `COMPLETED` state — but the over-flip transition (`overs=0.5 → overs=1.0`) runs on the _next_ state tick, which never fires. As a result, `matches.team_b_overs` was persisted as `0.5`.
-- **Fix:** `summaryHandler.js` no longer reads the stored `team_a_overs`/`team_b_overs` decimal fields for the AI summary. Instead, it runs a fresh query to `COUNT` the actual legal `ball_events` per innings (`extra_type NOT IN ('WIDE','NO_BALL')`), then converts the total to overs using floor division. This is always correct, regardless of whether the over counter was finalized at match end.
+- **Current implementation:** `summaryHandler.js` reads `overs` and `balls` from the `innings` table and formats those stored values as plain English. It does not count legal `ball_events`, so the formatted output depends on the persisted innings values.
 
 17. **AI Database Context Truncation:**
 
@@ -396,7 +368,7 @@ While building the Agentic SQL RAG, we encountered and resolved several common h
 18. **AI Summary Race Condition ("1 run" Hallucination):**
 
 - **Bug:** When a match ended with a boundary (e.g. hitting 6 runs to win), the AI summary immediately generated and confidently stated the team "finished at 1 run". The frontend was triggering the summary generation API instantly upon UI completion, but the final ball's payload was still sitting in the backend's SQS processing queue. Thus, the database query inside the summary handler was reading the pre-final-ball state.
-- **Fix:** Added a `setTimeout` of 2.5 seconds in the frontend before dispatching the `/chat/summary` request. This small buffer ensures the background SQS workers have ample time to flush the final ball and update the `innings.total_runs` prior to the AI inspecting the scorecard.
+- **Fix:** The frontend delays the `/chat/summary` request by 2.5 seconds as a buffer for asynchronous score persistence. This delay does not guarantee that SQS processing has completed.
 
 ---
 
@@ -412,7 +384,7 @@ The broad concept of computers mimicking human understanding.
 ### 2. GenAI (Generative AI)
 
 A subset of AI that focuses on creating novel content (text, images, code) rather than just classifying or predicting.
-**In CricScore:** Instead of returning pre-programmed string templates (like `"Player X scored Y runs"`), the `chat-api` Lambda sends the data to an LLM (via OpenAI) which **generates** a completely unique, conversational, and context-aware response perfectly tailored to the user's specific phrasing.
+**In CricScore:** Instead of returning pre-programmed string templates (like `"Player X scored Y runs"`), the `chat-api` Lambda sends the data to the configured OpenAI-compatible LLM provider, which generates a conversational response.
 
 ### 3. RAG (Retrieval-Augmented Generation)
 
@@ -440,60 +412,41 @@ This AI architecture is specifically designed to be **Serverless** and **Pay-Per
 
 ### AWS Lambda & API Gateway
 
-- **Compute (AWS Free Tier):** AWS provides **400,000 GB-seconds** of compute time for free every month.
-- **Memory Scaling vs Cost:** The `chat-api` Lambda is configured with **1024 MB** of RAM. This provides the memory overhead necessary to quickly parse large PDF files (via `pdf-parse`) in just ~2 seconds. Because AWS bills on duration multiplied by memory, running a 1024 MB function for 2 seconds (2.0 GB-s) is actually **cheaper** than running a 128 MB function that thrashes its garbage collector for 30 seconds (3.8 GB-s) before timing out!
-- **MCP Infrastructure:** By utilizing the `@modelcontextprotocol/sdk`'s `InMemoryTransport`, the MCP Server boots instantly inside the Lambda execution environment. This completely avoids the need to provision expensive, always-on EC2 instances or ECS/Fargate containers to host WebSocket/SSE connections.
+- **Compute:** The `chat-api` Lambda is configured with **1024 MB** of memory and a 30-second timeout. Runtime, memory, requests, and API Gateway usage contribute to cost; AWS free-tier eligibility and consumption depend on the account and current AWS terms.
+- **MCP Infrastructure:** The `@modelcontextprotocol/sdk`'s `InMemoryTransport` allows the MCP client and server to run inside the Lambda without a separate MCP host. Lambda and API Gateway usage still incur their normal charges.
 
 ### Vector Database (`pgvector`)
 
-- **Zero Extra Cost:** Instead of paying a premium monthly subscription for a dedicated Vector Database like Pinecone or Weaviate, we utilize the open-source `pgvector` extension directly within our existing Aiven PostgreSQL instance. The `HNSW` index ensures similarity searches remain lightning-fast without incurring any additional infrastructure fees.
+- The `pgvector` extension and an HNSW cosine-similarity index are configured in the existing Aiven PostgreSQL database. This avoids provisioning a separate vector database, but database capacity and storage remain subject to the Aiven plan and usage.
 
-### LLM Providers (OpenAI)
+### LLM Providers
 
-- **Model Choice:** By using native OpenAI, we gain maximum stability and access to the latest capabilities. Models like `gpt-4o-mini` provide exceptional function-calling accuracy at a fraction of a cent per request.
-- **Embeddings:** Vector embeddings are generated using `text-embedding-3-small`, which is remarkably cheap and highly performant for semantic rulebook search.
+- The default endpoint is OpenAI, but `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`, and `EMBEDDING_MODEL` allow an OpenAI-compatible provider and model to be configured.
+- The default chat model is `gpt-4o-mini`; the embedding model defaults to `text-embedding-3-small`. Provider pricing and model availability can change.
 
 ---
 
 ## 🔐 Admin Tools
 
-The Admin features have been securely integrated into the authenticated layout.
+The Admin Panel is shown to users recognized by the frontend as admins. API Gateway JWT checks and Lambda authorization protect the administrative match/user routes; this does not apply to all chat-related routes.
 
 ### Admin Access
 
 Administrators log in via the Cognito Hosted UI. Once logged in as a designated admin, they can click the **Settings (⚙️)** icon in the navigation bar to access the Admin Panel, which provides tools for managing matches, users, and bulk database cleanups.
 
-### Admin-Only MCP Tools
+### MCP Tools and Admin Authorization
 
-Once authenticated as admin, the MCP Server exposes **additional tools** that are hidden from regular users:
+The MCP Server always registers `execute_sql` and `search_tournament_rules`. It additionally registers the following tools when the request's `isAdmin` body value is truthy:
 
-| Tool             | Description                                                             |
-| ---------------- | ----------------------------------------------------------------------- |
-| `delete_match`   | Delete a **single**, **multiple**, or **ALL** matches from the database |
-| `send_email`     | Send a custom HTML email to one or more recipients via AWS SES          |
-| Upload PDF Rules | The upload button becomes visible in the chatbot header for admins      |
-| Manage Documents | A "Docs" dropdown allows admins to list and delete specific rulebooks   |
+| Tool                        | Description                                          |
+| :-------------------------- | :--------------------------------------------------- |
+| `delete_guest_data`         | Delete guest users and guest matches                 |
+| `delete_incomplete_matches` | Delete matches not marked `COMPLETED` or `ABANDONED` |
+| `delete_match`              | Delete one match specified by `match_id`             |
 
-#### `delete_match` Usage Examples
+The `/chat` route has no API Gateway JWT authorizer, and the handler does not verify `isAdmin` against Cognito claims. A caller can supply that body value; therefore these tools are not securely admin-only until server-side identity verification is added. Rule upload/list/delete controls are frontend features, not MCP tools, and their API routes also have no API Gateway JWT authorizer.
 
-Ask the chatbot naturally:
-
-- _"Delete match `abc-123`"_ → deletes one match by ID
-- _"Delete matches `abc-123` and `def-456`"_ → deletes two matches
-- _"Delete all matches"_ → wipes all matches from the database
-
-The tool internally handles all three cases:
-
-```js
-// Single ID
-DELETE FROM matches WHERE id = $1
-
-// Multiple IDs
-DELETE FROM matches WHERE id IN ($1, $2, ...)
-
-// All
-DELETE FROM matches RETURNING id
-```
+`delete_match` accepts a single match ID. It does not support deleting multiple matches or all matches in one tool call.
 
 ### Toss Details in Match Creation
 
@@ -516,7 +469,7 @@ To ensure this data is programmatically accessible:
 
 ### Game-Changing Moments Analysis
 
-The post-match summary prompt has been expanded with explicit instructions to generate a dedicated section on "Game-Changing Moments". To prevent AI hallucination, the model is strictly constrained to base this analysis **only** on the provided top batting and bowling statistics, preventing it from inventing imaginary wickets or boundary counts.
+The post-match summary prompt asks the model to include a "Game-Changing Moments" section based on the supplied top batting and bowling statistics. This prompt guidance does not guarantee that generated text will be error-free.
 
 ## 🎨 AI Chat UX & Client Features
 
@@ -530,15 +483,15 @@ The frontend `ChatComponent` is designed for a premium user experience and seaml
 
 ---
 
-## 🚀 Zero-Cost MLOps Pipeline (Live Win Predictor)
+## 🚀 MLOps Pipeline (Live Win Predictor)
 
-We have implemented a live **Match Win Predictor** (similar to WASP) that calculates real-time win probabilities after every ball. This system is architected to run entirely within the **AWS Free Tier**.
+The live **Match Win Predictor** calculates win probabilities from match state. AWS costs depend on usage and the resources retained; deployment and runtime are not guaranteed to fit within a free tier.
 
 ### Architecture Overview
 
-1. **Model Storage (AWS ECR)**: The trained ML model (Logistic Regression) and its heavy dependencies (Pandas, Scikit-Learn) are packaged into a Docker container. AWS ECR provides 500MB of free private storage per month.
-2. **Inference Engine (AWS Lambda - Container Image)**: A dedicated `ml-engine` Serverless Lambda runs the Docker image to expose a prediction API. Because Lambda scales to zero, there is zero cost when no matches are playing. AWS charges the exact same price for Container Image Lambdas as standard Zip Lambdas, allowing us to bypass the 250MB Zip limit while retaining the 1,000,000 free requests per month.
-3. **Automated Pipeline**: A Terraform `null_resource` handles the `docker build` and `docker push` lifecycle seamlessly during deployment.
+1. **Model Storage (AWS ECR)**: The trained ML model (Logistic Regression) and its dependencies (Pandas, Scikit-Learn) are packaged into a Docker container image stored in ECR. Image storage and data transfer are subject to AWS pricing.
+2. **Inference Engine (AWS Lambda - Container Image)**: The `ml-predict` Lambda runs the image to expose a prediction API. Lambda compute and request charges depend on use; other provisioned resources may also incur charges when there are no predictions.
+3. **Automated Pipeline**: Terraform uses a `null_resource` to run the Docker build and push during deployment.
 4. **Monorepo Integration**: The model code, Dockerfile, and inference API live in `apps/ml-engine/` inside the existing CricScore monorepo, keeping the data science and backend engineering perfectly synchronized.
 
 - 📖 **[MLOps & Prediction Guide](./mlops_tutorial.md)**: Full pipeline docs, [Win Prediction Specification](./mlops_tutorial.md#-8-win-prediction-engine-specification) (par-RPO scaling, RRR caps, wicket sensitivity), and [DLS Method](./mlops_tutorial.md#️-9-duckworth-lewis-stern-dls-method) (ICC resource decay, par-score calculations).

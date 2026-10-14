@@ -78,6 +78,42 @@ describe("Storage Worker Lambda", () => {
     expect(mockQuery).toHaveBeenCalledTimes(8); // 2 Inserts, 1 assign, Inning update, match update, ball_events insert, player update, bowler update
   });
 
+  it.each(["RETIRED_HURT", "RETIRED_OUT"])(
+    "does not count %s as a batter-faced ball",
+    async (wicketType) => {
+      const event = {
+        Records: [
+          {
+            body: JSON.stringify({
+              matchId: "match_123",
+              inningId: "inn_123",
+              syncOnly: false,
+              ballData: {
+                runs: 0,
+                isExtra: false,
+                extraType: "NONE",
+                extraRuns: 0,
+                isWicket: true,
+                wicketType,
+                batterName: "Batter 1",
+                bowlerName: "Bowler 1",
+                overNumber: 0,
+                ballNumber: 1,
+              },
+            }),
+          },
+        ],
+      };
+
+      await handler(event);
+
+      const batterUpdate = mockQuery.mock.calls.find(([query]) =>
+        String(query).includes("balls_faced = balls_faced + $2"),
+      );
+      expect(batterUpdate?.[1][1]).toBe(0);
+    },
+  );
+
   it("should process undo events by deleting the last ball", async () => {
     // Mock the SELECT to return a ball
     mockQuery.mockResolvedValueOnce({
@@ -111,4 +147,40 @@ describe("Storage Worker Lambda", () => {
       ["ball_123"],
     );
   });
+
+  it.each(["RETIRED_HURT", "RETIRED_OUT"])(
+    "does not decrement balls faced when undoing %s",
+    async (wicketType) => {
+      mockQuery.mockResolvedValueOnce({
+        rows: [
+          {
+            id: "ball_123",
+            runs: 0,
+            is_wicket: true,
+            wicket_type: wicketType,
+            batter_name: "Batter 1",
+            bowler_name: "Bowler 1",
+            extra_type: null,
+          },
+        ],
+      });
+
+      await handler({
+        Records: [
+          {
+            body: JSON.stringify({
+              matchId: "match_123",
+              inningId: "inn_123",
+              undo: true,
+            }),
+          },
+        ],
+      });
+
+      const batterUpdate = mockQuery.mock.calls.find(([query]) =>
+        String(query).includes("balls_faced = balls_faced - $2"),
+      );
+      expect(batterUpdate?.[1][1]).toBe(0);
+    },
+  );
 });

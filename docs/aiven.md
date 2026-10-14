@@ -6,12 +6,12 @@ CricScore uses Aiven PostgreSQL for its primary database. Follow these steps to 
 
 ## 🤔 Why Aiven PostgreSQL?
 
-We chose Aiven because it perfectly aligns with CricScore's **Zero-Cost Architecture** while delivering enterprise-grade data integrity:
+We chose Aiven for its managed PostgreSQL service and operational features. Available plans and pricing can change; confirm current terms in the Aiven console:
 
-- **Forever Free Tier**: Aiven provides a robust, fully managed PostgreSQL instance completely for free, ensuring zero monthly hosting costs.
+- **Plan options**: Select an available plan that fits your workload and budget.
 - **ACID Compliance**: Crucial for tracking exact ball-by-ball cricket scoring events without race conditions or data loss.
 - **Zero Maintenance**: Eliminates the need to manually manage database servers, backups, or security patching.
-- **Automated Keep-Alive**: Aiven Free Tier pauses databases if they receive zero connections for 3 days. To prevent this, the repo includes a GitHub Action (`.github/workflows/keepalive.yml`) that automatically pings the database daily, guaranteeing it stays awake forever without manual intervention.
+- **Keep-alive workflow**: The repository includes `.github/workflows/keepalive.yml`, which attempts a database query daily. This does not guarantee continuous availability; scheduled workflows, credentials, connectivity, and the selected Aiven plan can affect the result.
 
 ---
 
@@ -24,7 +24,7 @@ We chose Aiven because it perfectly aligns with CricScore's **Zero-Cost Architec
    - Click **Create service**.
    - Select **PostgreSQL** as the service type.
    - Select your preferred Cloud Provider (e.g., AWS) and Region (e.g., `us-east-1` to match your Lambdas).
-   - Select the **Free Plan** (or a paid plan if you require high availability/SLAs).
+   - Select an available plan appropriate for your availability and cost requirements.
    - Enter a name for your service (e.g., `cricscore-pg`) and click **Create service**.
 
 3. **Capture the Connection URI**:
@@ -39,11 +39,10 @@ We chose Aiven because it perfectly aligns with CricScore's **Zero-Cost Architec
      ```bash
      TF_DATABASE_URL='postgres://avnadmin:[PASSWORD]@[HOST]:[PORT]/defaultdb?sslmode=require'
      ```
-   - **Environment Isolation Note**: Both the `dev` and `prod` environments will share this exact same connection string! CricScore isolates the data by instructing the Lambdas to query different PostgreSQL **schemas** (e.g., `SET search_path TO dev` vs `prod`).
-     - _Architectural Decision:_ While it is possible to create two completely separate databases inside the same Aiven instance, the Free Tier imposes strict **Connection Limits**. Because AWS Lambdas can scale aggressively and open many concurrent connections, using a single database with multiple schemas allows the connection pooler to operate far more efficiently. Splitting into two databases risks exhausting the connection pool and crashing the backend under load.
+   - **Environment Isolation Note**: The Lambda functions use the environment-specific `DB_SCHEMA` (`dev` or `prod`). If both environments use the same database instance, these schemas separate their application data; configure the connection string separately for each environment as needed.
 
 5. **Deploy**:
-   - The database is now ready to use! When you run `./infra/scripts/deploy.sh --use-local-env --env dev`, Terraform will automatically deploy the tables (into the `dev` schema) and configure the AWS Lambda functions to securely communicate with this database.
+   - The database is ready to configure. The local deploy script applies Terraform and configures Lambda connectivity, but does not run database migrations. Run the required migrations separately; see the [deployment guide](./deployment.md).
 
 ---
 

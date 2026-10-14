@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import {
+  buildGuestCredentials,
   canAccessScorer,
   getStoredAuthFromLocalStorage,
   isGuestEmail,
@@ -68,5 +69,24 @@ describe("canAccessScorer", () => {
         userEmail: null,
       }),
     ).toBe(false);
+  });
+});
+
+describe("buildGuestCredentials", () => {
+  it("creates a guest shadow email recognised as guest and a strong password", () => {
+    const { email, password } = buildGuestCredentials(1700000000000);
+    expect(email).toBe("guest-1700000000000@cricscore.local");
+    expect(isGuestEmail(email)).toBe(true);
+    expect(password.length).toBeGreaterThanOrEqual(12);
+    expect(password).toMatch(/[A-Z]/);
+    expect(password).toMatch(/[a-z]/);
+    expect(password).toMatch(/[0-9]/);
+    expect(password).toMatch(/[^A-Za-z0-9]/);
+  });
+
+  it("generates a unique password per guest", () => {
+    expect(buildGuestCredentials(1).password).not.toBe(
+      buildGuestCredentials(1).password,
+    );
   });
 });

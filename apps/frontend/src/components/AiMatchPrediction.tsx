@@ -45,9 +45,7 @@ export const AiMatchPrediction: React.FC<AiMatchPredictionProps> = ({
   const activeBowlingTeam =
     bowlingTeam || (activeBattingTeam === teamA ? teamB : teamA);
 
-  const API_URL =
-    import.meta.env.VITE_API_URL ||
-    "https://api.cricscoredev.venkateshsingamsetty.com";
+  const API_URL = import.meta.env.VITE_API_URL || "";
 
   useEffect(() => {
     let isMounted = true;

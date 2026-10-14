@@ -6,7 +6,7 @@ The CricScore fan-facing and scorer-facing Single Page Application (SPA).
 
 | Technology            | Purpose                            |
 | --------------------- | ---------------------------------- |
-| React 18              | UI component framework             |
+| React 19              | UI component framework             |
 | TypeScript            | Type-safe development              |
 | Vite                  | Build tooling and local dev server |
 | React Testing Library | Unit and component testing         |
@@ -22,23 +22,26 @@ npm run dev       # Start Vite dev server at http://localhost:3000
 
 ## Environment Variables
 
-Create a `.env.local` file in the **repo root** (not this directory):
+For local development, create `apps/frontend/.env.local` (or another Vite-supported
+environment file in `apps/frontend/`):
 
 ```env
 VITE_API_URL=https://<api-gateway-id>.execute-api.<region>.amazonaws.com
 VITE_WS_URL=wss://<ws-gateway-id>.execute-api.<region>.amazonaws.com/prod
 ```
 
-> These are auto-injected during deployment by `./infra/scripts/deploy.sh --env <dev|prod>` and the CI/CD pipeline.
+> The local deploy script writes generated values to `apps/frontend/.env`. CI/CD
+> supplies environment-specific values to the production build.
 
 ## Key Commands
 
-| Command         | Description                        |
-| --------------- | ---------------------------------- |
-| `npm run dev`   | Start local development server     |
-| `npm run build` | Build production bundle to `dist/` |
-| `npm run lint`  | TypeScript + ESLint checks         |
-| `npm run test`  | Run Vitest unit tests              |
+| Command               | Description                            |
+| --------------------- | -------------------------------------- |
+| `npm run dev`         | Start local development server         |
+| `npm run build`       | Build production bundle to `dist/`     |
+| `npm run lint`        | TypeScript type-check (`tsc --noEmit`) |
+| `npm run lint:eslint` | ESLint checks                          |
+| `npm run test`        | Run Vitest unit tests                  |
 
 ## Deployment
 
@@ -54,4 +57,4 @@ The frontend includes a dedicated **AI Chat** interface that:
 
 - Sends `POST /chat` requests to the `chat-api` Lambda
 - Supports upload of tournament PDF rulebooks via `POST /rules/upload`
-- Streams AI replies from OpenRouter via the `chat-api` Agentic RAG pipeline
+- Uses the configured OpenAI-compatible LLM provider via the `chat-api` Agentic RAG pipeline

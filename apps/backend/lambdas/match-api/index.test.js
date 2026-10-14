@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { handler } from "./index.js";
+import { handler, stripPlayerOfMatchLine } from "./index.js";
 
 // Mock the AWS SDK Clients
 vi.mock("@aws-sdk/client-lambda", () => {
@@ -34,22 +34,20 @@ vi.mock("@aws-sdk/client-ses", () => {
   };
 });
 
-// Mock the PG Client
+// Mock the pooled PG client
 import pg from "pg";
 
-export const mockQuery = vi
-  .spyOn(pg.Client.prototype, "query")
-  .mockResolvedValue({ rows: [] });
+export const mockQuery = vi.fn().mockResolvedValue({ rows: [] });
+export const mockRelease = vi.fn();
+const mockClient = { query: mockQuery, release: mockRelease };
 export const mockConnect = vi
-  .spyOn(pg.Client.prototype, "connect")
-  .mockResolvedValue();
-export const mockEnd = vi.spyOn(pg.Client.prototype, "end").mockResolvedValue();
+  .spyOn(pg.Pool.prototype, "connect")
+  .mockResolvedValue(mockClient);
 
 describe("match-api Lambda handler", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockConnect.mockResolvedValue();
-    mockEnd.mockResolvedValue();
+    mockConnect.mockResolvedValue(mockClient);
   });
 
   it("should return CORS preflight response for OPTIONS method", async () => {
@@ -60,6 +58,7 @@ describe("match-api Lambda handler", () => {
     expect(response.headers["Access-Control-Allow-Methods"]).toContain(
       "OPTIONS",
     );
+    expect(mockConnect).not.toHaveBeenCalled();
   });
 
   it("should delete a match and notify broadcaster", async () => {
@@ -86,7 +85,7 @@ describe("match-api Lambda handler", () => {
       "DELETE FROM matches WHERE id = $1",
       ["123"],
     );
-    expect(mockEnd).toHaveBeenCalled();
+    expect(mockRelease).toHaveBeenCalled();
   });
 
   it("should create a new match successfully", async () => {
@@ -159,6 +158,13 @@ describe("match-api Lambda handler", () => {
     const body = JSON.parse(response.body);
     expect(body.status).toBe("unhealthy");
     expect(body.database).toBe("disconnected");
+  });
+
+  it("should remove a separate Player of the Match line from an email summary", () => {
+    const summary =
+      "🏆 Player of the Match: PLAYER A1 - took 3 wickets for 8 runs\n\nTEAM A won the toss.";
+
+    expect(stripPlayerOfMatchLine(summary)).toBe("TEAM A won the toss.");
   });
 
   it("should fetch all matches for GET /matches", async () => {
