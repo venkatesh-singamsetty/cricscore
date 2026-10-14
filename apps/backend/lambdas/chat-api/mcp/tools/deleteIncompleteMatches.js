@@ -1,4 +1,3 @@
-const { z } = require("zod");
 const { pool } = require("../../config/db");
 
 /**
