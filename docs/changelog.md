@@ -1,3 +1,9 @@
+## [4.10.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.10.0...v4.10.1) (2026-10-14)
+
+### 🐛 Bug Fixes
+
+* **ci:** trigger production CD on published releases ([#253](https://github.com/venkatesh-singamsetty/cricscore/issues/253)) ([2cfa678](https://github.com/venkatesh-singamsetty/cricscore/commit/2cfa6782ce8c348d85b62d97d4d37c99d694e689))
+
 ## [4.10.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.9.0...v4.10.0) (2026-10-14)
 
 ### 🚀 Features
