@@ -309,6 +309,7 @@ const App: React.FC = () => {
     prevEmailRef.current = currentEmail;
   }, [userEmail]);
   const [hubKey, setHubKey] = useState(0); // For forcing reset to list
+  const [scorecardDismissRequest, setScorecardDismissRequest] = useState(0);
   const [urlMatchId, setUrlMatchId] = useState<string | null>(null);
   const [matchStatus, setMatchStatus] = useState<MatchStatus>(
     MatchStatus.SETUP,
@@ -1051,6 +1052,10 @@ const App: React.FC = () => {
   };
 
   const handleViewClick = (target: "VIEWER" | "SCORER" | "ADMIN" | "CHAT") => {
+    if (target === "VIEWER" && view === "VIEWER") {
+      setScorecardDismissRequest((request) => request + 1);
+    }
+
     if (target === "ADMIN") {
       setView("ADMIN_PANEL");
     } else {
@@ -1570,6 +1575,7 @@ const App: React.FC = () => {
                   isAdmin={isAdmin}
                   initialMatchId={urlMatchId || undefined}
                   onResumeMatch={undefined}
+                  scorecardDismissRequest={scorecardDismissRequest}
                 />
               </div>
             </div>

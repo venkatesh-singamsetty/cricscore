@@ -267,19 +267,20 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
   );
 
   return (
-    <div className="fixed inset-0 bg-slate-950/80 z-[400] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="bg-slate-900 border border-white/10 rounded-[2.5rem] w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-in zoom-in-95 duration-500">
+    <div className="fixed inset-x-0 top-14 bottom-0 md:top-16 bg-slate-950/80 z-[400] flex items-center justify-center p-2 sm:p-4 backdrop-blur-md animate-in fade-in duration-300">
+      <div className="bg-slate-900 border border-white/10 rounded-[1.5rem] sm:rounded-[2.5rem] w-full max-w-4xl max-h-full md:max-h-[calc(100vh-8rem)] min-h-0 overflow-hidden flex flex-col shadow-2xl animate-in zoom-in-95 duration-500">
         {/* Header */}
-        <div className="bg-slate-950 px-8 py-6 flex justify-between items-center shrink-0 border-b border-white/5">
+        <div className="bg-slate-950 px-4 py-3 sm:px-8 sm:py-6 flex justify-between items-center shrink-0 border-b border-white/5">
           <div className="flex items-center gap-3">
-            <div className="w-2 h-8 bg-indigo-600 rounded-full"></div>
-            <h2 className="text-2xl font-black uppercase tracking-tighter italic text-white flex items-center gap-2">
+            <div className="w-2 h-7 sm:h-8 bg-indigo-600 rounded-full"></div>
+            <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tighter italic text-white flex items-center gap-2">
               Match <span className="text-indigo-500">Scorecard</span>
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="w-10 h-10 bg-white/5 hover:bg-white/10 rounded-full flex items-center justify-center transition-all active:scale-95 text-white font-bold text-2xl"
+            aria-label="Close scorecard"
+            className="w-11 h-11 shrink-0 bg-white/5 hover:bg-white/10 rounded-full flex items-center justify-center transition-all active:scale-95 text-white font-bold text-2xl"
           >
             ×
           </button>
@@ -340,13 +341,13 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
             if (!result) return null;
 
             return (
-              <div className="bg-indigo-600 py-8 text-center overflow-hidden relative shadow-2xl">
+              <div className="bg-indigo-600 shrink-0 px-4 py-5 sm:py-6 md:py-4 text-center overflow-hidden relative shadow-2xl">
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer"></div>
                 <div className="relative z-10 flex flex-col items-center justify-center px-4">
                   <span className="text-[10px] font-black text-indigo-100 uppercase tracking-[0.4em] opacity-80 mb-2 leading-none">
                     🏆 MATCH RESULT
                   </span>
-                  <span className="text-xl md:text-2xl font-black text-white uppercase tracking-tighter italic drop-shadow-lg leading-tight">
+                  <span className="max-w-full text-lg sm:text-xl md:text-2xl font-black text-white uppercase tracking-tighter italic drop-shadow-lg leading-tight break-words">
                     {result.text}
                   </span>
                 </div>
@@ -356,15 +357,15 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
 
         {/* Content */}
         {displayInnings ? (
-          <div className="p-8 overflow-y-auto pb-20 scrollbar-hide space-y-12">
+          <div className="min-h-0 flex-1 p-4 sm:p-8 overflow-y-auto overscroll-contain pb-20 scrollbar-hide space-y-12">
             {playerOfTheMatch && (
-              <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 flex items-center gap-3">
-                <span className="text-2xl">🏆</span>
+              <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 md:px-6 md:py-5 flex items-center gap-3 md:gap-4">
+                <span className="text-2xl md:text-4xl">🏆</span>
                 <div>
-                  <div className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-300">
+                  <div className="text-[10px] md:text-xs font-black uppercase tracking-[0.3em] text-amber-300">
                     Player of the Match
                   </div>
-                  <div className="text-sm font-black text-amber-100 uppercase tracking-tight italic">
+                  <div className="text-sm md:text-lg font-black text-amber-100 uppercase tracking-tight italic">
                     {playerOfTheMatch}
                   </div>
                 </div>
