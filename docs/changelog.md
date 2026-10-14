@@ -1,3 +1,9 @@
+## [4.10.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.9.0...v4.10.0) (2026-10-14)
+
+### 🚀 Features
+
+* **ui:** refine layouts, fix chat scroll, and guest mode bugs ([bd05e04](https://github.com/venkatesh-singamsetty/cricscore/commit/bd05e0465c0d58321e0f9f079c5ea48c240aa19e))
+
 ## [4.9.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.8.2...v4.9.0) (2026-10-04)
 
 ### 🚀 Features
