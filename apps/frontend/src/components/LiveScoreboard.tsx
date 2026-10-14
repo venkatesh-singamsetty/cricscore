@@ -275,7 +275,35 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
           };
         });
 
-        setMatchDetails({ innings: mappedInnings });
+        setMatchDetails((prev: any) => {
+          if (!isBackground || !prev?.innings)
+            return { innings: mappedInnings };
+          // Storage is eventually consistent; never let a lagging poll
+          // move a live innings backwards.
+          const merged = mappedInnings.map((inn: any) => {
+            const old = prev.innings.find(
+              (p: any) => p.inningNumber === inn.inningNumber,
+            );
+            if (!old) return inn;
+            const oldBalls = Number(old.overs) * 6 + Number(old.balls);
+            const newBalls = Number(inn.overs) * 6 + Number(inn.balls);
+            if (newBalls >= oldBalls) {
+              return {
+                ...inn,
+                totalRuns: Math.max(inn.totalRuns, old.totalRuns),
+                totalWickets: Math.max(inn.totalWickets, old.totalWickets),
+              };
+            }
+            return {
+              ...inn,
+              overs: old.overs,
+              balls: old.balls,
+              totalRuns: Math.max(inn.totalRuns, old.totalRuns),
+              totalWickets: Math.max(inn.totalWickets, old.totalWickets),
+            };
+          });
+          return { innings: merged };
+        });
       } catch (err) {
         console.error("Failed to fetch match details:", err);
       } finally {
