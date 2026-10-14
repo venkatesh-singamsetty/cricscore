@@ -2,7 +2,10 @@
 
 This document is a comprehensive step-by-step tutorial and reference guide for managing CricScore's Infrastructure as Code (IaC) using **Terraform**.
 
-CricScore's cloud infrastructure is **100% codified** in Terraform. No manual configuration ("click-ops") is performed in the AWS Console.
+CricScore's AWS application infrastructure is managed with Terraform. Account setup and external services still require configuration outside Terraform; see the deployment guide.
+
+> [!IMPORTANT]
+> For a fresh clone, follow the [deployment guide](./deployment.md) for bootstrap and deployment. The deploy script supplies the backend and environment-specific inputs, but applies changes automatically. The manual plan steps below are for reviewing an environment's proposed infrastructure changes; they assume bootstrap is complete and `.env.local` is configured.
 
 ---
 
@@ -18,7 +21,7 @@ graph TD
     end
 
     subgraph API ["API & Gateway Layer"]
-        HTTP_GW[API Gateway HTTP REST v2]
+        HTTP_GW[API Gateway v2 HTTP API]
         WS_GW[API Gateway WebSockets]
         COG[AWS Cognito User Pool & Groups]
         HTTP_GW --> COG
@@ -35,7 +38,7 @@ graph TD
 
     subgraph MSG ["Event-Driven Messaging & State"]
         SNS{AWS SNS Match Events Topic}
-        SQS[[AWS SQS Storage Queue + DLQ]]
+        SQS[[AWS SQS FIFO Storage Queue]]
         DDB[(DynamoDB WebSocket Registry)]
     end
 
@@ -45,7 +48,7 @@ graph TD
     WS_GW --> L_SESS
     L_SESS --> DDB
     L_SCORE --> SNS
-    SNS --> SQS
+    L_SCORE --> SQS
     SQS --> L_WORKER
     SNS --> L_BROAD
     L_BROAD --> DDB
@@ -56,110 +59,109 @@ graph TD
 
 ## 📁 Terraform File Directory Layout
 
-| File                          | Responsibilities & Resources Defined                                                                                                             |
-| :---------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`providers.tf`**            | Configures the S3 Remote Backend, DynamoDB state lock table, and dual AWS provider aliases (`us-east-1` for CloudFront ACM SSL certificates).    |
-| **`variables.tf`**            | Declares input parameters (`environment`, `domain_name`, `database_url`, `llm_api_key`, etc.).                                                   |
-| **`outputs.tf`**              | Exports runtime endpoints (API Gateway URLs, Cognito Pool IDs, S3 bucket names) for consumption by deploy scripts and frontend builds.           |
-| **`lambda.tf`**               | Defines all 7 serverless AWS Lambda functions, memory limits, timeouts, log groups, and runtime environment variables.                           |
-| **`apigateway_http.tf`**      | Configures API Gateway v2 HTTP REST routes (`/matches`, `/chat`, `/rules/upload`) and Cognito JWT Authorizers.                                   |
-| **`apigateway_websocket.tf`** | Configures WebSocket API Gateway (`$connect`, `$disconnect`, `$default`), routes, and WebSocket deployment stages.                               |
-| **`messaging.tf`**            | Configures SNS Topic (`cricscore-{env}-match-events`), SQS Queue (`cricscore-{env}-storage-buffer`), Dead Letter Queue (DLQ), and subscriptions. |
-| **`cognito.tf`**              | Provisions AWS Cognito User Pool, App Clients, User Groups (`Admin`, `Guest`), and domain prefixes.                                              |
-| **`frontend.tf`**             | Provisions S3 Bucket for React static hosting, CloudFront CDN distribution, ACM SSL Certificates, and Route 53 A records.                        |
-| **`iam.tf`**                  | Defines fine-grained IAM Execution Roles and Least-Privilege Policies for each individual Lambda function.                                       |
-| **`dashboard.tf`**            | Provisions AWS CloudWatch operational dashboards and metrics monitors.                                                                           |
-| **`kms_and_logging.tf`**      | Configures CloudWatch log retention and KMS encryption policies.                                                                                 |
-| **`xray.tf`**                 | Enables AWS X-Ray distributed tracing across API Gateway and Lambda functions.                                                                   |
-| **`environments/`**           | Contains environment-specific variable configurations (`dev.tfvars` and `prod.tfvars`).                                                          |
+| File                          | Responsibilities & Resources Defined                                                                                                                                                              |
+| :---------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **`providers.tf`**            | Configures the S3 remote backend with native S3 state locking and dual AWS provider aliases (`us-east-1` for CloudFront ACM SSL certificates).                                                    |
+| **`variables.tf`**            | Declares input parameters (`environment`, `domain_name`, `database_url`, `llm_api_key`, etc.).                                                                                                    |
+| **`outputs.tf`**              | Exports runtime endpoints (API Gateway URLs, Cognito Pool IDs, S3 bucket names) for consumption by deploy scripts and frontend builds.                                                            |
+| **`lambda.tf`**               | Defines the ZIP-based application Lambda functions and the container-image prediction Lambda, including memory, timeouts, tracing, and environment variables.                                     |
+| **`apigateway_http.tf`**      | Configures API Gateway v2 HTTP API routes (`/matches`, `/chat`, `/rules/upload`) and Cognito JWT Authorizers.                                                                                     |
+| **`apigateway_websocket.tf`** | Configures WebSocket API Gateway (`$connect`, `$disconnect`, `$default`), routes, and WebSocket deployment stages.                                                                                |
+| **`messaging.tf`**            | Configures the SNS match-events topic, FIFO SQS storage queue, and SNS subscription. The score-update Lambda also sends persistence messages directly to SQS; no dead-letter queue is configured. |
+| **`cognito.tf`**              | Provisions an AWS Cognito User Pool, app client, `Admin` user group, and user-pool domain.                                                                                                        |
+| **`frontend.tf`**             | Provisions S3 Bucket for React static hosting, CloudFront CDN distribution, ACM SSL Certificates, and Route 53 A records.                                                                         |
+| **`iam.tf`**                  | Defines a shared Lambda execution role and attached policies for the application's AWS service integrations.                                                                                      |
+| **`cost_budget.tf`**          | Configures the monthly AWS cost budget and actual-cost email notification.                                                                                                                        |
+| **`kms_and_logging.tf`**      | Configures the S3 access-logging bucket and its public-access block.                                                                                                                              |
+| **`xray.tf`**                 | Configures an AWS X-Ray sampling rule. Lambda tracing is configured in the Lambda resources.                                                                                                      |
+| **`environments/`**           | Contains environment-specific variable configurations (`dev.tfvars` and `prod.tfvars`).                                                                                                           |
 
 ---
 
-## 🛠️ Step-by-Step Hands-On Tutorial
+## 🛠️ Terraform Validation and Plan Review
 
 ### Prerequisites
 
 Before running Terraform commands, ensure you have:
 
-1. **Terraform CLI** installed (`>= 1.9.0`): `terraform -version`
+1. **Terraform CLI** installed: the configuration requires `>= 1.10.0`; the repository's CI and deployment workflows use Terraform `1.10.x`.
 2. **AWS CLI v2** configured with IAM deployment credentials: `aws sts get-caller-identity`
-3. **Aiven PostgreSQL** connection string ready for `database_url`.
+3. Completed the deployment guide's bootstrap, with the hosted zone delegated and the Terraform state bucket available.
+4. A complete, private `.env.local` in the repository root. Never commit it or a generated plan file.
 
 ---
 
-### Step 1: Initialize Terraform with Remote Backend
+### Step 1: Validate Terraform without AWS changes
 
-CricScore stores state in an S3 bucket with DynamoDB locking. Initialize your workspace by targeting the environment state key:
-
-```bash
-cd infra/terraform
-
-# Initialize for DEV environment
-terraform init -backend-config="key=cricscore/dev/terraform.tfstate"
-```
-
-_(For PROD, use `key=cricscore/prod/terraform.tfstate`)_.
-
----
-
-### Step 2: Validate Syntax & Code Formatting
-
-Ensure HCL code syntax and formatting conform to Terraform standards:
+Run formatting and configuration validation. Initializing with `-backend=false` avoids connecting to or modifying remote state:
 
 ```bash
-# Check formatting recursively
 terraform fmt -check -recursive
-
-# Validate code syntax and internal module wiring
-terraform validate
+terraform -chdir=infra/terraform init -backend=false
+terraform -chdir=infra/terraform validate
 ```
 
----
+### Step 2: Create an environment-specific plan
 
-### Step 3: Run Static Security Analysis (Checkov & Trivy)
-
-Scan the Terraform files for security misconfigurations before planning:
+The plan uses the same state bucket, environment-specific naming, and secret inputs as the deployment script. Set `ENV` to `dev` or `prod`; do not use a development database URL for a production plan.
 
 ```bash
-# Run Checkov IaC security scanner
-checkov -d . --config-file .checkov.yaml
+set -a
+source ./.env.local
+set +a
+
+ENV=dev
+case "$ENV" in
+  dev)
+    DEPLOY_DOMAIN="${DEV_DOMAIN_NAME:-${SUBDOMAIN_PREFIX}dev.${ZONE_DOMAIN}}"
+    DEPLOY_PROJECT="${DEV_PROJECT_NAME:-${PROJECT_NAME}dev}"
+    DEPLOY_PREFIX="${DEV_SUBDOMAIN_PREFIX:-${SUBDOMAIN_PREFIX}dev}"
+    ;;
+  prod)
+    DEPLOY_DOMAIN="${PROD_DOMAIN_NAME:-${DOMAIN_NAME:-${SUBDOMAIN_PREFIX}.${ZONE_DOMAIN}}}"
+    DEPLOY_PROJECT="${PROD_PROJECT_NAME:-$PROJECT_NAME}"
+    DEPLOY_PREFIX="${PROD_SUBDOMAIN_PREFIX:-$SUBDOMAIN_PREFIX}"
+    ;;
+  *)
+    echo "ENV must be dev or prod" >&2
+    exit 1
+    ;;
+esac
+
+export TF_VAR_aws_region="${AWS_REGION:-us-east-1}"
+export TF_VAR_database_url="$TF_DATABASE_URL"
+export TF_VAR_ses_source_email="$TF_SES_SOURCE_EMAIL"
+export TF_VAR_admin_email="${ADMIN_EMAIL:-admin@example.com}"
+export TF_VAR_llm_api_key="$LLM_API_KEY"
+export TF_VAR_openai_api_key="${OPENAI_API_KEY:-}"
+export TF_VAR_llm_base_url="${LLM_BASE_URL:-https://api.openai.com/v1}"
+export TF_VAR_llm_model="${LLM_MODEL:-gpt-4o-mini}"
+
+terraform -chdir=infra/terraform init -reconfigure \
+  -backend-config="bucket=$TF_STATE_BUCKET" \
+  -backend-config="key=cricscore/$ENV/terraform.tfstate"
+
+terraform -chdir=infra/terraform plan \
+  -var-file="environments/$ENV.tfvars" \
+  -var="domain_name=$DEPLOY_DOMAIN" \
+  -var="zone_domain=$ZONE_DOMAIN" \
+  -var="project_name=$DEPLOY_PROJECT" \
+  -var="subdomain_prefix=$DEPLOY_PREFIX" \
+  -out="$ENV.tfplan"
 ```
 
----
+Review every proposed change, especially any destroy or replacement. A plan file can contain sensitive values; keep it local and remove it when finished. This plan review does not deploy the frontend.
 
-### Step 4: Generate an Execution Plan (`terraform plan`)
+### Step 3: Apply and publish
 
-Preview the infrastructure changes Terraform will make against AWS without modifying resources:
+For a full deployment, use the [deployment guide's deploy command](./deployment.md#step-4-deploy). It runs `terraform apply -auto-approve` and then builds and publishes the frontend; it calculates a fresh plan rather than applying the saved `*.tfplan` file. Re-review if the Terraform state or configuration changed since the plan review. Avoid running an unreviewed apply against production.
 
-```bash
-# Plan for DEV environment using dev.tfvars
-terraform plan -var-file="environments/dev.tfvars" -out=tfplan
-```
-
-Review the output:
-
-- `+ create` — New resources to be created.
-- `~ update` — Existing resources to be modified in-place.
-- `- destroy` — Resources to be deleted.
-
----
-
-### Step 5: Apply Infrastructure Changes (`terraform apply`)
-
-Apply the saved execution plan to provision resources in AWS:
-
-```bash
-terraform apply tfplan
-```
-
----
-
-### Step 6: Inspect Deployed Outputs
+### Step 4: Inspect deployed outputs
 
 View the exported Terraform outputs (API Gateway IDs, Cognito Client IDs, CloudFront Distro IDs):
 
 ```bash
-terraform output
+terraform -chdir=infra/terraform output
 ```
 
 Output example:
@@ -177,31 +179,33 @@ cloudfront_domain    = "d123456789.cloudfront.net"
 
 ### How State Locking Works
 
-To prevent simultaneous deployments from corrupting the Terraform state file, Terraform automatically acquires an exclusive lock in the DynamoDB table (`terraform-state-locking`) during every `apply` or `plan`.
+To prevent simultaneous deployments from corrupting the Terraform state file, Terraform creates a `.tflock` object beside the state file in S3 during operations such as `plan` and `apply`. The AWS identity running Terraform needs permission to get, put, and delete that lock object.
 
 ### How to Force Unlock (Emergency Cleanup)
 
-If a CI/CD job crashes or network drops mid-deployment, the lock may remain active. You can safely unlock the environment via the GitHub Actions dashboard:
+If a CI/CD job crashes or the network drops mid-deployment, the lock may remain active. You can unlock the environment with Terraform's force-unlock workflow:
 
 1. Navigate to the GitHub repository **Actions** tab.
 2. Select the **Terraform Force Unlock** workflow on the left.
 3. Click **Run workflow**, select the stuck environment (`dev` or `prod`), and paste the **Lock ID** from the error logs.
-4. Click **Run workflow** to execute the unlock.
+4. Click **Run workflow** to execute the unlock. The workflow uses the matching environment state key and removes the stale S3 lock file.
 
-_(Alternatively, if running locally, you can use `terraform force-unlock <lock-id>` inside the `infra/terraform` directory)._
+_(Alternatively, from `infra/terraform`, initialize with `-backend-config="bucket=$TF_STATE_BUCKET"` and the matching dev/prod state key, then run `terraform force-unlock <lock-id>`. Verify the lock is stale first; force-unlocking an active operation can cause state conflicts. Do not manually delete the `.tflock` object.)_
 
 ---
 
 ## 🔄 Environment Isolation (`dev` vs `prod`)
 
-CricScore maintains strict environment isolation using **Terraform Workspaces & Variable Files**:
+CricScore separates the `dev` and `prod` configurations with **distinct S3 state keys and variable files** (not Terraform workspaces):
 
-| Environment | State Key                          | Variable File              | Domain Name                             |
-| :---------- | :--------------------------------- | :------------------------- | :-------------------------------------- |
-| **Dev**     | `cricscore/dev/terraform.tfstate`  | `environments/dev.tfvars`  | `cricscoredev.venkateshsingamsetty.com` |
-| **Prod**    | `cricscore/prod/terraform.tfstate` | `environments/prod.tfvars` | `cricscore.venkateshsingamsetty.com`    |
+Both environments store their state in the S3 bucket configured by `TF_STATE_BUCKET` in `.env.local` (and the GitHub environment variable with the same name). Their different state keys also give them separate lock objects; for example, dev uses `cricscore/dev/terraform.tfstate.tflock` and prod uses `cricscore/prod/terraform.tfstate.tflock`.
 
-Both environments share the exact same `.tf` files in `infra/terraform/`, ensuring 100% environment parity.
+| Environment | State Key                          | Lock Object                               | Variable File              | Domain Name                |
+| :---------- | :--------------------------------- | :---------------------------------------- | :------------------------- | :------------------------- |
+| **Dev**     | `cricscore/dev/terraform.tfstate`  | `cricscore/dev/terraform.tfstate.tflock`  | `environments/dev.tfvars`  | `cricscoredev.example.com` |
+| **Prod**    | `cricscore/prod/terraform.tfstate` | `cricscore/prod/terraform.tfstate.tflock` | `environments/prod.tfvars` | `cricscore.example.com`    |
+
+Both environments use the same Terraform configuration files, with separate state, lock objects, and environment-specific values. Terraform only locks the state key being operated on, so dev and prod do not contend for one shared lock; concurrent runs targeting the same environment do contend for that environment's lock.
 
 ---
 
@@ -210,12 +214,14 @@ Both environments share the exact same `.tf` files in `infra/terraform/`, ensuri
 Instead of manually running individual Terraform steps, use the canonical deployment script:
 
 ```bash
-# Automated build, terraform apply, DB migration, and CloudFront invalidate for DEV
+# Installs dependencies, applies Terraform, builds and uploads the frontend, then invalidates CloudFront
 ./infra/scripts/deploy.sh --env dev
 
 # For PROD
 ./infra/scripts/deploy.sh --env prod
 ```
+
+The local script does not run database migrations. Run the migration script separately with the correct environment and database URL; the CI deployment workflows run migrations as part of their deployment jobs.
 
 ---
 
@@ -223,13 +229,13 @@ Instead of manually running individual Terraform steps, use the canonical deploy
 
 ```bash
 # Force replace a single resource (e.g., recreate match-api Lambda)
-terraform apply -var-file="environments/dev.tfvars" -replace="aws_lambda_function.match_api"
+terraform apply -var-file="environments/dev.tfvars" -replace="module.match_api.aws_lambda_function.this"
 
-# Refresh local state without making changes
-terraform refresh -var-file="environments/dev.tfvars"
+# Preview changes detected by refreshing state from AWS
+terraform plan -refresh-only -var-file="environments/dev.tfvars"
 
-# Target plan for a specific resource
-terraform plan -var-file="environments/dev.tfvars" -target="aws_cognito_user_pool.main"
+# Targeted plans are for exceptional recovery/debugging, not routine deployments
+terraform plan -var-file="environments/dev.tfvars" -target="aws_cognito_user_pool.pool"
 ```
 
 ---

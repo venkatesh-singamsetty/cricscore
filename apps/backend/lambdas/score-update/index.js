@@ -6,7 +6,17 @@ const sqsClient = new SQSClient({});
 const TOPIC_ARN = process.env.MATCH_EVENTS_TOPIC;
 const QUEUE_URL = process.env.STORAGE_BUFFER_QUEUE;
 
-const { Client } = require("pg");
+const { Pool } = require("pg");
+
+const pool = new Pool({
+  connectionString: (process.env.DATABASE_URL || "").split("?")[0],
+  // Required for Aiven managed PostgreSQL unless an explicit CA bundle is provided.
+  ssl: { rejectUnauthorized: false },
+  max: 1,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
+});
+pool.on("error", (err) => console.error("Idle PostgreSQL client error:", err));
 
 const getClaims = (event) => {
   const claims =
@@ -21,7 +31,7 @@ const getClaims = (event) => {
   return claims;
 };
 
-exports.handler = async (event) => {
+exports.handler = async (event, context) => {
   const { httpMethod } = event || {};
   if (httpMethod === "OPTIONS") {
     return {
@@ -35,17 +45,13 @@ exports.handler = async (event) => {
     };
   }
 
+  if (context) context.callbackWaitsForEmptyEventLoop = false;
   let client;
   try {
     const body = JSON.parse(event.body);
     const { matchId, inningId, syncOnly, undo } = body;
 
-    const cleanDbUrl = (process.env.DATABASE_URL || "").split("?")[0];
-    client = new Client({
-      connectionString: cleanDbUrl,
-      ssl: { rejectUnauthorized: false }, // Required for Aiven PostgreSQL
-    });
-    await client.connect();
+    client = await pool.connect();
     if (process.env.DB_SCHEMA) {
       await client.query(`SET search_path TO ${process.env.DB_SCHEMA}, public`);
     }
@@ -133,6 +139,6 @@ exports.handler = async (event) => {
       headers: { "Access-Control-Allow-Origin": "*" },
     };
   } finally {
-    if (client) await client.end();
+    if (client) client.release();
   }
 };

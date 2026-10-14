@@ -1,8 +1,8 @@
-# 🤖 Zero-Cost Serverless MLOps Tutorial
+# 🤖 Serverless MLOps Tutorial
 
 This guide walks through the end-to-end Machine Learning Operations (MLOps) pipeline integrated into the CricScore project. The goal of this pipeline is to predict the outcome of a T20 match based on historical data.
 
-Most importantly, this pipeline is designed to be **100% free** and highly scalable. It avoids expensive GPU instances, heavy ML platforms (like SageMaker), or large inference servers by leveraging GitHub Actions for training and AWS Lambda for inference.
+The pipeline avoids dedicated GPU instances and always-on inference servers by using GitHub Actions for training and AWS Lambda for inference. Actual costs depend on AWS usage, GitHub plan and usage, and external data or model services.
 
 **Quick Navigation:** [Architecture](#️-1-architecture-overview) · [Data Pipeline](#-2-the-data-pipeline-live_datacsv) · [Training](#-3-model-training-live_trainpy) · [CI/CD Gate](#-4-automated-cicd-gate-mlops-pipelineyml) · [Docker Inference](#️-5-serverless-docker-inference-predictpy) · [Frontend](#️-6-frontend-integration) · [Troubleshooting](#-7-lessons-learned--troubleshooting) · [Win Prediction Spec](#-8-win-prediction-engine-specification) · [DLS Method](#️-9-duckworth-lewis-stern-dls-method)
 
@@ -23,7 +23,7 @@ graph TD
         DP[data_pipeline.py]
         LT[live_train.py]
         TEST[PyTest Validation]
-        GATE{Accuracy > 60%?}
+        GATE{Accuracy >= 60%?}
     end
 
     %% Define Deployment
@@ -44,10 +44,10 @@ graph TD
     DP -- "live_data.csv" --> LT
     LT -- "live_win_predictor_model.joblib" --> TEST
     TEST -- Pass --> GATE
-    GATE -- "Yes (Deploy)" --> ECR
+    GATE -- "Yes (Upload artifact)" --> ART[GitHub Actions artifact]
     GATE -- "No (Fail Build)" --> STOP((Stop))
 
-    ECR -- "Docker Image (< 500MB)" --> LAMBDA
+    ECR -- "Terraform-built container image" --> LAMBDA
     LAMBDA -- "POST /match/predict" --> APIGW
     UI -- "Every ball bowled" --> APIGW
     APIGW -- "Win Probability %" --> UI
@@ -57,8 +57,8 @@ The MLOps pipeline consists of four main stages:
 
 1. **Data Ingestion & Preprocessing**: Automatically downloads raw ball-by-ball JSON data from [Cricsheet](https://cricsheet.org/) and compiles it into a structured tabular format (`live_data.csv`).
 2. **Model Training & Evaluation**: Trains a lightweight Scikit-Learn `LogisticRegression` model. The training script strictly enforces chronological data splitting to prevent **data leakage** (future events predicting past outcomes).
-3. **Continuous Integration (CI) Gate**: A GitHub Actions workflow that automatically runs the pipeline on a monthly cron schedule or manual trigger. It runs a `pytest` suite and enforces a strict accuracy gate (e.g., >60%) before deploying the model.
-4. **Serverless Inference**: The model is bundled into an AWS ECR Docker Container, exposing a `POST /match/predict` endpoint via API Gateway with sub-100ms latency.
+3. **Continuous Integration (CI) Gate**: The GitHub Actions workflow runs on changes to `apps/ml-engine/` pushed to `main`, monthly, or by manual dispatch. It runs a `pytest` test and fails the workflow if measured accuracy is below 60%, then uploads the model and metadata as artifacts.
+4. **Serverless Inference**: Terraform builds and pushes the `apps/ml-engine` Docker image to ECR for the prediction Lambda, which is exposed through `POST /match/predict`. The CI training workflow uploads artifacts; it does not deploy that model image to ECR.
 
 ---
 
@@ -102,7 +102,7 @@ We use a robust `LogisticRegression` model trained on in-match dynamic variables
 
 ML models degrade over time (Data Drift). To keep the model fresh, we need a way to safely retrain it.
 
-This GitHub Action triggers whenever changes are made in `apps/ml-engine/`.
+This GitHub Action runs when changes under `apps/ml-engine/` are pushed to `main`, on its monthly schedule, or by manual dispatch.
 
 1. It installs dependencies (`scikit-learn`, `pandas`).
 2. Runs the data pipeline.
@@ -121,14 +121,14 @@ Instead of deploying a traditional zipped Lambda package, the live model is cont
 **Serverless Container Execution (Firecracker MicroVM):**
 A common misconception is that a Docker image in ECR requires a running server (like ECS or Fargate) to serve requests. However, AWS Lambda natively supports Docker Images under the hood using **Firecracker MicroVMs**.
 
-- The image sits idle in ECR costing nothing.
-- When an API Gateway request arrives, Lambda provisions a MicroVM, spins up the container in milliseconds, and executes `predict.py`.
-- Once the response is sent, the container is frozen. If no new requests arrive, it is automatically destroyed. You get the heavy dependency support of Docker with the zero-idle-cost benefits of Serverless!
+- ECR stores the image; storage charges depend on image size, retained image versions, region, and current pricing.
+- When an API Gateway request arrives, Lambda invokes the function in a managed execution environment, including a cold start when a warm environment is unavailable.
+- Lambda may reuse an execution environment for later requests; it is not necessarily destroyed immediately after a response. Compute charges depend on invocations and execution duration.
 
 **How it works:**
 
 1. **Containerization**: A `Dockerfile` bundles the `live_win_predictor_model.joblib`, `predict.py`, and dependencies into an AWS Lambda Python base image.
-2. **ECR Storage**: The image is pushed to a Private ECR Repository. Private ECR provides **500MB per month of free storage** under the AWS Free Tier. We overwrite the `latest` tag continuously to ensure we stay well under this 500MB free limit (even though Lambda container images can theoretically support up to 10GB sizes).
+2. **ECR Storage**: The image is pushed to a private ECR repository. Check current ECR pricing and account eligibility for storage charges. Updating the mutable `latest` tag does not necessarily remove older image versions; configure image lifecycle cleanup if required. Lambda container images support up to 10GB.
 3. **Execution**: The handler accepts a JSON payload of the live match state, executes `model.predict_proba()`, and returns live ball-by-ball win probabilities.
 
 ---

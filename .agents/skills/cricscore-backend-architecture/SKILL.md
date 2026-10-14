@@ -1,24 +1,19 @@
 ---
 name: cricscore-backend-architecture
-description: Architectural specifications, event schema definitions, state sync mechanics, and debugging guidelines for the CricScore backend.
+description: Use when changing CricScore Node.js Lambda APIs, scoring and event processing, PostgreSQL access, persistence, or WebSocket state synchronization.
 ---
 
 # CricScore Backend Architecture Skill
 
-This skill documents the core live score calculation, event ordering, and state sync mechanisms for the CricScore application.
+Use `apps/backend/lambdas/README.md`, the relevant Lambda code, and Terraform as the current architecture references. Confirm event ownership and payload contracts in code before changing a flow.
 
-## 1. Domain Event Flow
+## Runtime boundaries
 
-1. **Match API (`apps/backend/lambdas/match-api`)**: Accepts ball-by-ball updates or admin score edits via API Gateway.
-2. **Score Update Worker (`apps/backend/lambdas/score-update`)**: Processes incoming ball events, computes running overs/wickets/runs, updates PostgreSQL RDS, and emits `LIVE_SCORE_UPDATE` or `STATE_SYNC` events.
-3. **SNS / SQS Fan-Out**: Broadcasts score updates to WebSocket API connections (`chat-api` / WebSocket gateway) and long-term storage worker.
+- Each Lambda owns a distinct API, event, or delivery responsibility. Preserve the existing boundaries and message schemas; verify producers and consumers together when changing an event.
+- Score calculations must distinguish legal deliveries from extras and retirement events. Keep event ordering, persistence, broadcast state, and undo behavior consistent.
+- PostgreSQL is Aiven-hosted. Reuse the configured `pg.Pool` pattern in warm Lambda environments, avoid creating a pool per invocation, and do not log connection strings or sensitive query results.
+- Use transactions where a logical update spans multiple related rows. Parameterize SQL values and validate inputs at API boundaries.
 
-## 2. Database Connection Pooling (PostgreSQL RDS)
+## Verification
 
-- Always use **pg.Pool** or AWS RDS Proxy for Lambda connections to prevent connection exhaustion (`max_connections exceeded`).
-- Ensure `pool.end()` or connection reuse patterns are maintained in serverless handlers outside the function execution body.
-
-## 3. Testing & Verification
-
-Run unit tests for score calculation Lambdas:
-`(cd apps/backend && npx vitest run lambdas/score-update/index.test.js)`
+Add regression tests beside the affected Lambda. Run `(cd apps/backend && npm test)` for backend changes; include relevant API, persistence, event-consumer, and undo tests when behavior crosses boundaries.

@@ -27,7 +27,7 @@ This directory contains the Zero-Cost MLOps pipeline for the CricScore live win 
    python live_train.py
    ```
 
-The script will output `live_win_predictor_model.joblib` and `live_metadata.json` locally. In production, the GitHub Actions CI/CD pipeline will automatically run these scripts, build the Docker image, and push it to the AWS ECR Private repository.
+The script will output `live_win_predictor_model.joblib` and `live_metadata.json` locally. The GitHub Actions MLOps workflow runs the tests, downloads and parses data, trains the model, checks its accuracy threshold, and uploads the model and metadata as a workflow artifact. It does not build or push a Docker image to ECR.
 
 ## 📖 Specifications & Mathematical Documentation
 

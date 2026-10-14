@@ -6,6 +6,7 @@ import { AiMatchPrediction } from "./AiMatchPrediction";
 import { InningsState, ExtraType, WicketType } from "../types";
 import { getCurrentPartnership } from "../utils/partnershipUtils";
 import { calculateDlsParScore } from "../utils/dlsUtils";
+import { stripPlayerOfMatchLine } from "../utils/summaryFormat";
 import {
   isHubRefreshType,
   isScoreEventType,
@@ -905,22 +906,24 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
 
                   {/* AI Match Prediction Section */}
                   {matchMeta && matchMeta.status !== "COMPLETED" && (
-                    <AiMatchPrediction
-                      matchId={targetMatchId}
-                      teamA={matchMeta.teamA}
-                      teamB={matchMeta.teamB}
-                      battingTeam={currentInnings.battingTeamName}
-                      bowlingTeam={currentInnings.bowlingTeamName}
-                      totalOvers={matchMeta.totalOvers}
-                      compact={true}
-                      inning={currentInnings.inningNumber}
-                      currentScore={currentInnings.totalRuns}
-                      wicketsLost={currentInnings.totalWickets}
-                      targetScore={currentInnings.target || -1}
-                      ballsBowled={
-                        currentInnings.overs * 6 + currentInnings.balls
-                      }
-                    />
+                    <div className="w-full md:max-w-[805px] md:mx-auto">
+                      <AiMatchPrediction
+                        matchId={targetMatchId}
+                        teamA={matchMeta.teamA}
+                        teamB={matchMeta.teamB}
+                        battingTeam={currentInnings.battingTeamName}
+                        bowlingTeam={currentInnings.bowlingTeamName}
+                        totalOvers={matchMeta.totalOvers}
+                        compact={true}
+                        inning={currentInnings.inningNumber}
+                        currentScore={currentInnings.totalRuns}
+                        wicketsLost={currentInnings.totalWickets}
+                        targetScore={currentInnings.target || -1}
+                        ballsBowled={
+                          currentInnings.overs * 6 + currentInnings.balls
+                        }
+                      />
+                    </div>
                   )}
 
                   {/* Batsmen */}
@@ -1193,7 +1196,9 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                         </button>
                       </div>
                       <div className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
-                        {matchMeta.aiSummary}
+                        {matchMeta.playerOfTheMatch
+                          ? stripPlayerOfMatchLine(matchMeta.aiSummary)
+                          : matchMeta.aiSummary}
                       </div>
                       {matchMeta.playerOfTheMatch && (
                         <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-center gap-3">

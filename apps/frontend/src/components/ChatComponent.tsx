@@ -13,7 +13,6 @@ import {
   VolumeX,
 } from "lucide-react";
 import {
-  safeSessionStorageSet,
   safeLocalStorageGet,
   safeLocalStorageSet,
   safeLocalStorageRemove,
@@ -139,14 +138,36 @@ export function ChatComponent({
     setUploadedDocs(uploadedDocs.filter((d) => d !== doc));
   };
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageListRef = useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     safeLocalStorageSet("cricscore-chat-memory", JSON.stringify(messages));
   }, [messages]);
 
   React.useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
   }, [messages, loading]);
+
+  React.useEffect(() => {
+    // Relying strictly on CSS h-dvh for viewport resizing on iOS.
+    // The previous visualViewport padding offset broke fixed headers.
+    if (typeof window !== "undefined" && window.visualViewport) {
+      const handleResize = () => {
+        // Just ensure active element is in view without changing body layout
+        if (document.activeElement?.tagName === "INPUT") {
+          setTimeout(() => {
+            document.activeElement?.scrollIntoView({
+              behavior: "smooth",
+              block: "nearest",
+            });
+          }, 50);
+        }
+      };
+      window.visualViewport.addEventListener("resize", handleResize);
+      return () =>
+        window.visualViewport?.removeEventListener("resize", handleResize);
+    }
+  }, []);
 
   const speakText = (text: string, force: boolean = false) => {
     if (
@@ -184,23 +205,6 @@ export function ChatComponent({
       const unlockUtterance = new SpeechSynthesisUtterance("");
       unlockUtterance.volume = 0;
       window.speechSynthesis.speak(unlockUtterance);
-    }
-
-    if (trimmed.startsWith("/login ")) {
-      const pin = trimmed.split(" ")[1];
-      const ADMIN_PIN = import.meta.env.VITE_ADMIN_PIN || "2403";
-      if (pin === ADMIN_PIN) {
-        safeSessionStorageSet("auth_admin", "true");
-        window.location.reload();
-      } else {
-        setMessages((prev) => [
-          ...prev,
-          { role: "user", content: trimmed },
-          { role: "assistant", content: "❌ Invalid Admin PIN." },
-        ]);
-        setInput("");
-      }
-      return;
     }
 
     const userMsg = { role: "user" as const, content: trimmed };
@@ -274,7 +278,7 @@ export function ChatComponent({
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 w-full max-w-4xl mx-auto bg-slate-900 rounded-none sm:rounded-xl border-0 sm:border border-white/10 shadow-2xl overflow-hidden relative">
+    <div className="flex-1 min-h-0 flex flex-col w-full max-w-4xl mx-auto bg-slate-900 rounded-none sm:rounded-xl border-0 sm:border border-white/10 shadow-2xl overflow-hidden relative">
       <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-transparent pointer-events-none" />
       <div className="shrink-0 p-3 sm:p-4 bg-slate-800/95 backdrop-blur-sm border-b border-white/10 flex items-center justify-between gap-2 relative z-20 sticky top-0 shadow-md">
         <div className="flex items-center gap-1.5 shrink-0">
@@ -361,65 +365,113 @@ export function ChatComponent({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
-        {messages.map((msg, idx) => (
-          <div
-            key={idx}
-            className={`flex gap-2.5 sm:gap-3 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
-          >
-            <div
-              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0 ${msg.role === "user" ? "bg-indigo-500" : "bg-slate-700"}`}
-            >
-              {msg.role === "user" ? (
-                <User size={14} className="text-white sm:w-4 sm:h-4" />
-              ) : (
-                <Bot size={14} className="text-indigo-300 sm:w-4 sm:h-4" />
-              )}
-            </div>
-            <div
-              className={`p-3 rounded-2xl max-w-[85%] sm:max-w-[80%] shadow-md relative group ${msg.role === "user" ? "bg-indigo-600 text-white rounded-tr-none shadow-indigo-500/20" : "bg-slate-800 text-slate-200 rounded-tl-none border border-white/5 pr-8"}`}
-            >
-              <FormattedContent content={msg.content} />
+      <div className="flex-1 min-h-0 flex flex-col relative">
+        <div
+          ref={messageListRef}
+          className="flex-1 overflow-y-auto p-3 sm:p-4 overscroll-contain touch-pan-y flex flex-col"
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >
+          <div className="flex-1 min-h-[1rem] shrink-0"></div>
+          <div className="space-y-3 sm:space-y-4 flex flex-col shrink-0">
+            {messages.map((msg, idx) => (
+              <div
+                key={idx}
+                className={`flex gap-2.5 sm:gap-3 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
+              >
+                <div
+                  className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0 ${msg.role === "user" ? "bg-indigo-500" : "bg-slate-700"}`}
+                >
+                  {msg.role === "user" ? (
+                    <User size={14} className="text-white sm:w-4 sm:h-4" />
+                  ) : (
+                    <Bot size={14} className="text-indigo-300 sm:w-4 sm:h-4" />
+                  )}
+                </div>
+                <div
+                  className={`p-3 rounded-2xl max-w-[85%] sm:max-w-[80%] shadow-md relative group ${msg.role === "user" ? "bg-indigo-600 text-white rounded-tr-none shadow-indigo-500/20" : "bg-slate-800 text-slate-200 rounded-tl-none border border-white/5 pr-8"}`}
+                >
+                  <FormattedContent content={msg.content} />
 
-              {msg.role === "assistant" &&
-                msg.content !== "Hi! Ask me anything about the live match!" && (
-                  <button
-                    onClick={() => handleCopy(msg.content)}
-                    className="absolute right-2 bottom-2 p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-indigo-500/20 rounded-md opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
-                    title="Copy response"
-                  >
-                    <Copy size={14} />
-                  </button>
-                )}
-            </div>
+                  {msg.role === "assistant" &&
+                    msg.content !==
+                      "Hi! Ask me anything about the live match!" && (
+                      <button
+                        onClick={() => handleCopy(msg.content)}
+                        className="absolute right-2 bottom-2 p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-indigo-500/20 rounded-md opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
+                        title="Copy response"
+                      >
+                        <Copy size={14} />
+                      </button>
+                    )}
+                </div>
+              </div>
+            ))}
+            {loading && (
+              <div className="flex gap-2.5 sm:gap-3 flex-row">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-700 flex items-center justify-center shrink-0">
+                  <Bot
+                    size={14}
+                    className="text-indigo-300 animate-pulse sm:w-4 sm:h-4"
+                  />
+                </div>
+                <div className="p-3 rounded-2xl bg-slate-800 text-slate-400 rounded-tl-none border border-white/5 flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-slate-500 animate-bounce"></div>
+                  <div
+                    className="w-2 h-2 rounded-full bg-slate-500 animate-bounce"
+                    style={{ animationDelay: "0.2s" }}
+                  ></div>
+                  <div
+                    className="w-2 h-2 rounded-full bg-slate-500 animate-bounce"
+                    style={{ animationDelay: "0.4s" }}
+                  ></div>
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
           </div>
-        ))}
-        {loading && (
-          <div className="flex gap-2.5 sm:gap-3 flex-row">
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-700 flex items-center justify-center shrink-0">
-              <Bot
-                size={14}
-                className="text-indigo-300 animate-pulse sm:w-4 sm:h-4"
-              />
-            </div>
-            <div className="p-3 rounded-2xl bg-slate-800 text-slate-400 rounded-tl-none border border-white/5 flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-slate-500 animate-bounce"></div>
-              <div
-                className="w-2 h-2 rounded-full bg-slate-500 animate-bounce"
-                style={{ animationDelay: "0.2s" }}
-              ></div>
-              <div
-                className="w-2 h-2 rounded-full bg-slate-500 animate-bounce"
-                style={{ animationDelay: "0.4s" }}
-              ></div>
-            </div>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
+        </div>
       </div>
 
-      <div className="shrink-0 p-2.5 sm:p-4 bg-slate-800 border-t border-white/10 z-30">
+      <div
+        className="shrink-0 p-2.5 sm:p-4 bg-slate-800 border-t border-white/10 z-30 sticky bottom-0"
+        style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.625rem)" }}
+      >
         <form onSubmit={sendMessage} className="flex items-center gap-2">
+          <input
+            type="text"
+            name="search-chat-input"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            data-lpignore="true"
+            data-form-type="other"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onFocus={() => {
+              setTimeout(() => {
+                if (messageListRef.current) {
+                  messageListRef.current.scrollTop =
+                    messageListRef.current.scrollHeight;
+                }
+              }, 300);
+            }}
+            onBlur={() => {
+              // iOS Safari bug: force viewport back to origin when keyboard hides
+              window.scrollTo(0, 0);
+            }}
+            placeholder="Ask about the match, score, or players..."
+            className="flex-1 min-w-0 bg-slate-900 border border-white/10 rounded-2xl py-2.5 sm:py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-slate-500"
+            disabled={loading}
+          />
+          <button
+            type="submit"
+            disabled={!input.trim() || loading}
+            className="p-2.5 sm:p-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl disabled:opacity-50 transition-colors shrink-0 shadow-lg shadow-indigo-600/20"
+            title="Send message"
+          >
+            <Send size={18} />
+          </button>
           <button
             type="button"
             onClick={() => {
@@ -454,29 +506,6 @@ export function ChatComponent({
             ) : (
               <VolumeX size={18} className="shrink-0" />
             )}
-          </button>
-          <input
-            type="text"
-            name="cric_chat_query"
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="sentences"
-            spellCheck={false}
-            data-lpignore="true"
-            data-form-type="other"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask about the match, score, or players..."
-            className="flex-1 min-w-0 bg-slate-900 border border-white/10 rounded-2xl py-2.5 sm:py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-slate-500"
-            disabled={loading}
-          />
-          <button
-            type="submit"
-            disabled={!input.trim() || loading}
-            className="p-2.5 sm:p-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl disabled:opacity-50 transition-colors shrink-0 shadow-lg shadow-indigo-600/20"
-            title="Send message"
-          >
-            <Send size={18} />
           </button>
         </form>
       </div>

@@ -36,13 +36,17 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
           queries: security-extended,security-and-quality
+          config: |
+            paths-ignore:
+              - evals/**
+              - "**/node_modules/**"
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4

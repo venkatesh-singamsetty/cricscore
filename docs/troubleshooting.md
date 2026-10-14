@@ -289,17 +289,13 @@ This engineering trace documents the real-world resolutions for the CricScore ba
 
 ### 12. **Terraform State Lock / Acquire Lock Error**
 
-- **Symptom**: `Error: Error acquiring the state lock` with `ConditionalCheckFailedException` during a deployment or drift check execution.
-- **Cause**: A previous Terraform run (local or remote runner) crashed or was cancelled before it could release the lock row in the DynamoDB `terraform-state-locking` table.
+- **Symptom**: `Error: Error acquiring the state lock` during a deployment or drift check execution.
+- **Cause**: A previous Terraform run (local or remote runner) crashed or was cancelled before it could release the S3 `.tflock` object.
 - **Fix**:
   1. Note the lock ID from the error message.
-  2. Run `terraform force-unlock -force <LOCK_ID>` from the `infra/terraform` directory.
-  3. Alternatively, use the AWS CLI to force delete the offending lock item:
-     ```bash
-     aws dynamodb delete-item --table-name terraform-state-locking --key '{"LockID": {"S": "your-bucket-name/cricscore/terraform.tfstate"}}'
-     ```
-     _(Replace `your-bucket-name` with your actual state bucket name)_
-     _(Make sure to adjust the state key path in the partition key value if using environment-specific states, e.g., `/dev/` or `/prod/`)_
+  2. Verify no Terraform operation is still using that state.
+  3. Run `terraform force-unlock -force <LOCK_ID>` from the `infra/terraform` directory, or use the Terraform Force Unlock workflow.
+  4. Do not manually delete the `.tflock` object.
 
 ### 11. **Match Hub Consolidation & Layout Clarity**
 

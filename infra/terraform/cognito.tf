@@ -18,7 +18,7 @@ resource "aws_cognito_user_pool" "pool" {
   }
 
   lambda_config {
-    pre_sign_up = aws_lambda_function.cognito_presignup.arn
+    pre_sign_up = module.cognito_presignup.arn
   }
 
   tags = {

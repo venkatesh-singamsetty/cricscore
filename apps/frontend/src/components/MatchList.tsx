@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { fetchAuthSession } from "aws-amplify/auth";
-import { useWebSocket, WebSocketMessage } from "../hooks/useWebSocket";
+import type { WebSocketMessage } from "../hooks/useWebSocket";
 import {
   applyLiveScoreToMatches,
   isHubRefreshType,
@@ -67,12 +67,8 @@ const MatchList: React.FC<MatchListProps> = ({
     matchName?: string;
   } | null>(null);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
-  const API_URL =
-    import.meta.env.VITE_API_URL ||
-    "https://api.cricscoredev.venkateshsingamsetty.com";
-  const WS_URL = import.meta.env.VITE_WS_URL || "";
-  const internalWs = useWebSocket(WS_URL);
-  const activeMessage = lastMessage || internalWs.lastMessage;
+  const API_URL = import.meta.env.VITE_API_URL || "";
+  const activeMessage = lastMessage;
 
   const fetchMatches = useCallback(
     async (background = false) => {

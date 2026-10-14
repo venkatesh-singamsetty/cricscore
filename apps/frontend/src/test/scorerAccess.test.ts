@@ -1,5 +1,6 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it, beforeEach, vi } from "vitest";
 import {
+  buildGuestCredentials,
   canAccessScorer,
   getStoredAuthFromLocalStorage,
   isGuestEmail,
@@ -68,5 +69,53 @@ describe("canAccessScorer", () => {
         userEmail: null,
       }),
     ).toBe(false);
+  });
+});
+
+describe("buildGuestCredentials", () => {
+  it("creates a guest shadow email recognised as guest and a strong password", () => {
+    const { email, password } = buildGuestCredentials(1700000000000);
+    expect(email).toBe("guest-1700000000000@cricscore.local");
+    expect(isGuestEmail(email)).toBe(true);
+    expect(password.length).toBeGreaterThanOrEqual(12);
+    expect(password).toMatch(/[A-Z]/);
+    expect(password).toMatch(/[a-z]/);
+    expect(password).toMatch(/[0-9]/);
+    expect(password).toMatch(/[^A-Za-z0-9]/);
+  });
+
+  it("generates a unique password per guest", () => {
+    expect(buildGuestCredentials(1).password).not.toBe(
+      buildGuestCredentials(1).password,
+    );
+  });
+
+  it("uses Web Crypto when randomUUID is unavailable", () => {
+    const getRandomValues = vi.fn((bytes: Uint8Array) => {
+      bytes.fill(15);
+      return bytes;
+    });
+    vi.stubGlobal("crypto", { getRandomValues });
+
+    try {
+      expect(buildGuestCredentials(1).password).toBe(
+        `Gs!${"0f".repeat(24)}Aa1`,
+      );
+      expect(getRandomValues).toHaveBeenCalledOnce();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("does not generate guest credentials without secure randomness", () => {
+    vi.stubGlobal("crypto", {});
+
+    try {
+      expect(() => buildGuestCredentials(1)).toThrow(
+        "Secure randomness is unavailable",
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

@@ -3,6 +3,10 @@ const { z } = require("zod");
 const { executeSqlTool } = require("./tools/executeSql");
 const { searchRulesTool } = require("./tools/searchRules");
 const { deleteGuestDataTool } = require("./tools/deleteGuestData");
+const {
+  deleteIncompleteMatchesTool,
+} = require("./tools/deleteIncompleteMatches");
+const { deleteMatchTool } = require("./tools/deleteMatch");
 
 /**
  * Creates and configures the CricScore MCP Server.
@@ -61,6 +65,22 @@ function createCricScoreMcpServer(pool, isAdmin) {
       "Delete all guest users and guest matches from the system. Guests are temporary shadow accounts. Use this when the admin asks to clear, delete, or prune guest data.",
       {},
       deleteGuestDataTool,
+    );
+
+    server.tool(
+      "delete_incomplete_matches",
+      "Delete all matches from the database that are NOT in 'COMPLETED' or 'ABANDONED' status. Use this when the admin asks to delete incomplete matches.",
+      {},
+      deleteIncompleteMatchesTool,
+    );
+
+    server.tool(
+      "delete_match",
+      "Delete a specific match by ID. MUST explicitly confirm with the user first.",
+      {
+        match_id: z.string().describe("The ID of the match to delete"),
+      },
+      deleteMatchTool,
     );
   }
 

@@ -1,15 +1,13 @@
 name: CD
 
 on:
-  workflow_run:
-    workflows: ["Semantic Release"]
-    types:
-      - completed
-    branches: [main]
+  push:
+    tags:
+      - "v*"
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to deploy (e.g. v1.2.3)'
+        description: "Tag to deploy (e.g. v1.2.3)"
         required: true
         type: string
 
@@ -23,7 +21,7 @@ permissions:
 jobs:
   deploy_and_test_prod:
     name: Deploy, Test & OWASP ZAP PROD
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ubuntu-latest
     environment: prod
     permissions:
@@ -31,42 +29,42 @@ jobs:
       contents: read
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
+      TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET || 'venky-2026-terraform-state' }}
       TF_VAR_environment: prod
       TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+      TF_VAR_domain_name: ${{ vars.DOMAIN_NAME }}
+      TF_VAR_zone_domain: ${{ vars.ZONE_DOMAIN }}
+      TF_VAR_subdomain_prefix: ${{ vars.SUBDOMAIN_PREFIX }}
+      TF_VAR_project_name: ${{ vars.PROJECT_NAME }}
       TF_VAR_ses_source_email: ${{ secrets.TF_SES_SOURCE_EMAIL }}
       TF_VAR_database_url: ${{ secrets.TF_DATABASE_URL }}
       TF_VAR_admin_email: ${{ vars.ADMIN_EMAIL }}
       TF_VAR_llm_api_key: ${{ secrets.OPENAI_API_KEY }}
-      API_GATEWAY_ID: ${{ vars.API_GATEWAY_ID }}
-      WS_API_GATEWAY_ID: ${{ vars.WS_API_GATEWAY_ID }}
-      S3_BUCKET: ${{ vars.S3_BUCKET }}
-      CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
-      COGNITO_USER_POOL_ID: ""
-      COGNITO_CLIENT_ID: ""
-      COGNITO_DOMAIN: ""
+      TF_VAR_llm_base_url: ${{ vars.LLM_BASE_URL }}
+      TF_VAR_llm_model: ${{ vars.LLM_MODEL }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.inputs.tag || github.ref }}
-      
+
       - name: Validate AWS_REGION secret
         run: |
           if [ -z "$AWS_REGION" ]; then echo "Missing AWS_REGION. Set vars.AWS_REGION"; exit 1; fi
-      
+
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-      
+
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: apps/frontend/package-lock.json
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
 
       - name: Install PostgreSQL Client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
@@ -86,20 +84,20 @@ jobs:
               (cd "$d" && npm install --omit=dev --ignore-scripts)
             fi
           done
-      
+
       - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
-          terraform_version: '~1.9'
-      
+          terraform_version: "~1.10"
+
       - name: Terraform Init
         working-directory: infra/terraform
-        run: terraform init -backend-config="key=cricscore/prod/terraform.tfstate"
-      
+        run: terraform init -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=cricscore/prod/terraform.tfstate"
+
       - name: Terraform Plan
         working-directory: infra/terraform
-        run: terraform plan -var-file="environments/prod.tfvars" -out=tfplan
-      
+        run: terraform plan -var-file="environments/prod.tfvars" -var="domain_name=$TF_VAR_domain_name" -var="zone_domain=$TF_VAR_zone_domain" -var="subdomain_prefix=$TF_VAR_subdomain_prefix" -var="project_name=$TF_VAR_project_name" -out=tfplan
+
       - name: Terraform Apply
         working-directory: infra/terraform
         run: terraform apply -auto-approve tfplan
@@ -110,33 +108,35 @@ jobs:
           echo "COGNITO_USER_POOL_ID=$(terraform output -raw cognito_user_pool_id)" >> $GITHUB_ENV
           echo "COGNITO_CLIENT_ID=$(terraform output -raw cognito_client_id)" >> $GITHUB_ENV
           echo "COGNITO_DOMAIN=$(terraform output -raw cognito_domain)" >> $GITHUB_ENV
+          echo "S3_BUCKET=$(terraform output -raw s3_bucket_name)" >> $GITHUB_ENV
+          echo "CLOUDFRONT_DISTRIBUTION_ID=$(terraform output -raw cloudfront_distribution_id)" >> $GITHUB_ENV
 
       # --- FRONTEND DEPLOYMENT ---
       - name: Install Frontend dependencies
         working-directory: apps/frontend
         run: npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
-      
+
       - name: Build production bundle
         working-directory: apps/frontend
         env:
           VITE_APP_TITLE: CricScore
           VITE_API_URL: https://api.${{ vars.DOMAIN_NAME }}
           VITE_WS_URL: wss://ws.${{ vars.DOMAIN_NAME }}
-          VITE_ADMIN_PIN: ${{ secrets.VITE_ADMIN_PIN }}
-          VITE_COGNITO_USER_POOL_ID: ${{ env.COGNITO_USER_POOL_ID }}
-          VITE_COGNITO_CLIENT_ID: ${{ env.COGNITO_CLIENT_ID }}
-          VITE_COGNITO_DOMAIN: ${{ env.COGNITO_DOMAIN }}
           VITE_COGNITO_REGION: ${{ env.AWS_REGION }}
-        run: npm run build
-      
+        run: |
+          export VITE_COGNITO_USER_POOL_ID="$COGNITO_USER_POOL_ID"
+          export VITE_COGNITO_CLIENT_ID="$COGNITO_CLIENT_ID"
+          export VITE_COGNITO_DOMAIN="$COGNITO_DOMAIN"
+          npm run build
+
       - name: Upload build to S3
         run: |
-          aws s3 sync apps/frontend/dist/ s3://${{ env.S3_BUCKET }}/ --delete --cache-control "public,max-age=31536000,immutable" --exclude "index.html"
-          aws s3 cp apps/frontend/dist/index.html s3://${{ env.S3_BUCKET }}/index.html --cache-control "no-cache,no-store,must-revalidate" --content-type "text/html"
-      
+          aws s3 sync apps/frontend/dist/ "s3://${S3_BUCKET}/" --delete --cache-control "public,max-age=31536000,immutable" --exclude "index.html"
+          aws s3 cp apps/frontend/dist/index.html "s3://${S3_BUCKET}/index.html" --cache-control "no-cache,no-store,must-revalidate" --content-type "text/html"
+
       - name: Invalidate CloudFront cache
         run: |
-          aws cloudfront create-invalidation --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
+          aws cloudfront create-invalidation --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" --paths "/*"
 
       - name: Run AI chat evaluation against deployed API
         env:
@@ -148,20 +148,20 @@ jobs:
       - name: Install E2E dependencies
         working-directory: ./apps/e2e
         run: npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
-      
+
       - name: Install Playwright Browsers
         working-directory: ./apps/e2e
         run: npx playwright install --with-deps
-      
+
       - name: Run Playwright tests against PROD
         working-directory: ./apps/e2e
         env:
           BASE_URL: https://${{ vars.DOMAIN_NAME }}
           API_URL: https://api.${{ vars.DOMAIN_NAME }}
         run: npx playwright test
-      
+
       - name: Upload Playwright Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: playwright-report-prod
@@ -170,10 +170,10 @@ jobs:
       # --- DAST SCAN ---
       - name: Fix workspace permissions for ZAP Docker
         run: chmod -R 777 ${{ github.workspace }}
-      
+
       - name: Run OWASP ZAP Baseline Scan against PROD
         uses: zaproxy/action-baseline@v0.15.0
         with:
-          target: 'https://${{ vars.DOMAIN_NAME }}'
-          rules_file_name: '.zap/rules.tsv'
+          target: "https://${{ vars.DOMAIN_NAME }}"
+          rules_file_name: ".zap/rules.tsv"
           fail_action: false

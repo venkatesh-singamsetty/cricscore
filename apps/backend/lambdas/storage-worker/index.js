@@ -64,10 +64,13 @@ exports.handler = async (event) => {
           const isBye = ball.extra_type === "BYE";
           const isLegBye = ball.extra_type === "LEG_BYE";
           const isNoBall = ball.extra_type === "NO_BALL";
+          const isRetirement = ["RETIRED_HURT", "RETIRED_OUT"].includes(
+            ball.wicket_type,
+          );
 
           const batterRunsToDeduct =
             !isWide && !isBye && !isLegBye ? ball.runs : 0;
-          const isValidBall = !isWide && !isNoBall;
+          const isBatterFacedBall = !isWide && !isRetirement;
 
           await client.query(
             `UPDATE players SET 
@@ -80,7 +83,7 @@ exports.handler = async (event) => {
                           WHERE inning_id = $6 AND name = $7`,
             [
               batterRunsToDeduct,
-              isValidBall ? 1 : 0,
+              isBatterFacedBall ? 1 : 0,
               ball.runs === 4 ? 1 : 0,
               ball.runs === 6 ? 1 : 0,
               ball.is_wicket,
@@ -185,7 +188,7 @@ exports.handler = async (event) => {
                     team_b_score = COALESCE((SELECT total_runs FROM innings WHERE match_id = m.id AND batting_team_name = m.team_b_name), 0),
                     team_b_wickets = COALESCE((SELECT total_wickets FROM innings WHERE match_id = m.id AND batting_team_name = m.team_b_name), 0),
                     team_b_overs = COALESCE((SELECT CONCAT(overs, '.', balls) FROM innings WHERE match_id = m.id AND batting_team_name = m.team_b_name), '0.0'),
-                    ai_summary = NULL,
+                    ai_summary = CASE WHEN m.status = 'COMPLETED' THEN ai_summary ELSE NULL END,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = $1
             `,
@@ -244,13 +247,16 @@ exports.handler = async (event) => {
         const isNoBall = ballData.extraType === "NO_BALL";
         const isBye = ballData.extraType === "BYE";
         const isLegBye = ballData.extraType === "LEG_BYE";
+        const isRetirement = ["RETIRED_HURT", "RETIRED_OUT"].includes(
+          ballData.wicketType,
+        );
 
         const totalRunsToAdd = ballData.runs + (isWide || isNoBall ? 1 : 0);
         const batterRunsToAdd =
           !isWide && !isBye && !isLegBye ? ballData.runs : 0;
         const bowlerRunsToAdd = !isBye && !isLegBye ? totalRunsToAdd : 0;
         const isWicket = ballData.isWicket;
-        const isValidBall = !isWide && !isNoBall;
+        const isBatterFacedBall = !isWide && !isRetirement;
 
         // Batter Update
         await client.query(
@@ -266,7 +272,7 @@ exports.handler = async (event) => {
                      WHERE inning_id = $9 AND name = $10`,
           [
             batterRunsToAdd,
-            isValidBall ? 1 : 0,
+            isBatterFacedBall ? 1 : 0,
             ballData.runs === 4 ? 1 : 0,
             ballData.runs === 6 ? 1 : 0,
             isWicket && ballData.wicketType !== "RETIRED_HURT",

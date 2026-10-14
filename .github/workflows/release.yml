@@ -22,7 +22,7 @@ jobs:
       pull-requests: write # to be able to comment on released pull requests
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: main
@@ -32,7 +32,7 @@ jobs:
         run: git reset --hard ${{ github.event.workflow_run.head_sha }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
 

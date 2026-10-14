@@ -1,14 +1,6 @@
-Before writing code, designing architecture, or modifying infrastructure, you MUST review the relevant Markdown files located in the `.agents/skills/` directory.
+# CricScore project guidance
 
-These skills are the single source of truth for the CricScore repository and govern:
-
-- Frontend architecture and dynamic state propagation
-- Backend database pooling and event-driven architecture
-- Agentic RAG, MCP tool execution, and pgvector embeddings
-- Strict AWS Free-Tier cost governance (no NAT gateways, etc.)
-- Security standards and secrets management
-- CI/CD workflow rules and mandatory local validations
-- MLOps and testing standards
-- Cheatsheet maintenance and documentation accuracy
-
-Ensure your generated code strictly adheres to the boundaries and standard practices defined in those files.
+- Read the relevant skill under `.agents/skills/` for the task at hand; do not load every skill for unrelated work.
+- Use source code, tests, Terraform, and current workflow files as factual references. Skills and docs can drift; verify their claims and correct outdated project guidance when directly relevant.
+- Keep changes focused, preserve existing behavior, and add or update regression tests for behavior changes.
+- Before deployment or other external side effects, confirm the target environment and inspect the operation's impact. Never expose `.env.local` or other secrets.

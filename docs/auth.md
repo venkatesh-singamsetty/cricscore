@@ -26,12 +26,12 @@ graph TD
 
 ## 👤 User Roles
 
-| Role          | Access                                                  | Identity                              |
-| ------------- | ------------------------------------------------------- | ------------------------------------- |
-| **Viewer 🌍** | Public scoreboard, live feeds, match history            | No auth required                      |
-| **Scorer 🎮** | Create & score matches, email reports, view own matches | Cognito User + JWT                    |
-| **Guest 🎮**  | Create & score matches (no persistence after session)   | Auto-generated Cognito shadow account |
-| **Admin ⚡**  | Everything + User management, delete any match/user     | Cognito `Admin` group membership      |
+| Role          | Access                                                                    | Identity                                                                                    |
+| ------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| **Viewer 🌍** | Public scoreboard, live feeds, match history                              | No auth required                                                                            |
+| **Scorer 🎮** | Create & score matches, email reports, view own matches                   | Cognito User + JWT                                                                          |
+| **Guest 🎮**  | Create and score matches; account and match data persist until cleaned up | Auto-generated Cognito account                                                              |
+| **Admin ⚡**  | Administrative operations and user management                             | Cognito `Admin` group; some backend operations also permit the configured super-admin email |
 
 ---
 
@@ -105,8 +105,11 @@ const isAuthorized = (event, matchRecord) => {
 };
 ```
 
-**Protected endpoints**: `DELETE /match/{id}`, `POST /innings`, `PATCH /match/{id}`, `POST /match/{id}/email`
-**Admin-only endpoints**: `DELETE /matches`, `GET /admin/users`, `POST /admin/users/roles`, `DELETE /admin/users`
+**JWT-protected scorer endpoints**: `POST /match`, `PATCH /match/{matchId}`, `DELETE /match/{matchId}`, `POST /match/{matchId}/innings`, `POST /match/{matchId}/email`, and `POST /update-score`. Match-specific operations additionally check ownership or admin access in the Lambda.
+
+**JWT-protected administrative endpoints**: `DELETE /matches`, `GET/DELETE /admin/users`, `POST/DELETE /admin/users/roles`, `DELETE /admin/users/guests`, `DELETE /admin/matches/guests`, and `DELETE /admin/matches/incomplete`. The Lambda performs the admin check.
+
+Public routes such as `GET /matches`, match-read routes, `/chat`, `/chat/summary`, `/match/predict`, and `/rules/*` do not use the API Gateway JWT authorizer. In particular, `/chat` currently accepts `isAdmin` in the request body and uses it to enable destructive MCP tools without verifying it against a Cognito claim. Frontend visibility is not an authorization control; the chat/rule routes need backend authorization before being considered admin-protected.
 
 ---
 
@@ -131,9 +134,9 @@ The Settings tab (Admin Panel) provides full user lifecycle management:
 - Cascades to delete all match records owned by that user's email
 - **Admin-only**: Only users in the `Admin` Cognito group can perform this action
 
-### Delete Guest Users (via AI Chat)
+### Delete Guest Data (via Admin API)
 
-When logged in as admin, you can instruct the AI chatbot to delete guest users:
+The administrative API exposes separate routes for deleting guest users and guest matches. The MCP chat also conditionally registers guest-cleanup tools based on the request body's `isAdmin` flag; that flag is not validated against Cognito claims, so the chat tool gating must not be relied on as an authorization boundary.
 
 - The `deleteGuestData` MCP tool filters users whose `email` attribute starts with `guest-` and ends with `@cricscore.local`
 - Cognito users are deleted via `AdminDeleteUserCommand`
@@ -169,15 +172,15 @@ sequenceDiagram
 
 ## 🔒 Cognito Infrastructure Configuration
 
-| Setting                 | Value                                                                                                      |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------- |
-| **User Pool**           | `cricscoredev` (Terraform managed)                                                                         |
-| **Auth Flow**           | `USER_SRP_AUTH` + `REFRESH_TOKEN_AUTH`                                                                     |
-| **Sign-in Alias**       | Email                                                                                                      |
-| **Required Attributes** | `email`, `given_name`, `family_name`                                                                       |
-| **Admin Group**         | `Admin` (Cognito User Group)                                                                               |
-| **Token Validity**      | ID Token: 1 hour, Refresh Token: 30 days                                                                   |
-| **Lambda IAM Policy**   | `lambda_cognito_admin` — `AdminDeleteUser`, `AdminAddUserToGroup`, `AdminRemoveUserFromGroup`, `ListUsers` |
+| Setting                | Value                                                                             |
+| ---------------------- | --------------------------------------------------------------------------------- |
+| **User Pool**          | `${var.project_name}-user-pool` (Terraform managed; differs by environment)       |
+| **Auth Flows**         | `ALLOW_USER_PASSWORD_AUTH`, `ALLOW_USER_SRP_AUTH`, and `ALLOW_REFRESH_TOKEN_AUTH` |
+| **Sign-in Alias**      | Email                                                                             |
+| **Signup Form Fields** | Email, given name, and family name; Terraform auto-verifies email                 |
+| **Admin Group**        | `Admin` (Cognito User Group)                                                      |
+| **Token Validity**     | Not explicitly set in the Terraform user-pool client; Cognito defaults apply      |
+| **Admin Permissions**  | Lambda execution role permissions are managed in `infra/terraform/iam.tf`         |
 
 ---
 

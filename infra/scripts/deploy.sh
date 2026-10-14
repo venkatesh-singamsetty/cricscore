@@ -6,6 +6,9 @@ cd "$(dirname "$0")/../.."
 
 # Optional flags
 USE_LOCAL_ENV=false
+BOOTSTRAP=false
+BOOTSTRAP_ONLY=false
+RUN_MIGRATIONS=false
 ENV_FILE=""
 while [[ "$#" -gt 0 ]]; do
   case "$1" in
@@ -13,12 +16,28 @@ while [[ "$#" -gt 0 ]]; do
       USE_LOCAL_ENV=true
       shift
       ;;
+    --bootstrap)
+      BOOTSTRAP=true
+      shift
+      ;;
+    --bootstrap-only)
+      BOOTSTRAP=true
+      BOOTSTRAP_ONLY=true
+      shift
+      ;;
+    --migrate)
+      RUN_MIGRATIONS=true
+      shift
+      ;;
     --env)
       ENV_FILE="$2"
       shift 2
       ;;
     --help|-h)
-      echo "Usage: $0 [--use-local-env] [--env dev|prod]"
+      echo "Usage: $0 --env dev|prod [--use-local-env] [--bootstrap | --bootstrap-only] [--migrate]"
+      echo "  --bootstrap       Create the state bucket and Route 53 zone, then continue deployment."
+      echo "  --bootstrap-only  Create the state bucket and Route 53 zone, print nameservers, then exit."
+      echo "  --migrate    Run the selected environment's database migrations."
       exit 0
       ;;
     *)
@@ -33,6 +52,10 @@ if [ -z "$ENV_FILE" ]; then
   exit 1
 fi
 
+if [[ "$ENV_FILE" != "dev" && "$ENV_FILE" != "prod" ]]; then
+  echo "Error: --env must be dev or prod." >&2
+  exit 1
+fi
 
 # If requested, load variables from local .env.local into the environment
 if [ "$USE_LOCAL_ENV" = true ]; then
@@ -46,6 +69,39 @@ if [ "$USE_LOCAL_ENV" = true ]; then
   fi
 fi
 
+# Derive per-environment names from the root project/domain settings, with
+# explicit overrides available for non-standard naming.
+STATE_BUCKET="${TF_STATE_BUCKET:-venky-2026-terraform-state}"
+ZONE_DOMAIN="${ZONE_DOMAIN:-}"
+BASE_DOMAIN="${DOMAIN_NAME:-}"
+BASE_PREFIX="${SUBDOMAIN_PREFIX:-cricscore}"
+BASE_PROJECT="${PROJECT_NAME:-cricscore}"
+
+if [[ "$ENV_FILE" == "dev" ]]; then
+  DEPLOY_DOMAIN="${DEV_DOMAIN_NAME:-}"
+  [[ -n "$DEPLOY_DOMAIN" ]] || DEPLOY_DOMAIN="${BASE_PREFIX}dev.${ZONE_DOMAIN}"
+  DEPLOY_PREFIX="${DEV_SUBDOMAIN_PREFIX:-${BASE_PREFIX}dev}"
+  DEPLOY_PROJECT="${DEV_PROJECT_NAME:-${BASE_PROJECT}dev}"
+else
+  DEPLOY_DOMAIN="${PROD_DOMAIN_NAME:-$BASE_DOMAIN}"
+  [[ -n "$DEPLOY_DOMAIN" ]] || DEPLOY_DOMAIN="${BASE_PREFIX}.${ZONE_DOMAIN}"
+  DEPLOY_PREFIX="${PROD_SUBDOMAIN_PREFIX:-$BASE_PREFIX}"
+  DEPLOY_PROJECT="${PROD_PROJECT_NAME:-$BASE_PROJECT}"
+fi
+
+if [[ -z "$ZONE_DOMAIN" || -z "$DEPLOY_DOMAIN" ]]; then
+  echo "Error: set ZONE_DOMAIN and DOMAIN_NAME in .env.local (or the matching per-environment overrides)." >&2
+  exit 1
+fi
+if [[ "$DEPLOY_DOMAIN" != *."$ZONE_DOMAIN" ]]; then
+  echo "Error: ${DEPLOY_DOMAIN} must be a subdomain of the configured Route 53 zone ${ZONE_DOMAIN}." >&2
+  exit 1
+fi
+if [[ "$STATE_BUCKET" == *yourname* || "$STATE_BUCKET" == *example* || "$ZONE_DOMAIN" == *yourdomain* || "$ZONE_DOMAIN" == "example.com" || "$DEPLOY_DOMAIN" == *yourdomain* || "$DEPLOY_DOMAIN" == *example.com* ]]; then
+  echo "Error: replace example domain and TF_STATE_BUCKET values in .env.local before deploying." >&2
+  exit 1
+fi
+
 # Auto-map GitHub-style variables to Terraform variables for a seamless local experience
 if [ -n "${TF_DATABASE_URL:-}" ]; then export TF_VAR_database_url="$TF_DATABASE_URL"; fi
 if [ -n "${TF_SES_SOURCE_EMAIL:-}" ]; then export TF_VAR_ses_source_email="$TF_SES_SOURCE_EMAIL"; fi
@@ -55,6 +111,33 @@ if [ -n "${LLM_API_KEY:-}" ]; then export TF_VAR_llm_api_key="$LLM_API_KEY"; fi
 if [ -n "${OPENAI_API_KEY:-}" ]; then export TF_VAR_openai_api_key="$OPENAI_API_KEY"; fi
 if [ -n "${LLM_BASE_URL:-}" ]; then export TF_VAR_llm_base_url="$LLM_BASE_URL"; fi
 if [ -n "${LLM_MODEL:-}" ]; then export TF_VAR_llm_model="$LLM_MODEL"; fi
+
+if [[ "$BOOTSTRAP" == true ]]; then
+  echo "🏗️ Bootstrapping the Terraform state bucket and Route 53 zone..."
+  terraform -chdir=infra/terraform/bootstrap init -input=false
+  terraform -chdir=infra/terraform/bootstrap apply -input=false -auto-approve \
+    -var="aws_region=${AWS_REGION:-us-east-1}" \
+    -var="state_bucket_name=${STATE_BUCKET}" \
+    -var="domain_name=${ZONE_DOMAIN}"
+  if [[ "$BOOTSTRAP_ONLY" == true ]]; then
+    echo "🌐 Add these Route 53 nameservers at your domain registrar before deploying:"
+    terraform -chdir=infra/terraform/bootstrap output -json route53_name_servers
+    exit 0
+  fi
+fi
+
+if [[ "$RUN_MIGRATIONS" == true ]]; then
+  if [[ -z "${TF_DATABASE_URL:-}" ]]; then
+    echo "Error: --migrate requires TF_DATABASE_URL in .env.local." >&2
+    exit 1
+  fi
+  if ! command -v psql >/dev/null 2>&1; then
+    echo "Error: --migrate requires the PostgreSQL client (psql)." >&2
+    exit 1
+  fi
+  echo "🗄️ Running database migrations for ${ENV_FILE}..."
+  (cd infra/database && ./migrate.sh "$TF_DATABASE_URL" "$ENV_FILE")
+fi
 # 1. Install Dependencies
 echo "📦 Installing required frontend dependencies..."
 (cd apps/frontend && npm install --ignore-scripts)
@@ -69,10 +152,16 @@ done
 
 # 2. Apply Infrastructure first to get correct API Gateway URLs
 echo "⚙️ Initializing & Upgrading Terraform..."
-(cd infra/terraform && terraform init -reconfigure -upgrade -backend-config="key=cricscore/${ENV_FILE}/terraform.tfstate")
+(cd infra/terraform && terraform init -reconfigure -upgrade \
+  -backend-config="bucket=${STATE_BUCKET}" \
+  -backend-config="key=cricscore/${ENV_FILE}/terraform.tfstate")
 
 echo "☁️ Applying AWS Infrastructure for $ENV_FILE environment..."
-(cd infra/terraform && terraform apply -var-file="environments/$ENV_FILE.tfvars" -auto-approve)
+(cd infra/terraform && terraform apply -var-file="environments/$ENV_FILE.tfvars" -auto-approve \
+  -var="domain_name=${DEPLOY_DOMAIN}" \
+  -var="zone_domain=${ZONE_DOMAIN}" \
+  -var="project_name=${DEPLOY_PROJECT}" \
+  -var="subdomain_prefix=${DEPLOY_PREFIX}")
 
 # 3. Read Terraform outputs
 echo "🔍 Querying Terraform outputs..."
