@@ -627,3 +627,15 @@ body {
   .auth-divider { margin: 0.6rem 0 0.6rem; }
   .auth-footer { padding: 0.4rem 1rem 0.6rem; }
 }
+/* Short desktop windows: scale the sign-in down instead of scrolling */
+@media (min-width: 1024px) and (max-height: 780px) {
+  [data-amplify-authenticator] { zoom: 0.85; max-height: none !important; }
+  .auth-subtitle { display: none; }
+}
+@media (min-width: 1024px) and (max-height: 680px) {
+  [data-amplify-authenticator] { zoom: 0.72; max-height: none !important; }
+  .auth-logo { display: none; }
+}
+@media (min-width: 1024px) and (max-height: 580px) {
+  [data-amplify-authenticator] { zoom: 0.6; max-height: none !important; }
+}
