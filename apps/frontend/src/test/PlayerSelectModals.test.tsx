@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { BatterSelectModal } from "../components/MatchView/BatterSelectModal";
-import { BowlerSelectModal } from "../components/MatchView/BowlerSelectModal";
+import { BowlerChangeModal } from "../components/MatchView/BowlerChangeModal";
 
 const player = (id: string, name: string) => ({
   id,
@@ -68,7 +68,7 @@ describe("player change dropdowns", () => {
   it("bowler: excludes the current bowler and saves on click", () => {
     const onSelect = vi.fn();
     render(
-      <BowlerSelectModal
+      <BowlerChangeModal
         innings={innings}
         totalOvers={20}
         onSelect={onSelect}

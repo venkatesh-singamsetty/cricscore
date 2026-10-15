@@ -28,8 +28,8 @@ describe("MatchSetup Component", () => {
 
     // Both mobile and desktop layouts render the team name inputs
     // Use getAllByDisplayValue since both layouts are in the DOM
-    const teamAInputs = screen.getAllByDisplayValue("TEAM A");
-    const teamBInputs = screen.getAllByDisplayValue("TEAM B");
+    const teamAInputs = screen.getAllByDisplayValue("CHICAGO SPARTANS");
+    const teamBInputs = screen.getAllByDisplayValue("AUSTRALIA");
     expect(teamAInputs.length).toBeGreaterThanOrEqual(1);
     expect(teamBInputs.length).toBeGreaterThanOrEqual(1);
 
@@ -96,10 +96,10 @@ describe("MatchSetup Component", () => {
     // onStartMatch should still be called with generated guest IDs
     await waitFor(() => {
       expect(mockStartMatch).toHaveBeenCalledWith(
-        expect.objectContaining({ name: "TEAM A" }),
-        expect.objectContaining({ name: "TEAM B" }),
+        expect.objectContaining({ name: "CHICAGO SPARTANS" }),
+        expect.objectContaining({ name: "AUSTRALIA" }),
         1, // Default overs is 1
-        "TEAM A", // Default: Toss Winner=Team A + Decision=BAT → Team A bats first
+        "CHICAGO SPARTANS", // Default: Toss Winner=Team A + Decision=BAT → Team A bats first
         expect.stringContaining("guest_match_"), // Guest match ID
         expect.stringContaining("guest_inning_"), // Guest inning ID
         expect.any(String),
@@ -142,10 +142,10 @@ describe("MatchSetup Component", () => {
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledTimes(2);
       expect(mockStartMatch).toHaveBeenCalledWith(
-        expect.objectContaining({ name: "TEAM A" }),
-        expect.objectContaining({ name: "TEAM B" }),
+        expect.objectContaining({ name: "CHICAGO SPARTANS" }),
+        expect.objectContaining({ name: "AUSTRALIA" }),
         1, // Default overs is 1
-        "TEAM A", // Default: Toss Winner=Team A + Decision=BAT → Team A bats first
+        "CHICAGO SPARTANS", // Default: Toss Winner=Team A + Decision=BAT → Team A bats first
         "123",
         "inn1",
         expect.any(String),
@@ -160,7 +160,7 @@ describe("MatchSetup Component", () => {
       );
       expect(fetchCall).toBeTruthy();
       const fetchBody = JSON.parse(fetchCall![1].body);
-      expect(fetchBody.tossWinner).toBe("TEAM A");
+      expect(fetchBody.tossWinner).toBe("CHICAGO SPARTANS");
       expect(fetchBody.tossDecision).toBe("BAT");
     });
   });

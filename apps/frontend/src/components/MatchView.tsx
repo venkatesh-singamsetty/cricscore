@@ -8,6 +8,7 @@ import { RetireModal } from "./MatchView/RetireModal";
 import { RunOutModal } from "./MatchView/RunOutModal";
 import { BatterSelectModal } from "./MatchView/BatterSelectModal";
 import { BowlerSelectModal } from "./MatchView/BowlerSelectModal";
+import { BowlerChangeModal } from "./MatchView/BowlerChangeModal";
 import { ExtraRunsModal } from "./MatchView/ExtraRunsModal";
 import { AiMatchPrediction } from "./AiMatchPrediction";
 
@@ -1023,6 +1024,7 @@ const MatchView: React.FC<MatchViewProps> = ({
             innings={innings}
             totalOvers={totalOvers}
             onSelect={handleBowlerSelected}
+            onRename={handleRenameBowler}
             onQuickAdd={handleQuickAddPlayer}
             onClose={() => setModalView("NONE")}
           />
@@ -1067,7 +1069,7 @@ const MatchView: React.FC<MatchViewProps> = ({
         />
       )}
       {modalView === "BOWLER_SELECT" && (
-        <BowlerSelectModal
+        <BowlerChangeModal
           innings={innings}
           totalOvers={totalOvers}
           onSelect={handleBowlerSelected}
@@ -1129,7 +1131,7 @@ const MatchView: React.FC<MatchViewProps> = ({
                 </span>
                 <div className="flex items-center gap-1.5 text-white text-[11px] font-black tracking-widest uppercase truncate">
                   <span
-                    className="bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/40 text-emerald-300 font-black px-2 py-0.5 rounded-full text-[9px] uppercase tracking-wider flex items-center gap-1 shadow-sm shadow-emerald-500/10 cursor-pointer hover:bg-emerald-500/30 transition-colors"
+                    className="bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/40 text-emerald-300 font-black px-2 py-0.5 rounded-full text-[9px] uppercase tracking-wider flex items-center gap-1 whitespace-nowrap truncate min-w-0 max-w-[55%] shadow-sm shadow-emerald-500/10 cursor-pointer hover:bg-emerald-500/30 transition-colors"
                     onClick={() => handleRenameTeam(true)}
                   >
                     🏏 BATTING: {innings.battingTeamName}
@@ -1138,7 +1140,7 @@ const MatchView: React.FC<MatchViewProps> = ({
                     vs
                   </span>
                   <span
-                    className="text-indigo-400 cursor-pointer hover:underline text-[10px] font-bold"
+                    className="text-indigo-400 cursor-pointer hover:underline text-[10px] font-bold whitespace-nowrap truncate min-w-0"
                     onClick={() => handleRenameTeam(false)}
                   >
                     {innings.bowlingTeamName}

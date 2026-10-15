@@ -134,8 +134,8 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
   isGuestMode = false,
   onCancel,
 }) => {
-  const [teamAName, setTeamAName] = useState("TEAM A");
-  const [teamBName, setTeamBName] = useState("TEAM B");
+  const [teamAName, setTeamAName] = useState("CHICAGO SPARTANS");
+  const [teamBName, setTeamBName] = useState("AUSTRALIA");
   const [teamASquad, setTeamASquad] = useState(
     "Player A1\nPlayer A2\nPlayer A3\nPlayer A4\nPlayer A5\nPlayer A6\nPlayer A7\nPlayer A8\nPlayer A9\nPlayer A10\nPlayer A11",
   );
