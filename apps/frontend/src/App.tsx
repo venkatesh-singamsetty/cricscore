@@ -435,6 +435,12 @@ const App: React.FC = () => {
         Cric<span>Score</span>
       </h2>
       <p className="auth-subtitle">Ball-by-ball scoring · AI match insights</p>
+      <div className="auth-features">
+        <span>⚡ Live ball-by-ball</span>
+        <span>📊 Instant scorecards</span>
+        <span>🤖 AI match insights</span>
+        <span>📧 Email reports</span>
+      </div>
     </div>
   );
 
