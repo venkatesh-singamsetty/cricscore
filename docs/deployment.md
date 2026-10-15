@@ -182,7 +182,9 @@ GitHub secrets are **not** needed for local deploys. They are only used by Step 
 
 1. Open your live site and click **SCORER**.
 2. Click **Create Account**, enter name, email and password, then confirm the emailed code.
-3. Run `./infra/scripts/make_admin.sh --env dev you@email.com` (use `--env prod` for Prod).
+3. Make yourself admin, using either option:
+   - **Script:** `./infra/scripts/make_admin.sh --env dev you@email.com` (use `--env prod` for Prod).
+   - **Console:** AWS Console → **Cognito** → **User pools** → your pool → **Groups** → **Admin** → **Add user to group** → select yourself.
 4. Sign out and back in. The **Admin Panel** tab now appears.
 
 ---
