@@ -1186,7 +1186,7 @@ const MatchView: React.FC<MatchViewProps> = ({
               </div>
             </div>
 
-            <div className="flex flex-col items-end">
+            <div className="flex flex-col items-center">
               <button
                 onClick={() => setShowScoreboard(true)}
                 className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 rounded text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
@@ -1194,7 +1194,7 @@ const MatchView: React.FC<MatchViewProps> = ({
                 Scorecard 📋
               </button>
               {Boolean(innings.target) && (
-                <span className="text-[11px] md:text-sm font-black text-yellow-500 uppercase tracking-tighter mt-1 truncate max-w-[160px] text-right whitespace-nowrap">
+                <span className="text-sm md:text-lg font-black text-yellow-500 uppercase tracking-tight mt-1 max-w-[190px] md:max-w-[260px] text-center leading-tight">
                   {equation ? `🎯 ${equation}` : `TGT: ${innings.target}`}
                 </span>
               )}
