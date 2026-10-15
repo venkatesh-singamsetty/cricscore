@@ -95,22 +95,22 @@ OPENAI_API_KEY='your-openai-api-key'
 
 **Naming (automatic).** With `ZONE_DOMAIN=example.org` and `SUBDOMAIN_PREFIX=cricscore`:
 
-| Environment | URL | Resources prefix |
-| **2b. Check everything**
+| Environment | URL                        | Resources prefix |
+| ----------- | -------------------------- | ---------------- |
+| Dev         | `cricscoredev.example.org` | `cricscoredev`   |
+| Prod        | `cricscore.example.org`    | `cricscore`      |
+
+- `TF_STATE_BUCKET` is optional. By default it becomes `<PROJECT_NAME>-tfstate-<your AWS account ID>`. Set it only to reuse an existing bucket.
+- Optional overrides: `DEV_DOMAIN_NAME`, `DEV_PROJECT_NAME`, `DEV_SUBDOMAIN_PREFIX` (and `PROD_*`).
+- Optional Sentry: `cp apps/frontend/.env.example apps/frontend/.env` and set `VITE_SENTRY_DSN`.
+
+**2b. Check everything**
 
 ```bash
 ./infra/scripts/deploy.sh --env dev --use-local-env --check
 ```
 
 Every line must show ✅ before you continue. It changes nothing.
-
------------ | -------------------------- | ---------------- |
-| Dev | `cricscoredev.example.org` | `cricscoredev` |
-| Prod | `cricscore.example.org` | `cricscore` |
-
-- `TF_STATE_BUCKET` is optional. By default it becomes `<PROJECT_NAME>-tfstate-<your AWS account ID>`. Set it only to reuse an existing bucket.
-- Optional overrides: `DEV_DOMAIN_NAME`, `DEV_PROJECT_NAME`, `DEV_SUBDOMAIN_PREFIX` (and `PROD_*`).
-- Optional Sentry: `cp apps/frontend/.env.example apps/frontend/.env` and set `VITE_SENTRY_DSN`.
 
 ---
 
