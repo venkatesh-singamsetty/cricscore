@@ -116,48 +116,12 @@ graph TD
 
 ---
 
-## 🚀 Getting Started & Deployment
-
-To deploy CricScore to your own AWS account, use the deployer script:
-
-```bash
-# Development
-./infra/scripts/deploy.sh --env dev --use-local-env
-
-# Production
-./infra/scripts/deploy.sh --env prod --use-local-env
-```
-
-This script applies the selected Terraform environment, generates frontend runtime values from AWS outputs, builds the app, uploads it to S3, and invalidates CloudFront. It does not run database migrations; perform required migrations separately before deploying schema-dependent application changes.
-
-Dev and prod use separate state keys and S3 lockfiles. See the [Terraform guide](./docs/terraform_guide.md#-environment-isolation-dev-vs-prod) for state and locking details.
-
-### 💻 Local Development
+## 💻 Local Development
 
 Want to run the React frontend locally (`localhost:3000`) against the live cloud backend without deploying infrastructure?
 📖 **[See the Local Frontend Quickstart Guide](./docs/local_frontend_quickstart.md)**.
 
-### 🔐 One-Time Setup for a Fresh Clone
-
-Before the first deployment, make sure you have the required local values ready:
-
-- AWS credentials configured for the target account
-- Terraform installed locally
-- Aiven PostgreSQL connection string for the environment you want to deploy
-- API key for the configured OpenAI-compatible LLM provider
-- SES sender email and admin email configured in the environment variables
-- A hosted domain or Route 53 zone already created
-
-A typical local setup is:
-
-```bash
-cp .env.local.example .env.local
-# fill in the required AWS / database / LLM values before running the deploy script
-```
-
-Use `.env.local.example` as a starting point and check the [deployment guide](./docs/deployment.md) for required values and environment-specific setup.
-
-### 🛡️ Rate Limiting & Cost Alerts
+## 🛡️ Rate Limiting & Cost Alerts
 
 The infrastructure includes basic request throttling and a monthly budget alert. These controls do not guarantee DDoS protection, limit total AWS spending, or prevent all database overload:
 
