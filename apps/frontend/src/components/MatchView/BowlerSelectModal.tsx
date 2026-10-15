@@ -1,11 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import { InningsState } from "../../types";
 
 interface BowlerSelectModalProps {
   innings: InningsState;
   totalOvers: number;
   onSelect: (bowlerId: string) => void;
-  onRename: (bowlerId: string) => void;
   onQuickAdd: (isBatsman: boolean) => void;
   onClose: () => void;
 }
@@ -14,12 +13,16 @@ export const BowlerSelectModal: React.FC<BowlerSelectModalProps> = ({
   innings,
   totalOvers,
   onSelect,
-  onRename,
   onQuickAdd,
   onClose,
 }) => {
   const currentBowler = innings.bowlers[innings.currentBowlerId];
   const maxBowlerOvers = Math.ceil(totalOvers / 5);
+  const [selectedId, setSelectedId] = useState("");
+  const options = innings.bowlingOrder.filter((id) => {
+    const b = innings.bowlers[id];
+    return id !== innings.currentBowlerId && (b?.overs || 0) < maxBowlerOvers;
+  });
 
   return (
     <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[200] p-4 backdrop-blur-md animate-in fade-in duration-300">
@@ -47,65 +50,42 @@ export const BowlerSelectModal: React.FC<BowlerSelectModalProps> = ({
               <div className="h-px bg-white/5 mx-2 my-4"></div>
             </>
           )}
-          {innings.bowlingOrder.map((id) => {
-            const bowler = innings.bowlers[id];
-            const isCurrent = id === innings.currentBowlerId;
-            const hasReachedQuota = bowler
-              ? bowler.overs >= maxBowlerOvers
-              : false;
-            const isDisabled = isCurrent || hasReachedQuota;
-            return (
-              <button
-                key={id}
-                onClick={() => onSelect(id)}
-                disabled={isDisabled}
-                className={`w-full text-left px-4 py-2.5 rounded-2xl flex justify-between items-center transition-all ${isDisabled ? "bg-slate-800/30 opacity-20 cursor-not-allowed grayscale" : "bg-white/5 hover:bg-purple-600 group active:scale-95 border border-white/5"}`}
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="text-lg opacity-40 group-hover:opacity-100 transition-opacity">
-                    🎾
-                  </span>
-                  <div className="flex flex-col min-w-0">
-                    <span
-                      className={`font-black uppercase tracking-tight text-sm italic truncate ${isDisabled ? "text-slate-500" : "text-slate-200 group-hover:text-white"}`}
-                    >
-                      {bowler?.name || id}
-                    </span>
-                    <div className="text-[10px] font-bold text-slate-500 group-hover:text-purple-200">
-                      {bowler?.overs || 0}.{bowler?.balls || 0} OVS •{" "}
-                      {bowler?.wickets || 0} WKT
-                      {hasReachedQuota ? (
-                        <span className="ml-1 text-red-400 font-black">
-                          {" "}
-                          • QUOTA FULL
-                        </span>
-                      ) : (
-                        <span className="ml-1 opacity-40">
-                          / {maxBowlerOvers} max
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span
-                    className="text-xs p-2 hover:bg-white/20 rounded-lg transition-colors"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRename(id);
-                    }}
-                  >
-                    ✏️
-                  </span>
-                  {!isDisabled && (
-                    <span className="text-[10px] font-black uppercase tracking-widest text-purple-400 group-hover:text-white opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
-                      Select
-                    </span>
-                  )}
-                </div>
-              </button>
-            );
-          })}
+          <label
+            htmlFor="next-bowler"
+            className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2 px-2"
+          >
+            Bowler
+          </label>
+          <select
+            id="next-bowler"
+            value={selectedId}
+            onChange={(e) => setSelectedId(e.target.value)}
+            className="w-full bg-slate-950 border-2 border-slate-800 focus:border-purple-500 rounded-2xl px-4 py-3 text-white font-black uppercase text-sm focus:outline-none"
+          >
+            <option value="">Select bowler...</option>
+            {options.map((id) => {
+              const b = innings.bowlers[id];
+              return (
+                <option key={id} value={id}>
+                  {b?.name || id} ({b?.overs || 0}.{b?.balls || 0} ov,{" "}
+                  {b?.wickets || 0} wkt)
+                </option>
+              );
+            })}
+          </select>
+          {options.length === 0 && (
+            <p className="mt-2 px-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+              No other bowlers available. Add one below.
+            </p>
+          )}
+          <button
+            type="button"
+            disabled={!selectedId}
+            onClick={() => onSelect(selectedId)}
+            className="mt-4 w-full py-3 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all shadow-xl shadow-purple-600/20"
+          >
+            Save
+          </button>
         </div>
         <div className="p-4 border-t border-white/10 bg-slate-950/50 flex flex-col gap-2 shrink-0">
           <button

@@ -273,8 +273,19 @@ const sendMatchReportEmail = async (
     `${origin || process.env.FRONTEND_URL || "https://cricscore.example.com"}?matchId=${matchId}`,
   );
 
-  let htmlBody = `
-    <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #0f172a; color: white; padding: 40px; border-radius: 20px;">
+  let htmlBody = `<!DOCTYPE html>
+<html lang="en" style="background-color: #0f172a;">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="supported-color-schemes" content="dark">
+<style>:root { color-scheme: dark; supported-color-schemes: dark; } body { margin: 0; background-color: #0f172a; }</style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0f172a;" bgcolor="#0f172a">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0f172a" style="background-color: #0f172a;">
+<tr><td align="center" bgcolor="#0f172a" style="background-color: #0f172a; padding: 12px;">
+    <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #0f172a; background-color: #0f172a; color: #ffffff; padding: 24px; border-radius: 20px; max-width: 680px; text-align: left;">
         <h1 style="color: #6366f1; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 5px;">🏆 CRICSCORE OFFICIAL REPORT</h1>
         <p style="color: #94a3b8; font-weight: bold; margin-top: 0;">${safeTeamA} vs ${safeTeamB}</p>
         
@@ -500,7 +511,11 @@ const sendMatchReportEmail = async (
         </div>`;
   }
 
-  htmlBody += `<p style="text-align: center; color: #475569; font-size: 12px; margin-top: 40px;">Generated securely via CricScore on AWS</p></div>`;
+  htmlBody += `<p style="text-align: center; color: #475569; font-size: 12px; margin-top: 40px;">Generated securely via CricScore on AWS</p></div>
+</td></tr>
+</table>
+</body>
+</html>`;
 
   const ses = new SESClient({ region: "us-east-1" });
   let adminEmailSent = false;

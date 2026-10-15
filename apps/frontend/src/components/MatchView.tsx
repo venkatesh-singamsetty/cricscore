@@ -373,6 +373,16 @@ const MatchView: React.FC<MatchViewProps> = ({
     }));
   };
 
+  const isDuplicateName = (name: string, excludeId?: string) => {
+    const up = name.trim().toUpperCase();
+    const dup = [
+      ...Object.values(innings.players),
+      ...Object.values(innings.bowlers),
+    ].some((p) => p.id !== excludeId && p.name.trim().toUpperCase() === up);
+    if (dup) setAlertMessage(`${up} already exists in this match.`);
+    return dup;
+  };
+
   const handleRenamePlayer = (playerId: string) => {
     const player = innings.players[playerId];
     setPromptAction({
@@ -380,6 +390,7 @@ const MatchView: React.FC<MatchViewProps> = ({
       placeholder: `Enter new name for ${player.name}:`,
       defaultValue: player.name,
       onConfirm: (newName) => {
+        if (isDuplicateName(newName, playerId)) return;
         setInnings((prev) => {
           const next = { ...prev };
           next.players[playerId] = {
@@ -400,6 +411,7 @@ const MatchView: React.FC<MatchViewProps> = ({
       placeholder: `Enter new name for ${b.name}:`,
       defaultValue: b.name,
       onConfirm: (newName) => {
+        if (isDuplicateName(newName, bowlerId)) return;
         setInnings((prev) => {
           const next = { ...prev };
           next.bowlers[bowlerId] = { ...b, name: newName.trim().toUpperCase() };
@@ -436,6 +448,7 @@ const MatchView: React.FC<MatchViewProps> = ({
       placeholder: `Enter new name:`,
       defaultValue: "",
       onConfirm: (name) => {
+        if (isDuplicateName(name)) return;
         const upName = name.trim().toUpperCase();
         const id = `${isBatter ? "bat" : "bowl"}_${Date.now()}`;
         setInnings((prev) => {
@@ -930,6 +943,28 @@ const MatchView: React.FC<MatchViewProps> = ({
     setModalView(nextModal);
   };
 
+  const handleBatterReplaced = (
+    newBatterId: string,
+    replace: "striker" | "nonStriker",
+  ) => {
+    const players = { ...innings.players };
+    const incoming = { ...players[newBatterId] };
+    if (incoming.wicketType === WicketType.RETIRED_HURT) {
+      incoming.wicketType = undefined;
+      incoming.wicketBy = undefined;
+      incoming.fielderName = undefined;
+      players[newBatterId] = incoming;
+    }
+    setInnings({
+      ...innings,
+      players,
+      ...(replace === "striker"
+        ? { strikerId: newBatterId }
+        : { nonStrikerId: newBatterId }),
+    });
+    setModalView("NONE");
+  };
+
   const handleBowlerSelected = (newBowlerId: string) => {
     setInnings((prev) => ({
       ...prev,
@@ -965,6 +1000,7 @@ const MatchView: React.FC<MatchViewProps> = ({
         <BatterSelectModal
           innings={innings}
           onSelect={handleBatterSelected}
+          onReplace={handleBatterReplaced}
           onRename={handleRenamePlayer}
           onQuickAdd={handleQuickAddPlayer}
           onClose={() => setModalView("NONE")}
@@ -974,6 +1010,7 @@ const MatchView: React.FC<MatchViewProps> = ({
         <BatterSelectModal
           innings={innings}
           onSelect={handleBatterSelected}
+          onReplace={handleBatterReplaced}
           onRename={handleRenamePlayer}
           onQuickAdd={handleQuickAddPlayer}
           onClose={() => setModalView("NONE")}
@@ -986,7 +1023,6 @@ const MatchView: React.FC<MatchViewProps> = ({
             innings={innings}
             totalOvers={totalOvers}
             onSelect={handleBowlerSelected}
-            onRename={handleRenameBowler}
             onQuickAdd={handleQuickAddPlayer}
             onClose={() => setModalView("NONE")}
           />
@@ -1024,6 +1060,7 @@ const MatchView: React.FC<MatchViewProps> = ({
         <BatterSelectModal
           innings={innings}
           onSelect={handleBatterSelected}
+          onReplace={handleBatterReplaced}
           onRename={handleRenamePlayer}
           onQuickAdd={handleQuickAddPlayer}
           onClose={() => setModalView("NONE")}
@@ -1034,7 +1071,6 @@ const MatchView: React.FC<MatchViewProps> = ({
           innings={innings}
           totalOvers={totalOvers}
           onSelect={handleBowlerSelected}
-          onRename={handleRenameBowler}
           onQuickAdd={handleQuickAddPlayer}
           onClose={() => setModalView("NONE")}
         />

@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import { InningsState, WicketType } from "../../types";
 
 interface BatterSelectModalProps {
   innings: InningsState;
   onSelect: (batterId: string) => void;
+  onReplace: (newBatterId: string, replace: "striker" | "nonStriker") => void;
   onRename: (batterId: string) => void;
   onQuickAdd: (isBatsman: boolean) => void;
   onClose: () => void;
@@ -12,6 +13,7 @@ interface BatterSelectModalProps {
 export const BatterSelectModal: React.FC<BatterSelectModalProps> = ({
   innings,
   onSelect,
+  onReplace,
   onRename,
   onQuickAdd,
   onClose,
@@ -25,6 +27,14 @@ export const BatterSelectModal: React.FC<BatterSelectModalProps> = ({
     !striker.isOut &&
     nonStriker &&
     !nonStriker.isOut;
+
+  const [replace, setReplace] = useState<"striker" | "nonStriker">("striker");
+  const [newBatterId, setNewBatterId] = useState("");
+
+  const replacementOptions = innings.battingOrder.filter((id) => {
+    const p = innings.players[id];
+    return !p.isOut && id !== innings.strikerId && id !== innings.nonStrikerId;
+  });
 
   const availableBatters = innings.battingOrder.filter((id) => {
     const p = innings.players[id];
@@ -65,60 +75,129 @@ export const BatterSelectModal: React.FC<BatterSelectModalProps> = ({
           </div>
           <span className="text-2xl animate-bounce">🏏</span>
         </div>
-        <div className="overflow-y-auto p-4 space-y-1.5 pb-8 scrollbar-hide flex-1">
-          {availableBatters.length === 0 ? (
-            <p className="p-8 text-center text-slate-500 font-bold uppercase tracking-widest text-[10px]">
-              No batters remaining in squad.
-            </p>
-          ) : (
-            availableBatters.map((id) => (
-              <button
-                key={id}
-                onClick={() => onSelect(id)}
-                className="w-full text-left px-4 py-2.5 bg-white/5 hover:bg-indigo-600 rounded-2xl flex justify-between items-center group transition-all active:scale-95 border border-white/5"
-              >
-                <div className="flex items-center gap-3 min-w-0 flex-wrap">
-                  <span className="text-lg opacity-40 group-hover:opacity-100 transition-opacity">
-                    🏏
-                  </span>
-                  <span className="font-black text-slate-200 group-hover:text-white uppercase tracking-tight text-sm italic truncate">
-                    {innings.players[id].name}
-                  </span>
-                  {id === innings.strikerId && (
-                    <span className="text-[8px] bg-indigo-500/30 text-indigo-300 px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
-                      Striker
-                    </span>
-                  )}
-                  {id === innings.nonStrikerId && (
-                    <span className="text-[8px] bg-slate-800 text-slate-450 px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
-                      Non-Striker
-                    </span>
-                  )}
-                  {innings.players[id].wicketType ===
-                    WicketType.RETIRED_HURT && (
-                    <span className="text-[8px] bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
-                      Retired Hurt
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <span
-                    className="text-xs p-2 hover:bg-white/20 rounded-lg transition-colors"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRename(id);
-                    }}
+        {isManualChange ? (
+          <div className="p-5 space-y-4 flex-1 overflow-y-auto">
+            <div>
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2">
+                Replace
+              </span>
+              <div className="grid grid-cols-2 gap-2">
+                {(
+                  [
+                    ["striker", striker.name, "Striker"],
+                    ["nonStriker", nonStriker.name, "Non-Striker"],
+                  ] as const
+                ).map(([key, name, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setReplace(key)}
+                    className={`px-3 py-2.5 rounded-2xl border text-left transition-all ${replace === key ? "bg-indigo-600 border-indigo-300 text-white" : "bg-white/5 border-white/10 text-slate-300"}`}
                   >
-                    ✏️
-                  </span>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400 group-hover:text-white opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
-                    Select
-                  </span>
-                </div>
-              </button>
-            ))
-          )}
-        </div>
+                    <span className="block text-[8px] font-black uppercase tracking-wider opacity-70">
+                      {label}
+                    </span>
+                    <span className="block font-black uppercase italic text-sm truncate">
+                      {name}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label
+                htmlFor="replacement-batter"
+                className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2"
+              >
+                New Batter
+              </label>
+              <select
+                id="replacement-batter"
+                value={newBatterId}
+                onChange={(e) => setNewBatterId(e.target.value)}
+                className="w-full bg-slate-950 border-2 border-slate-800 focus:border-indigo-500 rounded-2xl px-4 py-3 text-white font-black uppercase text-sm focus:outline-none"
+              >
+                <option value="">Select batter...</option>
+                {replacementOptions.map((id) => (
+                  <option key={id} value={id}>
+                    {innings.players[id].name}
+                    {innings.players[id].wicketType === WicketType.RETIRED_HURT
+                      ? " (Retired Hurt)"
+                      : ""}
+                  </option>
+                ))}
+              </select>
+              {replacementOptions.length === 0 && (
+                <p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                  No other batters in squad.
+                </p>
+              )}
+            </div>
+            <button
+              type="button"
+              disabled={!newBatterId}
+              onClick={() => onReplace(newBatterId, replace)}
+              className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all shadow-xl shadow-indigo-600/20"
+            >
+              Save
+            </button>
+          </div>
+        ) : (
+          <div className="overflow-y-auto p-4 space-y-1.5 pb-8 scrollbar-hide flex-1">
+            {availableBatters.length === 0 ? (
+              <p className="p-8 text-center text-slate-500 font-bold uppercase tracking-widest text-[10px]">
+                No batters remaining in squad.
+              </p>
+            ) : (
+              availableBatters.map((id) => (
+                <button
+                  key={id}
+                  onClick={() => onSelect(id)}
+                  className="w-full text-left px-4 py-2.5 bg-white/5 hover:bg-indigo-600 rounded-2xl flex justify-between items-center group transition-all active:scale-95 border border-white/5"
+                >
+                  <div className="flex items-center gap-3 min-w-0 flex-wrap">
+                    <span className="text-lg opacity-40 group-hover:opacity-100 transition-opacity">
+                      🏏
+                    </span>
+                    <span className="font-black text-slate-200 group-hover:text-white uppercase tracking-tight text-sm italic truncate">
+                      {innings.players[id].name}
+                    </span>
+                    {id === innings.strikerId && (
+                      <span className="text-[8px] bg-indigo-500/30 text-indigo-300 px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
+                        Striker
+                      </span>
+                    )}
+                    {id === innings.nonStrikerId && (
+                      <span className="text-[8px] bg-slate-800 text-slate-450 px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
+                        Non-Striker
+                      </span>
+                    )}
+                    {innings.players[id].wicketType ===
+                      WicketType.RETIRED_HURT && (
+                      <span className="text-[8px] bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
+                        Retired Hurt
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="text-xs p-2 hover:bg-white/20 rounded-lg transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRename(id);
+                      }}
+                    >
+                      ✏️
+                    </span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400 group-hover:text-white opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
+                      Select
+                    </span>
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        )}
         <div className="p-4 border-t border-white/10 bg-slate-950/50 flex flex-col gap-2 shrink-0">
           <button
             onClick={() => onQuickAdd(true)}
