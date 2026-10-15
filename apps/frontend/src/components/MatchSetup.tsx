@@ -405,7 +405,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                 }}
                 className={`${onCancel ? "col-span-3" : "w-full"} py-3.5 bg-indigo-600 rounded-2xl font-black text-sm uppercase tracking-widest text-white shadow-lg shadow-indigo-600/20 active:scale-95 transition-all`}
               >
-                Next: {teamBName || "Second Team"} →
+                Next: Second Team →
               </button>
             </div>
           </div>
