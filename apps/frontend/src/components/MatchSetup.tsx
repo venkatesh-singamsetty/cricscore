@@ -520,14 +520,14 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                 <button
                   type="button"
                   onClick={() => setTossWinner("Team A")}
-                  className={`py-3.5 rounded-xl font-black text-sm uppercase truncate transition-all border active:scale-95 ${tossWinner === "Team A" ? "bg-indigo-600 text-white border-indigo-400 shadow-lg shadow-indigo-600/20" : "bg-slate-800 text-slate-400 border-white/5"}`}
+                  className={`h-12 rounded-xl font-black text-sm uppercase truncate transition-all border active:scale-95 ${tossWinner === "Team A" ? "bg-indigo-600 text-white border-indigo-400 shadow-lg shadow-indigo-600/20" : "bg-slate-800 text-slate-400 border-white/5"}`}
                 >
                   {teamAName}
                 </button>
                 <button
                   type="button"
                   onClick={() => setTossWinner("Team B")}
-                  className={`py-3.5 rounded-xl font-black text-sm uppercase truncate transition-all border active:scale-95 ${tossWinner === "Team B" ? "bg-purple-600 text-white border-purple-400 shadow-lg shadow-purple-600/20" : "bg-slate-800 text-slate-400 border-white/5"}`}
+                  className={`h-12 rounded-xl font-black text-sm uppercase truncate transition-all border active:scale-95 ${tossWinner === "Team B" ? "bg-purple-600 text-white border-purple-400 shadow-lg shadow-purple-600/20" : "bg-slate-800 text-slate-400 border-white/5"}`}
                 >
                   {teamBName}
                 </button>
@@ -546,17 +546,17 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                 <button
                   type="button"
                   onClick={() => setTossDecision("BAT")}
-                  className={`py-3.5 rounded-xl font-black text-sm uppercase transition-all border active:scale-95 flex items-center justify-center gap-2 ${tossDecision === "BAT" ? "bg-indigo-600 text-white border-indigo-400 shadow-lg shadow-indigo-600/30" : "bg-slate-800 text-slate-400 border-white/5"}`}
+                  className={`h-12 rounded-xl font-black text-sm uppercase transition-all border active:scale-95 flex items-center justify-center gap-2 ${tossDecision === "BAT" ? "bg-indigo-600 text-white border-indigo-400 shadow-lg shadow-indigo-600/30" : "bg-slate-800 text-slate-400 border-white/5"}`}
                 >
-                  <span className="text-2xl">🏏</span>
+                  <span className="text-base leading-none">🏏</span>
                   <span>BAT</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setTossDecision("BOWL")}
-                  className={`py-3.5 rounded-xl font-black text-sm uppercase transition-all border active:scale-95 flex items-center justify-center gap-2 ${tossDecision === "BOWL" ? "bg-amber-600 text-white border-amber-400 shadow-lg" : "bg-slate-800 text-slate-400 border-white/5"}`}
+                  className={`h-12 rounded-xl font-black text-sm uppercase transition-all border active:scale-95 flex items-center justify-center gap-2 ${tossDecision === "BOWL" ? "bg-amber-600 text-white border-amber-400 shadow-lg" : "bg-slate-800 text-slate-400 border-white/5"}`}
                 >
-                  <span className="text-2xl">🎾</span>
+                  <span className="text-base leading-none">🎾</span>
                   <span>BOWL</span>
                 </button>
               </div>
