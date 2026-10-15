@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import HighlightedResult from "./components/HighlightedResult";
 import {
   InningsState,
   MatchStatus,
@@ -1680,7 +1681,7 @@ const App: React.FC = () => {
                         <div className="text-center space-y-6">
                           <div className="space-y-2">
                             <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter italic">
-                              {getWinnerMessage()}
+                              <HighlightedResult text={getWinnerMessage()} />
                             </h2>
                             <p className="text-xs font-black text-indigo-400 uppercase tracking-[0.3em]">
                               Match{" "}
@@ -1898,7 +1899,9 @@ const App: React.FC = () => {
                                       </span>
                                     </div>
                                     <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter italic">
-                                      {getWinnerMessage()}
+                                      <HighlightedResult
+                                        text={getWinnerMessage()}
+                                      />
                                     </h2>
                                     <p className="text-xs font-black text-indigo-400 uppercase tracking-[0.3em]">
                                       Match{" "}
