@@ -137,10 +137,10 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
   const [teamAName, setTeamAName] = useState("CHICAGO SPARTANS");
   const [teamBName, setTeamBName] = useState("ILLINOIS THUNDERS");
   const [teamASquad, setTeamASquad] = useState(
-    "Player A1\nPlayer A2\nPlayer A3\nPlayer A4\nPlayer A5\nPlayer A6\nPlayer A7\nPlayer A8\nPlayer A9\nPlayer A10\nPlayer A11",
+    "Spartan 1\nSpartan 2\nSpartan 3\nSpartan 4\nSpartan 5\nSpartan 6\nSpartan 7\nSpartan 8\nSpartan 9\nSpartan 10\nSpartan 11",
   );
   const [teamBSquad, setTeamBSquad] = useState(
-    "Player B1\nPlayer B2\nPlayer B3\nPlayer B4\nPlayer B5\nPlayer B6\nPlayer B7\nPlayer B8\nPlayer B9\nPlayer B10\nPlayer B11",
+    "Thunder 1\nThunder 2\nThunder 3\nThunder 4\nThunder 5\nThunder 6\nThunder 7\nThunder 8\nThunder 9\nThunder 10\nThunder 11",
   );
   const [overs, setOvers] = useState<number | string>(1);
   const [tossWinner, setTossWinner] = useState("Team A");
@@ -333,7 +333,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
           <div className="flex flex-col px-2 pb-2 gap-2 animate-in fade-in duration-300">
             <div className="text-center shrink-0">
               <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-black uppercase tracking-widest text-indigo-400">
-                Team A · First Team
+                {teamAName || "First Team"} · First Team
               </span>
             </div>
             {!hideResume && recentMatches.length > 0 && (
@@ -368,7 +368,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                 type="text"
                 className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-sm md:text-base font-black text-white focus:ring-2 focus:ring-indigo-500 outline-none uppercase text-center placeholder:opacity-30 shrink-0"
                 value={teamAName}
-                placeholder="TEAM A NAME"
+                placeholder="FIRST TEAM NAME"
                 onChange={makeNameHandler(setTeamAName)}
               />
               <SquadInput
@@ -394,18 +394,18 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                 type="button"
                 onClick={() => {
                   if (!teamAName.trim()) {
-                    setAlertMessage("Please enter Team A name.");
+                    setAlertMessage("Please enter the first team name.");
                     return;
                   }
                   if (parsedTeamA.length < 2) {
-                    setAlertMessage("Team A needs at least 2 players.");
+                    setAlertMessage("The first team needs at least 2 players.");
                     return;
                   }
                   setMobileStep(2);
                 }}
                 className={`${onCancel ? "col-span-3" : "w-full"} py-3.5 bg-indigo-600 rounded-2xl font-black text-sm uppercase tracking-widest text-white shadow-lg shadow-indigo-600/20 active:scale-95 transition-all`}
               >
-                Next: Team B →
+                Next: {teamBName || "Second Team"} →
               </button>
             </div>
           </div>
@@ -416,7 +416,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
           <div className="flex flex-col px-2 pb-2 gap-2 animate-in fade-in duration-300">
             <div className="text-center shrink-0">
               <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-[10px] font-black uppercase tracking-widest text-purple-400">
-                Team B · Second Team
+                {teamBName || "Second Team"} · Second Team
               </span>
               <p className="text-[10px] text-slate-600 mt-1 font-bold uppercase">
                 vs <span className="text-indigo-400">{teamAName}</span>
@@ -427,7 +427,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                 type="text"
                 className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-sm md:text-base font-black text-white focus:ring-2 focus:ring-purple-500 outline-none uppercase text-center placeholder:opacity-30 shrink-0"
                 value={teamBName}
-                placeholder="TEAM B NAME"
+                placeholder="SECOND TEAM NAME"
                 onChange={makeNameHandler(setTeamBName)}
               />
               <SquadInput
@@ -451,11 +451,13 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                 type="button"
                 onClick={() => {
                   if (!teamBName.trim()) {
-                    setAlertMessage("Please enter Team B name.");
+                    setAlertMessage("Please enter the second team name.");
                     return;
                   }
                   if (parsedTeamB.length < 2) {
-                    setAlertMessage("Team B needs at least 2 players.");
+                    setAlertMessage(
+                      "The second team needs at least 2 players.",
+                    );
                     return;
                   }
                   setMobileStep(3);
@@ -723,14 +725,14 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                       onClick={() => setTossWinner("Team A")}
                       className={`min-w-0 flex-1 basis-0 h-10 px-3 rounded-lg font-black text-xs uppercase tracking-tighter text-center transition-all truncate border ${tossWinner === "Team A" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/30 border-indigo-400" : "text-slate-500 border-transparent hover:text-slate-300"}`}
                     >
-                      {teamAName || "TEAM A"}
+                      {teamAName || "FIRST TEAM"}
                     </button>
                     <button
                       type="button"
                       onClick={() => setTossWinner("Team B")}
                       className={`min-w-0 flex-1 basis-0 h-10 px-3 rounded-lg font-black text-xs uppercase tracking-tighter text-center transition-all truncate border ${tossWinner === "Team B" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/30 border-indigo-400" : "text-slate-500 border-transparent hover:text-slate-300"}`}
                     >
-                      {teamBName || "TEAM B"}
+                      {teamBName || "SECOND TEAM"}
                     </button>
                   </div>
                 </div>
