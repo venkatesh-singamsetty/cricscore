@@ -23,11 +23,11 @@ Follow these steps in order to get CricScore running on your own AWS account.
 
 **Accounts / things to have ready**
 
-- [ ] AWS account and CLI login (not root). Check: `aws sts get-caller-identity`
+- [ ] AWS account and an **IAM user** (not root) with an access key ID and secret access key. Create it in AWS Console → IAM → Users → Security credentials → Create access key. Run `aws configure` with it, then check: `aws sts get-caller-identity`
 - [ ] A domain you own (Route 53 hosted zone is created for you in Step 3)
 - [ ] Aiven PostgreSQL service. Copy its connection URI
 - [ ] An email address to send from (verified in Step 3c)
-- [ ] An OpenAI-compatible API key (chat and embeddings)
+- [ ] An API key from any OpenAI-compatible LLM provider (OpenAI, Gemini, OpenRouter, etc.). It must support chat and embeddings
 
 **Tools to install**
 
@@ -69,8 +69,7 @@ cp .env.local.example .env.local
 Edit `.env.local`:
 
 ```bash
-# AWS credentials: use AWS CLI/role credentials and leave these blank where possible,
-# or fill in a dedicated deployment identity's credentials.
+# AWS: the IAM user's access key ID and secret access key (Step 0)
 AWS_ACCESS_KEY_ID=your-access-key
 AWS_SECRET_ACCESS_KEY=your-secret-key
 AWS_REGION=us-east-1
@@ -92,13 +91,14 @@ ZONE_DOMAIN='yourdomain.com'
 SUBDOMAIN_PREFIX='cricscore'
 PROJECT_NAME='cricscore'
 
-# Chat provider (OpenAI-compatible)
+# LLM provider: any OpenAI-compatible API (one key and one URL for chat and embeddings)
 LLM_API_KEY='your-provider-api-key'
 LLM_BASE_URL='https://api.openai.com/v1'
-
-# Embeddings: provide an OpenAI key if using the default embedding configuration.
-OPENAI_API_KEY='your-openai-api-key'
 ```
+
+Base URL examples: OpenAI `https://api.openai.com/v1`, Gemini `https://generativelanguage.googleapis.com/v1beta/openai/`, OpenRouter `https://openrouter.ai/api/v1`.
+If you use OpenAI and prefer that variable name, set `OPENAI_API_KEY` instead of `LLM_API_KEY`; it takes priority if both are set.
+For non-OpenAI providers also set `LLM_MODEL` (for example `gemini-2.0-flash`) in `.env.local`. Embeddings use the model `text-embedding-3-small`, so your provider must offer a model with that name.
 
 > [!CAUTION]
 > Never commit `.env.local` to version control. It is in `.gitignore` by default.
