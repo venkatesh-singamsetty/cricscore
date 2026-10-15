@@ -380,12 +380,12 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                 lineNumbersRef={lineNumbersRefA}
               />
             </div>
-            <div className="grid grid-cols-5 gap-2 shrink-0">
+            <div className="grid grid-cols-2 gap-2 shrink-0">
               {onCancel && (
                 <button
                   type="button"
                   onClick={onCancel}
-                  className="col-span-2 py-3.5 bg-slate-800 border border-white/5 rounded-2xl font-bold text-xs text-slate-300 uppercase tracking-wider active:scale-95 transition-all"
+                  className="py-3.5 bg-slate-800 border border-white/5 rounded-2xl font-black text-xs text-slate-300 uppercase tracking-wider active:scale-95 transition-all"
                 >
                   Cancel
                 </button>
@@ -403,7 +403,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                   }
                   setMobileStep(2);
                 }}
-                className={`${onCancel ? "col-span-3" : "w-full"} py-3.5 bg-indigo-600 rounded-2xl font-black text-sm uppercase tracking-widest text-white shadow-lg shadow-indigo-600/20 active:scale-95 transition-all`}
+                className={`${onCancel ? "" : "col-span-2"} py-3.5 bg-indigo-600 rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-lg shadow-indigo-600/20 active:scale-95 transition-all`}
               >
                 Next: Second Team →
               </button>
@@ -439,11 +439,11 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                 lineNumbersRef={lineNumbersRefB}
               />
             </div>
-            <div className="grid grid-cols-5 gap-2 shrink-0">
+            <div className="grid grid-cols-2 gap-2 shrink-0">
               <button
                 type="button"
                 onClick={() => setMobileStep(1)}
-                className="col-span-2 py-3 bg-slate-800 border border-white/5 rounded-2xl font-bold text-xs text-slate-300 uppercase tracking-wider active:scale-95"
+                className="py-3.5 bg-slate-800 border border-white/5 rounded-2xl font-black text-xs text-slate-300 uppercase tracking-wider active:scale-95"
               >
                 ← Back
               </button>
@@ -462,7 +462,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                   }
                   setMobileStep(3);
                 }}
-                className="col-span-3 py-3 bg-purple-600 rounded-2xl font-black text-sm uppercase tracking-widest text-white shadow-lg shadow-purple-600/20 active:scale-95 transition-all"
+                className="py-3.5 bg-purple-600 rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-lg shadow-purple-600/20 active:scale-95 transition-all"
               >
                 Next: Overs &amp; Toss →
               </button>
@@ -568,18 +568,18 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
               </p>
             </div>
             {/* Back + Launch */}
-            <div className="grid grid-cols-5 gap-2 shrink-0">
+            <div className="grid grid-cols-2 gap-2 shrink-0">
               <button
                 type="button"
                 onClick={() => setMobileStep(2)}
-                className="col-span-2 py-4 bg-slate-800 border border-white/5 rounded-2xl font-bold text-xs text-slate-300 uppercase tracking-wider active:scale-95"
+                className="py-3.5 bg-slate-800 border border-white/5 rounded-2xl font-black text-xs text-slate-300 uppercase tracking-wider active:scale-95"
               >
                 ← Back
               </button>
               <button
                 type="submit"
                 disabled={!isValid || isCreating}
-                className={`col-span-3 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-xl active:scale-95 ${isValid && !isCreating ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-indigo-600/30" : "bg-slate-700 text-slate-500 cursor-not-allowed"}`}
+                className={`py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl active:scale-95 ${isValid && !isCreating ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-indigo-600/30" : "bg-slate-700 text-slate-500 cursor-not-allowed"}`}
               >
                 {isCreating ? "Creating..." : "🏁 Start Match"}
               </button>
