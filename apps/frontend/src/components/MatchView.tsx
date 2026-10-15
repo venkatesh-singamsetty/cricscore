@@ -8,7 +8,6 @@ import { RetireModal } from "./MatchView/RetireModal";
 import { RunOutModal } from "./MatchView/RunOutModal";
 import { BatterSelectModal } from "./MatchView/BatterSelectModal";
 import { BowlerSelectModal } from "./MatchView/BowlerSelectModal";
-import { BowlerChangeModal } from "./MatchView/BowlerChangeModal";
 import { ExtraRunsModal } from "./MatchView/ExtraRunsModal";
 import { AiMatchPrediction } from "./AiMatchPrediction";
 
@@ -944,28 +943,6 @@ const MatchView: React.FC<MatchViewProps> = ({
     setModalView(nextModal);
   };
 
-  const handleBatterReplaced = (
-    newBatterId: string,
-    replace: "striker" | "nonStriker",
-  ) => {
-    const players = { ...innings.players };
-    const incoming = { ...players[newBatterId] };
-    if (incoming.wicketType === WicketType.RETIRED_HURT) {
-      incoming.wicketType = undefined;
-      incoming.wicketBy = undefined;
-      incoming.fielderName = undefined;
-      players[newBatterId] = incoming;
-    }
-    setInnings({
-      ...innings,
-      players,
-      ...(replace === "striker"
-        ? { strikerId: newBatterId }
-        : { nonStrikerId: newBatterId }),
-    });
-    setModalView("NONE");
-  };
-
   const handleBowlerSelected = (newBowlerId: string) => {
     setInnings((prev) => ({
       ...prev,
@@ -1001,7 +978,6 @@ const MatchView: React.FC<MatchViewProps> = ({
         <BatterSelectModal
           innings={innings}
           onSelect={handleBatterSelected}
-          onReplace={handleBatterReplaced}
           onRename={handleRenamePlayer}
           onQuickAdd={handleQuickAddPlayer}
           onClose={() => setModalView("NONE")}
@@ -1011,7 +987,6 @@ const MatchView: React.FC<MatchViewProps> = ({
         <BatterSelectModal
           innings={innings}
           onSelect={handleBatterSelected}
-          onReplace={handleBatterReplaced}
           onRename={handleRenamePlayer}
           onQuickAdd={handleQuickAddPlayer}
           onClose={() => setModalView("NONE")}
@@ -1062,17 +1037,17 @@ const MatchView: React.FC<MatchViewProps> = ({
         <BatterSelectModal
           innings={innings}
           onSelect={handleBatterSelected}
-          onReplace={handleBatterReplaced}
           onRename={handleRenamePlayer}
           onQuickAdd={handleQuickAddPlayer}
           onClose={() => setModalView("NONE")}
         />
       )}
       {modalView === "BOWLER_SELECT" && (
-        <BowlerChangeModal
+        <BowlerSelectModal
           innings={innings}
           totalOvers={totalOvers}
           onSelect={handleBowlerSelected}
+          onRename={handleRenameBowler}
           onQuickAdd={handleQuickAddPlayer}
           onClose={() => setModalView("NONE")}
         />
@@ -1125,13 +1100,13 @@ const MatchView: React.FC<MatchViewProps> = ({
         <div className="max-w-4xl mx-auto px-3 py-1.5">
           <div className="flex justify-between items-center gap-4">
             <div className="flex-1 overflow-hidden">
-              <div className="flex items-center gap-2 mb-1 overflow-hidden">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1">
                 <span className="bg-indigo-600 text-white text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-widest flex-shrink-0">
                   {innings.inningNumber === 1 ? "1st" : "2nd"} INN
                 </span>
-                <div className="flex items-center gap-1.5 text-white text-[11px] font-black tracking-widest uppercase truncate">
+                <div className="flex items-center gap-1.5 text-white text-[11px] font-black tracking-widest uppercase flex-wrap">
                   <span
-                    className="bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/40 text-emerald-300 font-black px-2 py-0.5 rounded-full text-[9px] uppercase tracking-wider flex items-center gap-1 whitespace-nowrap truncate min-w-0 max-w-[55%] shadow-sm shadow-emerald-500/10 cursor-pointer hover:bg-emerald-500/30 transition-colors"
+                    className="bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/40 text-emerald-300 font-black px-2 py-0.5 rounded-full text-[9px] uppercase tracking-wider flex items-center gap-1 leading-tight shadow-sm shadow-emerald-500/10 cursor-pointer hover:bg-emerald-500/30 transition-colors"
                     onClick={() => handleRenameTeam(true)}
                   >
                     🏏 BATTING: {innings.battingTeamName}
@@ -1140,15 +1115,15 @@ const MatchView: React.FC<MatchViewProps> = ({
                     vs
                   </span>
                   <span
-                    className="text-indigo-400 cursor-pointer hover:underline text-[10px] font-bold whitespace-nowrap truncate min-w-0"
+                    className="text-indigo-400 cursor-pointer hover:underline text-[10px] font-bold leading-tight"
                     onClick={() => handleRenameTeam(false)}
                   >
                     {innings.bowlingTeamName}
                   </span>
                 </div>
               </div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-xl md:text-2xl font-black text-emerald-400 uppercase tracking-tighter mr-1 flex items-center gap-1 truncate max-w-[140px] sm:max-w-[200px] md:max-w-[300px]">
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0">
+                <span className="w-full sm:w-auto text-lg sm:text-xl md:text-2xl font-black text-emerald-400 uppercase tracking-tighter mr-1 flex items-center gap-1 leading-tight break-words">
                   <span>🏏</span> {innings.battingTeamName}:
                 </span>
                 <span className="text-3xl md:text-4xl font-black tracking-tighter text-white tabular-nums">
