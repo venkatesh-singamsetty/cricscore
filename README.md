@@ -116,57 +116,6 @@ graph TD
 
 ---
 
-## 🚀 Getting Started & Deployment
-
-To deploy CricScore to your own AWS account, use the deployer script:
-
-```bash
-# Development
-./infra/scripts/deploy.sh --env dev --use-local-env
-
-# Production
-./infra/scripts/deploy.sh --env prod --use-local-env
-```
-
-This script applies the selected Terraform environment, generates frontend runtime values from AWS outputs, builds the app, uploads it to S3, and invalidates CloudFront. It does not run database migrations; perform required migrations separately before deploying schema-dependent application changes.
-
-Dev and prod use separate state keys and S3 lockfiles. See the [Terraform guide](./docs/terraform_guide.md#-environment-isolation-dev-vs-prod) for state and locking details.
-
-### 💻 Local Development
-
-Want to run the React frontend locally (`localhost:3000`) against the live cloud backend without deploying infrastructure?
-📖 **[See the Local Frontend Quickstart Guide](./docs/local_frontend_quickstart.md)**.
-
-### 🔐 One-Time Setup for a Fresh Clone
-
-Before the first deployment, make sure you have the required local values ready:
-
-- AWS credentials configured for the target account
-- Terraform installed locally
-- Aiven PostgreSQL connection string for the environment you want to deploy
-- API key for the configured OpenAI-compatible LLM provider
-- SES sender email and admin email configured in the environment variables
-- A hosted domain or Route 53 zone already created
-
-A typical local setup is:
-
-```bash
-cp .env.local.example .env.local
-# fill in the required AWS / database / LLM values before running the deploy script
-```
-
-Use `.env.local.example` as a starting point and check the [deployment guide](./docs/deployment.md) for required values and environment-specific setup.
-
-### 🛡️ Rate Limiting & Cost Alerts
-
-The infrastructure includes basic request throttling and a monthly budget alert. These controls do not guarantee DDoS protection, limit total AWS spending, or prevent all database overload:
-
-- **API throttling**: API Gateway is configured with a rate limit of 50 requests per second and a burst limit of 100. This can limit request rates but is not a substitute for dedicated DDoS protection.
-- **Monthly budget alert**: Terraform configures an AWS Budgets actual-cost notification at 100% of a `$5.00` monthly budget. Alerts may be delayed, and this is not a hard spending cap.
-- **Secret scanning**: GitLeaks runs in CI; the optional pre-commit hook scans staged changes when GitLeaks is installed. This does not guarantee that credentials have never existed in repository history.
-
----
-
 ## 🛠️ Technology Stack
 
 ### Frontend
@@ -206,7 +155,7 @@ The infrastructure includes basic request throttling and a monthly budget alert.
 
 | Technology     | Purpose                                         |
 | -------------- | ----------------------------------------------- |
-| Python 3.10    | MLOps workflow runtime                          |
+| Python 3.10    | MLOps workflow and ML Lambda container runtime  |
 | Scikit-Learn   | Logistic Regression model for win probability   |
 | Pandas / NumPy | High-performance data manipulation and matrices |
 | AWS ECR        | Docker container registry for Serverless ML     |
@@ -296,7 +245,7 @@ The score-update flow uses SNS fan-out: updates are broadcast to connected clien
 **Versioned & Repeatable Environments**
 The AWS infrastructure is codified in Terraform. Changes can be planned, scanned for infrastructure security issues by Checkov, and applied through GitHub Actions or the local deploy script, reducing manual infrastructure changes.
 
-- 📖 **[Full Deployment & Infrastructure](./docs/deployment.md)**: Local preview, bootstrap foundations, and AWS/Aiven Setup.
+- 📖 **[Full Deployment & Infrastructure](./docs/deployment.md)**: Step-by-step setup of accounts, tools, AWS, Aiven and OpenAI, then Dev and Prod deploys.
 - 📖 **[Troubleshooting](./docs/troubleshooting.md)**: Setup fixes and identity verification help.
 
 ### 6. 🚀 CI/CD Automation

@@ -30,7 +30,8 @@ install_tool() {
             aws)  brew install awscli ;;
             jq) brew install jq ;;
             gh) brew install gh ;;
-            docker) echo "❌ Docker must be installed manually (e.g. Docker Desktop or Orbstack)." && exit 1 ;;
+            docker) brew install --cask docker && echo "⚠️  Open Docker Desktop once to finish setup and start it." ;;
+            psql) brew install libpq && brew link --force libpq ;;
             checkov) brew install checkov ;;
             gitleaks) brew install gitleaks ;;
             trivy) brew install trivy ;;
@@ -62,6 +63,9 @@ install_tool() {
                 ;;
             docker)
                 sudo apt-get install -y docker.io
+                ;;
+            psql)
+                sudo apt-get install -y postgresql-client
                 ;;
             terraform)
                 sudo apt-get install -y gnupg software-properties-common
@@ -120,6 +124,7 @@ check_cmd aws
 check_cmd jq
 check_cmd gh
 check_cmd docker
+check_cmd psql
 check_cmd checkov
 check_cmd gitleaks
 check_cmd trivy

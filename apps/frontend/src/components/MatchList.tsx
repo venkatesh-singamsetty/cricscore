@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import HighlightedResult from "./HighlightedResult";
 import { fetchAuthSession } from "aws-amplify/auth";
 import type { WebSocketMessage } from "../hooks/useWebSocket";
 import {
@@ -432,7 +433,7 @@ const MatchList: React.FC<MatchListProps> = ({
                   {result && (
                     <div className="mt-1 py-3 px-4 bg-indigo-500/10 border-y border-indigo-500/20 text-center rounded-xl">
                       <span className="text-[11px] font-black text-indigo-400 uppercase tracking-widest animate-in fade-in slide-in-from-top-1">
-                        🏁 {result}
+                        🏁 <HighlightedResult text={result} />
                       </span>
                     </div>
                   )}

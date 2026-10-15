@@ -373,6 +373,16 @@ const MatchView: React.FC<MatchViewProps> = ({
     }));
   };
 
+  const isDuplicateName = (name: string, excludeId?: string) => {
+    const up = name.trim().toUpperCase();
+    const dup = [
+      ...Object.values(innings.players),
+      ...Object.values(innings.bowlers),
+    ].some((p) => p.id !== excludeId && p.name.trim().toUpperCase() === up);
+    if (dup) setAlertMessage(`${up} already exists in this match.`);
+    return dup;
+  };
+
   const handleRenamePlayer = (playerId: string) => {
     const player = innings.players[playerId];
     setPromptAction({
@@ -380,6 +390,7 @@ const MatchView: React.FC<MatchViewProps> = ({
       placeholder: `Enter new name for ${player.name}:`,
       defaultValue: player.name,
       onConfirm: (newName) => {
+        if (isDuplicateName(newName, playerId)) return;
         setInnings((prev) => {
           const next = { ...prev };
           next.players[playerId] = {
@@ -400,6 +411,7 @@ const MatchView: React.FC<MatchViewProps> = ({
       placeholder: `Enter new name for ${b.name}:`,
       defaultValue: b.name,
       onConfirm: (newName) => {
+        if (isDuplicateName(newName, bowlerId)) return;
         setInnings((prev) => {
           const next = { ...prev };
           next.bowlers[bowlerId] = { ...b, name: newName.trim().toUpperCase() };
@@ -436,6 +448,7 @@ const MatchView: React.FC<MatchViewProps> = ({
       placeholder: `Enter new name:`,
       defaultValue: "",
       onConfirm: (name) => {
+        if (isDuplicateName(name)) return;
         const upName = name.trim().toUpperCase();
         const id = `${isBatter ? "bat" : "bowl"}_${Date.now()}`;
         setInnings((prev) => {
@@ -1087,31 +1100,31 @@ const MatchView: React.FC<MatchViewProps> = ({
         <div className="max-w-4xl mx-auto px-3 py-1.5">
           <div className="flex justify-between items-center gap-4">
             <div className="flex-1 overflow-hidden">
-              <div className="flex items-center gap-2 mb-1 overflow-hidden">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1">
                 <span className="bg-indigo-600 text-white text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-widest flex-shrink-0">
                   {innings.inningNumber === 1 ? "1st" : "2nd"} INN
                 </span>
-                <div className="flex items-center gap-1.5 text-white text-[11px] font-black tracking-widest uppercase truncate">
-                  <span
-                    className="bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/40 text-emerald-300 font-black px-2 py-0.5 rounded-full text-[9px] uppercase tracking-wider flex items-center gap-1 shadow-sm shadow-emerald-500/10 cursor-pointer hover:bg-emerald-500/30 transition-colors"
-                    onClick={() => handleRenameTeam(true)}
-                  >
-                    🏏 BATTING: {innings.battingTeamName}
-                  </span>
+                <div className="flex items-center gap-1.5 text-white text-[11px] font-black tracking-widest uppercase flex-wrap">
                   <span className="text-slate-500 text-[8px] italic lowercase font-medium">
                     vs
                   </span>
                   <span
-                    className="text-indigo-400 cursor-pointer hover:underline text-[10px] font-bold"
+                    className="text-indigo-400 cursor-pointer hover:underline text-[10px] font-bold leading-tight"
                     onClick={() => handleRenameTeam(false)}
                   >
                     {innings.bowlingTeamName}
                   </span>
                 </div>
               </div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-xl md:text-2xl font-black text-emerald-400 uppercase tracking-tighter mr-1 flex items-center gap-1 truncate max-w-[140px] sm:max-w-[200px] md:max-w-[300px]">
-                  <span>🏏</span> {innings.battingTeamName}:
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0">
+                <span className="w-full sm:w-auto text-lg sm:text-xl md:text-2xl font-black text-emerald-400 uppercase tracking-tighter mr-1 flex items-center gap-1 leading-tight break-words">
+                  <span>🏏</span>
+                  <span
+                    className="cursor-pointer hover:underline"
+                    onClick={() => handleRenameTeam(true)}
+                  >
+                    {innings.battingTeamName}
+                  </span>
                 </span>
                 <span className="text-3xl md:text-4xl font-black tracking-tighter text-white tabular-nums">
                   {innings.totalRuns}
@@ -1173,7 +1186,7 @@ const MatchView: React.FC<MatchViewProps> = ({
               </div>
             </div>
 
-            <div className="flex flex-col items-end">
+            <div className="flex flex-col items-center">
               <button
                 onClick={() => setShowScoreboard(true)}
                 className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 rounded text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
@@ -1181,7 +1194,7 @@ const MatchView: React.FC<MatchViewProps> = ({
                 Scorecard 📋
               </button>
               {Boolean(innings.target) && (
-                <span className="text-[11px] md:text-sm font-black text-yellow-500 uppercase tracking-tighter mt-1 truncate max-w-[160px] text-right whitespace-nowrap">
+                <span className="text-base md:text-xl font-black text-yellow-500 uppercase tracking-tight mt-3 max-w-[200px] md:max-w-[280px] text-center leading-tight">
                   {equation ? `🎯 ${equation}` : `TGT: ${innings.target}`}
                 </span>
               )}
