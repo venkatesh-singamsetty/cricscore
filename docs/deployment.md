@@ -23,20 +23,24 @@ Follow these steps in order to get CricScore running on your own AWS account.
 
 **Accounts / things to have ready**
 
-- [ ] AWS account and an **IAM user** (not root) with an access key ID and secret access key. Create it in AWS Console → IAM → Users → Security credentials → Create access key. Run `aws configure` with it, then check: `aws sts get-caller-identity`
-- [ ] A domain you own (Route 53 hosted zone is created for you in Step 3)
-- [ ] Aiven PostgreSQL service. Copy its connection URI
-- [ ] An email address to send from (verified in Step 3c)
-- [ ] An API key from any OpenAI-compatible LLM provider (OpenAI, Gemini, OpenRouter, etc.). It must support chat and embeddings
+- [ ] **AWS account**: [Sign up](https://portal.aws.amazon.com/billing/signup). Then create an **IAM user** (not root) at [IAM → Users](https://console.aws.amazon.com/iam/home#/users) → Security credentials → Create access key. Run `aws configure` with it, then check: `aws sts get-caller-identity`
+- [ ] **Domain** you own: buy one at any registrar (e.g. [Route 53](https://console.aws.amazon.com/route53/domains), [Namecheap](https://www.namecheap.com), [Cloudflare](https://www.cloudflare.com/products/registrar/)). The Route 53 hosted zone is created for you in Step 3
+- [ ] **PostgreSQL**: [Aiven sign up](https://console.aiven.io/signup) → create a PostgreSQL service (free plan available) → copy its Service URI
+- [ ] **Sender email**: an address on your domain, verified in [SES](https://console.aws.amazon.com/ses/home#/identities) in Step 3c
+- [ ] **LLM API key** (OpenAI-compatible):
+  - OpenAI: [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
+  - Gemini (free chat): [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
+  - OpenRouter: [openrouter.ai/keys](https://openrouter.ai/keys)
+- [ ] **GitHub account** (only for Step 6): [github.com/signup](https://github.com/signup)
 
 **Tools to install**
 
-- [ ] Node.js 24+
-- [ ] Terraform 1.10+
-- [ ] AWS CLI
-- [ ] Docker (Docker Desktop on macOS). **Start it.**
-- [ ] PostgreSQL client (`psql`)
-- [ ] GitHub CLI (`gh`), only for Step 6
+- [ ] [Node.js 24+](https://nodejs.org)
+- [ ] [Terraform 1.10+](https://developer.hashicorp.com/terraform/install)
+- [ ] [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
+- [ ] [Docker](https://docs.docker.com/get-docker/) (Docker Desktop on macOS). **Start it.**
+- [ ] PostgreSQL client (`psql`): [postgresql.org/download](https://www.postgresql.org/download/)
+- [ ] [GitHub CLI (`gh`)](https://cli.github.com), only for Step 6
 
 > [!WARNING]
 > If a Route 53 hosted zone for your domain already exists, do **not** run bootstrap (Step 3). Ask for the import path in [terraform_guide.md](./terraform_guide.md).
