@@ -116,6 +116,25 @@ For non-OpenAI providers also set `LLM_MODEL` (for example `gemini-2.0-flash`) i
 
 ---
 
+### Optional: use a free LLM (Gemini) instead of OpenAI
+
+In `.env.local`, replace the LLM lines with:
+
+```bash
+LLM_API_KEY='your-google-ai-studio-key'
+LLM_BASE_URL='https://generativelanguage.googleapis.com/v1beta/openai/'
+LLM_MODEL='gemini-2.0-flash'
+```
+
+1. Get a free key at [Google AI Studio](https://aistudio.google.com/apikey).
+2. Paste it as `LLM_API_KEY` (the app does not read `GOOGLE_API_KEY`) and do not set `OPENAI_API_KEY`.
+3. Deploy as normal (Step 4).
+
+> [!NOTE]
+> Free tier covers chat answers. Cricket-rules search uses the OpenAI model `text-embedding-3-small`, which Gemini does not offer, so that feature will not work without an OpenAI key. Free-tier limits and model names change; check the provider's page.
+
+---
+
 ## Step 3: Bootstrap AWS (once only)
 
 > [!WARNING]
