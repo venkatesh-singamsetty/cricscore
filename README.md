@@ -116,11 +116,6 @@ graph TD
 
 ---
 
-## 💻 Local Development
-
-Want to run the React frontend locally (`localhost:3000`) against the live cloud backend without deploying infrastructure?
-📖 **[See the Local Frontend Quickstart Guide](./docs/local_frontend_quickstart.md)**.
-
 ## 🛡️ Rate Limiting & Cost Alerts
 
 The infrastructure includes basic request throttling and a monthly budget alert. These controls do not guarantee DDoS protection, limit total AWS spending, or prevent all database overload:
