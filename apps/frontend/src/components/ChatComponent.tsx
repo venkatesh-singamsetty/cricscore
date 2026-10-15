@@ -462,10 +462,14 @@ export function ChatComponent({
             }}
             placeholder="Ask about the match, score, or players..."
             className="flex-1 min-w-0 bg-slate-900 border border-white/10 rounded-2xl py-2.5 sm:py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-slate-500"
-            disabled={loading}
+            readOnly={loading}
+            enterKeyHint="send"
           />
           <button
             type="submit"
+            // Keep focus on the input so the first tap sends instead of just
+            // dismissing the mobile keyboard.
+            onMouseDown={(e) => e.preventDefault()}
             disabled={!input.trim() || loading}
             className="p-2.5 sm:p-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl disabled:opacity-50 transition-colors shrink-0 shadow-lg shadow-indigo-600/20"
             title="Send message"

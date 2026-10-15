@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import HighlightedResult from "./HighlightedResult";
 import { useWebSocket } from "../hooks/useWebSocket";
 import MatchList from "./MatchList"; // Added Phase 6+
 import Scoreboard from "./Scoreboard";
@@ -1174,7 +1175,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                       </p>
 
                       <h3 className="text-3xl font-black text-white uppercase italic tracking-tighter mb-8 drop-shadow-2xl">
-                        {result}
+                        <HighlightedResult text={result} />
                       </h3>
 
                       <div className="flex flex-col gap-2 mb-8">

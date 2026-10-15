@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import HighlightedResult from "./HighlightedResult";
 import { InningsState, Player, Bowler, ExtraType } from "../types";
 import { getPartnerships } from "../utils/partnershipUtils";
 
@@ -348,7 +349,10 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                     🏆 MATCH RESULT
                   </span>
                   <span className="max-w-full text-lg sm:text-xl md:text-2xl font-black text-white uppercase tracking-tighter italic drop-shadow-lg leading-tight break-words">
-                    {result.text}
+                    <HighlightedResult
+                      text={result.text}
+                      teamClassName="text-yellow-300"
+                    />
                   </span>
                 </div>
               </div>
