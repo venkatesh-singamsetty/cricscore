@@ -333,7 +333,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
           <div className="flex flex-col px-2 pb-2 gap-2 animate-in fade-in duration-300">
             <div className="text-center shrink-0">
               <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-black uppercase tracking-widest text-indigo-400">
-                {teamAName || "First Team"} · First Team
+                First Team
               </span>
             </div>
             {!hideResume && recentMatches.length > 0 && (
@@ -416,7 +416,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
           <div className="flex flex-col px-2 pb-2 gap-2 animate-in fade-in duration-300">
             <div className="text-center shrink-0">
               <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-[10px] font-black uppercase tracking-widest text-purple-400">
-                {teamBName || "Second Team"} · Second Team
+                Second Team
               </span>
               <p className="text-[10px] text-slate-600 mt-1 font-bold uppercase">
                 vs <span className="text-indigo-400">{teamAName}</span>

@@ -602,39 +602,28 @@ body {
   color: #f8fafc !important;            /* slate-50 */
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
 }
-/* ---------- Desktop sign-in: use the space ---------- */
-.auth-features { display: none; }
+/* ---------- Desktop sign-in: fit the viewport, no scrolling ---------- */
 @media (min-width: 1024px) {
   [data-amplify-authenticator] {
     justify-content: center !important;
-    padding-top: 1rem !important;
-    padding-bottom: 1rem !important;
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+    overflow: hidden !important;
+    max-height: calc(100dvh - 3.5rem) !important;
   }
-  .auth-hero { margin-bottom: 2rem; }
-  .auth-logo { width: 88px; height: 88px; font-size: 2.75rem; margin-bottom: 1rem; }
-  .auth-title { font-size: 3.25rem; }
-  .auth-subtitle { font-size: 0.8rem; margin-top: 0.5rem; }
-  .auth-features {
-    display: flex;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 0.6rem;
-    margin-top: 1.25rem;
-  }
-  .auth-features span {
-    padding: 0.4rem 0.9rem;
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: #c7d2fe;
-    background: rgba(99, 102, 241, 0.12);
-    border: 1px solid rgba(129, 140, 248, 0.25);
-  }
+  .auth-hero { margin-bottom: 0.75rem; }
+  .auth-logo { width: 52px; height: 52px; font-size: 1.6rem; margin-bottom: 0.5rem; }
+  .auth-title { font-size: 2rem; }
+  .auth-subtitle { margin-top: 0.15rem; }
   [data-amplify-authenticator] [data-amplify-router],
   .amplify-authenticator__router,
   .amplify-card {
-    max-width: 520px !important;
-    padding: 2rem !important;
-    min-height: 420px !important;
+    max-width: 480px !important;
+    padding: 1rem 1.5rem !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
   }
+  .auth-divider { margin: 0.6rem 0 0.6rem; }
+  .auth-footer { padding: 0.4rem 1rem 0.6rem; }
 }
