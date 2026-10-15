@@ -27,10 +27,7 @@ Follow these steps in order to get CricScore running on your own AWS account.
 - [ ] **Domain** you own: buy one at any registrar (e.g. [Route 53](https://console.aws.amazon.com/route53/domains), [Namecheap](https://www.namecheap.com), [Cloudflare](https://www.cloudflare.com/products/registrar/)). The Route 53 hosted zone is created for you in Step 3
 - [ ] **PostgreSQL**: [Aiven sign up](https://console.aiven.io/signup) → create a PostgreSQL service (free plan available) → copy its Service URI
 - [ ] **Sender email**: an address on your domain, verified in [SES](https://console.aws.amazon.com/ses/home#/identities) in Step 3c
-- [ ] **LLM API key** (OpenAI-compatible):
-  - OpenAI: [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
-  - Gemini (free chat): [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
-  - OpenRouter: [openrouter.ai/keys](https://openrouter.ai/keys)
+- [ ] **OpenAI API key** (chat and rulebook search): [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
 - [ ] **GitHub account** (only for Step 6): [github.com/signup](https://github.com/signup)
 
 **Tools to install**
@@ -95,14 +92,11 @@ ZONE_DOMAIN='yourdomain.com'
 SUBDOMAIN_PREFIX='cricscore'
 PROJECT_NAME='cricscore'
 
-# LLM provider: any OpenAI-compatible API (chat). Embeddings need OpenAI, see below
-LLM_API_KEY='your-provider-api-key'
-LLM_BASE_URL='https://api.openai.com/v1'
+# OpenAI (chat and embeddings)
+OPENAI_API_KEY='your-openai-api-key'
 ```
 
-Base URL examples: OpenAI `https://api.openai.com/v1`, Gemini `https://generativelanguage.googleapis.com/v1beta/openai/`, OpenRouter `https://openrouter.ai/api/v1`.
-If you use OpenAI and prefer that variable name, set `OPENAI_API_KEY` instead of `LLM_API_KEY`; it takes priority if both are set.
-For non-OpenAI providers also set `LLM_MODEL` (for example `gemini-2.0-flash`). See the free-LLM option below for the embeddings limit.
+`LLM_BASE_URL` and `LLM_MODEL` are optional and default to `https://api.openai.com/v1` and `gpt-4o-mini`.
 
 > [!CAUTION]
 > Never commit `.env.local` to version control. It is in `.gitignore` by default.
@@ -117,25 +111,6 @@ For non-OpenAI providers also set `LLM_MODEL` (for example `gemini-2.0-flash`). 
 - `TF_STATE_BUCKET` must be a globally unique S3 bucket name.
 - Optional overrides: `DEV_DOMAIN_NAME`, `DEV_PROJECT_NAME`, `DEV_SUBDOMAIN_PREFIX` (and `PROD_*`).
 - Optional Sentry: `cp apps/frontend/.env.example apps/frontend/.env` and set `VITE_SENTRY_DSN`.
-
----
-
-### Optional: use a free LLM (Gemini) instead of OpenAI
-
-In `.env.local`, replace the LLM lines with:
-
-```bash
-LLM_API_KEY='your-google-ai-studio-key'
-LLM_BASE_URL='https://generativelanguage.googleapis.com/v1beta/openai/'
-LLM_MODEL='gemini-2.0-flash'
-```
-
-1. Get a free key at [Google AI Studio](https://aistudio.google.com/apikey).
-2. Paste it as `LLM_API_KEY` (the app does not read `GOOGLE_API_KEY`) and do not set `OPENAI_API_KEY`.
-3. Deploy as normal (Step 4).
-
-> [!NOTE]
-> Free tier covers chat answers only. Embeddings (used only for searching uploaded tournament rulebook PDFs) are fixed to OpenAI's `text-embedding-3-small` (1536 dimensions, matching the database column) and cannot be changed through `.env.local`. Without an OpenAI key, chat works but rulebook search does not. Free-tier limits and model names change; check the provider's page.
 
 ---
 
