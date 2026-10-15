@@ -116,16 +116,6 @@ graph TD
 
 ---
 
-## 🛡️ Rate Limiting & Cost Alerts
-
-The infrastructure includes basic request throttling and a monthly budget alert. These controls do not guarantee DDoS protection, limit total AWS spending, or prevent all database overload:
-
-- **API throttling**: API Gateway is configured with a rate limit of 50 requests per second and a burst limit of 100. This can limit request rates but is not a substitute for dedicated DDoS protection.
-- **Monthly budget alert**: Terraform configures an AWS Budgets actual-cost notification at 100% of a `$5.00` monthly budget. Alerts may be delayed, and this is not a hard spending cap.
-- **Secret scanning**: GitLeaks runs in CI; the optional pre-commit hook scans staged changes when GitLeaks is installed. This does not guarantee that credentials have never existed in repository history.
-
----
-
 ## 🛠️ Technology Stack
 
 ### Frontend
