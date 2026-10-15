@@ -159,12 +159,22 @@ The script then installs dependencies, runs DB migrations, applies Terraform, bu
 
 **4c. Prod (only when Dev is good)**
 
+Before you run it:
+
+- [ ] Dev works (4b).
+- [ ] The SES domain is verified (Step 3c). Prod uses the same domain.
+- [ ] `TF_DATABASE_URL` points at the database you want. Dev and Prod share it and are separated by schema.
+- [ ] `DOMAIN_NAME` (e.g. `cricscore.yourdomain.com`) is under your Route 53 zone.
+- [ ] `./infra/scripts/deploy.sh --env prod --use-local-env --check` is all ✅.
+
 ```bash
 ./infra/scripts/deploy.sh --env prod --use-local-env --migrate
 ```
 
 > [!CAUTION]
-> The script runs `terraform apply -auto-approve` and `--migrate` changes the database **before** that. There is no dry run. Before Prod, double-check the `.env.local` database URL and see the [Terraform guide](./terraform_guide.md).
+> The script runs `terraform apply -auto-approve` and `--migrate` changes the database **before** that. There is no dry run. See the [Terraform guide](./terraform_guide.md).
+
+GitHub secrets are **not** needed for local deploys. They are only used by Step 6.
 
 ---
 
@@ -180,7 +190,7 @@ The script then installs dependencies, runs DB migrations, applies Terraform, bu
 ## Step 6 (optional): GitHub Actions CI/CD
 
 1. Log in (`gh` was installed in Step 1): `gh auth login`
-2. Upload settings from `.env.local` **once**:
+2. Upload settings from `.env.local` **once** (this creates the `dev` and `prod` GitHub environments' secrets):
 
 ```bash
 ./infra/scripts/setup_github_envs.sh
@@ -197,7 +207,7 @@ What happens afterwards:
 | Push to `main` | Deploys **Dev**, then E2E, AI evaluation and security scan.   |
 | Push tag `v*`  | Deploys **Prod**, then AI evaluation, E2E and security scan.  |
 
-Prod approval depends on your GitHub `prod` environment protection rules.
+Pushing a `v*` tag deploys Prod. Add required reviewers under GitHub → Settings → Environments → `prod` so it needs approval.
 
 ---
 
