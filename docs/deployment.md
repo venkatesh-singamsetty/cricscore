@@ -24,7 +24,7 @@ Follow these steps in order to get CricScore running on your own AWS account.
 **Accounts / things to have ready**
 
 - [ ] **AWS account**: [Sign up](https://portal.aws.amazon.com/billing/signup). Then create an **IAM user** (not root) at [IAM → Users](https://console.aws.amazon.com/iam/home#/users) → Security credentials → Create access key. Run `aws configure` with it, then check: `aws sts get-caller-identity`
-- [ ] **Domain** you own: buy one at any registrar (e.g. [Route 53](https://console.aws.amazon.com/route53/domains), [Namecheap](https://www.namecheap.com), [Cloudflare](https://www.cloudflare.com/products/registrar/)). The Route 53 hosted zone is created for you in Step 3
+- [ ] **Domain** you own: buy one at any registrar (e.g. [Spaceship](https://www.spaceship.com), [Route 53](https://console.aws.amazon.com/route53/domains), [Namecheap](https://www.namecheap.com), [Cloudflare](https://www.cloudflare.com/products/registrar/)). The Route 53 hosted zone is created for you in Step 3
 - [ ] **PostgreSQL**: [Aiven sign up](https://console.aiven.io/signup) → create a PostgreSQL service (free plan available) → copy its Service URI
 - [ ] **Sender email**: an address on your domain, verified in [SES](https://console.aws.amazon.com/ses/home#/identities) in Step 3c
 - [ ] **OpenAI API key** (chat and rulebook search): [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
