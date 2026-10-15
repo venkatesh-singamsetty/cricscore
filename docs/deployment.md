@@ -42,16 +42,13 @@ cd cricscore
 
 **Install tools**
 
-Run the setup script from the repo root. It checks for and installs Node.js 24, Terraform, AWS CLI, `jq`, `gh` and security tools (Homebrew on macOS, `apt-get` on Linux):
+Run the setup script from the repo root. It checks for and installs Node.js 24, Terraform, AWS CLI, `jq`, `gh`, Docker, the PostgreSQL client (`psql`) and security tools (Homebrew on macOS, `apt-get` on Linux):
 
 ```bash
 ./infra/scripts/setup.sh
 ```
 
-Two things it does **not** install for you:
-
-- [ ] [Docker](https://docs.docker.com/get-docker/) on macOS (Docker Desktop). Install it and **start it**.
-- [ ] PostgreSQL client (`psql`): macOS `brew install libpq && brew link --force libpq`, Linux `sudo apt-get install -y postgresql-client`, or [download](https://www.postgresql.org/download/).
+On macOS, open Docker Desktop once after install so it is running.
 
 Then check everything is ready:
 
