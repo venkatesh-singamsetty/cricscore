@@ -1105,12 +1105,6 @@ const MatchView: React.FC<MatchViewProps> = ({
                   {innings.inningNumber === 1 ? "1st" : "2nd"} INN
                 </span>
                 <div className="flex items-center gap-1.5 text-white text-[11px] font-black tracking-widest uppercase flex-wrap">
-                  <span
-                    className="bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/40 text-emerald-300 font-black px-2 py-0.5 rounded-full text-[9px] uppercase tracking-wider flex items-center gap-1 leading-tight shadow-sm shadow-emerald-500/10 cursor-pointer hover:bg-emerald-500/30 transition-colors"
-                    onClick={() => handleRenameTeam(true)}
-                  >
-                    🏏 BATTING: {innings.battingTeamName}
-                  </span>
                   <span className="text-slate-500 text-[8px] italic lowercase font-medium">
                     vs
                   </span>
@@ -1124,7 +1118,13 @@ const MatchView: React.FC<MatchViewProps> = ({
               </div>
               <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0">
                 <span className="w-full sm:w-auto text-lg sm:text-xl md:text-2xl font-black text-emerald-400 uppercase tracking-tighter mr-1 flex items-center gap-1 leading-tight break-words">
-                  <span>🏏</span> {innings.battingTeamName}:
+                  <span>🏏</span>
+                  <span
+                    className="cursor-pointer hover:underline"
+                    onClick={() => handleRenameTeam(true)}
+                  >
+                    {innings.battingTeamName}
+                  </span>
                 </span>
                 <span className="text-3xl md:text-4xl font-black tracking-tighter text-white tabular-nums">
                   {innings.totalRuns}
