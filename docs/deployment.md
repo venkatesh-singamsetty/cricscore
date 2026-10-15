@@ -1,51 +1,52 @@
 # 🚀 Deployment Guide
 
-This is the full deployment reference for CricScore — from registering a domain to having a live, fully-featured cricket scoring platform running in the cloud.
+Follow these steps in order to get CricScore running on your own AWS account.
 
 > [!IMPORTANT]
-> A fresh clone is not a one-command cloud deployment. You need accounts and configuration for AWS, a domain/Route 53, PostgreSQL, SES, and an OpenAI-compatible LLM provider. AWS resources and external database/provider services may incur costs.
+> This is not a one-command deployment. AWS resources and external services (Aiven, OpenAI) may cost money. Deploy scripts apply changes automatically.
 
-## Fresh-clone path at a glance
+## Steps at a glance
 
-1. Get the prerequisites in Step 0, then clone the repository.
-2. Copy `.env.local.example` to `.env.local` and fill in **your own** values.
-3. Run the one-time bootstrap command. Add its Route 53 nameservers at your registrar and verify your SES sender/domain.
-4. After DNS is delegated, run the Dev deployment command with `--migrate`.
-5. Sign in and grant your account the Cognito `Admin` group if you need admin access.
-
-Follow the full steps below in order. The deploy script applies AWS changes automatically; review the configuration and target environment before running it.
-
----
-
-## What You'll Build
-
-- A **dev environment** (e.g., `cricscoredev.yourdomain.com`) for testing
-- A **prod environment** (e.g., `cricscore.yourdomain.com`) for live matches
-- CI validates pull requests; pushes to `main` can trigger the development deployment workflow.
+| #   | Step                                    | Time              |
+| --- | --------------------------------------- | ----------------- |
+| 0   | Get accounts and install tools          | 30 min            |
+| 1   | Clone and check tools                   | 2 min             |
+| 2   | Fill in `.env.local`                    | 10 min            |
+| 3   | Bootstrap AWS, point DNS, verify email  | 15 min + DNS wait |
+| 4   | Deploy Dev (then Prod)                  | 15 min            |
+| 5   | Sign in and make yourself admin         | 5 min             |
+| 6   | (Optional) Turn on GitHub Actions CI/CD | 10 min            |
 
 ---
 
-## Step 0: Prerequisites and accounts
+## Step 0: Get accounts and install tools
 
-Install or configure the following before deployment:
+**Accounts / things to have ready**
 
-- Node.js 24+, Terraform 1.10+, AWS CLI, Docker Engine, and PostgreSQL client (`psql`). Local deployment builds and pushes the ML inference Lambda image with Docker. The repository's `infra/scripts/setup.sh` can help install some tools; install Docker Desktop separately on macOS and make sure Docker is running.
-- AWS credentials authorized to create the resources managed by Terraform. Prefer AWS CLI/role-based credentials for local use; avoid root credentials. Verify access with `aws sts get-caller-identity`.
-- A domain you control. The bootstrap creates a Route 53 hosted zone for its root domain. Do **not** run bootstrap blindly if a hosted zone for this domain already exists; use/adopt the existing DNS configuration instead.
-- An Aiven PostgreSQL service and its connection URI. Dev and prod use separate schemas (`dev` and `prod`) in the configured database by default. Back up existing data and use the correct database before running migrations.
-- A verified SES sender/domain. SES sandbox accounts may only send to verified recipients.
-- An OpenAI-compatible API key for chat. The current template also uses OpenAI credentials for embeddings; configure a provider and key that support the embedding endpoint/model.
+- [ ] AWS account and CLI login (not root). Check: `aws sts get-caller-identity`
+- [ ] A domain you own (Route 53 hosted zone is created for you in Step 3)
+- [ ] Aiven PostgreSQL service. Copy its connection URI
+- [ ] An email address to send from (verified in Step 3c)
+- [ ] An OpenAI-compatible API key (chat and embeddings)
 
-## Step 1: Clone the repository
+**Tools to install**
+
+- [ ] Node.js 24+
+- [ ] Terraform 1.10+
+- [ ] AWS CLI
+- [ ] Docker (Docker Desktop on macOS). **Start it.**
+- [ ] PostgreSQL client (`psql`)
+- [ ] GitHub CLI (`gh`), only for Step 6
+
+> [!WARNING]
+> If a Route 53 hosted zone for your domain already exists, do **not** run bootstrap (Step 3). Ask for the import path in [terraform_guide.md](./terraform_guide.md).
+
+## Step 1: Clone and check tools
 
 ```bash
 git clone https://github.com/venkatesh-singamsetty/cricscore.git
 cd cricscore
-```
 
-Install the prerequisites listed above if they are not already available. `infra/scripts/setup.sh` is optional; it installs some development/security tools, but does not replace installing Docker Desktop on macOS or the PostgreSQL client (`psql`). Start Docker before deploying. Confirm the tools and AWS credentials are available:
-
-```bash
 node --version
 terraform version
 aws sts get-caller-identity
@@ -53,15 +54,13 @@ docker info
 psql --version
 ```
 
-GitHub Actions setup later also requires GitHub CLI (`gh`).
+All five commands must succeed before you continue.
 
 ---
 
-## Step 2: Configure Your Environment
+## Step 2: Configure `.env.local`
 
-### 2a. Root config — `.env.local`
-
-Copy the example file and fill in your values:
+**2a. Create the file and fill in the values**
 
 ```bash
 cp .env.local.example .env.local
@@ -104,134 +103,123 @@ OPENAI_API_KEY='your-openai-api-key'
 > [!CAUTION]
 > Never commit `.env.local` to version control. It is in `.gitignore` by default.
 
-### 2b. Configure domains and Terraform state
+**Naming (automatic).** With `ZONE_DOMAIN=example.org` and `SUBDOMAIN_PREFIX=cricscore`:
 
-The deploy script reads `ZONE_DOMAIN`, `DOMAIN_NAME`, `SUBDOMAIN_PREFIX`, and `PROJECT_NAME` from `.env.local`. For example, with `ZONE_DOMAIN=example.org` and the base prefix/project name `cricscore`, Dev defaults to `cricscoredev.example.org`, `cricscoredev` resources, and Prod uses `cricscore.example.org`, `cricscore` resources. The deploy script verifies that each app domain is under the configured hosted zone. Set `DEV_DOMAIN_NAME`, `DEV_PROJECT_NAME`, or `DEV_SUBDOMAIN_PREFIX` to override Dev; use the matching `PROD_*` variables for Prod.
+| Environment | URL                        | Resources prefix |
+| ----------- | -------------------------- | ---------------- |
+| Dev         | `cricscoredev.example.org` | `cricscoredev`   |
+| Prod        | `cricscore.example.org`    | `cricscore`      |
 
-`TF_STATE_BUCKET` must be a globally unique S3 bucket name. The same value is used for bootstrap, local deployment, and the GitHub Actions environment. You no longer need to edit Terraform backend configuration or the environment `.tfvars` files.
-
-The deploy script writes the generated API and Cognito settings to `apps/frontend/.env`. To enable optional Sentry crash reporting, create that file from `apps/frontend/.env.example` before deployment and set `VITE_SENTRY_DSN`.
+- `TF_STATE_BUCKET` must be a globally unique S3 bucket name.
+- Optional overrides: `DEV_DOMAIN_NAME`, `DEV_PROJECT_NAME`, `DEV_SUBDOMAIN_PREFIX` (and `PROD_*`).
+- Optional Sentry: `cp apps/frontend/.env.example apps/frontend/.env` and set `VITE_SENTRY_DSN`.
 
 ---
 
-## Step 3: Bootstrap — One-Time AWS Setup
+## Step 3: Bootstrap AWS (once only)
 
-This creates the S3 Terraform state bucket and a Route 53 hosted zone for your domain. **Run it once per new deployment only.** Bootstrap Terraform state is local under `infra/terraform/bootstrap`; keep it safe and do not delete it. Do not repeat bootstrap after losing that state or when you already have a hosted zone without first reviewing the import/adoption path.
+> [!WARNING]
+> Run this once per new deployment. Keep `infra/terraform/bootstrap` (local state) safe. Never delete it.
 
-### 3a. Create initial AWS resources
-
-Run the bootstrap-only command; it creates the state bucket and Route 53 hosted zone, then prints the nameservers:
+**3a. Create the state bucket and DNS zone**
 
 ```bash
 ./infra/scripts/deploy.sh --env dev --use-local-env --bootstrap-only
 ```
 
-### 3b. Point your domain to AWS
+Copy the 4 nameservers it prints.
 
-Add the printed nameservers at your domain registrar:
+**3b. Point your domain to AWS**
 
 1. Log in to your domain registrar.
-2. Replace the domain's nameservers with the Route 53 nameservers printed by the script.
-3. Wait for DNS delegation to propagate; timing varies by registrar and DNS cache.
+2. Replace the domain's nameservers with the 4 you copied.
+3. Wait until DNS updates (minutes to hours). Check: `dig NS yourdomain.com +short`
 
-### 3c. Verify SES email
+**3c. Verify your sender email**
 
-1. Go to **AWS Console → SES → Verified Identities → Create Identity**
-2. Enter `yourdomain.com` and verify ownership via the DNS TXT record shown
-3. Verify the sender identity used by the app. If the SES account is still in the sandbox, recipients must also be verified; request production access if the app needs to email unverified recipients.
+1. AWS Console → **SES** → **Verified identities** → **Create identity**.
+2. Enter `yourdomain.com`. Add the DNS records shown (in Route 53).
+3. Wait until the status says **Verified**.
+4. New SES accounts are in sandbox: you can only email verified addresses. Verify your own address too, or request production access.
 
 ---
 
 ## Step 4: Deploy
 
-Run the canonical deploy script for your target environment:
+**4a. Dev**
 
 ```bash
-# First and later development deployments (requires DNS delegation and SES verification)
 ./infra/scripts/deploy.sh --env dev --use-local-env --migrate
+```
 
-# Production is a separate, explicit operation
+The script then installs dependencies, runs DB migrations, applies Terraform, builds the frontend, uploads it to S3 and clears the CloudFront cache. At the end it prints your site URL, e.g. `https://cricscoredev.example.org`.
+
+**4b. Check it works**
+
+1. Open the printed URL (hard refresh if the page is blank; CloudFront can take ~5 minutes).
+2. You should see the Viewer tab load.
+
+**4c. Prod (only when Dev is good)**
+
+```bash
 ./infra/scripts/deploy.sh --env prod --use-local-env --migrate
 ```
 
-The script automatically:
-
-1. Installs frontend and Lambda dependencies
-2. Initializes Terraform and applies AWS infrastructure
-3. Reads the live API Gateway and WebSocket URLs from Terraform output
-4. Rewrites the generated `VITE_*` entries in `apps/frontend/.env`
-5. Builds the React app
-6. Uploads to S3 and invalidates CloudFront cache
-
-The local deploy script runs database migrations only when `--migrate` is supplied. Migrations run **before** Terraform apply, so confirm the database URL and environment are correct first. Use `prod` only when intentionally migrating the production schema. The GitHub deployment workflows run the corresponding migration step automatically.
-
-After a successful local deploy, the script prints the deployed website URL.
-
-Your app is live at the configured Dev domain, for example `https://cricscoredev.example.org`.
-
 > [!CAUTION]
-> The deploy script runs `terraform apply -auto-approve` and then publishes the frontend. It has no plan-only mode. Before deploying to Prod, review the plan for the exact production configuration (see [the Terraform guide](./terraform_guide.md)), verify the production database and SES settings, and confirm any destructive changes are intentional.
+> The script runs `terraform apply -auto-approve` and `--migrate` changes the database **before** that. There is no dry run. Before Prod, double-check the `.env.local` database URL and see the [Terraform guide](./terraform_guide.md).
 
 ---
 
-## Step 5: Local Development
+## Step 5: Sign in and make yourself admin
 
-After deploying at least once (so the backend exists), run the frontend locally:
+1. Open your live site and click **SCORER**.
+2. Click **Create Account**, enter name, email and password, then confirm the emailed code.
+3. AWS Console → **Cognito** → **User pools** → your pool → **Groups** → **Admin** → **Add user to group** → select yourself.
+4. Sign out and back in. The **Admin Panel** tab now appears.
+
+---
+
+## Step 6 (optional): GitHub Actions CI/CD
+
+1. Install and log in: `brew install gh && gh auth login`
+2. Upload settings from `.env.local` **once**:
+
+```bash
+./infra/scripts/setup_github_envs.sh
+```
+
+> [!CAUTION]
+> Run it once. Running again overwrites your GitHub secrets with whatever is in `.env.local`.
+
+What happens afterwards:
+
+| Event          | Result                                                        |
+| -------------- | ------------------------------------------------------------- |
+| Open/update PR | Security checks, tests, build, Terraform validate. No deploy. |
+| Push to `main` | Deploys **Dev**, then E2E, AI evaluation and security scan.   |
+| Push tag `v*`  | Deploys **Prod**, then AI evaluation, E2E and security scan.  |
+
+Prod approval depends on your GitHub `prod` environment protection rules.
+
+---
+
+## Optional: run the frontend locally
+
+Needs a deployed backend (Step 4).
 
 ```bash
 cd apps/frontend
 npm run dev
 ```
 
-This starts a local dev server that points to your deployed backend APIs.
+> [!WARNING]
+> `apps/frontend/.env` holds the URLs of the environment you last deployed. If that was Prod, local sign-ups create real Prod accounts.
 
-To run the frontend and backend test suites followed by the HTTP-based chat evaluation (set `CHAT_API_URL` to a reachable API; this does not run Playwright E2E tests):
-
-```bash
-CHAT_API_URL='<your deployed HTTP API URL from Terraform output http_api_url>' npm run test:all
-```
-
----
-
-## Step 6: Automate with GitHub Actions (CI/CD)
-
-### 6a. Upload your secrets to GitHub
-
-The setup script reads `.env.local` and configures the GitHub `dev` and `prod` environments with the variables and secrets used by the workflows. It does not read `.tfvars` files:
+Run all tests plus the chat evaluation (set `CHAT_API_URL` to the `http_api_url` Terraform output):
 
 ```bash
-# Install GitHub CLI first
-brew install gh
-gh auth login
-
-# Upload all secrets and variables
-./infra/scripts/setup_github_envs.sh
+CHAT_API_URL='<http_api_url>' npm run test:all
 ```
-
-> [!CAUTION]
-> Run this **once during setup only**. If you run it again after changing local test values, it will overwrite your real GitHub Secrets.
-
-### 6b. How the pipeline works
-
-| Event              | What Happens                                                                                               |
-| ------------------ | ---------------------------------------------------------------------------------------------------------- |
-| **Open/Update PR** | Runs security checks, frontend/backend tests, build, and Terraform validation. No deployment or E2E run.   |
-| **Push to `main`** | After validation passes, deploys to **DEV** and runs E2E, AI evaluation, and the configured security scan. |
-| **Tag Push `v*`**  | Runs the **PROD** deployment workflow, followed by AI evaluation, E2E, and the configured security scan.   |
-
-Production approval depends on the GitHub `prod` environment protection rules
-configured in the repository; a tag push alone does not imply manual approval.
-
----
-
-## Step 7: Sign In & Set Up Admin
-
-1. Open your live app and click the **SCORER** tab
-2. Click **Create Account**, fill in your name and email, and create a password
-3. To make your account an Admin:
-   - Go to **AWS Console → Cognito → User Pools → your pool → Groups → Admin**
-   - Click **Add user** and add yourself
-4. Sign out and sign back in — you will now see the **Admin Panel** tab
 
 ---
 
@@ -241,9 +229,9 @@ See [troubleshooting.md](./troubleshooting.md) for solutions to common issues.
 
 For quick checks:
 
-- **App not loading**: CloudFront cache may be propagating — wait 5 minutes and hard-refresh
-- **Login not working**: Check that Cognito User Pool and Client IDs are correctly output by Terraform
-- **Emails not sending**: Verify your SES domain identity in the AWS console
+- **Blank page**: wait 5 minutes, then hard-refresh.
+- **Login fails**: confirm Terraform output has the Cognito User Pool and Client IDs.
+- **No emails**: confirm the SES identity is Verified (and the recipient, if in sandbox).
 
 ---
 
