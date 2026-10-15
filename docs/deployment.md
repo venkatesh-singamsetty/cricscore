@@ -9,8 +9,8 @@ Follow these steps in order to get CricScore running on your own AWS account.
 
 | #   | Step                                    | Time              |
 | --- | --------------------------------------- | ----------------- |
-| 0   | Get accounts and install tools          | 30 min            |
-| 1   | Clone and check tools                   | 2 min             |
+| 0   | Get accounts                            | 30 min            |
+| 1   | Clone and install tools                 | 2 min             |
 | 2   | Fill in `.env.local`                    | 10 min            |
 | 3   | Bootstrap AWS, point DNS, verify email  | 15 min + DNS wait |
 | 4   | Deploy Dev (then Prod)                  | 15 min            |
@@ -19,7 +19,7 @@ Follow these steps in order to get CricScore running on your own AWS account.
 
 ---
 
-## Step 0: Get accounts and install tools
+## Step 0: Get accounts
 
 **Accounts / things to have ready**
 
@@ -30,24 +30,32 @@ Follow these steps in order to get CricScore running on your own AWS account.
 - [ ] **OpenAI API key** (chat and rulebook search): [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
 - [ ] **GitHub account** (only for Step 6): [github.com/signup](https://github.com/signup)
 
-**Tools to install**
-
-- [ ] [Node.js 24+](https://nodejs.org)
-- [ ] [Terraform 1.10+](https://developer.hashicorp.com/terraform/install)
-- [ ] [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
-- [ ] [Docker](https://docs.docker.com/get-docker/) (Docker Desktop on macOS). **Start it.**
-- [ ] PostgreSQL client (`psql`): [postgresql.org/download](https://www.postgresql.org/download/)
-- [ ] [GitHub CLI (`gh`)](https://cli.github.com), only for Step 6
-
 > [!WARNING]
 > If a Route 53 hosted zone for your domain already exists, do **not** run bootstrap (Step 3). Ask for the import path in [terraform_guide.md](./terraform_guide.md).
 
-## Step 1: Clone and check tools
+## Step 1: Clone and install tools
 
 ```bash
 git clone https://github.com/venkatesh-singamsetty/cricscore.git
 cd cricscore
+```
 
+**Install tools**
+
+Run the setup script from the repo root. It checks for and installs Node.js 24, Terraform, AWS CLI, `jq`, `gh` and security tools (Homebrew on macOS, `apt-get` on Linux):
+
+```bash
+./infra/scripts/setup.sh
+```
+
+Two things it does **not** install for you:
+
+- [ ] [Docker](https://docs.docker.com/get-docker/) on macOS (Docker Desktop). Install it and **start it**.
+- [ ] PostgreSQL client (`psql`): macOS `brew install libpq && brew link --force libpq`, Linux `sudo apt-get install -y postgresql-client`, or [download](https://www.postgresql.org/download/).
+
+Then check everything is ready:
+
+```bash
 node --version
 terraform version
 aws sts get-caller-identity
