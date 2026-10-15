@@ -1194,7 +1194,7 @@ const MatchView: React.FC<MatchViewProps> = ({
                 Scorecard 📋
               </button>
               {Boolean(innings.target) && (
-                <span className="text-sm md:text-lg font-black text-yellow-500 uppercase tracking-tight mt-2 max-w-[190px] md:max-w-[260px] text-center leading-tight">
+                <span className="text-base md:text-xl font-black text-yellow-500 uppercase tracking-tight mt-3 max-w-[200px] md:max-w-[280px] text-center leading-tight">
                   {equation ? `🎯 ${equation}` : `TGT: ${innings.target}`}
                 </span>
               )}
