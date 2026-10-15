@@ -23,7 +23,7 @@ Follow these steps in order to get CricScore running on your own AWS account.
 
 **Accounts / things to have ready**
 
-- [ ] **AWS account**: [Sign up](https://portal.aws.amazon.com/billing/signup). Then create an **IAM user** (not root) at [IAM → Users](https://console.aws.amazon.com/iam/home#/users) → Security credentials → Create access key. Run `aws configure` with it, then check: `aws sts get-caller-identity`
+- [ ] **AWS account**: [Sign up](https://portal.aws.amazon.com/billing/signup). Then create an **IAM user** (not root) at [IAM → Users](https://console.aws.amazon.com/iam/home#/users) → Security credentials → Create access key. Attach the `AdministratorAccess` policy to the user (simplest for a personal deploy). You paste the key into `.env.local` in Step 2.
 - [ ] **Domain** you own: buy one at [Spaceship](https://www.spaceship.com), [Route 53](https://console.aws.amazon.com/route53/domains), [GoDaddy](https://www.godaddy.com) or [Cloudflare](https://www.cloudflare.com/products/registrar/) (any registrar that lets you set custom nameservers also works). The Route 53 hosted zone is created for you in Step 3
 - [ ] **PostgreSQL**: [Aiven sign up](https://console.aiven.io/signup) → create a PostgreSQL service (free plan available) → copy its Service URI
 - [ ] **Sender email**: an address on your domain, verified in [SES](https://console.aws.amazon.com/ses/home#/identities) in Step 3c
@@ -179,7 +179,7 @@ The script then installs dependencies, runs DB migrations, applies Terraform, bu
 
 ## Step 6 (optional): GitHub Actions CI/CD
 
-1. Install and log in: `brew install gh && gh auth login`
+1. Log in (`gh` was installed in Step 1): `gh auth login`
 2. Upload settings from `.env.local` **once**:
 
 ```bash
