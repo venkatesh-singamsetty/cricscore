@@ -19,7 +19,10 @@ if [ -f ".env.local" ]; then
   set +a
 fi
 
-STATE_BUCKET="${TF_STATE_BUCKET:-venky-2026-terraform-state}"
+STATE_BUCKET="${TF_STATE_BUCKET:-}"
+if [[ -z "$STATE_BUCKET" ]]; then
+  STATE_BUCKET="${PROJECT_NAME:-cricscore}-tfstate-$(aws sts get-caller-identity --query Account --output text)"
+fi
 if [[ "$STATE_BUCKET" == *yourname* || "$STATE_BUCKET" == *example* ]]; then
   echo "❌ Replace the example TF_STATE_BUCKET in .env.local before configuring GitHub Environments." >&2
   exit 1

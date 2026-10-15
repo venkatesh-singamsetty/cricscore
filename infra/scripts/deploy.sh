@@ -9,6 +9,7 @@ USE_LOCAL_ENV=false
 BOOTSTRAP=false
 BOOTSTRAP_ONLY=false
 RUN_MIGRATIONS=false
+CHECK_ONLY=false
 ENV_FILE=""
 while [[ "$#" -gt 0 ]]; do
   case "$1" in
@@ -29,14 +30,19 @@ while [[ "$#" -gt 0 ]]; do
       RUN_MIGRATIONS=true
       shift
       ;;
+    --check)
+      CHECK_ONLY=true
+      shift
+      ;;
     --env)
       ENV_FILE="$2"
       shift 2
       ;;
     --help|-h)
-      echo "Usage: $0 --env dev|prod [--use-local-env] [--bootstrap | --bootstrap-only] [--migrate]"
+      echo "Usage: $0 --env dev|prod [--use-local-env] [--bootstrap | --bootstrap-only] [--migrate] [--check]"
       echo "  --bootstrap       Create the state bucket and Route 53 zone, then continue deployment."
       echo "  --bootstrap-only  Create the state bucket and Route 53 zone, print nameservers, then exit."
+      echo "  --check           Verify tools, AWS login and .env.local, then exit without changing anything."
       echo "  --migrate    Run the selected environment's database migrations."
       exit 0
       ;;
@@ -71,7 +77,16 @@ fi
 
 # Derive per-environment names from the root project/domain settings, with
 # explicit overrides available for non-standard naming.
-STATE_BUCKET="${TF_STATE_BUCKET:-venky-2026-terraform-state}"
+STATE_BUCKET="${TF_STATE_BUCKET:-}"
+if [[ -z "$STATE_BUCKET" ]]; then
+  ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text 2>/dev/null || true)"
+  if [[ -z "$ACCOUNT_ID" ]]; then
+    echo "Error: set TF_STATE_BUCKET in .env.local, or configure AWS credentials so a default name can be derived." >&2
+    exit 1
+  fi
+  STATE_BUCKET="${PROJECT_NAME:-cricscore}-tfstate-${ACCOUNT_ID}"
+  echo "ℹ️  TF_STATE_BUCKET not set; using ${STATE_BUCKET}"
+fi
 ZONE_DOMAIN="${ZONE_DOMAIN:-}"
 BASE_DOMAIN="${DOMAIN_NAME:-}"
 BASE_PREFIX="${SUBDOMAIN_PREFIX:-cricscore}"
@@ -100,6 +115,20 @@ fi
 if [[ "$STATE_BUCKET" == *yourname* || "$STATE_BUCKET" == *example* || "$ZONE_DOMAIN" == *yourdomain* || "$ZONE_DOMAIN" == "example.com" || "$DEPLOY_DOMAIN" == *yourdomain* || "$DEPLOY_DOMAIN" == *example.com* ]]; then
   echo "Error: replace example domain and TF_STATE_BUCKET values in .env.local before deploying." >&2
   exit 1
+fi
+
+if [[ "$CHECK_ONLY" == true ]]; then
+  FAIL=0
+  for t in node terraform aws jq docker psql; do
+    if command -v "$t" >/dev/null 2>&1; then echo "✅ $t"; else echo "❌ $t missing (run ./infra/scripts/setup.sh)"; FAIL=1; fi
+  done
+  if aws sts get-caller-identity >/dev/null 2>&1; then echo "✅ AWS credentials"; else echo "❌ AWS credentials invalid"; FAIL=1; fi
+  if docker info >/dev/null 2>&1; then echo "✅ Docker running"; else echo "❌ Docker not running"; FAIL=1; fi
+  for v in TF_DATABASE_URL TF_SES_SOURCE_EMAIL ADMIN_EMAIL OPENAI_API_KEY; do
+    if [[ -z "${!v:-}" || "${!v}" == *your* ]]; then echo "❌ $v not set in .env.local"; FAIL=1; else echo "✅ $v"; fi
+  done
+  [[ "$FAIL" == 0 ]] && echo "🚀 Ready to deploy." || echo "Fix the items above, then re-run."
+  exit "$FAIL"
 fi
 
 # Auto-map GitHub-style variables to Terraform variables for a seamless local experience

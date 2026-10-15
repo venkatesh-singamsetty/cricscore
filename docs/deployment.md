@@ -50,17 +50,13 @@ Run the setup script from the repo root. It checks for and installs Node.js 24, 
 
 On macOS, open Docker Desktop once after install so it is running.
 
-Then check everything is ready:
+Then check everything is ready (run after Step 2 so it can also check `.env.local`):
 
 ```bash
-node --version
-terraform version
-aws sts get-caller-identity
-docker info
-psql --version
+./infra/scripts/deploy.sh --env dev --use-local-env --check
 ```
 
-All five commands must succeed before you continue.
+Every line must show ✅ before you continue.
 
 ---
 
@@ -80,7 +76,6 @@ AWS_ACCESS_KEY_ID=your-access-key
 AWS_SECRET_ACCESS_KEY=your-secret-key
 AWS_REGION=us-east-1
 AWS_DEFAULT_REGION=us-east-1
-TF_STATE_BUCKET='yourname-cricscore-terraform-state'
 
 # Aiven PostgreSQL connection string
 TF_DATABASE_URL='postgres://avnadmin:PASSWORD@HOST:PORT/defaultdb?sslmode=require'
@@ -113,7 +108,7 @@ OPENAI_API_KEY='your-openai-api-key'
 | Dev         | `cricscoredev.example.org` | `cricscoredev`   |
 | Prod        | `cricscore.example.org`    | `cricscore`      |
 
-- `TF_STATE_BUCKET` must be a globally unique S3 bucket name.
+- `TF_STATE_BUCKET` is optional. By default it becomes `<PROJECT_NAME>-tfstate-<your AWS account ID>`. Set it only to reuse an existing bucket.
 - Optional overrides: `DEV_DOMAIN_NAME`, `DEV_PROJECT_NAME`, `DEV_SUBDOMAIN_PREFIX` (and `PROD_*`).
 - Optional Sentry: `cp apps/frontend/.env.example apps/frontend/.env` and set `VITE_SENTRY_DSN`.
 
@@ -177,7 +172,7 @@ The script then installs dependencies, runs DB migrations, applies Terraform, bu
 
 1. Open your live site and click **SCORER**.
 2. Click **Create Account**, enter name, email and password, then confirm the emailed code.
-3. AWS Console → **Cognito** → **User pools** → your pool → **Groups** → **Admin** → **Add user to group** → select yourself.
+3. Run `./infra/scripts/make_admin.sh --env dev you@email.com` (use `--env prod` for Prod).
 4. Sign out and back in. The **Admin Panel** tab now appears.
 
 ---
