@@ -155,7 +155,7 @@ graph TD
 
 | Technology     | Purpose                                         |
 | -------------- | ----------------------------------------------- |
-| Python 3.10    | MLOps workflow runtime                          |
+| Python 3.10    | MLOps workflow and ML Lambda container runtime  |
 | Scikit-Learn   | Logistic Regression model for win probability   |
 | Pandas / NumPy | High-performance data manipulation and matrices |
 | AWS ECR        | Docker container registry for Serverless ML     |
@@ -245,7 +245,7 @@ The score-update flow uses SNS fan-out: updates are broadcast to connected clien
 **Versioned & Repeatable Environments**
 The AWS infrastructure is codified in Terraform. Changes can be planned, scanned for infrastructure security issues by Checkov, and applied through GitHub Actions or the local deploy script, reducing manual infrastructure changes.
 
-- 📖 **[Full Deployment & Infrastructure](./docs/deployment.md)**: Local preview, bootstrap foundations, and AWS/Aiven Setup.
+- 📖 **[Full Deployment & Infrastructure](./docs/deployment.md)**: Step-by-step setup of accounts, tools, AWS, Aiven and OpenAI, then Dev and Prod deploys.
 - 📖 **[Troubleshooting](./docs/troubleshooting.md)**: Setup fixes and identity verification help.
 
 ### 6. 🚀 CI/CD Automation
