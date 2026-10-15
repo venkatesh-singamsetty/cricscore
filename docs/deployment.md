@@ -95,14 +95,14 @@ ZONE_DOMAIN='yourdomain.com'
 SUBDOMAIN_PREFIX='cricscore'
 PROJECT_NAME='cricscore'
 
-# LLM provider: any OpenAI-compatible API (one key and one URL for chat and embeddings)
+# LLM provider: any OpenAI-compatible API (chat). Embeddings need OpenAI, see below
 LLM_API_KEY='your-provider-api-key'
 LLM_BASE_URL='https://api.openai.com/v1'
 ```
 
 Base URL examples: OpenAI `https://api.openai.com/v1`, Gemini `https://generativelanguage.googleapis.com/v1beta/openai/`, OpenRouter `https://openrouter.ai/api/v1`.
 If you use OpenAI and prefer that variable name, set `OPENAI_API_KEY` instead of `LLM_API_KEY`; it takes priority if both are set.
-For non-OpenAI providers also set `LLM_MODEL` (for example `gemini-2.0-flash`) in `.env.local`. Embeddings use the model `text-embedding-3-small`, so your provider must offer a model with that name.
+For non-OpenAI providers also set `LLM_MODEL` (for example `gemini-2.0-flash`). See the free-LLM option below for the embeddings limit.
 
 > [!CAUTION]
 > Never commit `.env.local` to version control. It is in `.gitignore` by default.
@@ -135,7 +135,7 @@ LLM_MODEL='gemini-2.0-flash'
 3. Deploy as normal (Step 4).
 
 > [!NOTE]
-> Free tier covers chat answers. Cricket-rules search uses the OpenAI model `text-embedding-3-small`, which Gemini does not offer, so that feature will not work without an OpenAI key. Free-tier limits and model names change; check the provider's page.
+> Free tier covers chat answers only. Embeddings (used only for searching uploaded tournament rulebook PDFs) are fixed to OpenAI's `text-embedding-3-small` (1536 dimensions, matching the database column) and cannot be changed through `.env.local`. Without an OpenAI key, chat works but rulebook search does not. Free-tier limits and model names change; check the provider's page.
 
 ---
 
