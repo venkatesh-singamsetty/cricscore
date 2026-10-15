@@ -7,15 +7,15 @@ Follow these steps in order to get CricScore running on your own AWS account.
 
 ## Steps at a glance
 
-| #   | Step                                    | Time              |
-| --- | --------------------------------------- | ----------------- |
-| 0   | Get accounts                            | 30 min            |
-| 1   | Clone and install tools                 | 2 min             |
-| 2   | Fill in `.env.local`                    | 10 min            |
-| 3   | Bootstrap AWS, point DNS, verify email  | 15 min + DNS wait |
-| 4   | Deploy Dev (then Prod)                  | 15 min            |
-| 5   | Sign in and make yourself admin         | 5 min             |
-| 6   | (Optional) Turn on GitHub Actions CI/CD | 10 min            |
+| #   | Step                                    |
+| --- | --------------------------------------- |
+| 0   | Get accounts                            |
+| 1   | Clone and install tools                 |
+| 2   | Fill in `.env.local`                    |
+| 3   | Bootstrap AWS, point DNS, verify email  |
+| 4   | Deploy Dev (then Prod)                  |
+| 5   | Sign in and make yourself admin         |
+| 6   | (Optional) Turn on GitHub Actions CI/CD |
 
 ---
 
