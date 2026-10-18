@@ -112,8 +112,8 @@ CricScore uses automated security scans in GitHub Actions. Scan results depend o
 
 ### Security & Analysis Dashboards (GitHub Native)
 
-- [**CodeQL Alerts**](https://github.com/venkatesh-singamsetty/cric-score/security/code-scanning): View available static application security analysis results.
-- [**Dependabot SCA Alerts**](https://github.com/venkatesh-singamsetty/cric-score/security/dependabot): View known vulnerabilities in third-party NPM dependencies.
+- [**CodeQL Alerts**](https://github.com/venkatesh-singamsetty/cricscore/security/code-scanning): View available static application security analysis results.
+- [**Dependabot SCA Alerts**](https://github.com/venkatesh-singamsetty/cricscore/security/dependabot): View known vulnerabilities in third-party NPM dependencies.
 
 ---
 
@@ -121,14 +121,14 @@ CricScore uses automated security scans in GitHub Actions. Scan results depend o
 
 Use these workflow links to review scan status, logs, and available reports:
 
-- [**GitLeaks / CI**](https://github.com/venkatesh-singamsetty/cric-score/actions/workflows/ci.yml): Runs secret scanning as part of CI.
-- [**CodeQL SAST**](https://github.com/venkatesh-singamsetty/cric-score/actions/workflows/codeql.yml): Native static application security testing to detect vulnerabilities like XSS and SQL injection.
-- [**Trivy & Checkov**](https://github.com/venkatesh-singamsetty/cric-score/actions/workflows/ci.yml): Scans dependencies and Terraform configuration.
-- [**Syft (SBOM)**](https://github.com/venkatesh-singamsetty/cric-score/actions/workflows/sbom.yml): Automatically generates a Software Bill of Materials (available as a downloadable artifact `spdx-json` on the pipeline run page).
-- [**OWASP ZAP (DAST)**](https://github.com/venkatesh-singamsetty/cric-score/actions/workflows/ci.yml): Runs a non-blocking baseline scan after dev deployment; production uses the separate CD workflow.
+- [**GitLeaks / CI**](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/ci.yml): Runs secret scanning as part of CI.
+- [**CodeQL SAST**](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/codeql.yml): Native static application security testing to detect vulnerabilities like XSS and SQL injection.
+- [**Trivy & Checkov**](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/ci.yml): Scans dependencies and Terraform configuration.
+- [**Syft (SBOM)**](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/sbom.yml): Automatically generates a Software Bill of Materials (available as a downloadable artifact `spdx-json` on the pipeline run page).
+- [**OWASP ZAP (DAST)**](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/ci.yml): Runs a non-blocking baseline scan after dev deployment; production uses the separate CD workflow.
 
 ---
 
 ### Engineering & Issue Tracking
 
-- [**Open GitHub Issues**](https://github.com/venkatesh-singamsetty/cric-score/issues?q=is%3Aissue+is%3Aopen): View the active queue of pending bugs, requested features, and ongoing tasks. Tracking open issues helps developers understand current system limitations, prioritize upcoming architecture changes, and manage active security remediation efforts.
+- [**Open GitHub Issues**](https://github.com/venkatesh-singamsetty/cricscore/issues?q=is%3Aissue+is%3Aopen): View the active queue of pending bugs, requested features, and ongoing tasks. Tracking open issues helps developers understand current system limitations, prioritize upcoming architecture changes, and manage active security remediation efforts.
