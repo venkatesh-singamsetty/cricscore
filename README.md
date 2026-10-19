@@ -37,109 +37,81 @@ This repository serves as a practical, production-style reference implementation
 
 ---
 
-## 🔄 System Architecture
-
-To keep the data flow easy to follow, the architecture is split into two views:
-
-1. **Real-Time Scoring & Decoupled Fan-Out Flow** — What happens on every ball scored (the sub-100ms spectator broadcast path vs. the durable database persistence path).
-2. **Platform Ecosystem (Edge, Auth, AI RAG, MLOps & Observability)** — How static delivery, Cognito authentication, Agentic AI Chat (MCP), Serverless ML Win Prediction, and CloudWatch/X-Ray monitoring fit together.
-
-### 1. ⚡ Real-Time Scoring & Decoupled Fan-Out Flow
+## 🔄 System Architecture (Fan-Out)
 
 ```mermaid
-flowchart LR
-    Scorer(["🏏 Scorer Console\n(React SPA)"])
-    Spectators(["🌍 Live Spectators\n(Viewer Scoreboard)"])
+graph TD
+    %% DNS, TLS and static frontend
+    Fan((Fan / Scorer)) --> DNS[Amazon Route 53]
+    DNS -. resolves app domain .-> CF[AWS CloudFront]
+    DNS -. resolves API domains .-> HTTP[API Gateway HTTP API]
+    DNS -. resolves WebSocket domain .-> WS_GW[API Gateway WebSocket API]
 
-    subgraph Ingest ["1. Authenticated Ingest"]
-        HTTP_GW["API Gateway\n(HTTP API + Cognito JWT)"]
-        ScoreUpd["score-upd Lambda\n(Event Producer)"]
+    subgraph CDN [Frontend Delivery]
+        CF -->|Origin access control| S3[AWS S3: React App]
+        CF -. TLS certificate .-> ACM[ACM certificates]
     end
 
-    subgraph FastPath ["2A. Fast Broadcast Path (<100ms)"]
-        SNS{{"AWS SNS Topic\n(match-events)"}}
-        Broadcaster["broadcaster Lambda"]
-        DDB[("DynamoDB\nActive Connections")]
-        WS_GW["API Gateway\n(WebSocket API)"]
+    %% Identity and application APIs
+    subgraph AWS [AWS Application Services]
+        Cognito[Amazon Cognito User Pool]
+        Cognito -->|JWT| JWT[API Gateway JWT Authorizer]
+        JWT -. protects configured routes .-> HTTP
+
+        HTTP -->|Match routes| match_api[match-api Lambda]
+        HTTP -->|Score updates| score_update[score-update Lambda]
+        HTTP -->|Chat| chat_api[chat-api Lambda]
+        HTTP -->|Prediction| ml_predict[ML prediction Lambda]
+        HTTP -. custom-domain TLS .-> ACM
+        WS_GW -. custom-domain TLS .-> ACM
+
+        score_update -->|Broadcast event| SNS{AWS SNS Topic}
+        score_update -->|Persistence event| SQS[[AWS SQS Queue]]
+        SQS --> storage_worker[storage-worker Lambda]
+        SNS -->|Fast-Path| broadcaster[broadcaster Lambda]
+
+        WS_GW -->|Connect / disconnect| connection_handlers[onconnect / ondisconnect Lambdas]
+        connection_handlers --> DDB[(Amazon DynamoDB: Connections)]
+        broadcaster -->|Push score updates| WS_GW
+
+        subgraph Chat [AI Chat and MCP Tools]
+            MCP_C[MCP Client]
+            MCP_S[MCP Server and Tools]
+            MCP_C <-->|In-process execution| MCP_S
+        end
+        chat_api --> MCP_C
+
+        ECR[Amazon ECR] -. container image .-> ml_predict
+        match_api -->|Match backups| BackupS3[(Amazon S3: Backups)]
+        match_api -->|Email reports| SES[Amazon SES]
     end
 
-    subgraph ReliablePath ["2B. Durable Persistence Path (Async)"]
-        SQS[["AWS SQS FIFO\n(storage-buffer.fifo)"]]
-        Worker["storage-worker Lambda\n(Batch Size = 1)"]
-        PG[("Aiven PostgreSQL\n(matches, innings,\nplayers, balls)")]
+    subgraph Aiven [Aiven Managed Data Hub]
+        PG[(Aiven PostgreSQL)]
     end
 
-    Scorer -->|"POST /match/{id}/score\n(explicitTotalRuns, ballData)"| HTTP_GW
-    HTTP_GW --> ScoreUpd
-
-    ScoreUpd -->|"1. Publish live event"| SNS
-    SNS -->|"Async invoke"| Broadcaster
-    Broadcaster <-->|"Lookup active sockets"| DDB
-    Broadcaster -->|"Push @connections"| WS_GW
-    WS_GW ==>|"Instant WebSocket push"| Spectators
-
-    ScoreUpd -->|"2. Enqueue FIFO record"| SQS
-    SQS -->|"Ordered trigger"| Worker
-    Worker -->|"ACID SQL transaction"| PG
-```
-
-**How a Single Ball Flows End-to-End:**
-
-1. **Ingest (`score-upd`)**: The Scorer taps a run, extra, wicket, or undo button. `MatchView` sends the ball payload (including authoritative `explicitTotalRuns`, `explicitTotalWickets`, and `ballData.batterName`) to `POST /match/{id}/score`.
-2. **Fast Path (SNS $\rightarrow$ WebSocket)**: `score-upd` publishes to **AWS SNS**, which immediately invokes `broadcaster`. The broadcaster reads active spectator connection IDs from **DynamoDB** and pushes the update through **API Gateway WebSockets** to every watching fan in real time.
-3. **Durable Path (SQS FIFO $\rightarrow$ PostgreSQL)**: In parallel, `score-upd` enqueues the event into **AWS SQS FIFO** (`MessageGroupId = matchId`), guaranteeing strict ball-by-ball ordering as `storage-worker` writes to **Aiven PostgreSQL** without ever blocking the Scorer UI.
-
----
-
-### 2. 🏛️ Platform Ecosystem (Edge, Auth, AI RAG, MLOps & Observability)
-
-```mermaid
-flowchart TB
-    Users(["👤 Fans, Scorers & Admins"])
-
-    subgraph Edge ["Edge Delivery & Identity"]
-        R53["Amazon Route 53 + ACM TLS"]
-        CF["AWS CloudFront CDN"]
-        S3_App["Amazon S3\n(React Frontend Bundle)"]
-        Cognito["Amazon Cognito User Pool\n(JWT Auth + Pre-Signup Trigger)"]
+    subgraph AI [LLM Providers]
+        LLM[OpenAI-compatible provider]
     end
 
-    subgraph APIs ["Serverless Application Tier (API Gateway + AWS Lambda)"]
-        MatchAPI["match-api Lambda\n(Match CRUD, Admin Ops, Email)"]
-        ChatAPI["chat-api Lambda\n(Agentic RAG + In-Process MCP)"]
-        MLPredict["ml-predict Lambda\n(Hybrid Markov DP + DLS + Scikit-Learn)"]
-        ECR["Amazon ECR\n(ML Docker Image)"]
+    subgraph Operations [Operations and Monitoring]
+        CW[Amazon CloudWatch Logs and Alarms]
+        AlertSNS[Amazon SNS: Email Alerts]
+        XRay[AWS X-Ray]
+        Budget[AWS Budgets]
     end
+    LambdaLogs[Lambda functions] -. logs and metrics .-> CW
+    CW --> AlertSNS
+    LambdaLogs -. traces .-> XRay
 
-    subgraph DataAndAI ["Managed Data, Storage & External AI"]
-        PG_Main[("Aiven PostgreSQL\nRelational + pgvector HNSW")]
-        S3_Backup[("Amazon S3\n(Match Backups)")]
-        SES["Amazon SES\n(Match Summary Emails)"]
-        LLM["OpenAI API\n(gpt-4o-mini + text-embedding-3-small)"]
-    end
-
-    subgraph Ops ["Observability & Cost Governance"]
-        CW["CloudWatch Logs (7-Day Retention)\n& Error Metric Alarms"]
-        XRay["AWS X-Ray\n(Distributed Tracing)"]
-        Alerts["SNS Email Alerts\n& AWS $5/mo Budget"]
-    end
-
-    Users -->|"HTTPS"| R53
-    R53 --> CF --> S3_App
-    Users -.->|"Sign-Up / Sign-In / Guest JWT"| Cognito
-
-    R53 -->|"REST API"| MatchAPI & ChatAPI & MLPredict
-    ECR -.->|"Container image"| MLPredict
-
-    MatchAPI -->|"CRUD & Hydration"| PG_Main
-    MatchAPI -->|"JSON Snapshot"| S3_Backup
-    MatchAPI -->|"HTML Scorecard"| SES
-
-    ChatAPI <-->|"pgvector RAG + Read-Only SQL"| PG_Main
-    ChatAPI <-->|"Tool-calling & Embeddings"| LLM
-
-    MatchAPI & ChatAPI & MLPredict -.->|"Logs, Metrics & Traces"| CW & XRay
-    CW --> Alerts
+    %% Data and user flows
+    Fan -. HTTP requests .-> HTTP
+    Fan -. WebSocket connection .-> WS_GW
+    match_api --> PG
+    storage_worker -->|Persist score events| PG
+    MCP_S -->|pgvector / Text-to-SQL| PG
+    MCP_C <-->|Prompts and tool results| LLM
+    Fan -. signs in / gets JWT .-> Cognito
 ```
 
 ---
