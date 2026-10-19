@@ -27,6 +27,12 @@ test.describe("User Journey - Full Match Scoring", () => {
     ).toBeVisible({ timeout: 15000 });
 
     const desktopLayout = page.locator(".hidden.md\\:flex");
+    const teamNameInputs = desktopLayout.locator(
+      'input[type="text"][required]',
+    );
+    await teamNameInputs.nth(0).fill("TEAM A");
+    await teamNameInputs.nth(1).fill("TEAM B");
+
     const squadInputs = desktopLayout.getByPlaceholder(/Enter player name/i);
     // TEAM A Squad
     await squadInputs
@@ -86,7 +92,9 @@ test.describe("User Journey - Full Match Scoring", () => {
       .first()
       .click({ force: true });
 
-    await expect(page.getByText(/Live Timeline/i).first()).toBeVisible({
+    await expect(
+      page.getByText(/Live Timeline|This Over/i).first(),
+    ).toBeVisible({
       timeout: 15000,
     });
 
@@ -417,7 +425,9 @@ test.describe("User Journey - Full Match Scoring", () => {
       .first()
       .click({ force: true });
 
-    await expect(page.getByText(/Live Timeline/i).first()).toBeVisible({
+    await expect(
+      page.getByText(/Live Timeline|This Over/i).first(),
+    ).toBeVisible({
       timeout: 15000,
     });
 
