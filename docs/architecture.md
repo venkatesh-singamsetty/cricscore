@@ -2,15 +2,56 @@
 
 CricScore is built on a high-concurrency, **Event-Driven Architecture (EDA)** where every ball event is a persistent record in **Aiven PostgreSQL** and a real-time broadcast via **AWS API Gateway WebSockets**.
 
-## 🔄 Detailed Sequence Flows (Fan-Out)
+## 🔄 Architecture Topology & Sequence Flows
 
-### 1. 📊 Fetch Match Details (Deep-Link Hydration)
+### 1. ⚡ Decoupled Fan-Out Topology (Fast Broadcast vs. Durable Persistence)
+
+```mermaid
+flowchart LR
+    Scorer(["🏏 Scorer Console"])
+    Spectators(["🌍 Live Spectators"])
+
+    subgraph Ingest ["1. Authenticated Ingest"]
+        HTTP_GW["API Gateway HTTP API\n(Cognito JWT Authorizer)"]
+        ScoreUpd["score-upd Lambda\n(256MB / 30s)"]
+    end
+
+    subgraph FastPath ["2A. Fast Broadcast Path (<100ms)"]
+        SNS{{"AWS SNS Topic\n(match-events)"}}
+        Broadcaster["broadcaster Lambda\n(128MB / 10s)"]
+        DDB[("DynamoDB\nActive Connections")]
+        WS_GW["API Gateway\nWebSocket API"]
+    end
+
+    subgraph ReliablePath ["2B. Durable Persistence Path (Async)"]
+        SQS[["AWS SQS FIFO\n(storage-buffer.fifo)"]]
+        Worker["storage-worker Lambda\n(256MB / 30s, Batch=1)"]
+        PG[("Aiven PostgreSQL\n(matches, innings,\nplayers, balls)")]
+    end
+
+    Scorer -->|"POST /match/{id}/score\n(explicitTotalRuns, ballData)"| HTTP_GW
+    HTTP_GW --> ScoreUpd
+
+    ScoreUpd -->|"1. Publish live event"| SNS
+    SNS -->|"Async invoke"| Broadcaster
+    Broadcaster <-->|"Scan connections"| DDB
+    Broadcaster -->|"POST @connections"| WS_GW
+    WS_GW ==>|"Instant WebSocket push"| Spectators
+
+    ScoreUpd -->|"2. Enqueue FIFO record"| SQS
+    SQS -->|"Ordered trigger"| Worker
+    Worker -->|"ACID SQL transaction"| PG
+```
+
+---
+
+### 2. 📊 Fetch Match Details (Deep-Link Hydration)
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor Viewer as Fan / Spectator
-    participant App as React App
+    participant App as React App (LiveScoreboard)
     participant Lambda as match-api Lambda
     participant Aiven_PG as Aiven PostgreSQL
 
@@ -21,44 +62,44 @@ sequenceDiagram
         Lambda->>Aiven_PG: SELECT matches, innings, players, balls
     end
     Lambda-->>App: Return Unified State
-    App-->>Viewer: Render Scoreboard
+    App-->>Viewer: Render Scoreboard + Connect WebSocket
 ```
 
-### 2. ⚡ Live Score Update (Decoupled Fan-Out)
+### 3. 🏏 Live Score Update Sequence (Ball-by-Ball Fan-Out)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Scorer as Scorer
+    actor Scorer as Scorer (MatchView)
     participant Producer as score-upd Lambda
-    participant SNS as AWS SNS (Event Hub)
+    participant SNS as AWS SNS (match-events)
     participant Broadcaster as broadcaster Lambda
     participant DDB as DynamoDB (Connections)
     participant APIGW_WS as API Gateway (WebSockets)
-    actor Viewer as Fan / Spectator
+    actor Viewer as Fan / Spectator (LiveScoreboard)
 
-    participant SQS as AWS SQS (Storage Buffer)
-    participant Consumer as storage-worker (Lambda)
+    participant SQS as AWS SQS FIFO (storage-buffer.fifo)
+    participant Consumer as storage-worker Lambda
     participant Aiven_Hub as Aiven PostgreSQL
 
-    Scorer->>Producer: POST /update-score
-    Producer->>SNS: Publish Match Event
-    Producer->>SQS: Enqueue Persistence Event
-    Producer-->>Scorer: HTTP 200 after both sends succeed
+    Scorer->>Producer: POST /match/{id}/score (explicitTotalRuns, explicitTotalWickets, ballData)
+    Producer->>SNS: Publish LIVE_SCORE_UPDATE / STATE_SYNC
+    Producer->>SQS: Enqueue FIFO Persistence Event (MessageGroupId = matchId)
+    Producer-->>Scorer: HTTP 200 OK (after both SNS & SQS succeed)
 
     rect rgb(0, 0, 0, 0.1)
-        Note right of SNS: Spectator Broadcast
-        SNS-)Broadcaster: SNS Invoke (Fast-Path)
-        Broadcaster->>DDB: Scan Connection Registry
-        DDB-->>Broadcaster: Return Connection[]
-        Broadcaster->>APIGW_WS: POST @connections (Fan-Out)
-        APIGW_WS-->>Viewer: Live UI State Update
+        Note right of SNS: Fast Path — Spectator Broadcast (<100ms)
+        SNS-)Broadcaster: Async Invoke
+        Broadcaster->>DDB: Scan Active Connection IDs
+        DDB-->>Broadcaster: Return connectionId[]
+        Broadcaster->>APIGW_WS: PostToConnectionCommand (Parallel Fan-Out)
+        APIGW_WS-->>Viewer: Apply explicitTotalRuns & ballData.batterName
     end
 
     rect rgb(100, 100, 100, 0.1)
-        Note right of SQS: Asynchronous Data Persistence
-        SQS-)Consumer: Pull/Trigger Batch
-        Consumer->>Aiven_Hub: Pg SQL Save
+        Note right of SQS: Reliable Path — Ordered Database Persistence
+        SQS-)Consumer: FIFO Trigger (Batch Size = 1)
+        Consumer->>Aiven_Hub: BEGIN -> UPDATE innings/matches -> INSERT balls -> UPDATE players -> COMMIT
     end
 ```
 
@@ -68,13 +109,12 @@ sequenceDiagram
 
 CricScore implements an **Event-Driven Architecture (EDA)** using serverless and managed services:
 
-- **Decoupled Fan-Out:** The score-update Lambda publishes to AWS SNS for spectator broadcasts and sends a separate message directly to AWS SQS for asynchronous persistence to Aiven PostgreSQL. The HTTP request waits for both sends to succeed.
-- **Asynchronous Broadcast:** An SNS-triggered broadcaster sends updates to connected spectators; delivery latency depends on service and network conditions.
-- **State Restoration:** Deep links load persisted match state by match UUID for scoreboard recovery.
-- **X-Ray Distributed Tracing:** AWS X-Ray tracing is enabled across the Lambda stack with a 5% fixed sampling rate and a one-request-per-second reservoir. Actual trace volume and cost depend on traffic and sampling behavior.
-- **Aiven TLS Configuration:** The chat API PostgreSQL pool currently disables certificate verification (`rejectUnauthorized: false`). Configure certificate verification with the Aiven CA rather than relying on this setting.
-- **UI Render Debouncing:** Synchronous `useRef` execution locks prevent React async state-drifts during rapid scoring bursts, enforcing exact chronological network sequences.
-- **Scoring Authorization:** Cognito JWTs protect scoring routes, with Lambda checks for match ownership or admin access where applicable. Public match-read routes expose match state to anyone with its UUID.
+- **Decoupled Fan-Out:** The `score-upd` Lambda publishes to AWS SNS for instant spectator broadcasts and enqueues a separate FIFO message into AWS SQS (`storage-buffer.fifo`) for ordered asynchronous persistence to Aiven PostgreSQL.
+- **Authoritative Cumulative State & Strike-Rotation Safety:** Every `POST /match/{id}/score` payload includes authoritative `explicitTotalRuns` and `explicitTotalWickets` alongside `ballData.batterName` (the batter who faced the delivery), ensuring both `storage-worker` and `LiveScoreboard` stay 100% synchronized across odd-run strike rotations, over completions, and `undo: true` rollbacks.
+- **WebSocket vs. Polling Recency Guard (`lastWsUpdateRef`):** `LiveScoreboard` suppresses background REST poll overwrites for 3 seconds after any WebSocket push so a lagging database read never reverts a live boundary or wicket.
+- **Idempotent Innings & Match Completion:** `POST /match/{id}/innings` uses `ON CONFLICT (match_id, inning_number) DO UPDATE`, and both `storage-worker` and `match-api` automatically resolve optimistic `inn2_<timestamp>` IDs to the canonical PostgreSQL `inning_id`.
+- **X-Ray Distributed Tracing:** AWS X-Ray active tracing is enabled across all Lambda functions with a 5% fixed sampling rate and a one-request-per-second reservoir (`infra/terraform/xray.tf`).
+- **Scoring Authorization:** Cognito JWTs protect scoring and admin routes at API Gateway, while `match-api` enforces per-resource ownership (`scorer_email`) or Cognito `Admin` group membership. Public match-read routes expose live scoreboards by match UUID.
 
 ---
 
