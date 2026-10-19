@@ -46,7 +46,7 @@ Unit tests are isolated tests that verify individual functions, utilities, or ba
 Integration tests verify that different components and services work together correctly, simulating interactions without rendering in a real browser.
 
 - **Frontend Component Integration**: We use **React Testing Library** to mount React components in a virtual DOM, simulate user clicks, input typing, WebSocket messages, and verify that the components properly validate state transitions and payloads before firing network calls.
-  - _Location:_ `apps/frontend/src/test/MatchSetup.test.tsx`, `apps/frontend/src/test/MatchView.test.tsx`, `apps/frontend/src/test/LiveScoreboard.test.tsx`, `apps/frontend/src/test/AiMatchPrediction.test.tsx`, `apps/frontend/src/test/ChatComponent.test.tsx`
+  - _Location:_ `apps/frontend/src/test/MatchList.test.tsx`, `apps/frontend/src/test/MatchSetup.test.tsx`, `apps/frontend/src/test/MatchView.test.tsx`, `apps/frontend/src/test/LiveScoreboard.test.tsx`, `apps/frontend/src/test/AiMatchPrediction.test.tsx`, `apps/frontend/src/test/ChatComponent.test.tsx`
 
 ### Running Integration Tests
 

@@ -29,6 +29,9 @@
             { "type": "test", "section": "🧪 Tests" },
             { "type": "ci", "section": "⚙️ CI/CD Pipelines" }
           ]
+        },
+        "writerOpts": {
+          "commitPartial": "*{{#if scope}} **{{scope}}:**\n{{~/if}} {{#if subject}}\n  {{~subject}}\n{{~else}}\n  {{~header}}\n{{~/if}}\n\n{{~!-- commit link --}}{{~#if hash}} {{#if @root.linkReferences~}}\n  ([{{shortHash}}]({{commitUrlFormat}}))\n{{~else}}\n  {{shortHash}}\n{{~/if}}{{~/if}}\n\n{{~!-- commit references --}}\n{{~#if references~}}\n  , closes\n  {{~#each references}} {{#if @root.linkReferences~}}\n    [{{#if this.owner}}{{this.owner}}/{{/if}}{{this.repository}}{{this.prefix}}{{this.issue}}]({{issueUrlFormat}})\n  {{~else}}\n    {{#if this.owner}}{{this.owner}}/{{/if}}{{this.repository}}{{this.prefix}}{{this.issue}}\n  {{~/if}}{{/each}}\n{{~/if}}\n{{#if body}}\n\n{{body}}\n{{/if}}\n"
         }
       }
     ],

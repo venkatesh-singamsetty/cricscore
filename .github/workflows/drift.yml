@@ -32,6 +32,23 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Install Lambda dependencies
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -e
+          for d in apps/backend/lambdas/*; do
+            if [ -f "$d/package.json" ]; then
+              (cd "$d" && npm install --omit=dev --ignore-scripts)
+            fi
+          done
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v4
         with:
@@ -56,4 +73,7 @@ jobs:
           TF_VAR_database_url: ${{ secrets.TF_DATABASE_URL }}
           TF_VAR_admin_email: ${{ vars.ADMIN_EMAIL }}
           TF_VAR_llm_api_key: ${{ secrets.OPENAI_API_KEY }}
+          TF_VAR_llm_base_url: ${{ vars.LLM_BASE_URL }}
+          TF_VAR_llm_model: ${{ vars.LLM_MODEL }}
         run: terraform plan -input=false -detailed-exitcode -var-file="environments/${{ matrix.environment }}.tfvars" -var="domain_name=$TF_VAR_domain_name" -var="zone_domain=$TF_VAR_zone_domain" -var="subdomain_prefix=$TF_VAR_subdomain_prefix" -var="project_name=$TF_VAR_project_name"
+

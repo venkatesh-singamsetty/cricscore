@@ -36,17 +36,18 @@ git checkout main && git pull origin main
 # Create a new feature or fix branch
 git checkout -b feature/your-feature-name
 
-# Add, commit, and push changes
+# Add, sync with origin/main, commit, and push changes
 git add .
 git commit -m "feat: your descriptive commit message"
+git fetch origin main && git merge origin/main --no-edit
 git push -u origin HEAD
-
-# Rebase your feature branch on top of main (if main has moved forward)
-git fetch origin
-git rebase origin/main
 
 # Create a Pull Request using the GitHub CLI (gh)
 gh pr create --title "feat: added new feature" --body "Detailed description" --base main
+
+# Check PR status checks and inline CodeQL/review comments
+gh pr checks
+gh api repos/venkatesh-singamsetty/cricscore/pulls/<PR_NUMBER>/comments
 
 # Auto-merge a Pull Request (Squashes and deletes branch ONLY after approvals & CI status checks pass)
 gh pr merge --auto --squash --delete-branch
@@ -153,28 +154,33 @@ syft dir:. -o spdx-json=cricscore-sbom.spdx.json
 
 ## 7. Full Cloud Deployment
 
-Usually, deployments are handled by the bash scripts which inject the correct environment variables, but you can also run them manually.
+Always use `deploy.sh` with `--use-local-env` (which loads `.env.local`, reconfigures Terraform state for the target environment, and writes the matching `apps/frontend/.env` URLs):
 
 ```bash
-# Deploy to Development Environment (using local credentials)
+# Pre-flight check (Verifies AWS credentials, Docker daemon, and .env.local without changing anything)
+./infra/scripts/deploy.sh --env dev --use-local-env --check
+
+# Deploy to Development Environment (add --migrate if DB schema/migrations changed)
 ./infra/scripts/deploy.sh --env dev --use-local-env
 
-# Deploy to Production Environment (using local credentials)
+# Deploy to Production Environment (only after verifying dev)
 ./infra/scripts/deploy.sh --env prod --use-local-env
 
-# Full Pre-Push Validation (Runs tests, terraform validate, and security scans)
+# Fast Pre-Push Validation (Lint, Vitest, npm audit, build, Terraform fmt/validate, Checkov, GitLeaks, Trivy, Syft)
+./infra/scripts/validate_local.sh --skip-e2e
+
+# Full Validation including live Playwright E2E against dev
 ./infra/scripts/validate_local.sh
 
-# --- Manual Terraform Overrides ---
+# --- Terraform Helper Wrapper (Automatically loads .env.local and maps TF_VAR_*) ---
 
-# Initialize Terraform (Downloads providers and sets up state)
-terraform -chdir=infra/terraform init
+# Format & validate Terraform files
+./infra/scripts/terraform.sh fmt -check -recursive
+./infra/scripts/terraform.sh validate
 
-# Plan Terraform infrastructure changes (Dry-run)
-terraform -chdir=infra/terraform plan
-
-# Apply Terraform infrastructure changes (Requires confirmation)
-terraform -chdir=infra/terraform apply
+# Plan or apply Terraform infrastructure changes with .env.local loaded
+./infra/scripts/terraform.sh plan
+./infra/scripts/terraform.sh apply
 ```
 
 ## 8. AWS Troubleshooting (Expert CLI Commands)

@@ -168,14 +168,20 @@ const MatchList: React.FC<MatchListProps> = ({
     return null;
   };
 
-  const filteredMatches = matches.filter((m) => {
-    const isGuest =
-      m.scorer_email && m.scorer_email.includes("@cricscore.local");
+  const isGuestMatch = (m: MatchMetadata) =>
+    Boolean(
+      m.scorer_email &&
+      (m.scorer_email.includes("@cricscore.local") ||
+        m.scorer_email.startsWith("guest-") ||
+        m.scorer_email.startsWith("guest_")),
+    );
 
-    // If we are in the admin Database Management view, separate real vs guest matches
-    if (showDeleteControls) {
-      if (showGuestMatches && !isGuest) return false;
-      if (!showGuestMatches && isGuest) return false;
+  const filteredMatches = matches.filter((m) => {
+    const isGuest = isGuestMatch(m);
+
+    // In Admin Database Management view, show all matches by default and filter to guest-only when toggled
+    if (showDeleteControls && showGuestMatches && !isGuest) {
+      return false;
     }
 
     if (!searchTerm) return true;
@@ -187,10 +193,15 @@ const MatchList: React.FC<MatchListProps> = ({
     );
   });
 
+  const baseMatches =
+    showDeleteControls && showGuestMatches
+      ? matches.filter(isGuestMatch)
+      : matches;
+
   const stats = {
-    total: matches.length,
-    live: matches.filter((m) => m.status === "LIVE").length,
-    completed: matches.filter((m) => m.status === "COMPLETED").length,
+    total: baseMatches.length,
+    live: baseMatches.filter((m) => m.status === "LIVE").length,
+    completed: baseMatches.filter((m) => m.status === "COMPLETED").length,
   };
 
   return (
@@ -235,26 +246,45 @@ const MatchList: React.FC<MatchListProps> = ({
           <p className="text-[9px] font-black text-indigo-500/50 uppercase tracking-widest mt-1">
             {searchTerm
               ? `Filtering ${filteredMatches.length} Matches`
-              : "Showing Active Database"}
+              : showGuestMatches
+                ? `Filtering ${filteredMatches.length} Guest Matches`
+                : "Showing Active Database"}
           </p>
         </div>
         {showDeleteControls && (
-          <div className="flex gap-4">
+          <div className="flex items-center gap-3">
             <button
+              type="button"
               onClick={() => setShowGuestMatches(!showGuestMatches)}
-              className={`flex flex-col items-center gap-1 group ${showGuestMatches ? "text-indigo-400" : "text-slate-500 hover:text-indigo-400"}`}
+              title={
+                showGuestMatches
+                  ? "Showing guest matches only — click to show all matches"
+                  : "Filter to guest matches only"
+              }
+              className={`flex flex-col items-center gap-1 px-2.5 py-1 rounded-xl border transition-all group ${
+                showGuestMatches
+                  ? "bg-indigo-500/20 border-indigo-500/50 text-indigo-300 shadow-[0_0_12px_rgba(99,102,241,0.25)]"
+                  : "border-transparent text-slate-500 hover:text-indigo-400"
+              }`}
             >
               <span className="text-[9px] font-black uppercase tracking-tighter">
                 GUESTS
               </span>
-              <span className="text-lg grayscale group-hover:grayscale-0 transition-all">
+              <span
+                className={`text-lg transition-all ${
+                  showGuestMatches
+                    ? "grayscale-0"
+                    : "grayscale group-hover:grayscale-0"
+                }`}
+              >
                 👻
               </span>
             </button>
 
             <button
+              type="button"
               onClick={() => fetchMatches()}
-              className="flex flex-col items-center gap-1 group"
+              className="flex flex-col items-center gap-1 px-2 py-1 group"
             >
               <span className="text-[9px] font-black text-indigo-500 group-hover:text-indigo-400 uppercase tracking-tighter">
                 REFRESH
@@ -276,7 +306,11 @@ const MatchList: React.FC<MatchListProps> = ({
       ) : filteredMatches.length === 0 ? (
         <div className="py-20 text-center bg-slate-900 shadow-inner rounded-[2rem] border border-white/5">
           <p className="text-slate-500 font-black uppercase tracking-widest text-[10px] italic">
-            No matches found for "{searchTerm}"
+            {searchTerm
+              ? `No matches found for "${searchTerm}"`
+              : showGuestMatches
+                ? "No guest matches found"
+                : "No matches found"}
           </p>
         </div>
       ) : (
@@ -284,6 +318,7 @@ const MatchList: React.FC<MatchListProps> = ({
           {filteredMatches.map((match) => {
             const diff = Date.now() - new Date(match.updated_at).getTime();
             const isStale = match.status === "LIVE" && diff > 86400000;
+            const isGuest = isGuestMatch(match);
             const result =
               match.status === "COMPLETED" ? calculateResult(match) : null;
 
@@ -330,9 +365,19 @@ const MatchList: React.FC<MatchListProps> = ({
                   onClick={() => onSelectMatch(match.id)}
                 >
                   <div className="flex justify-between items-start">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-indigo-400/80 italic">
-                      {getTimeAgo(match.updated_at)}
-                    </span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-indigo-400/80 italic">
+                        {getTimeAgo(match.updated_at)}
+                      </span>
+                      {isGuest && (
+                        <span
+                          data-testid="guest-match-badge"
+                          className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 font-black text-[8px] uppercase tracking-widest flex items-center gap-1"
+                        >
+                          GUEST 👻
+                        </span>
+                      )}
+                    </div>
                     <div className="mr-24 md:mr-32">
                       {match.status === "COMPLETED" ? (
                         <span className="px-2 py-1 rounded-md bg-indigo-900/40 text-indigo-400 border border-indigo-500/20 font-black text-[9px] uppercase tracking-widest">
