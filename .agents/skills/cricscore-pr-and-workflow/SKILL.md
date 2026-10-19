@@ -8,7 +8,7 @@ description: Use when preparing a CricScore branch or pull request, selecting lo
 ## Branch and pull request
 
 - Do not push directly to `main`. Follow the repository's existing branch naming and remote workflow; do not force-push or rewrite shared history without authorization.
-- Before opening or updating a PR, check the branch, worktree, target branch, and remote state. Fetch or rebase only when needed; do not merge or pull `main` into an in-progress branch blindly.
+- Before pushing or opening/updating a PR, always fetch `origin/main` (`git fetch origin main`), check if `origin/main` is ahead (`git log HEAD..origin/main --oneline`), and merge `origin/main` into the feature branch (`git merge origin/main`) so the PR branch is up-to-date with `main`.
 - Describe the change, user-visible behavior, risks, validation performed, and deployment/migration notes in the PR. Do not claim checks passed unless they ran and passed.
 - Do not push, merge, or deploy unless the user requested that action. Never bypass required checks or branch protection.
 

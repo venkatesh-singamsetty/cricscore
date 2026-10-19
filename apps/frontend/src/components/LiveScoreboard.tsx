@@ -1036,25 +1036,6 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                         : null;
                     const rrr =
                       rawRrr !== null ? Math.max(0, rawRrr).toFixed(1) : null;
-                    const lastOverNum =
-                      currentInnings.overs > 0
-                        ? currentInnings.overs - 1
-                        : null;
-                    const lastOverRuns =
-                      lastOverNum !== null && currentInnings.allBalls
-                        ? currentInnings.allBalls
-                            .filter(
-                              (b: any) =>
-                                (b.overNumber ?? b.over_number) === lastOverNum,
-                            )
-                            .reduce(
-                              (s: number, b: any) =>
-                                s +
-                                Number(b.runs || 0) +
-                                Number(b.extraRuns || b.extra_runs || 0),
-                              0,
-                            )
-                        : null;
                     const dls =
                       matchDetails.innings.length > 1
                         ? calculateDlsParScore(

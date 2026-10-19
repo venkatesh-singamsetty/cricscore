@@ -1210,13 +1210,6 @@ const MatchView: React.FC<MatchViewProps> = ({
   const rawRrr =
     runsNeeded !== null && ballsLeft > 0 ? (runsNeeded / ballsLeft) * 6 : null;
   const rrr = rawRrr !== null ? Math.max(0, rawRrr).toFixed(1) : null;
-  const lastOverNum = innings.overs > 0 ? innings.overs - 1 : null;
-  const lastOverRuns =
-    lastOverNum !== null
-      ? innings.allBalls
-          .filter((b) => b.overNumber === lastOverNum)
-          .reduce((s, b) => s + b.runs + b.extraRuns, 0)
-      : null;
   const dls =
     previousInnings && previousInnings.totalRuns > 0
       ? calculateDlsParScore(
