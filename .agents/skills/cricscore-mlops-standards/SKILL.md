@@ -24,8 +24,8 @@ Refer to `docs/mlops_tutorial.md`, `apps/ml-engine/predict.py`, `apps/ml-engine/
 ## 2. Container Packaging & Terraform Deployment
 
 - **`apps/ml-engine/Dockerfile`**: Must copy `predict.py`, `win_probability.py`, and `model.joblib` into `${LAMBDA_TASK_ROOT}` using `public.ecr.aws/lambda/python:3.12`.
-- **`infra/terraform/lambda.tf`**: Keep `source_code_hash = sha256(join("", [filesha256("${path.module}/../../apps/ml-engine/predict.py"), filesha256("${path.module}/../../apps/ml-engine/win_probability.py"), filesha256("${path.module}/../../apps/ml-engine/Dockerfile")]))` on `aws_lambda_function.ml_predict` so Terraform detects code changes even behind `:latest` ECR tags.
-- **Git Hygiene**: Never commit `apps/ml-engine/__pycache__/`, `*.pyc`, or `apps/ml-engine/venv/`.
+- **`infra/terraform/lambda.tf` (`null_resource.docker_build_push`)**: Hashes all files in `apps/ml-engine/*` (`dir_sha1`), builds `--platform linux/amd64 --provenance=false`, pushes to ECR (`${var.project_name}-ml-predict:latest`), and runs `aws lambda update-function-code` + `aws lambda wait function-updated` on `${var.project_name}-ml-predict`.
+- **Git Hygiene**: Never commit `apps/ml-engine/__pycache__/`, `*.pyc`, or `apps/ml-engine/venv/` (since `fileset` in `lambda.tf` hashes top-level files in `apps/ml-engine`).
 
 ## 3. Validation
 
