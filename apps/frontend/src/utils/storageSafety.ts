@@ -1,5 +1,7 @@
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
+export const CHAT_MEMORY_KEY = "cricscore-chat-memory";
+
 const getStorage = (storageName: "sessionStorage" | "localStorage") => {
   if (typeof window === "undefined") return undefined;
 

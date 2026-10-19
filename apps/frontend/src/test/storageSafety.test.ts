@@ -5,9 +5,14 @@ import {
   safeLocalStorageGet,
   safeLocalStorageSet,
   safeLocalStorageRemove,
+  CHAT_MEMORY_KEY,
 } from "../utils/storageSafety";
 
 describe("storage safety helpers", () => {
+  it("exports CHAT_MEMORY_KEY correctly", () => {
+    expect(CHAT_MEMORY_KEY).toBe("cricscore-chat-memory");
+  });
+
   it("returns null when sessionStorage is unavailable", () => {
     const original = globalThis.sessionStorage;
     Object.defineProperty(globalThis, "sessionStorage", {

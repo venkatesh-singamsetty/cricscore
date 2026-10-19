@@ -18,7 +18,10 @@ import {
   safeLocalStorageGet,
   safeLocalStorageSet,
   safeLocalStorageRemove,
+  CHAT_MEMORY_KEY,
 } from "../utils/storageSafety";
+
+export { CHAT_MEMORY_KEY };
 
 interface Message {
   role: "system" | "user" | "assistant";
@@ -106,7 +109,7 @@ export function ChatComponent({
   setAlertMessage: (msg: string) => void;
 }) {
   const [messages, setMessages] = useState<Message[]>(() => {
-    const saved = safeLocalStorageGet("cricscore-chat-memory");
+    const saved = safeLocalStorageGet(CHAT_MEMORY_KEY);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -153,7 +156,7 @@ export function ChatComponent({
   const messageListRef = useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
-    safeLocalStorageSet("cricscore-chat-memory", JSON.stringify(messages));
+    safeLocalStorageSet(CHAT_MEMORY_KEY, JSON.stringify(messages));
   }, [messages]);
 
   React.useEffect(() => {
@@ -267,7 +270,7 @@ export function ChatComponent({
         window.speechSynthesis.cancel();
       } catch (e) {}
     }
-    safeLocalStorageRemove("cricscore-chat-memory");
+    safeLocalStorageRemove(CHAT_MEMORY_KEY);
     setMessages([
       {
         role: "assistant",
