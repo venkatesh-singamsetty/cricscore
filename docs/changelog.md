@@ -1,3 +1,15 @@
+## [4.11.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.10.2...v4.11.0) (2026-10-19)
+
+### 🚀 Features
+
+* responsive UI/UX overhaul, live score sync, format-agnostic DLS & DP+DLS hybrid ML engine ([#264](https://github.com/venkatesh-singamsetty/cricscore/issues/264)) ([bdc916c](https://github.com/venkatesh-singamsetty/cricscore/commit/bdc916cd0dfadf27206c9fe8daa56721537480d0))
+
+### 🐛 Bug Fixes
+
+* **e2e:** resolve Playwright user-journey timeout and CodeQL unused variables ([#265](https://github.com/venkatesh-singamsetty/cricscore/issues/265)) ([8ab787e](https://github.com/venkatesh-singamsetty/cricscore/commit/8ab787e5011a2b6a4e3cd55c32e9979d36cdad3c))
+* **infra:** exclude AWS provider 6.69.0 ([#263](https://github.com/venkatesh-singamsetty/cricscore/issues/263)) ([9a3944d](https://github.com/venkatesh-singamsetty/cricscore/commit/9a3944d5837109aabba692bdbe75085c8aaa14d7)), closes [hashicorp/terraform-provider-aws#50474](https://github.com/hashicorp/terraform-provider-aws/issues/50474)
+* UI/email polish, deploy script and docs streamlining, dependency updates ([#262](https://github.com/venkatesh-singamsetty/cricscore/issues/262)) ([1045e87](https://github.com/venkatesh-singamsetty/cricscore/commit/1045e87bed249e458c4c9c3949317846da890a19)), closes [256-#261](https://github.com/venkatesh-singamsetty/256-/issues/261)
+
 ## [4.11.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.10.2...v4.11.0) (2026-10-18)
 
 ### 🚀 Features
