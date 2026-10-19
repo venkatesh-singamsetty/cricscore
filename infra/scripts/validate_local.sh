@@ -71,6 +71,8 @@ else
       npx playwright install chromium
     fi
     echo "👉 Running Playwright Tests against live environment..."
+    BASE_URL="${BASE_URL:-https://cricscoredev.venkateshsingamsetty.com}" \
+    API_URL="${API_URL:-https://api.cricscoredev.venkateshsingamsetty.com}" \
     npm exec playwright test
   )
 fi
