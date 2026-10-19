@@ -60,6 +60,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [isGeneratingAiSummary, setIsGeneratingAiSummary] = useState(false);
   const previousScorecardDismissRequest = useRef(scorecardDismissRequest);
+  const lastWsScoreUpdateAtRef = useRef<number>(0);
 
   const closeScorecard = useCallback(() => {
     setShowFullScorecard(false);
@@ -215,11 +216,13 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
             return sum + ballTotal;
           }, 0);
 
-          const derivedTotalRuns = Math.max(
-            Number(inn.total_runs || inn.totalRuns || 0),
-            playerRunsSum,
-            ballsRunsSum,
-          );
+          const derivedTotalRuns =
+            allBallsMapped.length > 0
+              ? Math.max(playerRunsSum, ballsRunsSum)
+              : Math.max(
+                  Number(inn.total_runs || inn.totalRuns || 0),
+                  playerRunsSum,
+                );
 
           const outWicketsCount = Object.values(players).filter(
             (p: any) => p.isOut && p.wicketType !== WicketType.RETIRED_HURT,
@@ -229,10 +232,20 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
             (b: any) => b.isWicket && b.wicketType !== WicketType.RETIRED_HURT,
           ).length;
 
-          const derivedTotalWickets = Math.max(
-            Number(inn.total_wickets || inn.totalWickets || 0),
-            outWicketsCount,
-            ballsWicketsCount,
+          const derivedTotalWickets =
+            allBallsMapped.length > 0
+              ? Math.max(outWicketsCount, ballsWicketsCount)
+              : Math.max(
+                  Number(inn.total_wickets || inn.totalWickets || 0),
+                  outWicketsCount,
+                );
+
+          const innOvers = Number(inn.overs || 0);
+          const innBalls = Number(inn.balls || 0);
+          const activeOverNum =
+            innOvers > 0 && innBalls === 0 ? innOvers - 1 : innOvers;
+          const activeOverBalls = allBallsMapped.filter(
+            (b: any) => Number(b.overNumber ?? 0) === activeOverNum,
           );
 
           return {
@@ -243,9 +256,12 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
             bowlingTeamName: inn.bowling_team_name,
             totalRuns: derivedTotalRuns,
             totalWickets: derivedTotalWickets,
-            overs: Number(inn.overs || 0),
-            balls: Number(inn.balls || 0),
-            currentOver: allBallsMapped.slice(-6),
+            overs: innOvers,
+            balls: innBalls,
+            currentOver:
+              activeOverBalls.length > 0
+                ? activeOverBalls
+                : allBallsMapped.slice(-6),
             allBalls: allBallsMapped,
             strikerId:
               (inn.players || []).find((p: any) => p.name === inn.striker_name)
@@ -277,10 +293,17 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
         });
 
         setMatchDetails((prev: any) => {
-          if (!isBackground || !prev?.innings)
+          if (
+            !isBackground ||
+            !prev?.innings ||
+            data.match.status === "COMPLETED"
+          ) {
             return { innings: mappedInnings };
-          // Storage is eventually consistent; never let a lagging poll
-          // move a live innings backwards.
+          }
+          // Only keep optimistic WebSocket state during the brief (<3s) window
+          // before storage-worker writes a newly broadcast ball to PostgreSQL.
+          const isRecentWsUpdate =
+            Date.now() - lastWsScoreUpdateAtRef.current < 3000;
           const merged = mappedInnings.map((inn: any) => {
             const old = prev.innings.find(
               (p: any) => p.inningNumber === inn.inningNumber,
@@ -288,20 +311,14 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
             if (!old) return inn;
             const oldBalls = Number(old.overs) * 6 + Number(old.balls);
             const newBalls = Number(inn.overs) * 6 + Number(inn.balls);
-            if (newBalls >= oldBalls) {
-              return {
-                ...inn,
-                totalRuns: Math.max(inn.totalRuns, old.totalRuns),
-                totalWickets: Math.max(inn.totalWickets, old.totalWickets),
-              };
+            if (
+              isRecentWsUpdate &&
+              (newBalls < oldBalls ||
+                (inn.allBalls?.length || 0) < (old.allBalls?.length || 0))
+            ) {
+              return old;
             }
-            return {
-              ...inn,
-              overs: old.overs,
-              balls: old.balls,
-              totalRuns: Math.max(inn.totalRuns, old.totalRuns),
-              totalWickets: Math.max(inn.totalWickets, old.totalWickets),
-            };
+            return inn;
           });
           return { innings: merged };
         });
@@ -369,6 +386,12 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
         const currentOvers = payload.currentOvers ?? payload.current_overs;
         const currentBalls = payload.currentBalls ?? payload.current_balls;
 
+        if (payload.undo) {
+          lastWsScoreUpdateAtRef.current = 0;
+        } else if (!payload.syncOnly) {
+          lastWsScoreUpdateAtRef.current = Date.now();
+        }
+
         // OPTIMISTIC UPDATE: Eliminate lag and eventual consistency issues
         setMatchDetails((prev: any) => {
           if (!prev || !prev.innings || prev.innings.length === 0) {
@@ -397,13 +420,56 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                 i.batting_team_name?.trim().toLowerCase() ===
                   targetBattingTeam.trim().toLowerCase(),
             );
+            // If 2nd innings just started and isn't in updatedInnings yet, create it instead of corrupting innings 1
+            if (targetInningIndex < 0 && updatedInnings.length === 1) {
+              const firstInn = updatedInnings[0];
+              updatedInnings.push({
+                id: targetInningId || `inn2_${Date.now()}`,
+                inningNumber: 2,
+                target: Number(firstInn.totalRuns || 0) + 1,
+                battingTeamName: targetBattingTeam,
+                bowlingTeamName: firstInn.battingTeamName,
+                totalRuns: 0,
+                totalWickets: 0,
+                overs: 0,
+                balls: 0,
+                currentOver: [],
+                allBalls: [],
+                strikerId: "",
+                nonStrikerId: "",
+                currentBowlerId: "",
+                players: {},
+                bowlers: {},
+                battingOrder: [],
+                bowlingOrder: [],
+              });
+              targetInningIndex = 1;
+              if (targetMatchId) {
+                fetchMatchDetails(targetMatchId, true);
+              }
+            }
           }
-          if (targetInningIndex < 0) {
+          if (targetInningIndex < 0 && !targetBattingTeam) {
             targetInningIndex = updatedInnings.length - 1;
           }
 
           if (targetInningIndex > -1) {
             const rawInn = updatedInnings[targetInningIndex];
+
+            // Ignore out-of-order stale syncOnly messages that lag behind already-applied balls
+            const existingTotalBalls =
+              Number(rawInn.overs || 0) * 6 + Number(rawInn.balls || 0);
+            const incomingTotalBalls =
+              Number(currentOvers ?? rawInn.overs ?? 0) * 6 +
+              Number(currentBalls ?? rawInn.balls ?? 0);
+            if (
+              payload.syncOnly &&
+              !payload.undo &&
+              incomingTotalBalls < existingTotalBalls
+            ) {
+              return prev;
+            }
+
             const clonedPlayers = Object.entries(rawInn.players || {}).reduce(
               (acc: any, [k, v]: any) => {
                 acc[k] = { ...v };
@@ -430,24 +496,44 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
               payload.nonStrikerName || payload.non_striker_name;
             const bowlerName = payload.bowlerName || payload.bowler_name;
             const runs = payload.runs;
+            // IMPORTANT: On odd runs or over completion, strike has already rotated in payload.strikerName,
+            // whereas payload.runs belongs to the batter who faced the ball (payload.ballData.batterName).
+            const scoredBatterName =
+              payload.ballData?.batterName ||
+              payload.ballData?.batter_name ||
+              strikerName;
 
-            if (strikerName && runs !== undefined) {
-              const striker = Object.values(inn.players || {}).find(
+            if (scoredBatterName && runs !== undefined) {
+              const batterObj = Object.values(inn.players || {}).find(
                 (p: any) =>
                   p.name?.trim().toLowerCase() ===
-                  strikerName.trim().toLowerCase(),
+                  scoredBatterName.trim().toLowerCase(),
               ) as any;
-              if (striker) {
-                striker.runs = runs;
+              if (batterObj) {
+                batterObj.runs = runs;
                 if (payload.ballsFaced !== undefined)
-                  striker.ballsFaced = payload.ballsFaced;
-                if (payload.fours !== undefined) striker.fours = payload.fours;
-                if (payload.sixes !== undefined) striker.sixes = payload.sixes;
+                  batterObj.ballsFaced = payload.ballsFaced;
+                if (payload.fours !== undefined)
+                  batterObj.fours = payload.fours;
+                if (payload.sixes !== undefined)
+                  batterObj.sixes = payload.sixes;
+                if (payload.ballData?.isWicket) {
+                  const wType =
+                    payload.ballData.wicketType || payload.ballData.wicket_type;
+                  if (wType !== WicketType.RETIRED_HURT) {
+                    batterObj.isOut = true;
+                  }
+                  batterObj.wicketType = wType;
+                  batterObj.wicketBy = bowlerName;
+                  batterObj.fielderName =
+                    payload.ballData.fielderName ||
+                    payload.ballData.fielder_name;
+                }
               } else if (inn.players) {
                 const id = "p_" + Date.now();
                 inn.players[id] = {
                   id,
-                  name: strikerName,
+                  name: scoredBatterName,
                   runs: runs,
                   ballsFaced: payload.ballsFaced || 1,
                   fours: payload.fours || 0,
@@ -457,20 +543,44 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
             }
 
             if (strikerName && inn.players) {
-              const s = Object.values(inn.players).find(
+              let s = Object.values(inn.players).find(
                 (p: any) =>
                   p.name?.trim().toLowerCase() ===
                   strikerName.trim().toLowerCase(),
               ) as any;
-              if (s) inn.strikerId = s.id;
+              if (!s) {
+                const id = "ps_" + Date.now();
+                inn.players[id] = {
+                  id,
+                  name: strikerName,
+                  runs: 0,
+                  ballsFaced: 0,
+                  fours: 0,
+                  sixes: 0,
+                };
+                s = inn.players[id];
+              }
+              inn.strikerId = s.id;
             }
             if (nonStrikerName && inn.players) {
-              const ns = Object.values(inn.players).find(
+              let ns = Object.values(inn.players).find(
                 (p: any) =>
                   p.name?.trim().toLowerCase() ===
                   nonStrikerName.trim().toLowerCase(),
               ) as any;
-              if (ns) inn.nonStrikerId = ns.id;
+              if (!ns) {
+                const id = "pns_" + Date.now();
+                inn.players[id] = {
+                  id,
+                  name: nonStrikerName,
+                  runs: 0,
+                  ballsFaced: 0,
+                  fours: 0,
+                  sixes: 0,
+                };
+                ns = inn.players[id];
+              }
+              inn.nonStrikerId = ns.id;
             }
             if (bowlerName && inn.bowlers) {
               let b = Object.values(inn.bowlers).find(
@@ -480,10 +590,54 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
               ) as any;
               if (!b) {
                 const id = "b_" + Date.now();
-                inn.bowlers[id] = { id, name: bowlerName };
+                inn.bowlers[id] = {
+                  id,
+                  name: bowlerName,
+                  overs: 0,
+                  balls: 0,
+                  maidens: 0,
+                  runsConceded: 0,
+                  wickets: 0,
+                };
                 b = inn.bowlers[id];
               }
+              if (payload.bowlerOvers !== undefined)
+                b.overs = Number(payload.bowlerOvers);
+              if (payload.bowlerBalls !== undefined)
+                b.balls = Number(payload.bowlerBalls);
+              if (payload.bowlerRuns !== undefined)
+                b.runsConceded = Number(payload.bowlerRuns);
+              if (payload.bowlerWickets !== undefined)
+                b.wickets = Number(payload.bowlerWickets);
               inn.currentBowlerId = b.id;
+            }
+
+            if (payload.undo) {
+              const nextAllBalls = [...(inn.allBalls || [])];
+              nextAllBalls.pop();
+              inn.allBalls = nextAllBalls;
+              const nextOversVal =
+                currentOvers !== undefined ? Number(currentOvers) : inn.overs;
+              const nextBallsVal =
+                currentBalls !== undefined ? Number(currentBalls) : inn.balls;
+              inn.overs = nextOversVal;
+              inn.balls = nextBallsVal;
+              const activeOv =
+                nextOversVal > 0 && nextBallsVal === 0
+                  ? nextOversVal - 1
+                  : nextOversVal;
+              inn.currentOver = nextAllBalls.filter(
+                (b: any) =>
+                  Number(b.overNumber ?? b.over_number ?? 0) === activeOv,
+              );
+              if (totalRuns !== undefined) inn.totalRuns = Number(totalRuns);
+              if (totalWickets !== undefined)
+                inn.totalWickets = Number(totalWickets);
+              updatedInnings[targetInningIndex] = inn;
+              if (targetMatchId) {
+                setTimeout(() => fetchMatchDetails(targetMatchId, true), 350);
+              }
+              return { ...prev, innings: updatedInnings };
             }
 
             if (payload.ballData) {
@@ -518,8 +672,25 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                     ? payload.ballData.ballNumber
                     : payload.ballData.ball_number,
               };
-              inn.allBalls = [...(inn.allBalls || []), newBall];
-              inn.currentOver = [...(inn.currentOver || []), newBall].slice(-6);
+              const existingBalls = inn.allBalls || [];
+              const lastBall = existingBalls[existingBalls.length - 1];
+              const isDuplicate =
+                lastBall &&
+                ((newBall.id && lastBall.id === newBall.id) ||
+                  (!newBall.isExtra &&
+                    !lastBall.isExtra &&
+                    Number(lastBall.overNumber ?? lastBall.over_number) ===
+                      Number(newBall.overNumber) &&
+                    Number(lastBall.ballNumber ?? lastBall.ball_number) ===
+                      Number(newBall.ballNumber)));
+              if (!isDuplicate) {
+                inn.allBalls = [...existingBalls, newBall];
+              }
+              inn.currentOver = (inn.allBalls || []).filter(
+                (b: any) =>
+                  Number(b.overNumber ?? b.over_number ?? 0) ===
+                  Number(newBall.overNumber ?? 0),
+              );
             }
 
             const playerRunsSum = Object.values(inn.players || {}).reduce(
@@ -561,19 +732,18 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                 b.wicket_type !== WicketType.RETIRED_HURT,
             ).length;
 
-            inn.totalRuns = Math.max(
-              Number(totalRuns || 0),
-              Number(inn.totalRuns || 0),
-              playerRunsSum,
-              ballsRunsSum,
-            );
-            if (totalWickets !== undefined) {
-              inn.totalWickets = Math.max(
-                Number(totalWickets || 0),
-                Number(inn.totalWickets || 0),
-                outWicketsCount,
-                ballsWicketsCount,
+            if (totalRuns !== undefined) {
+              inn.totalRuns = Number(totalRuns);
+            } else {
+              inn.totalRuns = Math.max(
+                Number(inn.totalRuns || 0),
+                playerRunsSum,
+                ballsRunsSum,
               );
+            }
+
+            if (totalWickets !== undefined) {
+              inn.totalWickets = Number(totalWickets);
             } else {
               inn.totalWickets = Math.max(
                 Number(inn.totalWickets || 0),
@@ -648,7 +818,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                 ? "FOLLOW MATCH ID..."
                 : "SEARCH TEAM OR MATCH ID..."
             }
-            className="w-full bg-slate-800/50 border border-white/5 rounded-xl px-4 py-2.5 text-[10px] font-black text-indigo-400 placeholder:text-slate-600 outline-none focus:border-indigo-500/50 transition-all uppercase tracking-widest tabular-nums"
+            className="w-full bg-slate-800/50 border border-white/5 rounded-xl px-4 py-2.5 text-[10px] font-black text-indigo-400 placeholder:text-slate-400 outline-none focus:border-indigo-500/50 transition-all uppercase tracking-widest tabular-nums"
             value={targetMatchId ? targetMatchId : searchTerm}
             onChange={(e) => {
               const val = e.target.value;
@@ -797,7 +967,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                       </div>
 
                       <div className="flex flex-col gap-1">
-                        {/* Previous Innings Summary (Tight) & DLS Par Score Indicator */}
+                        {/* Previous Innings Summary (Tight) */}
                         {matchDetails.innings.length > 1 && (
                           <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <div className="flex items-center gap-1 opacity-60">
@@ -810,28 +980,6 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                                 {matchDetails.innings[0].totalWickets}
                               </span>
                             </div>
-                            {(() => {
-                              const dls = calculateDlsParScore(
-                                matchDetails.innings[0].totalRuns,
-                                currentInnings.totalRuns,
-                                currentInnings.totalWickets,
-                                currentInnings.overs * 6 + currentInnings.balls,
-                                matchMeta?.totalOvers || 20,
-                              );
-                              return (
-                                <span
-                                  className={`text-[8px] font-black px-2 py-0.5 rounded-full border uppercase tracking-wider ${
-                                    dls.isAhead
-                                      ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
-                                      : dls.isTied
-                                        ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
-                                        : "bg-red-500/20 text-red-300 border-red-500/30"
-                                  }`}
-                                >
-                                  🌧️ DLS PAR: {dls.parScore} ({dls.statusText})
-                                </span>
-                              );
-                            })()}
                           </div>
                         )}
 
@@ -867,6 +1015,93 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                       </span>
                     </div>
                   </div>
+
+                  {/* CRR / RRR / LAST OVR / DLS Tab Row */}
+                  {(() => {
+                    const ballsBowled =
+                      currentInnings.overs * 6 + currentInnings.balls;
+                    const totalBalls = (matchMeta?.totalOvers || 20) * 6;
+                    const ballsLeft = Math.max(0, totalBalls - ballsBowled);
+                    const target =
+                      currentInnings.target ||
+                      (matchDetails.innings.length > 1
+                        ? matchDetails.innings[0].totalRuns + 1
+                        : null);
+                    const runsNeeded = target
+                      ? target - currentInnings.totalRuns
+                      : null;
+                    const rawRrr =
+                      runsNeeded !== null && ballsLeft > 0
+                        ? (runsNeeded / ballsLeft) * 6
+                        : null;
+                    const rrr =
+                      rawRrr !== null ? Math.max(0, rawRrr).toFixed(1) : null;
+                    const dls =
+                      matchDetails.innings.length > 1
+                        ? calculateDlsParScore(
+                            matchDetails.innings[0].totalRuns,
+                            currentInnings.totalRuns,
+                            currentInnings.totalWickets,
+                            ballsBowled,
+                            matchMeta?.totalOvers || 20,
+                          )
+                        : null;
+
+                    return (
+                      <div
+                        className={`grid ${dls ? "grid-cols-3" : "grid-cols-2"} gap-2`}
+                      >
+                        <div className="bg-slate-800/80 rounded-2xl py-2 px-2 text-center border border-white/5 shadow-md">
+                          <div className="text-[9px] md:text-xs font-black text-slate-400 uppercase tracking-wider">
+                            CRR
+                          </div>
+                          <div className="text-base md:text-lg font-black text-white tabular-nums leading-tight mt-0.5">
+                            {crr}
+                          </div>
+                        </div>
+                        {rrr !== null ? (
+                          <div className="bg-amber-500/10 rounded-2xl py-2 px-2 text-center border border-amber-500/30 shadow-md">
+                            <div className="text-[9px] md:text-xs font-black text-amber-500 uppercase tracking-wider">
+                              RRR
+                            </div>
+                            <div className="text-base md:text-lg font-black text-amber-400 tabular-nums leading-tight mt-0.5">
+                              {rrr}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="bg-slate-800/80 rounded-2xl py-2 px-2 text-center border border-white/5 shadow-md">
+                            <div className="text-[9px] md:text-xs font-black text-slate-400 uppercase tracking-wider">
+                              BALLS LEFT
+                            </div>
+                            <div className="text-base md:text-lg font-black text-white tabular-nums leading-tight mt-0.5">
+                              {ballsLeft}
+                            </div>
+                          </div>
+                        )}
+                        {dls && (
+                          <div
+                            className={`rounded-2xl py-2 px-2 text-center border transition-all shadow-md ${
+                              dls.isAhead
+                                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                                : dls.isTied
+                                  ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
+                                  : "bg-red-500/10 border-red-500/30 text-red-400"
+                            }`}
+                          >
+                            <div className="text-[9px] md:text-xs font-black uppercase tracking-wider flex items-center justify-center gap-0.5">
+                              <span>🌧️</span> DLS PAR
+                            </div>
+                            <div className="text-base md:text-lg font-black tabular-nums leading-tight mt-0.5">
+                              {dls.parScore}
+                            </div>
+                            <div className="text-[8px] md:text-[9px] font-bold truncate opacity-90 leading-none mt-0.5">
+                              {dls.statusText.replace(" (DLS)", "")}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* THIS OVER Live Timeline Bar */}
                   <div className="bg-slate-800/50 rounded-2xl border border-white/5 p-3.5 flex items-center justify-between shadow-lg">
@@ -950,7 +1185,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
 
                   {/* AI Match Prediction Section */}
                   {matchMeta && matchMeta.status !== "COMPLETED" && (
-                    <div className="w-full md:max-w-[805px] md:mx-auto">
+                    <div className="w-full">
                       <AiMatchPrediction
                         matchId={targetMatchId}
                         teamA={matchMeta.teamA}

@@ -183,6 +183,42 @@ describe("Storage Worker Lambda", () => {
     );
     expect(inningsUpdate?.[1][3]).toBe(2);
     expect(inningsUpdate?.[1][4]).toBe(3);
+    expect(inningsUpdate?.[1][5]).toBe(30);
+    expect(inningsUpdate?.[1][6]).toBe(1);
+    expect(String(inningsUpdate?.[0])).toContain("total_runs = COALESCE($6");
+  });
+
+  it("should resolve temporary inn2_ inningId from database before updating", async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ id: "real-uuid-inn-2" }],
+    });
+
+    await handler({
+      Records: [
+        {
+          body: JSON.stringify({
+            matchId: "match_123",
+            inningId: "inn2_1729290000000",
+            syncOnly: true,
+            currentOvers: 0,
+            currentBalls: 1,
+            explicitTotalRuns: 4,
+            explicitTotalWickets: 0,
+          }),
+        },
+      ],
+    });
+
+    expect(mockQuery).toHaveBeenNthCalledWith(
+      1,
+      "SELECT id FROM innings WHERE match_id = $1 ORDER BY inning_number DESC LIMIT 1",
+      ["match_123"],
+    );
+    const inningsUpdate = mockQuery.mock.calls.find(([query]) =>
+      String(query).includes("UPDATE innings SET"),
+    );
+    expect(inningsUpdate?.[1][5]).toBe(4);
+    expect(inningsUpdate?.[1][7]).toBe("real-uuid-inn-2");
   });
 
   it.each(["RETIRED_HURT", "RETIRED_OUT"])(
@@ -215,7 +251,7 @@ describe("Storage Worker Lambda", () => {
       });
 
       const batterUpdate = mockQuery.mock.calls.find(([query]) =>
-        String(query).includes("balls_faced = balls_faced - $2"),
+        String(query).includes("balls_faced = GREATEST(0, balls_faced - $2)"),
       );
       expect(batterUpdate?.[1][1]).toBe(0);
     },

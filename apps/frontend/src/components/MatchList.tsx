@@ -280,7 +280,7 @@ const MatchList: React.FC<MatchListProps> = ({
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 max-h-[600px] overflow-y-auto pr-2 scrollbar-hide">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-h-[700px] overflow-y-auto pr-2 scrollbar-hide">
           {filteredMatches.map((match) => {
             const diff = Date.now() - new Date(match.updated_at).getTime();
             const isStale = match.status === "LIVE" && diff > 86400000;
@@ -290,7 +290,7 @@ const MatchList: React.FC<MatchListProps> = ({
             return (
               <div
                 key={match.id}
-                className={`bg-white/5 border border-white/5 rounded-2xl p-5 text-left hover:bg-white/10 ${match.status === "COMPLETED" ? "hover:border-indigo-500/30" : "hover:border-emerald-500/30"} transition-all group relative overflow-hidden`}
+                className={`w-full bg-slate-900/70 border border-white/5 rounded-2xl p-4 sm:p-5 text-left hover:bg-slate-800/80 ${match.status === "COMPLETED" ? "hover:border-indigo-500/30" : "hover:border-emerald-500/30"} transition-all group relative overflow-hidden`}
               >
                 {/* Role Actions */}
                 <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
@@ -301,7 +301,7 @@ const MatchList: React.FC<MatchListProps> = ({
                         e.stopPropagation();
                         onResumeMatch(match.id);
                       }}
-                      className="px-3 py-1.5 bg-indigo-600/20 text-indigo-400 rounded-lg font-black text-[9px] hover:bg-indigo-600 hover:text-white transition-all uppercase border border-indigo-500/20"
+                      className="px-3 py-1.5 bg-indigo-600/20 text-indigo-400 rounded-lg font-black text-[9px] hover:bg-indigo-600 hover:text-white transition-all uppercase border border-indigo-500/20 active:scale-95"
                     >
                       RESUME
                     </button>
@@ -317,7 +317,8 @@ const MatchList: React.FC<MatchListProps> = ({
                           matchName: `${match.team_a_name} VS ${match.team_b_name}`,
                         });
                       }}
-                      className="w-8 h-8 flex items-center justify-center bg-red-900/20 text-red-500 rounded-lg hover:bg-red-600 hover:text-white transition-all text-xs border border-red-500/10"
+                      title={`Delete match ${match.id.substring(0, 8)}`}
+                      className="p-2 min-w-[34px] min-h-[34px] flex items-center justify-center bg-red-950/40 text-red-400 rounded-xl hover:bg-red-600 hover:text-white transition-all text-xs border border-red-500/30 shadow-sm active:scale-95"
                     >
                       🗑️
                     </button>
@@ -329,22 +330,22 @@ const MatchList: React.FC<MatchListProps> = ({
                   onClick={() => onSelectMatch(match.id)}
                 >
                   <div className="flex justify-between items-start">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-indigo-500/70 italic">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-indigo-400/80 italic">
                       {getTimeAgo(match.updated_at)}
                     </span>
                     <div className="mr-24 md:mr-32">
                       {match.status === "COMPLETED" ? (
-                        <span className="px-2 py-1 rounded bg-indigo-900/40 text-indigo-400 border border-indigo-500/20 font-black text-[9px] uppercase tracking-widest">
+                        <span className="px-2 py-1 rounded-md bg-indigo-900/40 text-indigo-400 border border-indigo-500/20 font-black text-[9px] uppercase tracking-widest">
                           COMPLETED
                         </span>
                       ) : isStale ? (
-                        <span className="px-2 py-1 rounded bg-rose-900/40 text-rose-500 border border-rose-500/20 font-black text-[9px] uppercase tracking-widest italic flex items-center gap-1.5">
+                        <span className="px-2 py-1 rounded-md bg-rose-900/40 text-rose-500 border border-rose-500/20 font-black text-[9px] uppercase tracking-widest italic flex items-center gap-1.5">
                           <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
                           STALED
                         </span>
                       ) : (
-                        <span className="px-2 py-1 rounded bg-emerald-900/40 text-emerald-400 border border-emerald-500/20 font-black text-[9px] uppercase tracking-widest flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span className="px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-black text-[9px] uppercase tracking-widest flex items-center gap-1.5 shadow-[0_0_10px_rgba(16,185,129,0.25)]">
+                          <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse"></span>
                           LIVE
                         </span>
                       )}
@@ -465,7 +466,11 @@ const MatchList: React.FC<MatchListProps> = ({
                 <span className="text-3xl">🚨</span>
               </div>
               <h3 className="text-xl font-black uppercase tracking-widest text-white mb-2 italic">
-                Delete Match?
+                Delete Match{" "}
+                {confirmAction.matchId
+                  ? `#${confirmAction.matchId.substring(0, 8)}`
+                  : ""}
+                ?
               </h3>
               <p className="text-slate-400 text-sm font-medium mb-8 leading-relaxed">
                 This record{" "}

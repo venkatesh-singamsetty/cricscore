@@ -269,7 +269,7 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
 
   return (
     <div className="fixed inset-x-0 top-14 bottom-0 md:top-16 bg-slate-950/80 z-[400] flex items-center justify-center p-2 sm:p-4 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="bg-slate-900 border border-white/10 rounded-[1.5rem] sm:rounded-[2.5rem] w-full max-w-4xl max-h-full md:max-h-[calc(100vh-8rem)] min-h-0 overflow-hidden flex flex-col shadow-2xl animate-in zoom-in-95 duration-500">
+      <div className="bg-slate-900 border border-white/10 rounded-[1.5rem] sm:rounded-[2.5rem] w-full max-w-5xl max-h-full md:max-h-[calc(100vh-8rem)] min-h-0 overflow-hidden flex flex-col shadow-2xl animate-in zoom-in-95 duration-500">
         {/* Header */}
         <div className="bg-slate-950 px-4 py-3 sm:px-8 sm:py-6 flex justify-between items-center shrink-0 border-b border-white/5">
           <div className="flex items-center gap-3">

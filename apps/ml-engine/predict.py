@@ -3,6 +3,8 @@ import os
 import joblib
 import pandas as pd
 
+from win_probability import win_probability
+
 # Cold Start Initialization
 # Forces Terraform to rebuild the Docker container via null_resource triggers
 # Using the new live model
@@ -47,91 +49,62 @@ def handler(event, context):
 
         load_artifacts()
 
-        if not model:
-            return {
-                'statusCode': 500,
-                'body': json.dumps({'error': 'Model not loaded'})
-            }
-
-        # Normalize balls_left, current_score, and target_score to standard 120-ball T20 scale
-        # for shortened matches (e.g. 1-over matches) so linear model features align with training data.
-        model_balls_left = balls_left
-        model_current_score = current_score
-        model_target_score = target_score
-
-        balls_bowled = max(0, float(body.get('ballsBowled', 0)))
+        balls_bowled = max(0.0, float(body.get('ballsBowled', 0)))
+        balls_left = max(0.0, balls_left)
         total_match_balls = balls_bowled + balls_left
+        total_overs = total_match_balls / 6.0
 
-        if total_match_balls > 0 and total_match_balls < 120:
-            scale_factor = 120.0 / total_match_balls
-            model_balls_left = balls_left * scale_factor
-            
-            if inning == 1:
-                total_overs = total_match_balls / 6.0
-                par_rpo = 8.0 + (20.0 - total_overs) * 0.2
-                match_par = max(1.0, par_rpo * total_overs)
-                model_current_score = (current_score / match_par) * 160.0
-            else:
-                # In 2nd innings, scale target and score by 120 / total_match_balls
-                model_current_score = current_score * scale_factor
-                if target_score > 0:
-                    model_target_score = target_score * scale_factor
+        # 1. Format-agnostic ball-by-ball probability (exact DP, valid for 1-20 overs).
+        sim_prob = win_probability(
+            inning=int(inning),
+            current_score=current_score,
+            wickets_lost=wickets_lost,
+            balls_left=balls_left,
+            balls_bowled=balls_bowled,
+            target_score=target_score,
+        )
 
-        # Create input DataFrame matching training feature structure
-        input_data = pd.DataFrame([{
-            'batting_team': batting_team,
-            'bowling_team': bowling_team,
-            'inning': inning,
-            'balls_left': model_balls_left,
-            'current_score': model_current_score,
-            'wickets_lost': wickets_lost,
-            'target_score': model_target_score
-        }])
+        # 2. Blend in the T20-trained ML model only where it is in-distribution.
+        #    Weight 0 for <=10 overs, rising linearly to 0.5 for a full 20-over match.
+        #    (Re-scaling short matches onto a 120-ball scale made the model output
+        #    0%/100% far too early, e.g. "18 off 5" in a 1-over game.)
+        model_weight = 0.5 * min(1.0, max(0.0, (total_overs - 10.0) / 10.0))
+        model_prob = None
+        if model is not None and model_weight > 0:
+            scale = 120.0 / total_match_balls if 0 < total_match_balls < 120 else 1.0
+            input_data = pd.DataFrame([{
+                'batting_team': batting_team,
+                'bowling_team': bowling_team,
+                'inning': inning,
+                'balls_left': balls_left * scale,
+                'current_score': current_score * scale,
+                'wickets_lost': wickets_lost,
+                'target_score': target_score * scale if target_score > 0 else target_score,
+            }])
+            model_prob = float(model.predict_proba(input_data)[0][1])
 
-        # Predict Win Probability for batting_team (target class 1)
-        # predict_proba returns [prob_loss, prob_win] for the target class
-        prediction_probs = model.predict_proba(input_data)
-        batting_team_prob = prediction_probs[0][1]
+        if model_prob is None:
+            model_weight = 0.0
+            model_prob = sim_prob
+        batting_team_prob = (1.0 - model_weight) * sim_prob + model_weight * model_prob
 
-        # 1. Start of Match Baseline (before ball 0.1 is bowled):
-        # At the start of 1st innings when score is 0, no wickets lost, and 0 balls bowled,
-        # both teams have equal baseline chance (50% / 50%).
+        # Start of match baseline (before ball 0.1 is bowled): 50 / 50.
         if inning == 1 and current_score == 0 and wickets_lost == 0 and balls_bowled == 0:
             batting_team_prob = 0.50
 
-        bowling_team_prob = 1.0 - batting_team_prob
-
-        # HEURISTIC OVERRIDE: Impossible Chases & Extreme Required Run Rates (RRR)
-        # The Logistic Regression model is trained purely on T20 data (average targets ~160).
-        # In shortened matches (e.g. 1-over matches), a target of 21 tricks the linear model 
-        # into thinking the chase is incredibly easy, leading to a 90%+ probability hallucination.
-        # We apply an RRR heuristic to cap the probability based on real cricket difficulty.
+        # Decided outcomes are certain; otherwise never show a hard 0% / 100%
+        # while the match is still live (cricket always leaves a sliver of chance).
+        decided = False
         if inning == 2 and target_score > 0:
             runs_needed = target_score - current_score
-            max_possible_runs = balls_left * 6
-            
-            if wickets_lost >= 10 or runs_needed > max_possible_runs:
-                # All out or mathematically impossible to win
-                batting_team_prob = 0.0
-                bowling_team_prob = 1.0
-            elif runs_needed <= 0:
-                # Already won
-                batting_team_prob = 1.0
-                bowling_team_prob = 0.0
-            elif balls_left > 0:
-                # Calculate RRR
-                rrr = (runs_needed / balls_left) * 6
-                # Cap the maximum probability the batting team can have based on how steep the RRR is
-                if rrr > 18:
-                    batting_team_prob = min(batting_team_prob, 0.01)
-                elif rrr > 15:
-                    batting_team_prob = min(batting_team_prob, 0.05)
-                elif rrr > 12:
-                    batting_team_prob = min(batting_team_prob, 0.15)
-                elif rrr > 10:
-                    batting_team_prob = min(batting_team_prob, 0.35)
-                
-                bowling_team_prob = 1.0 - batting_team_prob
+            if runs_needed <= 0:
+                batting_team_prob, decided = 1.0, True
+            elif wickets_lost >= 10 or balls_left <= 0 or runs_needed > balls_left * 6 + 1:
+                batting_team_prob, decided = 0.0, True
+        if not decided:
+            batting_team_prob = min(0.99, max(0.01, batting_team_prob))
+
+        bowling_team_prob = 1.0 - batting_team_prob
 
         predicted_winner = batting_team if batting_team_prob > 0.5 else bowling_team
 
@@ -147,7 +120,8 @@ def handler(event, context):
                 'team1WinProbability': round(batting_team_prob, 2),
                 'team2WinProbability': round(bowling_team_prob, 2),
                 'predictedWinner': predicted_winner,
-                'modelVersion': metadata.get('modelVersion', 'v2') if metadata else 'v2'
+                'modelVersion': (metadata.get('modelVersion', 'v2') if metadata else 'v2') + '+dp-sim',
+                'modelWeight': round(model_weight, 2)
             })
         }
     except Exception as e:

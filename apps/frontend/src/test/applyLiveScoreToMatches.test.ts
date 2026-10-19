@@ -119,6 +119,74 @@ describe("applyLiveScoreToMatches", () => {
     expect(applied).toBe(false);
     expect(next).toBe(matches);
   });
+
+  it("does not double-count ballData runs when explicitTotalRuns is already provided", () => {
+    const { applied, matches: next } = applyLiveScoreToMatches(matches, {
+      matchId: matches[0].id,
+      inningId: "inn-2",
+      explicitTotalRuns: 6,
+      currentOvers: 0,
+      currentBalls: 5,
+      ballData: {
+        runs: 4,
+        isExtra: false,
+        overNumber: 0,
+        ballNumber: 5,
+      },
+    });
+    expect(applied).toBe(true);
+    const innings = next[0].innings as { total_runs: number; balls: number }[];
+    expect(innings[1].total_runs).toBe(6);
+    expect(innings[1].balls).toBe(5);
+  });
+
+  it("decrements total_runs and balls when undo=true is received", () => {
+    const { applied, matches: next } = applyLiveScoreToMatches(matches, {
+      matchId: matches[0].id,
+      inningId: "inn-2",
+      explicitTotalRuns: 1,
+      explicitTotalWickets: 0,
+      currentOvers: 0,
+      currentBalls: 3,
+      undo: true,
+      syncOnly: true,
+    });
+    expect(applied).toBe(true);
+    const innings = next[0].innings as { total_runs: number; balls: number }[];
+    expect(innings[1].total_runs).toBe(1);
+    expect(innings[1].balls).toBe(3);
+  });
+
+  it("returns applied=false when 2nd innings battingTeam is not yet present in match.innings", () => {
+    const singleInningMatches: MatchListItem[] = [
+      {
+        ...matches[0],
+        innings: [
+          {
+            id: "inn-1",
+            batting_team_name: "TEAM A",
+            total_runs: 12,
+            total_wickets: 0,
+            overs: 1,
+            balls: 0,
+          },
+        ],
+      },
+    ];
+    const { applied, matches: next } = applyLiveScoreToMatches(
+      singleInningMatches,
+      {
+        matchId: matches[0].id,
+        inningId: "inn2_temp",
+        battingTeamName: "TEAM B",
+        explicitTotalRuns: 4,
+        currentOvers: 0,
+        currentBalls: 1,
+      },
+    );
+    expect(applied).toBe(false);
+    expect(next).toBe(singleInningMatches);
+  });
 });
 
 describe("event type helpers", () => {

@@ -35,6 +35,7 @@ describe("FormattedContent Component", () => {
 describe("ChatComponent", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     window.HTMLElement.prototype.scrollIntoView = vi.fn();
   });
 
@@ -78,5 +79,94 @@ describe("ChatComponent", () => {
     await waitFor(() => {
       expect(screen.getByText("Leg Byes count as extras.")).toBeInTheDocument();
     });
+  });
+
+  it("renders empty state graphic when there are no messages", () => {
+    render(
+      <ChatComponent
+        matchId={null}
+        apiUrl="https://api.test.com"
+        setAlertMessage={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("CricScore AI Assistant")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Ask questions about the live score/i),
+    ).toBeInTheDocument();
+  });
+
+  it("renders quick prompt chips and populates chat when clicked", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ reply: "Current run rate is 7.5 per over." }),
+    });
+
+    render(
+      <ChatComponent
+        matchId={null}
+        apiUrl="https://api.test.com"
+        setAlertMessage={vi.fn()}
+      />,
+    );
+
+    const chip = screen.getByRole("button", { name: "Current run rate?" });
+    expect(chip).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(chip);
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Current run rate is 7.5 per over."),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("copies message to clipboard when copy button is clicked", async () => {
+    const writeTextMock = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: writeTextMock,
+      },
+    });
+
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ reply: "Match Summary: Team A won by 10 runs." }),
+    });
+
+    render(
+      <ChatComponent
+        matchId={null}
+        apiUrl="https://api.test.com"
+        setAlertMessage={vi.fn()}
+      />,
+    );
+
+    const input = screen.getByPlaceholderText(
+      /Ask about the match, score, or players/i,
+    );
+    fireEvent.change(input, { target: { value: "Match summary" } });
+    const sendBtn = screen.getByRole("button", { name: "Send message" });
+    await act(async () => {
+      fireEvent.click(sendBtn);
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Match Summary: Team A won by 10 runs."),
+      ).toBeInTheDocument();
+    });
+
+    const copyButtons = screen.getAllByRole("button", { name: "Copy message" });
+    expect(copyButtons.length).toBeGreaterThan(0);
+
+    await act(async () => {
+      fireEvent.click(copyButtons[0]);
+    });
+
+    expect(writeTextMock).toHaveBeenCalled();
   });
 });
