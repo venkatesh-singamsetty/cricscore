@@ -5,15 +5,27 @@ description: Use when changing authentication, authorization, database/API handl
 
 # CricScore Security Standards
 
-## Secrets and trust boundaries
+## 1. Secrets, Credentials & Git Hygiene
 
-- Never commit, print, or expose API keys, database URLs, access tokens, or populated local environment files. Use the existing `.env.local` and GitHub Environment secret flow; preserve `.gitignore` protections.
-- Terraform variables and Lambda environment values may be represented in Terraform state and deployment logs. Treat remote state, plan files, and CI output as sensitive; do not assume a `sensitive` variable is absent from state.
-- Keep secrets server-side. Do not pass credentials to the frontend, model prompts, MCP tool results, or error responses.
-- Verify authorization in trusted backend code and derive identity and roles from verified claims. Never trust client-supplied role flags, match IDs, or model-generated tool arguments without validation.
+- **Zero Secrets in Git or Logs**: Never commit, print, or expose `.env.local`, `TF_DATABASE_URL`, `OPENAI_API_KEY` / `LLM_API_KEY`, AWS credentials, or Cognito tokens. Keep `.gitignore` protections intact for `.env*`, `*.tfstate*`, `tfplan`, `__pycache__/`, `*.pyc`, and `apps/ml-engine/venv/`.
+- **State & Plan Sensitivity**: Terraform state (`terraform.tfstate`) and plan outputs (`tfplan`) contain sensitive environment variables. Never commit `tfplan` or print raw secret outputs.
+- **Server-Side Secret Isolation**: Database credentials and LLM API keys must remain strictly inside backend Lambda environment variables; never expose them to the React frontend, browser storage, or error payloads.
 
-## Secure implementation and checks
+## 2. Authentication, Authorization & Database Safety
 
-- Parameterize SQL values; constrain query permissions, execution time, and returned data. Validate request bodies, file uploads, and external API responses.
-- Preserve HTTPS, least-privilege IAM, environment separation, and safe error handling. Do not weaken controls to resolve a scanner finding without understanding and documenting the risk.
-- Run `./infra/scripts/validate_local.sh --skip-e2e` when appropriate. It runs GitLeaks, Checkov, and Trivy only when those tools are installed; report any skipped scans. CI scanner definitions are in `.github/workflows/ci.yml`.
+- **Verified Identity Only**: Enforce authorization in backend Lambdas (`match-api`, `score-update`, `chat-api`) using verified Cognito JWT claims or validated guest/scorer session rules. Never trust a client-supplied `isAdmin` flag without server-side verification for destructive operations (`delete_match`, `cleanup_matches_by_date`, rulebook upload).
+- **SQL Injection Prevention**: Always use parameterized queries (`$1, $2, ...`) with `pg.Pool`. In `chat-api` MCP `query_postgres`, enforce read-only `SELECT` validation, row limits, and query timeouts.
+- **Safe Error Handling**: Return structured HTTP 4xx/5xx JSON responses without leaking stack traces, connection strings, or internal schema details.
+
+## 3. Automated Security Scanners (Local & CI)
+
+- **Pre-Commit (`husky` + `lint-staged`)**: Runs `gitleaks protect --staged --redact` on every commit.
+- **Local Validation (`./infra/scripts/validate_local.sh`)**:
+  - `npm audit --audit-level=high` (Frontend & Backend)
+  - **Checkov** (`checkov -d infra/terraform/ --quiet`): IaC security scan (skip tags documented in `infra/terraform/`).
+  - **GitLeaks** (`gitleaks detect --source . -v`): Full repository commit history secret scan.
+  - **Trivy** (`trivy fs`): HIGH/CRITICAL vulnerability scan across `apps/frontend` and `apps/backend/lambdas`.
+  - **Syft** (`syft dir:. -o spdx-json > cricscore-sbom.json`): SBOM generation.
+- **GitHub Actions Security Gates (`.github/workflows/ci.yml` & `codeql.yml`)**:
+  - **CodeQL Static Analysis**: Fails or comments on PRs for unused variables, injection risks, or unsafe patterns. Always check `gh api repos/venkatesh-singamsetty/cricscore/pulls/<PR>/comments` after pushing.
+  - **OWASP ZAP Baseline DAST**: Runs against `dev` and `prod` after deployment using `.zap/rules.tsv`.

@@ -68,13 +68,12 @@ sequenceDiagram
 
 CricScore implements an **Event-Driven Architecture (EDA)** using serverless and managed services:
 
-- **Decoupled Fan-Out:** The score-update Lambda publishes to AWS SNS for spectator broadcasts and sends a separate message directly to AWS SQS for asynchronous persistence to Aiven PostgreSQL. The HTTP request waits for both sends to succeed.
-- **Asynchronous Broadcast:** An SNS-triggered broadcaster sends updates to connected spectators; delivery latency depends on service and network conditions.
-- **State Restoration:** Deep links load persisted match state by match UUID for scoreboard recovery.
-- **X-Ray Distributed Tracing:** AWS X-Ray tracing is enabled across the Lambda stack with a 5% fixed sampling rate and a one-request-per-second reservoir. Actual trace volume and cost depend on traffic and sampling behavior.
-- **Aiven TLS Configuration:** The chat API PostgreSQL pool currently disables certificate verification (`rejectUnauthorized: false`). Configure certificate verification with the Aiven CA rather than relying on this setting.
-- **UI Render Debouncing:** Synchronous `useRef` execution locks prevent React async state-drifts during rapid scoring bursts, enforcing exact chronological network sequences.
-- **Scoring Authorization:** Cognito JWTs protect scoring routes, with Lambda checks for match ownership or admin access where applicable. Public match-read routes expose match state to anyone with its UUID.
+- **Decoupled Fan-Out:** The `score-upd` Lambda publishes to AWS SNS for instant spectator broadcasts and enqueues a separate FIFO message into AWS SQS (`storage-buffer.fifo`) for ordered asynchronous persistence to Aiven PostgreSQL.
+- **Authoritative Cumulative State & Strike-Rotation Safety:** Every `POST /match/{id}/score` payload includes authoritative `explicitTotalRuns` and `explicitTotalWickets` alongside `ballData.batterName` (the batter who faced the delivery), ensuring both `storage-worker` and `LiveScoreboard` stay 100% synchronized across odd-run strike rotations, over completions, and `undo: true` rollbacks.
+- **WebSocket vs. Polling Recency Guard (`lastWsUpdateRef`):** `LiveScoreboard` suppresses background REST poll overwrites for 3 seconds after any WebSocket push so a lagging database read never reverts a live boundary or wicket.
+- **Idempotent Innings & Match Completion:** `POST /match/{id}/innings` uses `ON CONFLICT (match_id, inning_number) DO UPDATE`, and both `storage-worker` and `match-api` automatically resolve optimistic `inn2_<timestamp>` IDs to the canonical PostgreSQL `inning_id`.
+- **X-Ray Distributed Tracing:** AWS X-Ray active tracing is enabled across all Lambda functions with a 5% fixed sampling rate and a one-request-per-second reservoir (`infra/terraform/xray.tf`).
+- **Scoring Authorization:** Cognito JWTs protect scoring and admin routes at API Gateway, while `match-api` enforces per-resource ownership (`scorer_email`) or Cognito `Admin` group membership. Public match-read routes expose live scoreboards by match UUID.
 
 ---
 

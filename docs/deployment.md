@@ -206,13 +206,14 @@ GitHub secrets are **not** needed for local deploys. They are only used by Step 
 
 What happens afterwards:
 
-| Event          | Result                                                        |
-| -------------- | ------------------------------------------------------------- |
-| Open/update PR | Security checks, tests, build, Terraform validate. No deploy. |
-| Push to `main` | Deploys **Dev**, then E2E, AI evaluation and security scan.   |
-| Push tag `v*`  | Deploys **Prod**, then AI evaluation, E2E and security scan.  |
+| Event                       | Result                                                                                                          |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Open/update PR              | Security checks (GitLeaks, Checkov, Trivy, CodeQL), unit/component tests, build, Terraform validate. No deploy. |
+| Merge/Push to `main` (`CI`) | Deploys **Dev**, then runs AI evaluation, Playwright E2E against Dev, and OWASP ZAP baseline scan.              |
+| `CI` succeeds (`Release`)   | **Semantic Release** cuts the next `v*` tag, updates `docs/changelog.md`, and publishes GitHub Release notes.   |
+| Release published (`CD`)    | Deploys **Prod**, then runs AI evaluation, Playwright E2E against Prod, and OWASP ZAP scan.                     |
 
-Pushing a `v*` tag deploys Prod. Add required reviewers under GitHub → Settings → Environments → `prod` so it needs approval.
+Publishing a release (or pushing a `v*` tag) triggers **CD** for Prod. If you add required reviewers under **GitHub → Settings → Environments → `prod`**, GitHub Actions will pause `prod` jobs (such as `CD` and `Drift Check (prod)`) until you approve them.
 
 ---
 

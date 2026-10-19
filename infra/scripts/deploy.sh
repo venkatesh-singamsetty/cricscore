@@ -63,8 +63,9 @@ if [[ "$ENV_FILE" != "dev" && "$ENV_FILE" != "prod" ]]; then
   exit 1
 fi
 
-# If requested, load variables from local .env.local into the environment
-if [ "$USE_LOCAL_ENV" = true ]; then
+# Load variables from local .env.local when --use-local-env is passed,
+# or automatically when running locally without ZONE_DOMAIN in the environment.
+if [ "$USE_LOCAL_ENV" = true ] || { [ -z "${ZONE_DOMAIN:-}" ] && [ -f ".env.local" ]; }; then
   if [ -f ".env.local" ]; then
     echo "📥 Loading local environment from .env.local (only for this shell session)..."
     set -a

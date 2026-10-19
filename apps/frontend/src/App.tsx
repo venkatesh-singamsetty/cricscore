@@ -24,6 +24,7 @@ import {
   safeLocalStorageSet,
   safeSessionStorageGet,
   safeSessionStorageSet,
+  CHAT_MEMORY_KEY,
 } from "./utils/storageSafety";
 
 const MatchSetup = React.lazy(() => import("./components/MatchSetup"));
@@ -297,6 +298,7 @@ const App: React.FC = () => {
       console.log(
         `🔄 User changed from ${prevEmail} to ${currentEmail} — resetting match state`,
       );
+      safeLocalStorageRemove(CHAT_MEMORY_KEY);
       setMatchStatus(MatchStatus.SETUP);
       setMatchId(null);
       setTeamA(null);
@@ -384,6 +386,7 @@ const App: React.FC = () => {
         buildGuestCredentials();
       try {
         await signOut();
+        safeLocalStorageRemove(CHAT_MEMORY_KEY);
       } catch {
         // no active session
       }
@@ -1084,6 +1087,7 @@ const App: React.FC = () => {
   const handleSignOut = async () => {
     try {
       await signOut();
+      safeLocalStorageRemove(CHAT_MEMORY_KEY);
       setUserToken(null);
       setIsAdmin(false);
       setUserEmail(null);
@@ -1560,6 +1564,7 @@ const App: React.FC = () => {
                   setIsGuestScorer(false);
                   try {
                     await signOut();
+                    safeLocalStorageRemove(CHAT_MEMORY_KEY);
                   } catch (e) {}
                 }}
                 className="px-3 py-1.5 bg-indigo-500/10 text-indigo-300 hover:text-white border border-indigo-500/20 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors shadow-sm"

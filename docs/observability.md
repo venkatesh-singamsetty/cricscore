@@ -1,102 +1,154 @@
-# 🔭 Observability & Monitoring
+# 🔭 Observability & Monitoring Suite
 
-CricScore uses AWS and optional external observability services. Actual cost depends on account eligibility, region, configuration, and usage; see [cost_management.md](./cost_management.md).
-
-> [!NOTE]
-> The CloudWatch dashboard is not currently provisioned in Terraform. Check current AWS pricing and account eligibility before assuming any observability feature is free.
+CricScore combines zero-cost AWS telemetry (CloudWatch Logs, CloudWatch Metric Alarms, AWS X-Ray, and AWS Budgets) with optional client-side and edge monitoring (Sentry and UptimeRobot/BetterStack). For cost breakdown and free-tier guardrails, see [cost_management.md](./cost_management.md) and the auto-generated [aws_resources_dashboard.md](./aws_resources_dashboard.md).
 
 ---
 
-## 1. 📋 CloudWatch Logging
+## 🔄 End-to-End Telemetry & Alerting Flow
 
-Lambda functions write their standard output and error streams to CloudWatch Logs. The application determines the log message format; not all current messages are structured JSON.
+```mermaid
+flowchart LR
+    subgraph ClientAndEdge ["1. Browser & Edge"]
+        SPA["React SPA\n(Scorer / Viewer / Admin)"]
+        Sentry["Sentry SDK\n(Optional Browser Crash Reporting)"]
+        Uptime["External Uptime Monitor\n(HTTPS Ping Every 3–5m)"]
+    end
 
-- **What's logged**: Every Lambda invocation, error, duration, and cold start is streamed automatically.
-- **Log Groups**: One log group per Lambda, e.g. `/aws/lambda/cricscoredev-match-api`.
-- **Log Insights**: You can run SQL-like queries across all Lambda logs from the [CloudWatch Log Groups console](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups).
+    subgraph Serverless ["2. AWS Serverless Compute (9 Lambdas)"]
+        Critical["Critical Path Lambdas\n(match-api, score-upd)"]
+        Workers["Fan-Out & AI/ML Lambdas\n(broadcaster, storage-worker,\nchat-api, ml-predict, WS/Auth)"]
+    end
 
-**Example query to find all errors across all functions:**
+    subgraph AWSObservability ["3. AWS Telemetry & Alerting"]
+        CWLogs["CloudWatch Log Groups\n(7-Day Retention)"]
+        XRay["AWS X-Ray Tracer\n(1 req/s reservoir + 5% rate)"]
+        Alarms["CloudWatch Metric Alarms\n(match-api-errors, score-update-errors)"]
+        SNSAlert{{"AWS SNS Topic\n(lambda-alerts)"}}
+        Email(["📧 Admin Email Alert\n(var.admin_email)"])
+    end
+
+    SPA -.->|"Unhandled JS exceptions"| Sentry
+    Uptime -.->|"Health check"| SPA
+
+    Critical & Workers -->|"stdout / stderr"| CWLogs
+    Critical & Workers -.->|"Active tracing segments"| XRay
+    Critical -->|"Errors > 0 in 5m"| Alarms
+    Alarms --> SNSAlert --> Email
+```
+
+---
+
+## 1. 📋 CloudWatch Logging (7-Day Retention)
+
+Every Lambda function streams its `stdout` and `stderr` to a dedicated CloudWatch Log Group with a strict **7-day retention policy** (`retention_in_days = 7` in `infra/terraform/modules/zip_lambda/main.tf`) to prevent log storage cost creep.
+
+### Complete Lambda Log Group Inventory
+
+Replace `<prefix>` with `cricscoredev` (Dev) or `cricscore` (Prod):
+
+| Log Group                                | Source Lambda       | Key Events Logged                                                                   | Quick CLI Tail Command                                                     |
+| :--------------------------------------- | :------------------ | :---------------------------------------------------------------------------------- | :------------------------------------------------------------------------- |
+| `/aws/lambda/<prefix>-match-api`         | `match-api`         | Match creation, 2nd-innings upsert, completion sync, SES email, admin purges        | `aws logs tail /aws/lambda/cricscoredev-match-api --follow --format short` |
+| `/aws/lambda/<prefix>-score-upd`         | `score-upd`         | `STATE_SYNC` & `LIVE_SCORE_UPDATE` SNS publish IDs and SQS FIFO message IDs         | `aws logs tail /aws/lambda/cricscoredev-score-upd --follow --format short` |
+| `/aws/lambda/<prefix>-storage-worker`    | `storage-worker`    | SQS FIFO ball persistence, `explicitTotalRuns` updates, `undo: true` rollbacks      | `aws logs tail /aws/lambda/cricscoredev-storage-worker --follow`           |
+| `/aws/lambda/<prefix>-broadcaster`       | `broadcaster`       | DynamoDB connection count, WebSocket fan-out delivery, stale socket cleanup (`410`) | `aws logs tail /aws/lambda/cricscoredev-broadcaster --follow`              |
+| `/aws/lambda/<prefix>-chat-api`          | `chat-api`          | Agentic RAG queries, MCP tool calls (`execute_sql`, `search_rules`), AI summaries   | `aws logs tail /aws/lambda/cricscoredev-chat-api --follow`                 |
+| `/aws/lambda/<prefix>-ml-predict`        | `ml-predict`        | Hybrid Markov DP + DLS + Scikit-Learn win-probability inference requests            | `aws logs tail /aws/lambda/cricscoredev-ml-predict --follow`               |
+| `/aws/lambda/<prefix>-onconnect`         | `onconnect`         | New spectator WebSocket `connectionId` registration                                 | `aws logs tail /aws/lambda/cricscoredev-onconnect --follow`                |
+| `/aws/lambda/<prefix>-ondisconnect`      | `ondisconnect`      | Disconnected spectator WebSocket `connectionId` removal                             | `aws logs tail /aws/lambda/cricscoredev-ondisconnect --follow`             |
+| `/aws/lambda/<prefix>-cognito-presignup` | `cognito-presignup` | Guest (`guest-*@cricscore.local`) auto-confirmation vs. standard user sign-up       | `aws logs tail /aws/lambda/cricscoredev-cognito-presignup --follow`        |
+
+### Useful CloudWatch Logs Insights Queries
+
+Run these in the [CloudWatch Logs Insights console](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:logs-insights):
+
+**1. Find all errors or exceptions across selected Lambda log groups:**
 
 ```sql
-fields @timestamp, @message
-| filter @message like /ERROR/
+fields @timestamp, @logStream, @message
+| filter @message like /(?i)(ERROR|Exception|Task timed out)/
 | sort @timestamp desc
 | limit 50
+```
+
+**2. Inspect p50, p95, and p99 Lambda latency and cold-start overhead:**
+
+```sql
+filter @type = "REPORT"
+| stats count(*) as invocations,
+        pct(@duration, 50) as p50_ms,
+        pct(@duration, 95) as p95_ms,
+        pct(@duration, 99) as p99_ms,
+        count(@initDuration) as cold_starts
+  by bin(5m)
 ```
 
 ---
 
 ## 2. ⚡ AWS X-Ray Distributed Tracing
 
-Because CricScore uses an asynchronous **Fan-Out** architecture, a single user request triggers multiple AWS services. **AWS X-Ray** visually traces the exact path and latency of these requests.
+Because CricScore uses an asynchronous **Fan-Out** architecture (`score-upd` $\rightarrow$ SNS $\rightarrow$ `broadcaster` and `score-upd` $\rightarrow$ SQS FIFO $\rightarrow$ `storage-worker`), a single ball scored spans multiple AWS services. **AWS X-Ray** visually maps the service graph and per-hop latency.
 
-- **Sampling Rule** (`infra/terraform/xray.tf`): The rule uses a 5% fixed sampling rate and a one-request-per-second reservoir. The resulting trace volume depends on traffic and sampling behavior.
-- **Lambda tracing**: Active tracing is configured for the ZIP-based Lambda functions and the prediction Lambda.
+- **Sampling Rule** (`infra/terraform/xray.tf`): Configured with a **1 request/second reservoir** and a **5% fixed sampling rate** (`fixed_rate = 0.05`) to stay comfortably within the 100,000 free monthly traces.
+- **Active Tracing**: Enabled on all ZIP-based Node.js Lambdas (`modules/zip_lambda`) and the containerized `ml-predict` Lambda (`tracing_config { mode = "Active" }`).
 - **Console**: [X-Ray Service Map](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#xray:service-map/map) | [X-Ray Traces](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#xray:traces/query)
 
 ---
 
-## 3. 🛡️ CloudWatch Alarms & SNS Alerts
+## 3. 🛡️ CloudWatch Alarms & SNS Email Alerts
 
-CloudWatch Alarms actively monitor the critical Lambdas and fire email alerts on failure.
+CloudWatch Metric Alarms actively monitor the two highest-priority ingestion Lambdas (`infra/terraform/lambda.tf`) and fire real-time email alerts via SNS:
 
-- **Alarms provisioned**: Two CloudWatch alarms are configured. Check current pricing and account eligibility to determine charges.
-- **Alarms provisioned** (`infra/terraform/lambda.tf`):
-  - `match-api-errors` — fires if Match API Lambda error count > 0 in any 5-minute window.
-  - `score-update-errors` — fires if Score Update Lambda error count > 0 in any 5-minute window.
-- **Alert delivery**: An SNS topic (`lambda-alerts`) sends an emergency email to the admin (`var.admin_email`) when either alarm triggers.
+| Alarm Name                      | Monitored Function    | Metric & Window                     | Threshold    | Action                                           |
+| :------------------------------ | :-------------------- | :---------------------------------- | :----------- | :----------------------------------------------- |
+| `<project>-match-api-errors`    | `<project>-match-api` | `AWS/Lambda Errors` (`Sum`, `300s`) | `> 0 errors` | Publishes alert to `<project>-lambda-alerts` SNS |
+| `<project>-score-update-errors` | `<project>-score-upd` | `AWS/Lambda Errors` (`Sum`, `300s`) | `> 0 errors` | Publishes alert to `<project>-lambda-alerts` SNS |
+
+- **Alert Delivery**: `<project>-lambda-alerts` SNS topic sends an immediate notification email to `var.admin_email`.
+- **Billing Alert (`infra/terraform/budgets.tf`)**: In addition to operational error alarms, AWS Budgets monitors monthly spend and emails `var.admin_email` if actual costs reach **$5.00/month**.
 - **Console**: [CloudWatch Alarms](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#alarmsV2:)
 
 ---
 
 ## 4. 🐛 Frontend Crash Reporting — Sentry (Optional)
 
-While AWS monitors the backend, **Sentry** monitors the React UI on end-user devices. AWS CloudWatch has zero visibility into browser-side JavaScript crashes.
+While AWS CloudWatch monitors all backend Lambdas, **Sentry** captures unhandled React exceptions and network failures on end-user mobile/desktop browsers.
 
 > [!IMPORTANT]
-> Sentry is **optional** and requires manual setup. The frontend code already integrates it — you just need to provide a DSN.
+> Sentry is **optional** and requires no code changes—`apps/frontend/src/index.tsx` automatically initializes Sentry whenever `VITE_SENTRY_DSN` is present.
 
 **Setup:**
 
-1. Create a free account at [sentry.io](https://sentry.io/).
-2. Create a new **React** project. Sentry will give you a **DSN link**.
-3. Add the DSN to your GitHub Actions environment variables (or `.env.local`):
+1. Create a free account at [sentry.io](https://sentry.io/) and create a **React** project to obtain your **DSN**.
+2. Set `VITE_SENTRY_DSN` in `apps/frontend/.env` (or in your GitHub Environment variables):
    ```bash
    VITE_SENTRY_DSN=https://your-unique-key@o0.ingest.sentry.io/0
    ```
-4. The frontend (`apps/frontend/src/index.tsx`) automatically detects this variable and starts sending crash reports.
 
 ---
 
-## 5. ⏱️ Uptime Monitoring — External (Optional)
+## 5. ⏱️ External Uptime Monitoring (Optional)
 
-AWS Alarms can detect backend errors but cannot detect if your entire AWS region goes down or DNS fails. An external uptime monitor provides this independent check.
+CloudWatch Alarms detect Lambda execution errors, whereas an external uptime monitor independently verifies DNS resolution, ACM TLS certificates, and CloudFront edge availability from outside AWS:
 
-> [!NOTE]
-> This is **not provisioned in Terraform** — it requires a one-time manual setup on a free external service.
+- [UptimeRobot](https://uptimerobot.com/) — Free tier supports up to 50 HTTP(s) monitors at 5-minute intervals.
+- [BetterStack Uptime](https://betterstack.com/better-uptime) — Free tier supports 3-minute HTTP(s) checks with status pages.
 
-Check each provider's current plan limits and pricing:
+**Recommended Monitors:**
 
-- [UptimeRobot](https://uptimerobot.com/) — free for up to 50 monitors, 5-minute intervals.
-- [BetterStack Uptime](https://betterstack.com/better-uptime) — free tier with 3-minute intervals.
-
-**Setup (2 minutes):**
-
-1. Create a free account on either service.
-2. Add a new **HTTP(s) Monitor** pointing to your production URL:
-   - `https://<your-production-domain>`
-3. Set ping interval to **3–5 minutes**.
-4. Configure email/SMS alerts on downtime.
+1. **Frontend CDN**: `https://cricscore.venkateshsingamsetty.com` (and `https://cricscoredev.venkateshsingamsetty.com` for Dev)
+2. **REST API Health**: `https://api.cricscore.venkateshsingamsetty.com/matches` (expects `HTTP 200` JSON array)
 
 ---
 
-## 💸 What Was Removed & Why
+## 💸 Cost-First Observability Decisions
 
-| Resource                 | Monthly Cost    | Decision                                           |
-| ------------------------ | --------------- | -------------------------------------------------- |
-| **CloudWatch Dashboard** | Not provisioned | Not present in the current Terraform configuration |
-
-Other AWS observability resources may incur charges depending on usage and account eligibility. See [cost_management.md](./cost_management.md) for cost drivers.
+| Resource                          | Monthly Cost     | Engineering Decision                                                                                                                                    |
+| :-------------------------------- | :--------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **CloudWatch Dashboard**          | $3.00/dashboard  | **Not provisioned in Terraform.** Replaced by auto-generated [aws_resources_dashboard.md](./aws_resources_dashboard.md) with direct console deep-links. |
+| **CloudWatch Log Retention**      | $0.03/GB/month   | **Capped at 7 days (`retention_in_days = 7`)** on every Lambda log group to keep storage within free tier.                                              |
+| **CloudWatch Metric Alarms (2x)** | $0.00 (≤10 free) | Provisioned only for `match-api` and `score-upd` critical paths.                                                                                        |
+| **AWS X-Ray Tracing**             | $0.00 (≤100k/mo) | Throttled to 1 req/sec reservoir + 5% sampling rate (`infra/terraform/xray.tf`).                                                                        |
 
 ---
 

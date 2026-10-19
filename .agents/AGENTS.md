@@ -1,14 +1,44 @@
-## Deployment and Development Workflow
+# CricScore Engineering Constitution & Agent Rules
 
-- Never push directly to main branch. Always create a feature/fix branch and open a Pull Request.
-- Always fetch and merge `origin/main` (`git fetch origin main && git merge origin/main`) into the feature/fix branch before pushing or opening/updating a Pull Request so the branch is never out-of-date with `main`.
-- Never push to github repo without running local validations and tests first (`./infra/scripts/validate_local.sh`). Never test in GitHub Actions by trial-and-error when it can be verified locally.
-- Always deploy from local to dev and test first.
-- Always add tests and update documentation for the features added and issues addressed at the time they are made.
+## 1. Mandatory Skill Activation
 
-## Cloud Cost & Infrastructure Governance
+- **Always Load Matching Skills First**: Before modifying code, infrastructure, tests, deploying, or opening/updating a Pull Request—including immediately after conversation context compaction—you **MUST** call `view_file` on the relevant `.agents/skills/*/SKILL.md` file(s) and follow their checklists:
+  - PRs, Git & CI/CD: `cricscore-pr-and-workflow`
+  - Infrastructure & Local/Prod Deployments: `cricscore-infrastructure-standards`
+  - Code Review & Quality: `cricscore-code-review-standards`
+  - Testing (Unit, Component, ML, E2E): `cricscore-testing-standards`
+  - Security & Scanners: `cricscore-security-standards`
+  - Cloud Cost Governance: `cricscore-cost-governance`
+  - Frontend (React, Live Score, DLS): `cricscore-frontend-architecture`
+  - Backend (Lambdas, WebSockets, Postgres): `cricscore-backend-architecture`
+  - MLOps (Win Probability DP+DLS, Docker): `cricscore-mlops-standards`
+  - Agentic RAG & MCP (`chat-api`): `cricscore-agentic-rag-architecture`
+  - Database Schema & Migrations: `cricscore-database-migrations`
 
-- **Never create paid/expensive AWS resources**: Strictly forbid creating NAT Gateways (~$32/mo), KMS Customer Keys ($1/mo), CloudWatch Dashboards ($3/mo), Secrets Manager ($0.40/mo), or Provisioned Capacity.
-- Keep Lambda timeouts bounded (max 10-15s) and CloudWatch log retention capped at 7 days to prevent runaway AWS costs.
-- Use SSM Parameter Store (free standard tier) instead of Secrets Manager for non-sensitive configurations.
-- Always reuse database connection pools (`pg.Pool`) across Lambda invocations to avoid PostgreSQL connection leaks.
+## 2. Foolproof Local Deployment Rules (`.env.local`)
+
+- **Always pass `--use-local-env` to `deploy.sh`**:
+  - Pre-flight check: `./infra/scripts/deploy.sh --env dev --use-local-env --check`
+  - Deploy to `dev`: `./infra/scripts/deploy.sh --env dev --use-local-env` (add `--migrate` if DB migrations changed)
+  - Deploy to `prod` (only when requested after `dev` is verified): `./infra/scripts/deploy.sh --env prod --use-local-env`
+- **Never mix `dev` and `prod` state or `.env` files**:
+  - `deploy.sh` reconfigures `infra/terraform/.terraform` to `cricscore/<env>/terraform.tfstate` and overwrites `apps/frontend/.env` with that environment's URLs (`cricscoredev` vs `cricscore`). Never run manual `npm run build` + `aws s3 sync` without verifying `apps/frontend/.env` matches the target environment, and never commit `apps/frontend/.env`.
+- **Keep AWS Provider `!= 6.69.0`**: Because `deploy.sh` runs `terraform init -reconfigure -upgrade`, always keep `version = "~> 6.0, != 6.69.0"` in `infra/terraform/providers.tf` so Lambda updates never fail with `bufio.Scanner: token too long`.
+
+## 3. Git, Pull Request & CI/CD Workflow
+
+- **Never push directly to `main`**: Always work on a `feat/*` or `fix/*` branch and open a Pull Request.
+- **Always sync with `origin/main` before pushing**: Run `git fetch origin main && git merge origin/main` before pushing or opening/updating a PR so the branch is never out-of-date with `main`.
+- **Validate locally before pushing**: Always run `./infra/scripts/validate_local.sh` (and `./apps/ml-engine/venv/bin/pytest apps/ml-engine/test_predict.py` for ML changes) locally before pushing. Never use GitHub Actions for trial-and-error debugging.
+- **Post-PR Check & CodeQL Resolution**: After pushing or opening a PR, inspect GitHub Actions status (`gh pr checks`) and inline review/CodeQL comments (`gh api repos/venkatesh-singamsetty/cricscore/pulls/<PR>/comments`) and resolve any findings immediately.
+
+## 4. Testing & Documentation Completeness
+
+- **Tests with every change**: Every feature or bug fix must include unit/component tests (`apps/frontend/src/test/`, `apps/backend/lambdas/`, `apps/ml-engine/test_predict.py`). If UI labels, buttons, or flows in `MatchSetup`, `MatchView`, or `App` change, update and run Playwright E2E (`apps/e2e`) against `dev` so CI never hangs or fails.
+- **Documentation with every change**: Always update `docs/changelog.md`, `docs/testing.md`, and relevant architecture tutorials (`docs/mlops_tutorial.md`, `docs/websocket_tutorial.md`, `docs/deployment.md`) in the same PR.
+
+## 5. Cloud Cost, Security & Code Hygiene
+
+- **Strictly forbidden paid AWS resources**: Never create NAT Gateways (~$32/mo), KMS Customer-Managed Keys ($1/mo), CloudWatch Dashboards ($3/mo), AWS Secrets Manager ($0.40/mo), or DynamoDB Provisioned Capacity.
+- **Bounded compute, logs & DB pooling**: Keep Lambda timeouts bounded (10–15s max; 30s max for `chat-api`), CloudWatch log retention capped at 7 days (`retention_in_days = 7`), and reuse `pg.Pool` across warm Lambda invocations.
+- **Zero secret leaks & CodeQL clean**: Never commit, print, or expose `.env.local`, API keys, DB URLs, or binary caches (`__pycache__/`, `*.pyc`, `venv/`). Remove unused variables/imports and enforce parameterized SQL queries and server-side Cognito/role authorization.

@@ -169,4 +169,33 @@ describe("ChatComponent", () => {
 
     expect(writeTextMock).toHaveBeenCalled();
   });
+
+  it("clears chat memory from localStorage when New Chat button is clicked", async () => {
+    localStorage.setItem(
+      "cricscore-chat-memory",
+      JSON.stringify([
+        { role: "user", content: "Previous question" },
+        { role: "assistant", content: "Previous answer" },
+      ]),
+    );
+
+    render(
+      <ChatComponent
+        matchId={null}
+        apiUrl="https://api.test.com"
+        setAlertMessage={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Previous question")).toBeInTheDocument();
+    expect(screen.getByText("Previous answer")).toBeInTheDocument();
+
+    const newChatBtn = screen.getByRole("button", { name: /New Chat/i });
+    await act(async () => {
+      fireEvent.click(newChatBtn);
+    });
+
+    expect(screen.queryByText("Previous question")).not.toBeInTheDocument();
+    expect(screen.getByText("CricScore AI Assistant")).toBeInTheDocument();
+  });
 });
