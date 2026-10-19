@@ -7,8 +7,9 @@ This directory contains the Zero-Cost MLOps pipeline for the CricScore live win 
 - `data/` - Location for processed datasets. The `data_pipeline.py` extracts Cricsheet JSONs here. (Ignored by git).
 - `data_pipeline.py` - Fetches historical T20 data from Cricsheet and extracts ball-by-ball dynamic features into `live_data.csv`.
 - `live_train.py` - Script to train the live win predictor model on dynamic variables (`runs`, `wickets`, `balls_left`) and output `live_win_predictor_model.joblib`.
-- `predict.py` - Serverless AWS Lambda handler that loads the joblib model from disk to serve live predictions.
-- `Dockerfile` - Containerizes the model and `predict.py` for deployment to AWS ECR.
+- `predict.py` - Serverless AWS Lambda handler that blends exact ball-by-ball dynamic-programming win probability (`win_probability.py`) with the T20-trained model so predictions are calibrated across any match length (1 to 20 overs).
+- `win_probability.py` - Format-agnostic ball-by-ball dynamic-programming win-probability engine (1–20 overs) accounting for required run rate, wickets remaining, and match length.
+- `Dockerfile` - Containerizes the model, `predict.py`, and `win_probability.py` for deployment to AWS ECR.
 - `requirements.txt` - Python dependencies for the ML engine.
 
 ## 🚀 How to Train Locally

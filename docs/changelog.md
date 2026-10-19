@@ -1,228 +1,254 @@
+## [4.11.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.10.2...v4.11.0) (2026-10-18)
+
+### 🚀 Features
+
+- **ui:** comprehensive responsive & ergonomics overhaul across Match Hub, Scorer console, Chat Bot, and Match Ops
+  - **Global Navigation:** sticky top bar with backdrop blur and safe-area insets; simplified tab to "VIEWER 🌍"; direct seamless transition to Scorer with prominent "Sign in to access match scoring" banner
+  - **Naming & Headers:** standardized viewer hub header to "MATCH HUB" and admin control center to "MATCH OPS"
+  - **Design System & Palette:** electric green live indicators (#10B981), crimson red wicket and destructive buttons (#EF4444), amber gold extras and RRR highlights (#F59E0B), gradient indigo/purple CTAs
+  - **Chat Interface & Safeguards:** copy message button with checkmark swap and toast notification; interactive suggestion chips; empty state graphic; enhanced voice toggle state; restrict chatbot deletion tools strictly to guest data and incomplete matches, disallowing bulk all-match deletions outside Match Ops
+  - **Scorer Ergonomics & Layout Polish:** enlarged circular strike-swap button (40x40px); 44px minimum touch targets with active press feedback (`active:scale-95`); centered and enlarged 2nd-innings target equation (`🎯 X OFF Y`) beneath `Scorecard 📋`; eliminated desktop vertical gap above the Undo/action tabs row; auto-end 1st innings on the final ball with inline `Undo Last Ball` (reconstructing state from `allBalls` even after page refresh) and highlighted `Proceed to 2nd Innings` actions when returning to the 1st innings; 1st innings stats on break; victory celebration banner and native mobile share sheet integration; real-time DLS Par Score integrated directly into Scorer console during 2nd innings and enhanced in LiveScoreboard; standardized sign-in desktop width to 580px with edge-to-edge alignment and pixel-locked row alignment across Header, Dashboard, and Operations Cockpit
+  - **ML Win Prediction & DLS (1–20 Overs):** instant 50-50 baseline on match start; format-agnostic ball-by-ball dynamic-programming win-probability engine (`win_probability.py`) blended with DLS resource parity on achievable chases (`<= 2.3` to `3.0` runs/ball) and with the T20 model on longer matches (`> 10` overs) so 1-over to 20-over matches align with DLS Par and never falsely jump to 0%/100% while live; normalized Duckworth-Lewis-Stern (DLS) resource curves relative to `totalMatchOvers` for accurate par scores across any match length
+  - **Match Ops & Safeguards:** flattened nested panels for full-width mobile cards; explicit confirmation modals with typed "DELETE" safety unlock for destructive bulk purges; registered users default to SCORER role and guest accounts to VIEWER
+
+### 🐛 Bug Fixes
+
+- **live-score:** fix strike-rotation batter attribution in `LiveScoreboard.tsx` where odd-run deliveries or over completions copied the previous striker's cumulative runs (`payload.runs`) onto the new striker (`payload.strikerName`), inflating viewer totals (e.g. `24/0` instead of `14/0`)
+- **live-score:** replace permanent `Math.max(inn.totalRuns, old.totalRuns)` poll ratchet in `LiveScoreboard.tsx` with a 3-second WebSocket recency window so DB polls and `undo` events reconcile accurately
+- **storage-worker:** fix destructuring mismatch (`explicitTotalRuns` / `explicitTotalWickets`) in `storage-worker/index.js` where Step 1 `UPDATE innings` ran before Step 4 `UPDATE players` with `$6 = null`, causing Ball 1 to persist `0` runs in PostgreSQL and jump on Ball 2
+- **storage-worker & match-api:** allow `undo: true` to decrease `innings.total_runs` and `matches` scores; resolve optimistic `inn2_...` IDs to the real PostgreSQL UUID; make `POST /match/{id}/innings` idempotent via `ON CONFLICT (match_id, inning_number) DO UPDATE`
+- **infra:** fix environment naming concatenation bug where `PROJECT_NAME=cricscoredev` created redundant `cricscoredevdev` domain and AWS resources
+- **infra:** add Docker push trigger dependency to `null_resource.docker_build_push` in Terraform to prevent Lambda creation race conditions
+
+### 🧪 Tests
+
+- **frontend, backend & ml:** add regression unit and component tests in `LiveScoreboard.test.tsx`, `MatchView.test.tsx`, `AiMatchPrediction.test.tsx`, `ChatComponent.test.tsx`, `applyLiveScoreToMatches.test.ts`, `dlsUtils.test.ts`, `storage-worker/index.test.js`, `match-api/index.test.js`, and `apps/ml-engine/test_predict.py`
+
 ## [4.10.2](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.10.1...v4.10.2) (2026-10-14)
 
 ### 🐛 Bug Fixes
 
-* **viewer:** stop live score flicker and bogus win prediction ([#254](https://github.com/venkatesh-singamsetty/cricscore/issues/254)) ([6a62a54](https://github.com/venkatesh-singamsetty/cricscore/commit/6a62a54ebac040e393f088e33b8a407fcef7837d))
+- **viewer:** stop live score flicker and bogus win prediction ([#254](https://github.com/venkatesh-singamsetty/cricscore/issues/254)) ([6a62a54](https://github.com/venkatesh-singamsetty/cricscore/commit/6a62a54ebac040e393f088e33b8a407fcef7837d))
 
 ## [4.10.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.10.0...v4.10.1) (2026-10-14)
 
 ### 🐛 Bug Fixes
 
-* **ci:** trigger production CD on published releases ([#253](https://github.com/venkatesh-singamsetty/cricscore/issues/253)) ([2cfa678](https://github.com/venkatesh-singamsetty/cricscore/commit/2cfa6782ce8c348d85b62d97d4d37c99d694e689))
+- **ci:** trigger production CD on published releases ([#253](https://github.com/venkatesh-singamsetty/cricscore/issues/253)) ([2cfa678](https://github.com/venkatesh-singamsetty/cricscore/commit/2cfa6782ce8c348d85b62d97d4d37c99d694e689))
 
 ## [4.10.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.9.0...v4.10.0) (2026-10-14)
 
 ### 🚀 Features
 
-* **ui:** refine layouts, fix chat scroll, and guest mode bugs ([bd05e04](https://github.com/venkatesh-singamsetty/cricscore/commit/bd05e0465c0d58321e0f9f079c5ea48c240aa19e))
+- **ui:** refine layouts, fix chat scroll, and guest mode bugs ([bd05e04](https://github.com/venkatesh-singamsetty/cricscore/commit/bd05e0465c0d58321e0f9f079c5ea48c240aa19e))
 
 ## [4.9.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.8.2...v4.9.0) (2026-10-04)
 
 ### 🚀 Features
 
-* **frontend:** integrate live Duckworth-Lewis-Stern (DLS) Par Score calculation into LiveScoreboard header ([5302abc](https://github.com/venkatesh-singamsetty/cricscore/commit/5302abc963402a5f5325af2678d7ef319bc92033))
-* **ui:** update AI prediction bar colors to vibrant emerald and rose ([a21067f](https://github.com/venkatesh-singamsetty/cricscore/commit/a21067f6414aec15064d5a5b4e586f0f1754e6e4))
-* **ui:** update prediction bar to colorblind-safe cyan and amber ([5e8753a](https://github.com/venkatesh-singamsetty/cricscore/commit/5e8753a71211134cb36637ad98821261be47b362))
-* **ui:** update scoring buttons to use premium glowing color palette ([28fdad1](https://github.com/venkatesh-singamsetty/cricscore/commit/28fdad1d8f696ee854a0bca4035d4417c3b0f80a))
+- **frontend:** integrate live Duckworth-Lewis-Stern (DLS) Par Score calculation into LiveScoreboard header ([5302abc](https://github.com/venkatesh-singamsetty/cricscore/commit/5302abc963402a5f5325af2678d7ef319bc92033))
+- **ui:** update AI prediction bar colors to vibrant emerald and rose ([a21067f](https://github.com/venkatesh-singamsetty/cricscore/commit/a21067f6414aec15064d5a5b4e586f0f1754e6e4))
+- **ui:** update prediction bar to colorblind-safe cyan and amber ([5e8753a](https://github.com/venkatesh-singamsetty/cricscore/commit/5e8753a71211134cb36637ad98821261be47b362))
+- **ui:** update scoring buttons to use premium glowing color palette ([28fdad1](https://github.com/venkatesh-singamsetty/cricscore/commit/28fdad1d8f696ee854a0bca4035d4417c3b0f80a))
 
 ### 🐛 Bug Fixes
 
-* disable docker buildkit provenance for aws lambda compatibility ([9f81d3e](https://github.com/venkatesh-singamsetty/cricscore/commit/9f81d3ed3d071a8306221a9f55e3ab7cd8f5d3c4))
-* **frontend:** dynamically pass batting/bowling teams to ML predictor and correct impossible chase win probabilities ([36e72ee](https://github.com/venkatesh-singamsetty/cricscore/commit/36e72eea418628ebd3485ac187def9684f5b03db))
-* **ml-engine:** calibrate par-RPO scaling for 1-over match win probabilities ([b0d086b](https://github.com/venkatesh-singamsetty/cricscore/commit/b0d086b1966dbc5c2c5ec6edc609e2bae703ba30))
-* **ml-engine:** enforce 50-50 win probability baseline at start of match ([fb541f9](https://github.com/venkatesh-singamsetty/cricscore/commit/fb541f90b57281dc9bc1174b6072af4a13394489))
-* **ml-engine:** enforce match_overs dynamic scaling for 1 to 20 overs matches ([388bbba](https://github.com/venkatesh-singamsetty/cricscore/commit/388bbbaac6356a8a108dd6a21e9c645a5cc999e6))
-* **ml-engine:** scale 2nd innings target_score and current_score for shortened matches ([a584767](https://github.com/venkatesh-singamsetty/cricscore/commit/a5847674decff3f9518083687fef706cfac7eb43))
+- disable docker buildkit provenance for aws lambda compatibility ([9f81d3e](https://github.com/venkatesh-singamsetty/cricscore/commit/9f81d3ed3d071a8306221a9f55e3ab7cd8f5d3c4))
+- **frontend:** dynamically pass batting/bowling teams to ML predictor and correct impossible chase win probabilities ([36e72ee](https://github.com/venkatesh-singamsetty/cricscore/commit/36e72eea418628ebd3485ac187def9684f5b03db))
+- **ml-engine:** calibrate par-RPO scaling for 1-over match win probabilities ([b0d086b](https://github.com/venkatesh-singamsetty/cricscore/commit/b0d086b1966dbc5c2c5ec6edc609e2bae703ba30))
+- **ml-engine:** enforce 50-50 win probability baseline at start of match ([fb541f9](https://github.com/venkatesh-singamsetty/cricscore/commit/fb541f90b57281dc9bc1174b6072af4a13394489))
+- **ml-engine:** enforce match_overs dynamic scaling for 1 to 20 overs matches ([388bbba](https://github.com/venkatesh-singamsetty/cricscore/commit/388bbbaac6356a8a108dd6a21e9c645a5cc999e6))
+- **ml-engine:** scale 2nd innings target_score and current_score for shortened matches ([a584767](https://github.com/venkatesh-singamsetty/cricscore/commit/a5847674decff3f9518083687fef706cfac7eb43))
 
 ### 📚 Documentation
 
-* add AI agent skill for maintaining the cheatsheet ([bc93a47](https://github.com/venkatesh-singamsetty/cricscore/commit/bc93a4777fbeaa6e8b0d061e3919a89dd96fd41e))
-* add aws configure to initial setup instructions ([a5b2cac](https://github.com/venkatesh-singamsetty/cricscore/commit/a5b2cac3c84ee9609aec9b682b9ca6df128884b4))
-* add cheatsheet maintenance skill to AI assistant rules ([10f0fa6](https://github.com/venkatesh-singamsetty/cricscore/commit/10f0fa6b97eef36448d42cf7bfbdcb891b17d275))
-* add comprehensive specification for ML win prediction scaling and DLS par score calculations ([a321471](https://github.com/venkatesh-singamsetty/cricscore/commit/a3214719416c4d0b404ea74f741481b168692ffd))
-* add database connection limit troubleshooting commands ([a2ce416](https://github.com/venkatesh-singamsetty/cricscore/commit/a2ce416b7d64589efebfbd56aa177951ee1732cb))
-* add mlops_ prefix to prediction and DLS specification files ([b3329e5](https://github.com/venkatesh-singamsetty/cricscore/commit/b3329e5275f29be03d9e749d74d5ea38109b0d74))
-* add SQS messaging troubleshooting commands ([6082241](https://github.com/venkatesh-singamsetty/cricscore/commit/608224160dfd6d917f6e53846a7938976b0170ae))
-* add wicket sensitivity analysis section to ml_and_dls_spec.md ([d86cd89](https://github.com/venkatesh-singamsetty/cricscore/commit/d86cd893786e88bd0408ddfdf138ffa2ea91d38b))
-* consolidate MLOps specs and deployment checklist into single-source docs ([6f6a1a7](https://github.com/venkatesh-singamsetty/cricscore/commit/6f6a1a7b50b945c245fa425132b34e46f0a4d831))
-* correct local validation script path in AGENTS.md rules ([7c3768c](https://github.com/venkatesh-singamsetty/cricscore/commit/7c3768c26d1001e0aaf37356f77c8e7aeaea5fe4))
-* correct number of agent skills in README ([6560493](https://github.com/venkatesh-singamsetty/cricscore/commit/65604932a5a6aa84e94259d9ce341a02d545b921))
-* create CHEATSHEET.md and add python3 to setup.sh ([952caf8](https://github.com/venkatesh-singamsetty/cricscore/commit/952caf895cc187f9b17c734f9be981d79a4da89a))
-* cross-link mlops_win_prediction_spec.md and mlops_dls_spec.md across README, mlops_tutorial, and ai_architecture ([f555db1](https://github.com/venkatesh-singamsetty/cricscore/commit/f555db1d80cffd03291ec198f864d82fab966afe))
-* document ML engine fixes for 1-over matches, team alignment, 50-50 baseline, and impossible chase overrides ([56cbbd1](https://github.com/venkatesh-singamsetty/cricscore/commit/56cbbd1775d8d3444822f1048ada8a1de52fcd04))
-* expand cheatsheet to cover full e2e developer lifecycle and expert troubleshooting ([e7dec66](https://github.com/venkatesh-singamsetty/cricscore/commit/e7dec667e74fc8876370eb9610cdb45415b62937))
-* **ml-engine:** link mlops_win_prediction_spec.md and mlops_dls_spec.md in ml-engine README ([d1f98dc](https://github.com/venkatesh-singamsetty/cricscore/commit/d1f98dc00068382b642d76c06334a8fba41c3dc1))
-* replace stale pre-push-check.sh references with validate_local.sh ([23b4a19](https://github.com/venkatesh-singamsetty/cricscore/commit/23b4a19e0eda8b2ed5de1ee212c10ab9d8f0415f))
-* separate prediction engine spec into win_prediction_spec.md and DLS spec into dls_spec.md ([f6793ac](https://github.com/venkatesh-singamsetty/cricscore/commit/f6793acae18d077e0ca38145c98ba8109fdca714))
-* update testing strategy documentation with frontend DLS unit tests and ML PyTest suite locations ([89f5824](https://github.com/venkatesh-singamsetty/cricscore/commit/89f5824da01f8dc2a9eefb598751548f8c252f16))
+- add AI agent skill for maintaining the cheatsheet ([bc93a47](https://github.com/venkatesh-singamsetty/cricscore/commit/bc93a4777fbeaa6e8b0d061e3919a89dd96fd41e))
+- add aws configure to initial setup instructions ([a5b2cac](https://github.com/venkatesh-singamsetty/cricscore/commit/a5b2cac3c84ee9609aec9b682b9ca6df128884b4))
+- add cheatsheet maintenance skill to AI assistant rules ([10f0fa6](https://github.com/venkatesh-singamsetty/cricscore/commit/10f0fa6b97eef36448d42cf7bfbdcb891b17d275))
+- add comprehensive specification for ML win prediction scaling and DLS par score calculations ([a321471](https://github.com/venkatesh-singamsetty/cricscore/commit/a3214719416c4d0b404ea74f741481b168692ffd))
+- add database connection limit troubleshooting commands ([a2ce416](https://github.com/venkatesh-singamsetty/cricscore/commit/a2ce416b7d64589efebfbd56aa177951ee1732cb))
+- add mlops_ prefix to prediction and DLS specification files ([b3329e5](https://github.com/venkatesh-singamsetty/cricscore/commit/b3329e5275f29be03d9e749d74d5ea38109b0d74))
+- add SQS messaging troubleshooting commands ([6082241](https://github.com/venkatesh-singamsetty/cricscore/commit/608224160dfd6d917f6e53846a7938976b0170ae))
+- add wicket sensitivity analysis section to ml_and_dls_spec.md ([d86cd89](https://github.com/venkatesh-singamsetty/cricscore/commit/d86cd893786e88bd0408ddfdf138ffa2ea91d38b))
+- consolidate MLOps specs and deployment checklist into single-source docs ([6f6a1a7](https://github.com/venkatesh-singamsetty/cricscore/commit/6f6a1a7b50b945c245fa425132b34e46f0a4d831))
+- correct local validation script path in AGENTS.md rules ([7c3768c](https://github.com/venkatesh-singamsetty/cricscore/commit/7c3768c26d1001e0aaf37356f77c8e7aeaea5fe4))
+- correct number of agent skills in README ([6560493](https://github.com/venkatesh-singamsetty/cricscore/commit/65604932a5a6aa84e94259d9ce341a02d545b921))
+- create CHEATSHEET.md and add python3 to setup.sh ([952caf8](https://github.com/venkatesh-singamsetty/cricscore/commit/952caf895cc187f9b17c734f9be981d79a4da89a))
+- cross-link mlops_win_prediction_spec.md and mlops_dls_spec.md across README, mlops_tutorial, and ai_architecture ([f555db1](https://github.com/venkatesh-singamsetty/cricscore/commit/f555db1d80cffd03291ec198f864d82fab966afe))
+- document ML engine fixes for 1-over matches, team alignment, 50-50 baseline, and impossible chase overrides ([56cbbd1](https://github.com/venkatesh-singamsetty/cricscore/commit/56cbbd1775d8d3444822f1048ada8a1de52fcd04))
+- expand cheatsheet to cover full e2e developer lifecycle and expert troubleshooting ([e7dec66](https://github.com/venkatesh-singamsetty/cricscore/commit/e7dec667e74fc8876370eb9610cdb45415b62937))
+- **ml-engine:** link mlops_win_prediction_spec.md and mlops_dls_spec.md in ml-engine README ([d1f98dc](https://github.com/venkatesh-singamsetty/cricscore/commit/d1f98dc00068382b642d76c06334a8fba41c3dc1))
+- replace stale pre-push-check.sh references with validate_local.sh ([23b4a19](https://github.com/venkatesh-singamsetty/cricscore/commit/23b4a19e0eda8b2ed5de1ee212c10ab9d8f0415f))
+- separate prediction engine spec into win_prediction_spec.md and DLS spec into dls_spec.md ([f6793ac](https://github.com/venkatesh-singamsetty/cricscore/commit/f6793acae18d077e0ca38145c98ba8109fdca714))
+- update testing strategy documentation with frontend DLS unit tests and ML PyTest suite locations ([89f5824](https://github.com/venkatesh-singamsetty/cricscore/commit/89f5824da01f8dc2a9eefb598751548f8c252f16))
 
 ### 🧪 Tests
 
-* **frontend:** add unit tests for DLS par score utility with 100% test pass rate ([954a238](https://github.com/venkatesh-singamsetty/cricscore/commit/954a238045ba03f8cbd45d2e0ee854b7ce5aca10))
+- **frontend:** add unit tests for DLS par score utility with 100% test pass rate ([954a238](https://github.com/venkatesh-singamsetty/cricscore/commit/954a238045ba03f8cbd45d2e0ee854b7ce5aca10))
 
 ## [4.8.2](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.8.1...v4.8.2) (2026-10-04)
 
 ### 🐛 Bug Fixes
 
-* Force ML Lambda Deployment ([#237](https://github.com/venkatesh-singamsetty/cricscore/issues/237)) ([a1a75f7](https://github.com/venkatesh-singamsetty/cricscore/commit/a1a75f7ff1a72164f436025d0fcba4ab6a1bb33d))
-* OOD ML Prediction for Shortened Matches ([#238](https://github.com/venkatesh-singamsetty/cricscore/issues/238)) ([ce478af](https://github.com/venkatesh-singamsetty/cricscore/commit/ce478afa8e51759edf1812a0cf0884b251e1e744))
+- Force ML Lambda Deployment ([#237](https://github.com/venkatesh-singamsetty/cricscore/issues/237)) ([a1a75f7](https://github.com/venkatesh-singamsetty/cricscore/commit/a1a75f7ff1a72164f436025d0fcba4ab6a1bb33d))
+- OOD ML Prediction for Shortened Matches ([#238](https://github.com/venkatesh-singamsetty/cricscore/issues/238)) ([ce478af](https://github.com/venkatesh-singamsetty/cricscore/commit/ce478afa8e51759edf1812a0cf0884b251e1e744))
 
 ## [4.8.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.8.0...v4.8.1) (2026-10-04)
 
 ### 🐛 Bug Fixes
 
-* override ML prediction for mathematically impossible chases ([#236](https://github.com/venkatesh-singamsetty/cricscore/issues/236)) ([a0754c4](https://github.com/venkatesh-singamsetty/cricscore/commit/a0754c4eb12c607a7b09ce1c13b27abe5af46e5d))
+- override ML prediction for mathematically impossible chases ([#236](https://github.com/venkatesh-singamsetty/cricscore/issues/236)) ([a0754c4](https://github.com/venkatesh-singamsetty/cricscore/commit/a0754c4eb12c607a7b09ce1c13b27abe5af46e5d))
 
 ## [4.8.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.7.1...v4.8.0) (2026-10-04)
 
 ### 🚀 Features
 
-* Enterprise-grade infrastructure protections & AI Governance ([#234](https://github.com/venkatesh-singamsetty/cricscore/issues/234)) ([5a6ee72](https://github.com/venkatesh-singamsetty/cricscore/commit/5a6ee72e173d581d1891bbf8a345a7aa9acc629c))
+- Enterprise-grade infrastructure protections & AI Governance ([#234](https://github.com/venkatesh-singamsetty/cricscore/issues/234)) ([5a6ee72](https://github.com/venkatesh-singamsetty/cricscore/commit/5a6ee72e173d581d1891bbf8a345a7aa9acc629c))
 
 ### 🐛 Bug Fixes
 
-* Remove explicit reserved concurrency to respect AWS Sandbox limits ([#235](https://github.com/venkatesh-singamsetty/cricscore/issues/235)) ([f1e2a5a](https://github.com/venkatesh-singamsetty/cricscore/commit/f1e2a5a0839b37ea6700ff038efbf96fc8252d21))
+- Remove explicit reserved concurrency to respect AWS Sandbox limits ([#235](https://github.com/venkatesh-singamsetty/cricscore/issues/235)) ([f1e2a5a](https://github.com/venkatesh-singamsetty/cricscore/commit/f1e2a5a0839b37ea6700ff038efbf96fc8252d21))
 
 ## [4.7.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.7.0...v4.7.1) (2026-10-04)
 
 ### 🐛 Bug Fixes
 
-* add heuristic override for mathematically impossible chases ([dcb1c3e](https://github.com/venkatesh-singamsetty/cricscore/commit/dcb1c3ecf48b8fc2eafbaeaf39acc4ce2edc892c))
+- add heuristic override for mathematically impossible chases ([dcb1c3e](https://github.com/venkatesh-singamsetty/cricscore/commit/dcb1c3ecf48b8fc2eafbaeaf39acc4ce2edc892c))
 
 ## [4.7.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.6.1...v4.7.0) (2026-10-04)
 
 ### 🚀 Features
 
-* Add live ball-by-ball score prediction model ([787293d](https://github.com/venkatesh-singamsetty/cricscore/commit/787293db6a8b7c646c5a20c58ba3ce1d8322783d))
+- Add live ball-by-ball score prediction model ([787293d](https://github.com/venkatesh-singamsetty/cricscore/commit/787293db6a8b7c646c5a20c58ba3ce1d8322783d))
 
 ### 🐛 Bug Fixes
 
-* Resolve CodeQL alerts and NPM audit vulnerabilities ([355a2ed](https://github.com/venkatesh-singamsetty/cricscore/commit/355a2edf978da38b799ba80f81b4d3661563a1e6))
+- Resolve CodeQL alerts and NPM audit vulnerabilities ([355a2ed](https://github.com/venkatesh-singamsetty/cricscore/commit/355a2edf978da38b799ba80f81b4d3661563a1e6))
 
 ### 📚 Documentation
 
-* add Serverless execution and Lessons Learned to mlops tutorial ([a0a3c8e](https://github.com/venkatesh-singamsetty/cricscore/commit/a0a3c8e616085b6c73e0f87d3b4c403ead8ea6b8))
-* update mlops tutorial for live ML model ([3afa25e](https://github.com/venkatesh-singamsetty/cricscore/commit/3afa25eda18f176dd29a4b351914cc08fe3b8a35))
-* update root and ml-engine READMEs for live ML pipeline ([e1c0691](https://github.com/venkatesh-singamsetty/cricscore/commit/e1c0691594c933fcf5304b6db3b5033c5837b504))
+- add Serverless execution and Lessons Learned to mlops tutorial ([a0a3c8e](https://github.com/venkatesh-singamsetty/cricscore/commit/a0a3c8e616085b6c73e0f87d3b4c403ead8ea6b8))
+- update mlops tutorial for live ML model ([3afa25e](https://github.com/venkatesh-singamsetty/cricscore/commit/3afa25eda18f176dd29a4b351914cc08fe3b8a35))
+- update root and ml-engine READMEs for live ML pipeline ([e1c0691](https://github.com/venkatesh-singamsetty/cricscore/commit/e1c0691594c933fcf5304b6db3b5033c5837b504))
 
 ### 🧪 Tests
 
-* add industry standard pytest suite for mlops inference lambda ([3cf55a3](https://github.com/venkatesh-singamsetty/cricscore/commit/3cf55a329915572c2e0543bbf08e60753a53d463))
+- add industry standard pytest suite for mlops inference lambda ([3cf55a3](https://github.com/venkatesh-singamsetty/cricscore/commit/3cf55a329915572c2e0543bbf08e60753a53d463))
 
 ### ⚙️ CI/CD Pipelines
 
-* add monthly cron schedule to automatically retrain the ml model on new data ([ef732ea](https://github.com/venkatesh-singamsetty/cricscore/commit/ef732ea1063500ab2bb7e98f5184ac832bc8b996))
+- add monthly cron schedule to automatically retrain the ml model on new data ([ef732ea](https://github.com/venkatesh-singamsetty/cricscore/commit/ef732ea1063500ab2bb7e98f5184ac832bc8b996))
 
 ## [4.6.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.6.0...v4.6.1) (2026-10-04)
 
 ### 🐛 Bug Fixes
 
-* move AiMatchPrediction up in Scorer view for better visibility ([a938510](https://github.com/venkatesh-singamsetty/cricscore/commit/a9385101f9c55990d75c3cfa037667bfa6f78211))
+- move AiMatchPrediction up in Scorer view for better visibility ([a938510](https://github.com/venkatesh-singamsetty/cricscore/commit/a9385101f9c55990d75c3cfa037667bfa6f78211))
 
 ## [4.6.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.5.0...v4.6.0) (2026-10-04)
 
 ### 🚀 Features
 
-* Containerize ML Lambda to solve dependency limits ([8c62203](https://github.com/venkatesh-singamsetty/cricscore/commit/8c62203d15553dc7f7eb9f1591a66697fff90e61))
+- Containerize ML Lambda to solve dependency limits ([8c62203](https://github.com/venkatesh-singamsetty/cricscore/commit/8c62203d15553dc7f7eb9f1591a66697fff90e61))
 
 ### 🐛 Bug Fixes
 
-* pass security scan ([006286c](https://github.com/venkatesh-singamsetty/cricscore/commit/006286cff2e2ca7cdf089a910e24b52520d5c866))
-* terraform formatting ([1bb694f](https://github.com/venkatesh-singamsetty/cricscore/commit/1bb694fd564e65cd2aa5812eed8e113092bc169f))
+- pass security scan ([006286c](https://github.com/venkatesh-singamsetty/cricscore/commit/006286cff2e2ca7cdf089a910e24b52520d5c866))
+- terraform formatting ([1bb694f](https://github.com/venkatesh-singamsetty/cricscore/commit/1bb694fd564e65cd2aa5812eed8e113092bc169f))
 
 ### 📚 Documentation
 
-* Update cost and AI architecture for MLOps Docker ECR migration ([26ed5c0](https://github.com/venkatesh-singamsetty/cricscore/commit/26ed5c065fb26d69424324fe37892d5773371cff))
+- Update cost and AI architecture for MLOps Docker ECR migration ([26ed5c0](https://github.com/venkatesh-singamsetty/cricscore/commit/26ed5c065fb26d69424324fe37892d5773371cff))
 
 ## [4.5.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.4.0...v4.5.0) (2026-10-04)
 
 ### 🚀 Features
 
-* Add prediction UI to scorer view and setup ball-by-ball pipeline ([619bd02](https://github.com/venkatesh-singamsetty/cricscore/commit/619bd02bc80a165eedcc4c21d5fcd87eeb3af025))
+- Add prediction UI to scorer view and setup ball-by-ball pipeline ([619bd02](https://github.com/venkatesh-singamsetty/cricscore/commit/619bd02bc80a165eedcc4c21d5fcd87eeb3af025))
 
 ### 🐛 Bug Fixes
 
-* **ci:** remove s3 upload in training script to prevent aws credential crash ([23a8957](https://github.com/venkatesh-singamsetty/cricscore/commit/23a8957660f9f04dad93ad61e3e4d49282594cc2))
-* remove unused startListening variable to resolve CodeQL alert ([90d0c6b](https://github.com/venkatesh-singamsetty/cricscore/commit/90d0c6b6bf613bd84b46a6514797284f98872c69))
+- **ci:** remove s3 upload in training script to prevent aws credential crash ([23a8957](https://github.com/venkatesh-singamsetty/cricscore/commit/23a8957660f9f04dad93ad61e3e4d49282594cc2))
+- remove unused startListening variable to resolve CodeQL alert ([90d0c6b](https://github.com/venkatesh-singamsetty/cricscore/commit/90d0c6b6bf613bd84b46a6514797284f98872c69))
 
 ## [4.4.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.3.4...v4.4.0) (2026-10-04)
 
 ### 🚀 Features
 
-* zero-cost MLOps match prediction pipeline ([#225](https://github.com/venkatesh-singamsetty/cricscore/issues/225)) ([cc83ff7](https://github.com/venkatesh-singamsetty/cricscore/commit/cc83ff7109ac69ce31c93227dc794daa65b1e67a))
+- zero-cost MLOps match prediction pipeline ([#225](https://github.com/venkatesh-singamsetty/cricscore/issues/225)) ([cc83ff7](https://github.com/venkatesh-singamsetty/cricscore/commit/cc83ff7109ac69ce31c93227dc794daa65b1e67a))
 
 ### 🐛 Bug Fixes
 
-* chat UI and voice assistant improvements ([#224](https://github.com/venkatesh-singamsetty/cricscore/issues/224)) ([b466c56](https://github.com/venkatesh-singamsetty/cricscore/commit/b466c5601c68c19ed29579e829b93add5f6a3cad))
-* **ci:** remove s3 upload in training script ([#227](https://github.com/venkatesh-singamsetty/cricscore/issues/227)) ([3324895](https://github.com/venkatesh-singamsetty/cricscore/commit/332489528478a9220ed55a5448ac61e0a9dea329))
-* remove unused startListening to resolve CodeQL alert ([#226](https://github.com/venkatesh-singamsetty/cricscore/issues/226)) ([4821476](https://github.com/venkatesh-singamsetty/cricscore/commit/4821476388d51a3b8aca70e49eec26480fe194d2))
+- chat UI and voice assistant improvements ([#224](https://github.com/venkatesh-singamsetty/cricscore/issues/224)) ([b466c56](https://github.com/venkatesh-singamsetty/cricscore/commit/b466c5601c68c19ed29579e829b93add5f6a3cad))
+- **ci:** remove s3 upload in training script ([#227](https://github.com/venkatesh-singamsetty/cricscore/issues/227)) ([3324895](https://github.com/venkatesh-singamsetty/cricscore/commit/332489528478a9220ed55a5448ac61e0a9dea329))
+- remove unused startListening to resolve CodeQL alert ([#226](https://github.com/venkatesh-singamsetty/cricscore/issues/226)) ([4821476](https://github.com/venkatesh-singamsetty/cricscore/commit/4821476388d51a3b8aca70e49eec26480fe194d2))
 
 ## [4.3.4](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.3.3...v4.3.4) (2026-10-03)
 
 ### 🐛 Bug Fixes
 
-* stabilize viewer hub live scores and migrate to native OpenAI ([#221](https://github.com/venkatesh-singamsetty/cricscore/issues/221)) ([1a7887b](https://github.com/venkatesh-singamsetty/cricscore/commit/1a7887b7a8693338ff57f163c21f42c6978eea84))
+- stabilize viewer hub live scores and migrate to native OpenAI ([#221](https://github.com/venkatesh-singamsetty/cricscore/issues/221)) ([1a7887b](https://github.com/venkatesh-singamsetty/cricscore/commit/1a7887b7a8693338ff57f163c21f42c6978eea84))
 
 ## [4.3.3](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.3.2...v4.3.3) (2026-09-26)
 
 ### 🐛 Bug Fixes
 
-* apply optimistic UI updates and correct match result logic ([#209](https://github.com/venkatesh-singamsetty/cricscore/issues/209)) ([cf21587](https://github.com/venkatesh-singamsetty/cricscore/commit/cf21587626f748a88c418bcdd8ec38d9607079fa))
+- apply optimistic UI updates and correct match result logic ([#209](https://github.com/venkatesh-singamsetty/cricscore/issues/209)) ([cf21587](https://github.com/venkatesh-singamsetty/cricscore/commit/cf21587626f748a88c418bcdd8ec38d9607079fa))
 
 ## [4.3.2](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.3.1...v4.3.2) (2026-09-26)
 
 ### 🐛 Bug Fixes
 
-* solve WebSocket and DB eventual consistency race condition ([#208](https://github.com/venkatesh-singamsetty/cricscore/issues/208)) ([ccc1273](https://github.com/venkatesh-singamsetty/cricscore/commit/ccc1273e0a9cdb9f418a69b60cb043ddd52395e0))
+- solve WebSocket and DB eventual consistency race condition ([#208](https://github.com/venkatesh-singamsetty/cricscore/issues/208)) ([ccc1273](https://github.com/venkatesh-singamsetty/cricscore/commit/ccc1273e0a9cdb9f418a69b60cb043ddd52395e0))
 
 ## [4.3.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.3.0...v4.3.1) (2026-09-26)
 
 ### 🐛 Bug Fixes
 
-* correct score update payload keys for DB sync ([#206](https://github.com/venkatesh-singamsetty/cricscore/issues/206)) ([d63972f](https://github.com/venkatesh-singamsetty/cricscore/commit/d63972f72d5cad16b343478c79bbe2a516bb382c))
+- correct score update payload keys for DB sync ([#206](https://github.com/venkatesh-singamsetty/cricscore/issues/206)) ([d63972f](https://github.com/venkatesh-singamsetty/cricscore/commit/d63972f72d5cad16b343478c79bbe2a516bb382c))
 
 ### ⚙️ CI/CD Pipelines
 
-* trigger deploy-prod on release completion ([#207](https://github.com/venkatesh-singamsetty/cricscore/issues/207)) ([4bd02a9](https://github.com/venkatesh-singamsetty/cricscore/commit/4bd02a99d43246ee2be6c3fca558280a46ecdcaa))
+- trigger deploy-prod on release completion ([#207](https://github.com/venkatesh-singamsetty/cricscore/issues/207)) ([4bd02a9](https://github.com/venkatesh-singamsetty/cricscore/commit/4bd02a99d43246ee2be6c3fca558280a46ecdcaa))
 
 ## [4.3.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.2.2...v4.3.0) (2026-09-26)
 
 ### 🚀 Features
 
-* add Antigravity agent skills, rules, and documentation guide ([#205](https://github.com/venkatesh-singamsetty/cricscore/issues/205)) ([292415e](https://github.com/venkatesh-singamsetty/cricscore/commit/292415e7e2d3cea5b847abb50ac3ad62f4f8a58b))
+- add Antigravity agent skills, rules, and documentation guide ([#205](https://github.com/venkatesh-singamsetty/cricscore/issues/205)) ([292415e](https://github.com/venkatesh-singamsetty/cricscore/commit/292415e7e2d3cea5b847abb50ac3ad62f4f8a58b))
 
 ## [4.2.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.1.2...v4.2.0) (2026-09-26)
 
 ### 🚀 Features
 
-* Bug fixes and UI improvements for Admin Panel and Mobile Layout ([0df22e6](https://github.com/venkatesh-singamsetty/cricscore/commit/0df22e6c74bdee41636ca9a2c00d8074cc51bb46))
-* restructure CI/CD for tag-based PROD deployment and comprehensive documentation audit ([#199](https://github.com/venkatesh-singamsetty/cricscore/issues/199)) ([5a0d4e3](https://github.com/venkatesh-singamsetty/cricscore/commit/5a0d4e37193773cd72dc420f70f7df509fb767a5))
+- Bug fixes and UI improvements for Admin Panel and Mobile Layout ([0df22e6](https://github.com/venkatesh-singamsetty/cricscore/commit/0df22e6c74bdee41636ca9a2c00d8074cc51bb46))
+- restructure CI/CD for tag-based PROD deployment and comprehensive documentation audit ([#199](https://github.com/venkatesh-singamsetty/cricscore/issues/199)) ([5a0d4e3](https://github.com/venkatesh-singamsetty/cricscore/commit/5a0d4e37193773cd72dc420f70f7df509fb767a5))
 
 ### 🐛 Bug Fixes
 
-* **ci:** add missing LLM variables and non-interactive mode to drift workflow ([2c82ee0](https://github.com/venkatesh-singamsetty/cricscore/commit/2c82ee06d7ad7d4727a4e129a7bfa05e50d65b08))
-* downgrade semantic release action to Node 20 ([#200](https://github.com/venkatesh-singamsetty/cricscore/issues/200)) ([d8768b0](https://github.com/venkatesh-singamsetty/cricscore/commit/d8768b007fe75a7ac03736f8cb1b3a36e96fdcd9))
-* harden E2E assertions and ensure AI summary is included in match emails ([dac34e2](https://github.com/venkatesh-singamsetty/cricscore/commit/dac34e251f5458b523fe5c3a0b32eaaffda5227d))
-* prefix active score with team name and update semantic-release ([#204](https://github.com/venkatesh-singamsetty/cricscore/issues/204)) ([ddc4625](https://github.com/venkatesh-singamsetty/cricscore/commit/ddc46258292b0f46dd4d087d920d7433ae42dffd))
-* prevent premature scoreboard results and restore semantic-release ([#203](https://github.com/venkatesh-singamsetty/cricscore/issues/203)) ([93c9bad](https://github.com/venkatesh-singamsetty/cricscore/commit/93c9badf6b58018f70b55afc3e22e1c8c6d14dce))
-* resolve test framework configuration for Vitest, jsdom, and E2E stability ([103eca1](https://github.com/venkatesh-singamsetty/cricscore/commit/103eca1c44a68eb15a80300d5ab2900cf530f307))
-* Revert frontend dependencies to fix invalid hook call and eslint conflicts ([390a86b](https://github.com/venkatesh-singamsetty/cricscore/commit/390a86b3a0a391f7a8682fe8af21ce1481a8cbff))
-* Revert typescript to 6.x to resolve eslint peer dependency conflicts ([10add0c](https://github.com/venkatesh-singamsetty/cricscore/commit/10add0c2cb5e1059488b978a913a7f58577b1a50))
+- **ci:** add missing LLM variables and non-interactive mode to drift workflow ([2c82ee0](https://github.com/venkatesh-singamsetty/cricscore/commit/2c82ee06d7ad7d4727a4e129a7bfa05e50d65b08))
+- downgrade semantic release action to Node 20 ([#200](https://github.com/venkatesh-singamsetty/cricscore/issues/200)) ([d8768b0](https://github.com/venkatesh-singamsetty/cricscore/commit/d8768b007fe75a7ac03736f8cb1b3a36e96fdcd9))
+- harden E2E assertions and ensure AI summary is included in match emails ([dac34e2](https://github.com/venkatesh-singamsetty/cricscore/commit/dac34e251f5458b523fe5c3a0b32eaaffda5227d))
+- prefix active score with team name and update semantic-release ([#204](https://github.com/venkatesh-singamsetty/cricscore/issues/204)) ([ddc4625](https://github.com/venkatesh-singamsetty/cricscore/commit/ddc46258292b0f46dd4d087d920d7433ae42dffd))
+- prevent premature scoreboard results and restore semantic-release ([#203](https://github.com/venkatesh-singamsetty/cricscore/issues/203)) ([93c9bad](https://github.com/venkatesh-singamsetty/cricscore/commit/93c9badf6b58018f70b55afc3e22e1c8c6d14dce))
+- resolve test framework configuration for Vitest, jsdom, and E2E stability ([103eca1](https://github.com/venkatesh-singamsetty/cricscore/commit/103eca1c44a68eb15a80300d5ab2900cf530f307))
+- Revert frontend dependencies to fix invalid hook call and eslint conflicts ([390a86b](https://github.com/venkatesh-singamsetty/cricscore/commit/390a86b3a0a391f7a8682fe8af21ce1481a8cbff))
+- Revert typescript to 6.x to resolve eslint peer dependency conflicts ([10add0c](https://github.com/venkatesh-singamsetty/cricscore/commit/10add0c2cb5e1059488b978a913a7f58577b1a50))
 
 ### 📚 Documentation
 
-* add contributing and developer workflow guide ([#196](https://github.com/venkatesh-singamsetty/cricscore/issues/196)) ([bdb798e](https://github.com/venkatesh-singamsetty/cricscore/commit/bdb798e356958de555b412a3db93eae9bf62a069))
-* enterprise governance, CONTRIBUTING guide, and documentation cleanup ([#197](https://github.com/venkatesh-singamsetty/cricscore/issues/197)) ([6a6bc83](https://github.com/venkatesh-singamsetty/cricscore/commit/6a6bc83a0d9916b6f2bac6659a00f23d120f3be7))
+- add contributing and developer workflow guide ([#196](https://github.com/venkatesh-singamsetty/cricscore/issues/196)) ([bdb798e](https://github.com/venkatesh-singamsetty/cricscore/commit/bdb798e356958de555b412a3db93eae9bf62a069))
+- enterprise governance, CONTRIBUTING guide, and documentation cleanup ([#197](https://github.com/venkatesh-singamsetty/cricscore/issues/197)) ([6a6bc83](https://github.com/venkatesh-singamsetty/cricscore/commit/6a6bc83a0d9916b6f2bac6659a00f23d120f3be7))
 
 ### 🧰 Maintenance & Dependencies
 
-* **release:** 4.2.0 [skip ci] ([109115f](https://github.com/venkatesh-singamsetty/cricscore/commit/109115f83fa6faa595473bc8b6a45b746b0b093c))
-* remove stale files and update .gitignore ([d218185](https://github.com/venkatesh-singamsetty/cricscore/commit/d218185c9e089d14ac329eec41d6462269e94a64))
+- **release:** 4.2.0 [skip ci] ([109115f](https://github.com/venkatesh-singamsetty/cricscore/commit/109115f83fa6faa595473bc8b6a45b746b0b093c))
+- remove stale files and update .gitignore ([d218185](https://github.com/venkatesh-singamsetty/cricscore/commit/d218185c9e089d14ac329eec41d6462269e94a64))
 
 ### 🧪 Tests
 
-* Fix Playwright strict mode violation by using .first() on score text checks ([7f5fb11](https://github.com/venkatesh-singamsetty/cricscore/commit/7f5fb1140ba2db8df156321f0869d77b40a7ba46))
-* Fix swallowed clicks in Playwright E2E test due to UI state transitions around Undo ([549a486](https://github.com/venkatesh-singamsetty/cricscore/commit/549a486cd1cdb610c5a39a386aac531294c93b55))
+- Fix Playwright strict mode violation by using .first() on score text checks ([7f5fb11](https://github.com/venkatesh-singamsetty/cricscore/commit/7f5fb1140ba2db8df156321f0869d77b40a7ba46))
+- Fix swallowed clicks in Playwright E2E test due to UI state transitions around Undo ([549a486](https://github.com/venkatesh-singamsetty/cricscore/commit/549a486cd1cdb610c5a39a386aac531294c93b55))
 
 # [Unreleased] (2026-09-26)
 

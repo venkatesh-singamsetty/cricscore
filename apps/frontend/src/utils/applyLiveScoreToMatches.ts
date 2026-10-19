@@ -47,6 +47,12 @@ export interface LiveScorePayload {
   ballsFaced?: number;
   fours?: number;
   sixes?: number;
+  bowlerOvers?: number;
+  bowlerBalls?: number;
+  bowlerRuns?: number;
+  bowlerWickets?: number;
+  syncOnly?: boolean;
+  undo?: boolean;
   ballData?: any;
   data?: LiveScorePayload;
 }
@@ -170,8 +176,9 @@ export function applyLiveScoreToMatches<T extends MatchListItem>(
   if (inningId) {
     innIndex = innings.findIndex(
       (i) =>
+        i.id &&
         String(i.id).trim().toLowerCase() ===
-        String(inningId).trim().toLowerCase(),
+          String(inningId).trim().toLowerCase(),
     );
   }
   if (innIndex < 0 && battingTeam) {
@@ -180,6 +187,11 @@ export function applyLiveScoreToMatches<T extends MatchListItem>(
         i.batting_team_name?.trim().toLowerCase() ===
         battingTeam.trim().toLowerCase(),
     );
+    // If battingTeam is explicitly provided (e.g. 2nd innings team) and not yet in match.innings,
+    // return applied: false so MatchList refreshes from the server instead of overwriting innings 1.
+    if (innIndex < 0) {
+      return { matches, applied: false };
+    }
   }
   if (innIndex < 0) {
     innIndex = innings.length - 1;
@@ -217,40 +229,80 @@ export function applyLiveScoreToMatches<T extends MatchListItem>(
     payload.total_runs,
   );
 
-  const nextTotalRuns = Math.max(
-    payloadRuns ?? 0,
-    Number(current.total_runs || 0) + ballExtraRuns,
-    Number(current.total_runs || 0),
-  );
-
   const incomingWickets = pickNumber(
     payload.explicitTotalWickets,
     payload.explicit_total_wickets,
+    payload.totalWickets,
+    payload.total_wickets,
   );
-  const nextTotalWickets = Math.max(
-    incomingWickets ?? current.total_wickets ?? 0,
-    Number(current.total_wickets || 0),
-    payload.ballData?.isWicket ? Number(current.total_wickets || 0) + 1 : 0,
+
+  const incomingOvers = pickNumber(
+    payload.currentOvers,
+    payload.current_overs,
+    payload.ballData?.overNumber,
+    payload.ballData?.over_number,
   );
+  const incomingBalls = pickNumber(
+    payload.currentBalls,
+    payload.current_balls,
+    payload.ballData?.ballNumber,
+    payload.ballData?.ball_number,
+  );
+
+  const currentTotalBalls =
+    Number(current.overs || 0) * 6 + Number(current.balls || 0);
+  const nextOvers = incomingOvers ?? current.overs;
+  const nextBalls = incomingBalls ?? current.balls;
+  const nextTotalBalls = Number(nextOvers || 0) * 6 + Number(nextBalls || 0);
+
+  // Ignore out-of-order stale syncOnly messages that lag behind already-applied balls
+  if (payload.syncOnly && !payload.undo && nextTotalBalls < currentTotalBalls) {
+    return { matches, applied: true };
+  }
+
+  let nextTotalRuns: number;
+  let nextTotalWickets: number;
+
+  if (payload.undo) {
+    nextTotalRuns =
+      payloadRuns !== undefined
+        ? payloadRuns
+        : Math.max(0, Number(current.total_runs || 0) - ballExtraRuns);
+    nextTotalWickets =
+      incomingWickets !== undefined
+        ? incomingWickets
+        : Number(current.total_wickets || 0);
+  } else if (payloadRuns !== undefined) {
+    nextTotalRuns =
+      nextTotalBalls >= currentTotalBalls
+        ? payloadRuns
+        : Math.max(payloadRuns, Number(current.total_runs || 0));
+    nextTotalWickets =
+      incomingWickets !== undefined
+        ? nextTotalBalls >= currentTotalBalls
+          ? incomingWickets
+          : Math.max(incomingWickets, Number(current.total_wickets || 0))
+        : Math.max(
+            Number(current.total_wickets || 0),
+            payload.ballData?.isWicket
+              ? Number(current.total_wickets || 0) + 1
+              : 0,
+          );
+  } else {
+    nextTotalRuns = Number(current.total_runs || 0) + ballExtraRuns;
+    nextTotalWickets = Math.max(
+      incomingWickets ?? current.total_wickets ?? 0,
+      Number(current.total_wickets || 0),
+      payload.ballData?.isWicket ? Number(current.total_wickets || 0) + 1 : 0,
+    );
+  }
 
   const nextInning: MatchInningSummary = {
     ...current,
     total_runs: nextTotalRuns,
     total_wickets: nextTotalWickets,
-    overs:
-      pickNumber(
-        payload.currentOvers,
-        payload.current_overs,
-        payload.ballData?.overNumber,
-        payload.ballData?.over_number,
-      ) ?? current.overs,
-    balls:
-      pickNumber(
-        payload.currentBalls,
-        payload.current_balls,
-        payload.ballData?.ballNumber,
-        payload.ballData?.ball_number,
-      ) ?? current.balls,
+    overs: nextOvers,
+    balls: nextBalls,
   };
 
   const newInnings = [...innings];

@@ -121,9 +121,9 @@ async function chatHandler(body, corsHeaders) {
   // Step 2: Build system prompt with tool routing instructions
   const adminOnlyInstructions = isAdmin
     ? `
-6. DELETE MATCHES (ADMIN): If the user asks to delete matches, you MUST first call 'execute_sql' to fetch the matching records, show them to the user, and explicitly ask for confirmation. ONLY call 'delete_match' AFTER the user says "yes" or confirms the deletion.
-7. DELETE GUEST DATA (ADMIN): If the user asks to delete, clear, or prune guest users, guest matches, or guest details → ALWAYS call 'delete_guest_data'. Do NOT ask for confirmation first, just execute the tool.
-8. DELETE INCOMPLETE MATCHES (ADMIN): If the user asks to delete incomplete matches → ALWAYS call 'delete_incomplete_matches'. Do NOT ask for confirmation first, just execute the tool.
+6. DO NOT DELETE ALL MATCHES: You CANNOT and MUST NOT delete all matches from the database. Deleting all matches is a restricted safeguard operation that must be performed directly from the Match Ops (Admin Panel) with typed confirmation. If an admin asks to delete all matches or wipe all database records, politely decline and instruct them to use the Match Ops (Admin Panel).
+7. DELETE GUEST DATA (ADMIN): If the admin asks to delete, clear, or prune guest users, guest matches, or guest details → ALWAYS call 'delete_guest_data'. Do NOT ask for confirmation first, just execute the tool.
+8. DELETE INCOMPLETE MATCHES (ADMIN): If the admin asks to delete incomplete matches → ALWAYS call 'delete_incomplete_matches'. Do NOT ask for confirmation first, just execute the tool.
 `
     : `
 6. ADMIN-ONLY ACTIONS: Do not discuss, suggest, or perform guest cleanup, match deletion, or any other admin-only action unless the caller is explicitly an admin. If a non-admin asks for these actions, politely refuse and explain that admin privileges are required.

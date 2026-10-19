@@ -37,13 +37,33 @@ export const AiMatchPrediction: React.FC<AiMatchPredictionProps> = ({
   battingTeam,
   bowlingTeam,
 }) => {
-  const [prediction, setPrediction] = useState<PredictionData | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
   const activeBattingTeam = battingTeam || teamA;
   const activeBowlingTeam =
     bowlingTeam || (activeBattingTeam === teamA ? teamB : teamA);
+
+  const [prediction, setPrediction] = useState<PredictionData | null>(() => {
+    // Provide instant 50-50 baseline at match inception so UI renders immediately
+    if (
+      inning === 1 &&
+      currentScore === 0 &&
+      wicketsLost === 0 &&
+      ballsBowled === 0 &&
+      teamA &&
+      teamB
+    ) {
+      return {
+        team1: activeBattingTeam,
+        team2: activeBowlingTeam,
+        team1WinProbability: 0.5,
+        team2WinProbability: 0.5,
+        predictedWinner: "Balanced (50-50)",
+        modelVersion: "baseline-50-50",
+      };
+    }
+    return null;
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const API_URL = import.meta.env.VITE_API_URL || "";
 
@@ -126,7 +146,7 @@ export const AiMatchPrediction: React.FC<AiMatchPredictionProps> = ({
     ballsBowled,
   ]);
 
-  if (loading)
+  if (loading && !prediction)
     return (
       <div
         className={`text-[10px] text-slate-500 animate-pulse ${compact ? "mt-1" : ""}`}
@@ -152,19 +172,19 @@ export const AiMatchPrediction: React.FC<AiMatchPredictionProps> = ({
 
   if (compact) {
     return (
-      <div className="flex flex-col gap-1.5 mt-2 w-full bg-slate-800/30 p-2 rounded-xl border border-white/5">
+      <div className="flex flex-col gap-1 mt-1 w-full bg-slate-900/60 py-1.5 px-2.5 rounded-xl border border-white/5 shadow-sm">
         <div className="flex items-center justify-between w-full">
-          <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">
-            🤖 Win Prediction
+          <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-1">
+            <span>🤖</span> Win Prediction
           </span>
-          <span className="text-[9px] font-bold text-slate-400 uppercase">
+          <span className="text-[9px] font-bold text-slate-300 uppercase tabular-nums">
             {prediction.team1}{" "}
             {Math.round(prediction.team1WinProbability * 100)}% -{" "}
             {Math.round(prediction.team2WinProbability * 100)}%{" "}
             {prediction.team2}
           </span>
         </div>
-        <div className="w-full h-2 rounded-full overflow-hidden flex bg-slate-700/50">
+        <div className="w-full h-1.5 rounded-full overflow-hidden flex bg-slate-700/50">
           <div
             className="bg-cyan-400 h-full transition-all duration-1000 shadow-[0_0_8px_rgba(34,211,238,0.8)]"
             style={{ width: `${prediction.team1WinProbability * 100}%` }}

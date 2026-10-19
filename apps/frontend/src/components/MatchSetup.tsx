@@ -68,7 +68,7 @@ const SquadInput = ({
   };
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col flex-1 min-h-0">
       <div className="flex justify-between items-center mb-1 shrink-0 px-1">
         <label
           className={`text-[10px] md:text-xs font-black uppercase tracking-widest ${accentColor}`}
@@ -91,15 +91,15 @@ const SquadInput = ({
           </span>
         </div>
       </div>
-      <div className="relative flex bg-slate-950 rounded-[1.5rem] border border-white/10 overflow-hidden focus-within:border-indigo-500/50 transition-all shadow-2xl">
+      <div className="relative flex flex-1 min-h-0 bg-slate-950 rounded-[1.5rem] border border-white/10 overflow-hidden focus-within:border-indigo-500/50 transition-all shadow-2xl">
         <div
           ref={lineNumbersRef}
-          className="w-10 bg-slate-900/50 border-r border-white/5 flex flex-col items-center pt-2 md:pt-1 select-none overflow-hidden shrink-0"
+          className="w-10 bg-slate-900/50 border-r border-white/5 flex flex-col items-center pt-2 md:pt-1.5 select-none overflow-hidden shrink-0"
         >
           {Array.from({ length: lineCount }).map((_, i) => (
             <span
               key={i}
-              className="text-xs md:text-xs lg:text-sm font-black text-slate-600 h-[28px] leading-[28px] md:h-5 md:leading-5 lg:h-6 lg:leading-6"
+              className="text-xs md:text-xs font-black text-slate-500 h-[28px] leading-[28px] md:h-[21px] md:leading-[21px] lg:h-[22px] lg:leading-[22px] shrink-0"
             >
               {i + 1}
             </span>
@@ -113,8 +113,8 @@ const SquadInput = ({
             lineNumbersRef.current &&
             handleScroll(textareaRef.current, lineNumbersRef.current)
           }
-          rows={12}
-          className="flex-1 bg-transparent px-3 pt-2 pb-6 md:pt-1 md:pb-2 text-base md:text-sm lg:text-base font-black text-slate-300 outline-none resize-none scrollbar-hide uppercase leading-[28px] md:leading-5 lg:leading-6 overflow-y-auto"
+          rows={11}
+          className="flex-1 min-h-0 h-full bg-transparent px-3 pt-2 pb-4 md:pt-1.5 md:pb-1.5 text-base md:text-sm font-black text-slate-200 outline-none resize-none scrollbar-hide uppercase leading-[28px] md:leading-[21px] lg:leading-[22px] overflow-y-auto"
           value={value}
           onChange={handleChange}
           placeholder="Enter player name..."
@@ -520,16 +520,22 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                 <button
                   type="button"
                   onClick={() => setTossWinner("Team A")}
-                  className={`h-12 rounded-xl font-black text-sm uppercase truncate transition-all border active:scale-95 ${tossWinner === "Team A" ? "bg-indigo-600 text-white border-indigo-400 shadow-lg shadow-indigo-600/20" : "bg-slate-800 text-slate-400 border-white/5"}`}
+                  className={`h-14 min-h-[52px] rounded-2xl font-black text-sm uppercase px-3 truncate transition-all border active:scale-95 flex items-center justify-center gap-2 ${tossWinner === "Team A" ? "bg-indigo-600 text-white border-indigo-400 shadow-xl shadow-indigo-600/30" : "bg-slate-800/80 text-slate-300 border-white/10 hover:border-white/20"}`}
                 >
-                  {teamAName}
+                  <span className="truncate">{teamAName}</span>
+                  {tossWinner === "Team A" && (
+                    <span className="text-xs">🏆</span>
+                  )}
                 </button>
                 <button
                   type="button"
                   onClick={() => setTossWinner("Team B")}
-                  className={`h-12 rounded-xl font-black text-sm uppercase truncate transition-all border active:scale-95 ${tossWinner === "Team B" ? "bg-purple-600 text-white border-purple-400 shadow-lg shadow-purple-600/20" : "bg-slate-800 text-slate-400 border-white/5"}`}
+                  className={`h-14 min-h-[52px] rounded-2xl font-black text-sm uppercase px-3 truncate transition-all border active:scale-95 flex items-center justify-center gap-2 ${tossWinner === "Team B" ? "bg-purple-600 text-white border-purple-400 shadow-xl shadow-purple-600/30" : "bg-slate-800/80 text-slate-300 border-white/10 hover:border-white/20"}`}
                 >
-                  {teamBName}
+                  <span className="truncate">{teamBName}</span>
+                  {tossWinner === "Team B" && (
+                    <span className="text-xs">🏆</span>
+                  )}
                 </button>
               </div>
             </div>
@@ -546,17 +552,17 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                 <button
                   type="button"
                   onClick={() => setTossDecision("BAT")}
-                  className={`h-12 rounded-xl font-black text-sm uppercase transition-all border active:scale-95 flex items-center justify-center gap-2 ${tossDecision === "BAT" ? "bg-indigo-600 text-white border-indigo-400 shadow-lg shadow-indigo-600/30" : "bg-slate-800 text-slate-400 border-white/5"}`}
+                  className={`h-14 min-h-[52px] rounded-2xl font-black text-sm uppercase transition-all border active:scale-95 flex items-center justify-center gap-2 ${tossDecision === "BAT" ? "bg-indigo-600 text-white border-indigo-400 shadow-xl shadow-indigo-600/30" : "bg-slate-800/80 text-slate-300 border-white/10 hover:border-white/20"}`}
                 >
-                  <span className="text-base leading-none">🏏</span>
+                  <span className="text-lg leading-none">🏏</span>
                   <span>BAT</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setTossDecision("BOWL")}
-                  className={`h-12 rounded-xl font-black text-sm uppercase transition-all border active:scale-95 flex items-center justify-center gap-2 ${tossDecision === "BOWL" ? "bg-amber-600 text-white border-amber-400 shadow-lg" : "bg-slate-800 text-slate-400 border-white/5"}`}
+                  className={`h-14 min-h-[52px] rounded-2xl font-black text-sm uppercase transition-all border active:scale-95 flex items-center justify-center gap-2 ${tossDecision === "BOWL" ? "bg-amber-600 text-white border-amber-400 shadow-xl shadow-amber-600/30" : "bg-slate-800/80 text-slate-300 border-white/10 hover:border-white/20"}`}
                 >
-                  <span className="text-base leading-none">🎾</span>
+                  <span className="text-lg leading-none">🎾</span>
                   <span>BOWL</span>
                 </button>
               </div>
@@ -572,16 +578,17 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
               <button
                 type="button"
                 onClick={() => setMobileStep(2)}
-                className="py-3.5 bg-slate-800 border border-white/5 rounded-2xl font-black text-xs text-slate-300 uppercase tracking-wider active:scale-95"
+                className="h-14 min-h-[52px] bg-slate-800/80 hover:bg-slate-700/80 border border-white/10 rounded-2xl font-black text-sm text-slate-300 uppercase tracking-wide active:scale-95 transition-all flex items-center justify-center gap-2 shadow-lg"
               >
-                ← Back
+                <span>←</span> Back
               </button>
               <button
                 type="submit"
                 disabled={!isValid || isCreating}
-                className={`py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl active:scale-95 ${isValid && !isCreating ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-indigo-600/30" : "bg-slate-700 text-slate-500 cursor-not-allowed"}`}
+                className={`h-14 min-h-[52px] rounded-2xl font-black text-sm uppercase tracking-wide transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2 ${isValid && !isCreating ? "bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-indigo-600/30 border border-indigo-400/40 hover:from-blue-500 hover:to-purple-500" : "bg-slate-800 text-slate-500 border border-white/5 cursor-not-allowed"}`}
               >
-                {isCreating ? "Creating..." : "🏁 Start Match"}
+                <span>🏁</span>
+                <span>{isCreating ? "Creating..." : "Start Match"}</span>
               </button>
             </div>
           </form>
@@ -589,19 +596,19 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
       </div>
 
       {/* ── DESKTOP LAYOUT (md+) ── */}
-      <div className="hidden md:flex max-w-6xl mx-auto flex-col h-full w-full p-3 animate-in fade-in zoom-in-95 duration-500">
-        <div className="flex justify-center items-center py-1 shrink-0">
-          <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-500 uppercase tracking-tighter italic leading-none">
+      <div className="hidden md:flex max-w-5xl mx-auto flex-col flex-1 min-h-0 h-full w-full px-3 py-2 animate-in fade-in zoom-in-95 duration-500">
+        <div className="flex justify-center items-center py-0.5 shrink-0">
+          <h1 className="text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-500 uppercase tracking-tighter italic leading-none">
             Match <span className="text-indigo-500">Configuration</span>
           </h1>
         </div>
         <form
           onSubmit={handleSubmit}
-          className="flex-1 flex flex-col gap-3 min-h-0"
+          className="flex-1 flex flex-col gap-2.5 min-h-0 mt-1"
         >
           {!hideResume && recentMatches.length > 0 && (
-            <div className="bg-slate-900/40 border border-indigo-500/10 rounded-3xl p-4 shrink-0 overflow-hidden">
-              <div className="flex justify-between items-center mb-2 px-1">
+            <div className="bg-slate-900/40 border border-indigo-500/10 rounded-3xl p-3 shrink-0 overflow-hidden">
+              <div className="flex justify-between items-center mb-1.5 px-1">
                 <h3 className="text-[9px] font-black uppercase tracking-[0.3em] text-indigo-400/60">
                   Resume Recent Match
                 </h3>
@@ -639,15 +646,15 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
           )}
           <div className="flex-1 grid grid-cols-2 gap-3 min-h-0">
             <div className="relative group flex flex-col flex-1 min-h-0">
-              <div className="relative flex-1 bg-slate-900/50 border border-white/5 p-4 md:p-3 rounded-[2rem] flex flex-col space-y-3 md:space-y-2 backdrop-blur-sm shadow-2xl overflow-y-auto scrollbar-hide min-h-[220px] md:min-h-0">
-                <div className="shrink-0 text-center">
-                  <label className="text-[9px] font-black uppercase tracking-[0.3em] text-indigo-400 mb-1 block">
+              <div className="relative flex-1 bg-slate-900/50 border border-white/5 p-3 rounded-[2rem] flex flex-col space-y-2 backdrop-blur-sm shadow-2xl overflow-hidden min-h-0">
+                <div className="shrink-0 text-center pt-0.5">
+                  <label className="text-xs font-black uppercase tracking-[0.25em] text-indigo-300 mb-1 block">
                     Team Name
                   </label>
                   <input
                     type="text"
                     required
-                    className="w-full bg-slate-950 border border-white/10 rounded-xl px-5 py-3 text-xl font-black text-indigo-300 focus:ring-2 focus:ring-indigo-500 outline-none uppercase placeholder:opacity-20 shadow-inner text-center"
+                    className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-2 text-lg lg:text-xl font-black text-indigo-300 focus:ring-2 focus:ring-indigo-500 outline-none uppercase placeholder:opacity-20 shadow-inner text-center"
                     value={teamAName}
                     onChange={makeNameHandler(setTeamAName)}
                   />
@@ -663,15 +670,15 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
               </div>
             </div>
             <div className="relative group flex flex-col flex-1 min-h-0">
-              <div className="relative flex-1 bg-slate-900/50 border border-white/5 p-4 md:p-3 rounded-[2rem] flex flex-col space-y-3 md:space-y-2 backdrop-blur-sm shadow-2xl overflow-y-auto scrollbar-hide min-h-[220px] md:min-h-0">
-                <div className="shrink-0 text-center">
-                  <label className="text-[9px] font-black uppercase tracking-[0.3em] text-purple-400 mb-1 block">
+              <div className="relative flex-1 bg-slate-900/50 border border-white/5 p-3 rounded-[2rem] flex flex-col space-y-2 backdrop-blur-sm shadow-2xl overflow-hidden min-h-0">
+                <div className="shrink-0 text-center pt-0.5">
+                  <label className="text-xs font-black uppercase tracking-[0.25em] text-purple-300 mb-1 block">
                     Team Name
                   </label>
                   <input
                     type="text"
                     required
-                    className="w-full bg-slate-950 border border-white/10 rounded-xl px-5 py-3 text-xl font-black text-purple-300 focus:ring-2 focus:ring-purple-500 outline-none uppercase placeholder:opacity-20 shadow-inner text-center"
+                    className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-2 text-lg lg:text-xl font-black text-purple-300 focus:ring-2 focus:ring-purple-500 outline-none uppercase placeholder:opacity-20 shadow-inner text-center"
                     value={teamBName}
                     onChange={makeNameHandler(setTeamBName)}
                   />
@@ -687,14 +694,14 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
               </div>
             </div>
           </div>
-          <div className="bg-slate-900/80 border border-indigo-500/20 p-4 md:p-3 rounded-[2rem] shadow-2xl backdrop-blur-xl shrink-0">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center px-4">
+          <div className="bg-slate-900/80 border border-indigo-500/20 p-2.5 lg:p-3 rounded-[2rem] shadow-2xl backdrop-blur-xl shrink-0">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center px-4">
               <div className="flex items-center gap-6">
                 <div className="shrink-0">
-                  <label className="text-[8px] font-black uppercase tracking-[0.3em] text-slate-500 block mb-0.5">
+                  <label className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-400 block mb-0.5">
                     Settings
                   </label>
-                  <h4 className="text-[11px] font-black text-white uppercase italic">
+                  <h4 className="text-xs font-black text-white uppercase italic">
                     Standard Ovs
                   </h4>
                 </div>
@@ -703,7 +710,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
-                    className="w-16 bg-slate-950 border border-indigo-500/30 rounded-xl py-2 text-xl font-black text-white outline-none text-center focus:ring-2 focus:ring-indigo-500 tabular-nums shadow-inner"
+                    className="w-16 bg-slate-950 border border-indigo-500/30 rounded-xl py-1.5 text-xl font-black text-white outline-none text-center focus:ring-2 focus:ring-indigo-500 tabular-nums shadow-inner"
                     value={overs}
                     onChange={(e) =>
                       setOvers(e.target.value.replace(/\D/g, ""))
@@ -714,44 +721,44 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                   </span>
                 </div>
               </div>
-              <div className="flex flex-col gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[8px] font-black uppercase tracking-[0.3em] text-slate-500 block">
+              <div className="flex flex-col gap-2.5">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-400 block">
                     Toss Winner
                   </label>
                   <div className="bg-slate-950 p-1 rounded-xl border border-white/5 flex gap-2 shadow-inner">
                     <button
                       type="button"
                       onClick={() => setTossWinner("Team A")}
-                      className={`min-w-0 flex-1 basis-0 h-10 px-3 rounded-lg font-black text-xs uppercase tracking-tighter text-center transition-all truncate border ${tossWinner === "Team A" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/30 border-indigo-400" : "text-slate-500 border-transparent hover:text-slate-300"}`}
+                      className={`min-w-0 flex-1 basis-0 h-9 lg:h-10 px-2 rounded-lg font-black text-xs uppercase tracking-tight text-center transition-all border ${tossWinner === "Team A" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/30 border-indigo-400" : "text-slate-400 border-transparent hover:text-slate-200"}`}
                     >
                       {teamAName || "FIRST TEAM"}
                     </button>
                     <button
                       type="button"
                       onClick={() => setTossWinner("Team B")}
-                      className={`min-w-0 flex-1 basis-0 h-10 px-3 rounded-lg font-black text-xs uppercase tracking-tighter text-center transition-all truncate border ${tossWinner === "Team B" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/30 border-indigo-400" : "text-slate-500 border-transparent hover:text-slate-300"}`}
+                      className={`min-w-0 flex-1 basis-0 h-9 lg:h-10 px-2 rounded-lg font-black text-xs uppercase tracking-tight text-center transition-all border ${tossWinner === "Team B" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/30 border-indigo-400" : "text-slate-400 border-transparent hover:text-slate-200"}`}
                     >
                       {teamBName || "SECOND TEAM"}
                     </button>
                   </div>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-[8px] font-black uppercase tracking-[0.3em] text-slate-500 block">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase tracking-[0.25em] text-slate-400 block">
                     Decision
                   </label>
                   <div className="bg-slate-950 p-1 rounded-xl border border-white/5 flex gap-2 shadow-inner">
                     <button
                       type="button"
                       onClick={() => setTossDecision("BAT")}
-                      className={`min-w-0 flex-1 basis-0 h-10 px-3 rounded-lg font-black text-xs uppercase tracking-tighter transition-all border flex items-center justify-center gap-1 ${tossDecision === "BAT" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/30 border-indigo-400" : "text-slate-500 border-transparent hover:text-slate-300"}`}
+                      className={`min-w-0 flex-1 basis-0 h-9 lg:h-10 px-3 rounded-lg font-black text-xs uppercase tracking-tighter transition-all border flex items-center justify-center gap-1 ${tossDecision === "BAT" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/30 border-indigo-400" : "text-slate-400 border-transparent hover:text-slate-200"}`}
                     >
                       <span className="text-[10px] leading-none">🏏</span>BAT
                     </button>
                     <button
                       type="button"
                       onClick={() => setTossDecision("BOWL")}
-                      className={`min-w-0 flex-1 basis-0 h-10 px-3 rounded-lg font-black text-xs uppercase tracking-tighter transition-all border flex items-center justify-center gap-1 ${tossDecision === "BOWL" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/30 border-indigo-400" : "text-slate-500 border-transparent hover:text-slate-300"}`}
+                      className={`min-w-0 flex-1 basis-0 h-9 lg:h-10 px-3 rounded-lg font-black text-xs uppercase tracking-tighter transition-all border flex items-center justify-center gap-1 ${tossDecision === "BOWL" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/30 border-indigo-400" : "text-slate-400 border-transparent hover:text-slate-200"}`}
                     >
                       <span className="text-[10px] leading-none text-emerald-300">
                         🎾
@@ -766,7 +773,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
           <button
             type="submit"
             disabled={!isValid || isCreating}
-            className={`group relative w-full h-14 md:h-16 rounded-[1.5rem] overflow-hidden transition-all shrink-0 shadow-2xl border-t border-white/20 ${isValid && !isCreating ? "bg-indigo-600 hover:scale-[1.002] active:scale-[0.98]" : "bg-slate-800 opacity-80 cursor-not-allowed"}`}
+            className={`group relative w-full h-12 lg:h-14 rounded-[1.5rem] overflow-hidden transition-all shrink-0 shadow-2xl border-t border-white/20 ${isValid && !isCreating ? "bg-indigo-600 hover:scale-[1.002] active:scale-[0.98]" : "bg-slate-800 opacity-80 cursor-not-allowed"}`}
           >
             {isValid && !isCreating && (
               <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 group-hover:opacity-90"></div>
