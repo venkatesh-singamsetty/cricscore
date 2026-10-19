@@ -1,3 +1,46 @@
+## [4.12.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.11.0...v4.12.0) (2026-10-19)
+
+### 🚀 Features
+
+* admin match list, chat memory cleanup, and workflow hardening ([#266](https://github.com/venkatesh-singamsetty/cricscore/issues/266)) ([9b627f8]())
+## Summary of Changes
+
+### 1. Admin Panel Default Match View & Guest Badges
+- In `MatchList.tsx`, show all matches by default with the newest
+matches at the top.
+- Added a `GUEST 👻` badge chip to guest matches on the card header.
+- Toggling the `GUESTS 👻` filter filters down to guest-only matches;
+clicking it again restores the default all-match view.
+- Added unit tests in `apps/frontend/src/test/MatchList.test.tsx`.
+
+### 2. Chat Memory Session Lifecycle & Privacy
+- Exported centralized `CHAT_MEMORY_KEY = "cricscore-chat-memory"` in
+`storageSafety.ts` and `ChatComponent.tsx`.
+- Automatically purge device-local chat memory in `App.tsx` on:
+  - User sign out (`handleSignOut`).
+  - Guest scorer start and exit.
+  - Account switching (`userEmail` identity change in `prevEmailRef`).
+- Added unit tests in `ChatComponent.test.tsx` and
+`storageSafety.test.ts`.
+
+### 3. Workflow & CI/CD Hardening
+- Updated `.releaserc.json` to generate detailed multi-line GitHub
+Release notes from full PR commit bodies.
+- Fixed `drift.yml` by setting up Node.js, hydrating Lambda production
+dependencies, and supplying required mock TF_VARs for plan checks.
+
+### 4. Architecture & Observability Documentation
+- Restored the original, clean Fan-Out `graph TD` architecture diagram
+in `README.md` and sequence diagrams in `docs/architecture.md`.
+- Updated `docs/cost_management.md` and `docs/observability.md` with
+complete Lambda memory/timeout tables, 7-day log retention governance,
+and CloudWatch telemetry queries.
+
+## Validation
+- `./infra/scripts/validate_local.sh --skip-e2e` passed completely
+(75/75 frontend tests, backend Lambda tests, Python ML tests, linting,
+Checkov, GitLeaks, and Syft SBOM).
+
 ## [4.11.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.10.2...v4.11.0) (2026-10-19)
 
 ### 🚀 Features
