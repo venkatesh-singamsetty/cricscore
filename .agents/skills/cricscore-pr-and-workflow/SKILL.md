@@ -5,18 +5,37 @@ description: Use when preparing a CricScore branch or pull request, selecting lo
 
 # CricScore PR and Workflow Standards
 
-## Branch and pull request
+## 1. Branch & Pre-Push Checklist (Mandatory)
 
-- Do not push directly to `main`. Follow the repository's existing branch naming and remote workflow; do not force-push or rewrite shared history without authorization.
-- Before pushing or opening/updating a PR, always fetch `origin/main` (`git fetch origin main`), check if `origin/main` is ahead (`git log HEAD..origin/main --oneline`), and merge `origin/main` into the feature branch (`git merge origin/main`) so the PR branch is up-to-date with `main`.
-- Describe the change, user-visible behavior, risks, validation performed, and deployment/migration notes in the PR. Do not claim checks passed unless they ran and passed.
-- Do not push, merge, or deploy unless the user requested that action. Never bypass required checks or branch protection.
+1. **Never push directly to `main`**: Always use a descriptive `feat/*` or `fix/*` branch. Do not force-push or rewrite shared history without explicit user authorization.
+2. **Always sync with `origin/main` before pushing**:
+   - Run `git fetch origin main`
+   - Check if `origin/main` has new commits (`git log HEAD..origin/main --oneline`)
+   - Merge `origin/main` into your branch (`git merge origin/main --no-edit`) so the PR branch is never out-of-date with `main`.
+3. **Verify Git Hygiene**:
+   - Run `git status -s` and `git diff --cached --stat`.
+   - Ensure no `.env`, `.env.local`, `__pycache__/`, `*.pyc`, `venv/`, or temporary test screenshots (`*.png` in `apps/e2e/`) are tracked or staged.
+4. **Run Full Local Validation Before Pushing**:
+   - Run `./infra/scripts/validate_local.sh --skip-e2e` for fast pre-push verification (Frontend lint, Vitest, `npm audit`, Vite build, Backend Vitest, Backend `npm audit`, Terraform `fmt` & `validate`, Checkov, GitLeaks, Trivy, Syft SBOM).
+   - When UI flows, selectors, or APIs change, deploy to `dev` first and run Playwright E2E against `dev` (`cd apps/e2e && npx playwright test --reporter=list`) so `CI` on `main` never fails or hangs.
+   - When `apps/ml-engine/` changes, run `./apps/ml-engine/venv/bin/pytest apps/ml-engine/test_predict.py`.
 
-## Validation and workflow changes
+## 2. Pull Request Creation & Post-PR Verification
 
-- The main local validation entry point is `./infra/scripts/validate_local.sh`; use `--skip-e2e` only when intentionally omitting the live Playwright suite. This script can skip optional scanners when their tools are missing, so report what actually ran.
-- Choose focused tests for the changed area, then run the broader validation required by the task. CI is defined in `.github/workflows/ci.yml`; production deployment is in `.github/workflows/cd.yml`.
-- Pull requests run validation. The CI workflow deploys Dev only from `main` or manual dispatch; the CD workflow deploys Prod for version tags or manual dispatch. Verify current workflow conditions before describing release behavior.
-- If you change a package script, infrastructure/deployment command, or commonly used developer workflow, update the relevant `CHEATSHEET.md` section and test that the documented command and path exist.
+- **Compare against `origin/main`**: Use `git diff origin/main --stat` and `git log origin/main..HEAD` to write an accurate PR description covering:
+  - Summary of changes & user-visible behavior
+  - Architectural & backend/ML/UI details
+  - Validation & test suites executed
+- **Inspect Checks & CodeQL Alerts After Pushing**:
+  - Check status with `gh pr checks <PR_NUMBER>`.
+  - Fetch inline review/CodeQL comments with `gh api repos/venkatesh-singamsetty/cricscore/pulls/<PR_NUMBER>/comments`.
+  - Immediately fix any CodeQL warnings (e.g., unused variables/imports) or failing checks.
 
-Keep skill references in `README.md`, `.cursorrules`, and `.github/copilot-instructions.md` accurate when the skill catalog or always-on guidance changes. Do not claim a host automatically loads `.agents/skills/` unless that host's current configuration supports it.
+## 3. CI, Semantic Release & CD Pipeline Architecture
+
+- **Pull Requests (`.github/workflows/ci.yml` + `codeql.yml`)**: Run `validate_security` (GitLeaks, Checkov), `validate_frontend` (Trivy, `tsc --noEmit`, Vitest, `npm run build`), `validate_backend` (Vitest, Trivy, Terraform `fmt` & `validate`), and CodeQL analysis.
+- **Merge to `main` (`.github/workflows/ci.yml` -> `release.yml` -> `cd.yml`)**:
+  1. `CI` runs all validation jobs and then `deploy_and_test_dev` (Postgres migrations on `dev`, Terraform apply on `dev`, S3/CloudFront deploy, AI chat eval, Playwright E2E against `dev`, and OWASP ZAP baseline scan).
+  2. When `CI` on `main` completes with `success`, `Semantic Release` (`.github/workflows/release.yml`) runs `npx semantic-release`, scanning **all conventional commits since the last `v*` Git tag** to cut the next version tag, update `docs/changelog.md`, and publish the GitHub Release notes.
+  3. Publishing the release triggers `CD` (`.github/workflows/cd.yml`) to deploy, test (Playwright E2E), and ZAP-scan `prod`.
+- **Documentation Sync**: Whenever developer commands, package scripts, or workflows change, update `CHEATSHEET.md`, `docs/deployment.md`, and `docs/testing.md`.

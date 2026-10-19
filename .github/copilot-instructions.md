@@ -1,6 +1,6 @@
-# CricScore project guidance
+# CricScore Project Guidance
 
-- Read the relevant skill under `.agents/skills/` for the task at hand; do not load every skill for unrelated work.
-- Use source code, tests, Terraform, and current workflow files as factual references. Skills and docs can drift; verify their claims and correct outdated project guidance when directly relevant.
-- Keep changes focused, preserve existing behavior, and add or update regression tests for behavior changes.
-- Before deployment or other external side effects, confirm the target environment and inspect the operation's impact. Never expose `.env.local` or other secrets.
+- **Mandatory Rules & Skills**: Always read `.agents/AGENTS.md` and load the relevant skill under `.agents/skills/*/SKILL.md` before changing code, infrastructure, tests, or opening a PR.
+- **Git & PR Workflow**: Never push directly to `main`. Always run `git fetch origin main && git merge origin/main` and `./infra/scripts/validate_local.sh` before pushing or opening/updating a PR. After pushing, check `gh pr checks` and CodeQL review comments.
+- **Tests & Documentation**: Every code change must include regression tests (`apps/frontend/src/test/`, `apps/backend/lambdas/`, `apps/ml-engine/test_predict.py`, `apps/e2e/`) and documentation updates (`docs/changelog.md`, `docs/testing.md`, tutorials).
+- **Cost & Security**: Never create paid AWS resources (NAT Gateways, KMS CMKs, CloudWatch Dashboards, Secrets Manager, DynamoDB Provisioned Capacity). Never expose `.env.local` or credentials.

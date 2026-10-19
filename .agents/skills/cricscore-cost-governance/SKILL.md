@@ -5,14 +5,27 @@ description: Use when proposing or reviewing AWS resource, scaling, observabilit
 
 # CricScore Cost Governance
 
-Check current Terraform, [cost management guidance](../../../docs/cost_management.md), and current AWS pricing before estimating costs. Free-tier eligibility and prices vary by account, region, and time.
+Refer to `docs/cost_management.md`, `docs/aws_resources_dashboard.md`, and `infra/terraform/` before adding or modifying any AWS resource.
 
-## Review checklist
+## 1. Strictly Forbidden Paid Resources
 
-- Estimate recurring charges, request/compute charges, data transfer, storage growth, and per-resource multipliers for realistic and peak traffic.
-- The project currently avoids NAT gateways and paid custom CloudWatch dashboards. Do not add them without an explicit cost/architecture review; never recommend assigning public IPs to Lambda functions as a NAT substitute.
-- Prefer the existing serverless and managed-service patterns where they meet the requirement. Do not sacrifice security, availability, or data durability solely to claim free-tier operation.
-- Treat AWS Budgets as notifications, not spending caps. Verify the configured budget and alert scope rather than promising a maximum bill.
-- Use the encryption approach required by the service and threat model. Compare AWS-managed and customer-managed key costs; do not weaken a security requirement to avoid a small recurring charge.
+Never provision any of the following in Terraform or via AWS CLI:
 
-Describe assumptions and likely cost drivers with every material infrastructure proposal. Do not treat mutable image tags, service free tiers, or low expected traffic as guarantees of low cost.
+- **NAT Gateways / VPC Endpoints** (~$32+/month) — Keep Lambdas outside VPC or use public serverless endpoints with TLS/IAM/JWT auth.
+- **KMS Customer-Managed Keys (CMKs)** ($1/key/month + API charges) — Use default AWS-managed encryption (`AES256` / AWS-owned keys) for S3, DynamoDB, SQS, SNS, and ECR.
+- **CloudWatch Dashboards & Custom Metrics** ($3/dashboard/month + $0.30/metric) — Rely on the auto-generated `docs/aws_resources_dashboard.md` and standard free CloudWatch metrics.
+- **AWS Secrets Manager** ($0.40/secret/month) — Use Terraform variables from GitHub Environment secrets or **SSM Parameter Store (Standard Tier - $0.00)**.
+- **DynamoDB Provisioned Capacity** — Always use `billing_mode = "PAY_PER_REQUEST"` on `websocket_connections`.
+
+## 2. Compute, Storage & Log Retention Guardrails
+
+- **Lambda Timeouts & Memory (`infra/terraform/lambda.tf`)**:
+  - Real-time/API Lambdas (`match-api`, `score-update`, `storage-worker`, `broadcaster`, `onconnect`, `ondisconnect`): Keep timeouts bounded at **5–15 seconds** and memory at `128MB–256MB`.
+  - AI/ML Lambdas (`chat-api`, `ml-predict`): Keep timeouts bounded (`30s` for `chat-api`, `15s` for `ml-predict`) and memory at `512MB`.
+- **CloudWatch Log Retention**: Every `aws_cloudwatch_log_group` must set `retention_in_days = 7` so log storage costs stay near $0.00.
+- **Database Connection Pooling**: Always reuse a module-scoped `pg.Pool` across warm Lambda invocations so Aiven PostgreSQL free/startup connection limits are never exhausted.
+- **AWS Budgets (`infra/terraform/budgets.tf`)**: Maintain the configured monthly cost budget ($10 threshold alert) as an early warning system.
+
+## 3. Resource Inventory Tracking
+
+- Any change to `infra/terraform/*.tf` automatically triggers `scripts/generate-aws-dashboard.cjs` during pre-commit to update `docs/aws_resources_dashboard.md`. Verify the generated table reflects zero unexpected paid resources.

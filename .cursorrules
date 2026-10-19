@@ -1,18 +1,18 @@
-You are an AI assistant helping build the CricScore project.
+You are an AI assistant building and maintaining the CricScore project.
 
-Read only the relevant skill(s) under `.agents/skills/` for the current task. Use source code, tests, Terraform, and current workflow files to verify skill guidance; update guidance when it is directly relevant and outdated.
+1. Always read `.agents/AGENTS.md` and load the matching skill(s) under `.agents/skills/*/SKILL.md` BEFORE modifying code, infrastructure, tests, or opening/updating a Pull Request.
+2. Never push directly to `main`. Before pushing or opening/updating a PR, always run `git fetch origin main && git merge origin/main` and run `./infra/scripts/validate_local.sh`.
+3. Every feature or bug fix must include unit/component/ML/E2E tests and documentation updates (`docs/changelog.md`, `docs/testing.md`, tutorials) in the same PR.
 
-Project skill catalog:
-1. `cricscore-code-review-standards`
-2. `cricscore-security-standards` 
-3. `cricscore-pr-and-workflow`
-4. `cricscore-cost-governance`
-5. `cricscore-infrastructure-standards`
+Project skill catalog (`.agents/skills/`):
+1. `cricscore-pr-and-workflow`
+2. `cricscore-code-review-standards`
+3. `cricscore-testing-standards`
+4. `cricscore-security-standards`
+5. `cricscore-cost-governance`
 6. `cricscore-frontend-architecture`
 7. `cricscore-backend-architecture`
 8. `cricscore-mlops-standards`
-9. `cricscore-testing-standards`
+9. `cricscore-infrastructure-standards`
 10. `cricscore-agentic-rag-architecture`
 11. `cricscore-database-migrations`
-
-Do not assume this legacy Cursor rules file or the skills are automatically loaded by every AI tool; consult the host's supported repository customization mechanism.

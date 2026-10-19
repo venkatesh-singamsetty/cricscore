@@ -5,17 +5,21 @@ description: Use when changing or deploying CricScore Terraform, AWS resources, 
 
 # CricScore Infrastructure Standards
 
-## Terraform and deployment
+## 1. Terraform State, Providers & Validation
 
-- Keep `dev` and `prod` state keys and environment variable files separate. Preserve the S3 backend's native lockfile configuration and required Terraform version.
-- Format and validate Terraform before proposing changes: `./infra/scripts/terraform.sh fmt -check -recursive` and `./infra/scripts/terraform.sh validate`.
-- Review a plan for the intended environment before applying. Check for replacement, deletion, state/backend changes, and database or user-data impact; do not assume an apply is harmless.
-- `./infra/scripts/deploy.sh --env dev|prod --use-local-env` loads `.env.local`, installs dependencies, initializes Terraform, applies with auto-approve, builds the frontend, syncs S3, and invalidates CloudFront. It is a full deployment command, not a plan-only command. `--bootstrap-only` creates the initial state bucket and DNS zone; `--migrate` opts into database migrations. Use only the explicitly requested environment and confirm before production changes.
-- Keep deployment steps and their actual CI equivalents aligned. CI runs database migrations before Terraform apply and frontend upload; inspect `.github/workflows/ci.yml` and `cd.yml` before changing release ordering.
+- **Environment Isolation**: Keep `dev` (`cricscore/dev/terraform.tfstate`, `environments/dev.tfvars`) and `prod` (`cricscore/prod/terraform.tfstate`, `environments/prod.tfvars`) strictly separated with S3 native state locking (`use_lockfile = true`).
+- **AWS Provider Version Pinning (`infra/terraform/providers.tf`)**: Maintain `version = "~> 6.0, != 6.69.0"` on `hashicorp/aws` (`v6.69.0` has a fatal `bufio.Scanner: token too long` bug when updating Lambda code).
+- **Mandatory Local Checks**: Always run `./infra/scripts/terraform.sh fmt -check -recursive` and `./infra/scripts/terraform.sh validate` before committing any `.tf` file.
 
-## Lambda image deployment
+## 2. Local & CI/CD Deployment Workflow
 
-- Follow the current image build and update flow in `infra/terraform/lambda.tf`; do not assume Terraform notices content changes behind a mutable tag.
-- Keep container architecture, build platform, image tag handling, execution runtime, and Lambda configuration consistent. Add cleanup or retention rules deliberately so cost-saving changes do not remove an image still in use.
+- **Always Deploy & Test `dev` First**:
+  - `./infra/scripts/deploy.sh --env dev --use-local-env` loads `.env.local`, installs production Lambda dependencies, builds & pushes the `ml-predict` Docker image to ECR (`docker buildx build --platform linux/amd64 --provenance=false`), runs `terraform apply -auto-approve`, builds the Vite frontend, syncs S3, and invalidates CloudFront.
+  - Only deploy to `prod` (`./infra/scripts/deploy.sh --env prod --use-local-env`) after `dev` is verified and when explicitly requested by the user.
+  - Note: Local `deploy.sh --env prod` writes production `VITE_*` variables to `apps/frontend/.env` during the build step; never commit `apps/frontend/.env`.
+- **Database Migrations Ordering**: In `.github/workflows/ci.yml` (`dev`) and `cd.yml` (`prod`), `infra/database/migrate.sh` runs before `terraform apply`. Locally, pass `--migrate` to `deploy.sh` when schema migrations (`infra/database/migrations/*.sql`) are added.
 
-Run `./infra/scripts/validate_local.sh --skip-e2e` for the repository's local validation suite when the change warrants it. Never expose credentials in plans, logs, generated files, or commits.
+## 3. Cost & Security Guardrails
+
+- Never add NAT Gateways, KMS CMKs, CloudWatch Dashboards, Secrets Manager secrets, or DynamoDB provisioned capacity.
+- Keep `retention_in_days = 7` on all CloudWatch log groups and keep Checkov (`checkov -d infra/terraform/ --quiet`) passing with 0 failed checks.
