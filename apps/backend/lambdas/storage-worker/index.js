@@ -31,7 +31,7 @@ exports.handler = async (event) => {
 
       const {
         matchId,
-        inningId,
+        inningId: rawInningId,
         ballData,
         strikerName,
         nonStrikerName,
@@ -42,11 +42,29 @@ exports.handler = async (event) => {
         matchTotalOvers,
         bowlerOvers: explicitBowlerOvers,
         bowlerBalls: explicitBowlerBalls,
-        totalRuns: explicitTotalRuns,
-        totalWickets: explicitTotalWickets,
         battingOrderNames,
         undo,
       } = matchEvent;
+
+      const explicitTotalRuns =
+        matchEvent.explicitTotalRuns !== undefined
+          ? matchEvent.explicitTotalRuns
+          : matchEvent.totalRuns;
+      const explicitTotalWickets =
+        matchEvent.explicitTotalWickets !== undefined
+          ? matchEvent.explicitTotalWickets
+          : matchEvent.totalWickets;
+
+      let inningId = rawInningId;
+      if (!inningId || String(inningId).startsWith("inn2_")) {
+        const innLookup = await client.query(
+          "SELECT id FROM innings WHERE match_id = $1 ORDER BY inning_number DESC LIMIT 1",
+          [matchId],
+        );
+        if (innLookup.rows.length > 0) {
+          inningId = innLookup.rows[0].id;
+        }
+      }
 
       console.log(
         `Processing event for match: ${matchId}, type: ${matchEvent.type}`,
@@ -74,10 +92,10 @@ exports.handler = async (event) => {
 
           await client.query(
             `UPDATE players SET 
-                             runs = runs - $1, 
-                             balls_faced = balls_faced - $2,
-                             fours = fours - $3,
-                             sixes = sixes - $4,
+                             runs = GREATEST(0, runs - $1), 
+                             balls_faced = GREATEST(0, balls_faced - $2),
+                             fours = GREATEST(0, fours - $3),
+                             sixes = GREATEST(0, sixes - $4),
                              is_out = CASE WHEN $5 THEN false ELSE is_out END,
                              wicket_by = null, wicket_type = null, fielder_name = null
                           WHERE inning_id = $6 AND name = $7`,
@@ -102,8 +120,8 @@ exports.handler = async (event) => {
 
           await client.query(
             `UPDATE bowlers SET 
-                             runs_conceded = runs_conceded - $1, 
-                             wickets = wickets - $2,
+                             runs_conceded = GREATEST(0, runs_conceded - $1), 
+                             wickets = GREATEST(0, wickets - $2),
                              overs_completed = $3,
                              balls = $4
                           WHERE inning_id = $5 AND name = $6`,
@@ -154,28 +172,57 @@ exports.handler = async (event) => {
       }
 
       // 1. Update Inning Current State
-      await client.query(
-        `UPDATE innings SET 
+      const inningUpdateSql = undo
+        ? `UPDATE innings SET 
                     striker_name = COALESCE($1, striker_name), 
                     non_striker_name = COALESCE($2, non_striker_name), 
                     current_bowler_name = COALESCE($3, current_bowler_name), 
                     overs = COALESCE($4, overs),
                     balls = COALESCE($5, balls),
+                    total_runs = COALESCE($6, GREATEST(0, COALESCE((SELECT SUM(runs) FROM players WHERE inning_id = $8), 0))),
+                    total_wickets = COALESCE($7, COALESCE((SELECT COUNT(*) FROM players WHERE inning_id = $8 AND is_out = true AND wicket_type != 'RETIRED_HURT'), 0)),
+                    updated_at = CURRENT_TIMESTAMP
+                 WHERE id = $8`
+        : syncOnly
+          ? `UPDATE innings SET 
+                    striker_name = COALESCE($1, striker_name), 
+                    non_striker_name = COALESCE($2, non_striker_name), 
+                    current_bowler_name = COALESCE($3, current_bowler_name), 
+                    overs = CASE
+                      WHEN (COALESCE($4, overs, 0) * 6 + COALESCE($5, balls, 0)) >= (COALESCE(overs, 0) * 6 + COALESCE(balls, 0))
+                      THEN COALESCE($4, overs)
+                      ELSE overs
+                    END,
+                    balls = CASE
+                      WHEN (COALESCE($4, overs, 0) * 6 + COALESCE($5, balls, 0)) >= (COALESCE(overs, 0) * 6 + COALESCE(balls, 0))
+                      THEN COALESCE($5, balls)
+                      ELSE balls
+                    END,
                     total_runs = GREATEST(COALESCE($6, total_runs, 0), COALESCE(total_runs, 0), COALESCE((SELECT SUM(runs) FROM players WHERE inning_id = $8), 0)),
                     total_wickets = GREATEST(COALESCE($7, total_wickets, 0), COALESCE(total_wickets, 0)),
                     updated_at = CURRENT_TIMESTAMP
-                 WHERE id = $8`,
-        [
-          strikerName,
-          nonStrikerName,
-          bowlerName,
-          currentOvers,
-          currentBalls,
-          explicitTotalRuns,
-          explicitTotalWickets,
-          inningId,
-        ],
-      );
+                 WHERE id = $8`
+          : `UPDATE innings SET 
+                    striker_name = COALESCE($1, striker_name), 
+                    non_striker_name = COALESCE($2, non_striker_name), 
+                    current_bowler_name = COALESCE($3, current_bowler_name), 
+                    overs = COALESCE($4, overs),
+                    balls = COALESCE($5, balls),
+                    total_runs = COALESCE($6, GREATEST(COALESCE(total_runs, 0), COALESCE((SELECT SUM(runs) FROM players WHERE inning_id = $8), 0))),
+                    total_wickets = COALESCE($7, COALESCE(total_wickets, 0)),
+                    updated_at = CURRENT_TIMESTAMP
+                 WHERE id = $8`;
+
+      await client.query(inningUpdateSql, [
+        strikerName,
+        nonStrikerName,
+        bowlerName,
+        currentOvers,
+        currentBalls,
+        explicitTotalRuns,
+        explicitTotalWickets,
+        inningId,
+      ]);
 
       // 2. Update Match Metadata + Sync Scores, Wickets, and Overs
       await client.query(

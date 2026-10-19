@@ -328,4 +328,85 @@ describe("match-api Lambda handler", () => {
     expect(response.statusCode).toBe(403);
     expect(JSON.parse(response.body).error).toContain("Admins only");
   });
+
+  it("should idempotently upsert 2nd innings via ON CONFLICT (match_id, inning_number) when restarting 2nd innings", async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{ scorer_email: "test@example.com" }],
+      }) // Auth check
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [] }) // UPDATE innings SET is_completed = true
+      .mockResolvedValueOnce({ rows: [{ id: "inning_2_uuid" }] }) // INSERT ... ON CONFLICT DO UPDATE RETURNING id
+      .mockResolvedValueOnce({ rows: [] }) // INSERT player 1
+      .mockResolvedValueOnce({ rows: [] }); // COMMIT
+
+    const event = {
+      httpMethod: "POST",
+      path: "/match/match_123/innings",
+      pathParameters: { id: "match_123", matchId: "match_123" },
+      requestContext: {
+        authorizer: { jwt: { claims: { email: "test@example.com" } } },
+      },
+      body: JSON.stringify({
+        matchId: "match_123",
+        inningNumber: 2,
+        battingTeam: "Australia",
+        bowlingTeam: "India",
+        target: 15,
+        battingSquad: ["Warner"],
+        bowlingSquad: [],
+      }),
+    };
+
+    const response = await handler(event);
+    expect(response.statusCode).toBe(201);
+    expect(JSON.parse(response.body).inningId).toBe("inning_2_uuid");
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.stringContaining("ON CONFLICT (match_id, inning_number)"),
+      ["match_123", 2, "Australia", "India", 15],
+    );
+  });
+
+  it("should resolve optimistic inn2_ id by match_id and inning_number=2 when completing a match", async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{ scorer_email: "test@example.com" }],
+      }) // Auth check
+      .mockResolvedValueOnce({
+        rows: [{ id: "match_123", status: "COMPLETED" }],
+      }); // UPDATE matches
+
+    const event = {
+      httpMethod: "PATCH",
+      pathParameters: { matchId: "match_123" },
+      requestContext: {
+        authorizer: { jwt: { claims: { email: "test@example.com" } } },
+      },
+      body: JSON.stringify({
+        status: "COMPLETED",
+        finalInnings: {
+          id: "inn2_1729290000000",
+          totalRuns: 16,
+          totalWickets: 1,
+          overs: 0,
+          balls: 5,
+        },
+        previousInnings: {
+          id: "inning_1_uuid",
+          totalRuns: 14,
+          totalWickets: 0,
+          overs: 1,
+          balls: 0,
+        },
+      }),
+    };
+
+    const response = await handler(event);
+    expect(response.statusCode).toBe(200);
+    expect(mockQuery).toHaveBeenCalledWith(
+      "UPDATE innings SET total_runs = $1, total_wickets = $2, overs = $3, balls = $4 WHERE match_id = $5 AND inning_number = 2",
+      [16, 1, 0, 5, "match_123"],
+    );
+  });
 });

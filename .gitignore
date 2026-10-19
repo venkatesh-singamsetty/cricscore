@@ -149,3 +149,9 @@ tmp_*.tsx
 patch*.diff
 merge_prs.sh
 cricket-data/
+
+# Python bytecode & virtualenvs
+__pycache__/
+*.py[cod]
+apps/ml-engine/venv/
+

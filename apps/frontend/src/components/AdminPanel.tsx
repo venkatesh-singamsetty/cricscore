@@ -316,23 +316,34 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex gap-2">
-                        {user.isAdmin && (
-                          <span className="px-2 py-1 bg-rose-500/20 text-rose-400 text-[10px] font-black uppercase tracking-wider rounded-md">
-                            Admin
-                          </span>
-                        )}
-                        {user.isScorer && (
-                          <span className="px-2 py-1 bg-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-wider rounded-md">
-                            Scorer
-                          </span>
-                        )}
-                        {!user.isAdmin && !user.isScorer && (
-                          <span className="px-2 py-1 bg-slate-800 text-slate-500 text-[10px] font-black uppercase tracking-wider rounded-md">
-                            Viewer
-                          </span>
-                        )}
-                      </div>
+                      {(() => {
+                        const isGuest =
+                          user.email.startsWith("guest-") ||
+                          user.email.endsWith("@cricscore.local");
+                        const showScorer =
+                          user.isScorer || (!isGuest && !user.isAdmin);
+                        const showViewer =
+                          isGuest && !user.isAdmin && !user.isScorer;
+                        return (
+                          <div className="flex flex-wrap gap-1.5">
+                            {user.isAdmin && (
+                              <span className="px-2.5 py-1 bg-rose-500/15 border border-rose-500/30 text-rose-400 text-[10px] font-black uppercase tracking-wider rounded-md">
+                                ADMIN
+                              </span>
+                            )}
+                            {showScorer && (
+                              <span className="px-2.5 py-1 bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-[10px] font-black uppercase tracking-wider rounded-md">
+                                SCORER
+                              </span>
+                            )}
+                            {showViewer && (
+                              <span className="px-2.5 py-1 bg-slate-800 border border-white/10 text-slate-400 text-[10px] font-black uppercase tracking-wider rounded-md">
+                                VIEWER
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex justify-end gap-2">
@@ -550,7 +561,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
       {activeTab === "MATCHES" && (
         <div className="space-y-6 animate-in fade-in duration-300">
-          <div className="bg-slate-900/50 border border-white/5 p-6 rounded-[2rem] backdrop-blur-3xl shadow-2xl">
+          <div className="bg-slate-900/50 border border-white/5 p-4 sm:p-6 rounded-[2rem] backdrop-blur-3xl shadow-2xl">
             <h2 className="text-xl font-black text-white uppercase tracking-wider italic mb-4">
               Bulk Actions
             </h2>
@@ -613,8 +624,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
           </div>
 
-          <div className="bg-slate-900/50 border border-white/5 p-6 rounded-[2rem] backdrop-blur-3xl shadow-2xl">
-            <h2 className="text-xl font-black text-white uppercase tracking-wider italic mb-4">
+          <div className="bg-transparent md:bg-slate-900/50 border-0 md:border md:border-white/5 p-0 md:p-6 rounded-[2rem] md:backdrop-blur-3xl md:shadow-2xl">
+            <h2 className="text-xl font-black text-white uppercase tracking-wider italic mb-4 px-1 md:px-0">
               Individual Match Management
             </h2>
             <LiveScoreboard

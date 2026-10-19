@@ -10,6 +10,7 @@ import { BatterSelectModal } from "./MatchView/BatterSelectModal";
 import { BowlerSelectModal } from "./MatchView/BowlerSelectModal";
 import { ExtraRunsModal } from "./MatchView/ExtraRunsModal";
 import { AiMatchPrediction } from "./AiMatchPrediction";
+import { calculateDlsParScore } from "../utils/dlsUtils";
 
 interface MatchViewProps {
   initialState: InningsState;
@@ -145,25 +146,35 @@ const MatchView: React.FC<MatchViewProps> = ({
     }
     return headers;
   };
-  // --- Live Persistence (Synchronous Hydration - Match Specific) ---
-  const getLiveKey = () => `cric-live-match-${matchId}`;
+  // --- Live Persistence (Synchronous Hydration - Match & Innings Specific) ---
+  const getLiveKey = (inningNum: number = initialState.inningNumber) =>
+    `cric-live-match-${matchId}-inn-${inningNum}`;
 
   const loadSavedLiveState = () => {
     let savedLive = null;
     try {
-      savedLive = window.localStorage.getItem(getLiveKey());
+      savedLive =
+        window.localStorage.getItem(getLiveKey(initialState.inningNumber)) ||
+        window.localStorage.getItem(`cric-live-match-${matchId}`);
     } catch {
       return null;
     }
     if (savedLive) {
       try {
         const data = JSON.parse(savedLive);
-        // 🛑 STRICT CHECK: Only restore if match ID stays the same
+        // 🛑 STRICT CHECK: Only restore if match ID and inningNumber match
         if (
           data.matchId === matchId &&
+          data.innings &&
           data.innings.inningNumber === initialState.inningNumber
         ) {
-          return data;
+          const savedBalls =
+            (data.innings.overs || 0) * 6 + (data.innings.balls || 0);
+          const initBalls =
+            (initialState.overs || 0) * 6 + (initialState.balls || 0);
+          if (savedBalls >= initBalls) {
+            return data;
+          }
         }
       } catch (e) {
         console.error("Failed to restore live innings", e);
@@ -208,6 +219,7 @@ const MatchView: React.FC<MatchViewProps> = ({
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
 
   const middleContainerRef = useRef<HTMLDivElement>(null);
+  const skipCreaseSyncRef = useRef(false);
 
   const actionQueueRef = useRef<(() => Promise<void>)[]>([]);
 
@@ -220,6 +232,30 @@ const MatchView: React.FC<MatchViewProps> = ({
       }
     }
   };
+
+  // Sync real backend inning UUID if MatchView mounted with an optimistic inn2_ ID
+  useEffect(() => {
+    if (
+      initialState.id &&
+      !initialState.id.startsWith("inn2_") &&
+      innings.inningNumber === initialState.inningNumber &&
+      innings.id !== initialState.id
+    ) {
+      setInnings((prev) => ({ ...prev, id: initialState.id }));
+      setHistory((prev) =>
+        prev.map((h) =>
+          h.inningNumber === initialState.inningNumber
+            ? { ...h, id: initialState.id }
+            : h,
+        ),
+      );
+    }
+  }, [
+    initialState.id,
+    initialState.inningNumber,
+    innings.id,
+    innings.inningNumber,
+  ]);
 
   // Save live match state incrementally (Unique per match)
   useEffect(() => {
@@ -290,39 +326,179 @@ const MatchView: React.FC<MatchViewProps> = ({
     setHistory((prev) => [...prev, JSON.parse(JSON.stringify(innings))]);
   };
 
-  const handleUndo = async () => {
-    if (history.length === 0) return;
-    if (isProcessingRef.current) {
-      actionQueueRef.current.push(() => handleUndo());
-      return;
+  const reconstructPreviousState = (
+    current: InningsState,
+  ): InningsState | null => {
+    if (!current.allBalls || current.allBalls.length === 0) {
+      if ((current.overs || 0) === 0 && (current.balls || 0) === 0) {
+        return null;
+      }
+      const fallbackPrev: InningsState = JSON.parse(JSON.stringify(current));
+      const totalLegalBefore = Math.max(
+        0,
+        fallbackPrev.overs * 6 + fallbackPrev.balls - 1,
+      );
+      fallbackPrev.overs = Math.floor(totalLegalBefore / 6);
+      fallbackPrev.balls = totalLegalBefore % 6;
+      return fallbackPrev;
     }
+    const prev: InningsState = JSON.parse(JSON.stringify(current));
+    const lastBall = prev.allBalls.pop()!;
+    const ballTotalRuns = (lastBall.runs || 0) + (lastBall.extraRuns || 0);
+    prev.totalRuns = Math.max(0, prev.totalRuns - ballTotalRuns);
+
+    const wasLegal =
+      lastBall.extraType !== ExtraType.WIDE &&
+      lastBall.extraType !== ExtraType.NO_BALL &&
+      lastBall.wicketType !== WicketType.RETIRED_HURT &&
+      String(lastBall.wicketType) !== "RETIRED_HURT";
+
+    if (wasLegal) {
+      const totalLegalBefore = Math.max(0, prev.overs * 6 + prev.balls - 1);
+      prev.overs = Math.floor(totalLegalBefore / 6);
+      prev.balls = totalLegalBefore % 6;
+    }
+
+    prev.currentOver = prev.allBalls.filter((b) => b.overNumber === prev.overs);
+
+    const batter = Object.values(prev.players).find(
+      (p) => p.name === lastBall.batterName,
+    );
+    if (batter) {
+      if (
+        lastBall.extraType === ExtraType.NONE ||
+        lastBall.extraType === ExtraType.NO_BALL
+      ) {
+        batter.runs = Math.max(0, batter.runs - (lastBall.runs || 0));
+        if (lastBall.runs === 4) batter.fours = Math.max(0, batter.fours - 1);
+        if (lastBall.runs === 6) batter.sixes = Math.max(0, batter.sixes - 1);
+      }
+      if (
+        lastBall.extraType !== ExtraType.WIDE &&
+        lastBall.wicketType !== WicketType.RETIRED_HURT &&
+        String(lastBall.wicketType) !== "RETIRED_HURT"
+      ) {
+        batter.ballsFaced = Math.max(0, batter.ballsFaced - 1);
+      }
+    }
+
+    if (lastBall.isWicket) {
+      if (
+        lastBall.wicketType !== WicketType.RETIRED_HURT &&
+        String(lastBall.wicketType) !== "RETIRED_HURT"
+      ) {
+        prev.totalWickets = Math.max(0, prev.totalWickets - 1);
+      }
+      const dismissedPlayer =
+        (batter && batter.isOut ? batter : undefined) ||
+        Object.values(prev.players).find(
+          (p) => p.isOut && p.wicketType === lastBall.wicketType,
+        );
+      if (dismissedPlayer) {
+        dismissedPlayer.isOut = false;
+        dismissedPlayer.wicketType = undefined;
+        dismissedPlayer.wicketBy = undefined;
+        dismissedPlayer.fielderName = undefined;
+        prev.strikerId = dismissedPlayer.id;
+      }
+    } else if (batter) {
+      if (prev.strikerId !== batter.id && prev.nonStrikerId !== batter.id) {
+        prev.strikerId = batter.id;
+      }
+    }
+
+    const bowlerObj = Object.values(prev.bowlers).find(
+      (bw) => bw.name === lastBall.bowlerName,
+    );
+    if (bowlerObj) {
+      prev.currentBowlerId = bowlerObj.id;
+      if (
+        lastBall.extraType !== ExtraType.BYE &&
+        lastBall.extraType !== ExtraType.LEG_BYE
+      ) {
+        bowlerObj.runsConceded = Math.max(
+          0,
+          bowlerObj.runsConceded - ballTotalRuns,
+        );
+      }
+      if (wasLegal) {
+        const bLegalBefore = Math.max(
+          0,
+          bowlerObj.overs * 6 + bowlerObj.balls - 1,
+        );
+        bowlerObj.overs = Math.floor(bLegalBefore / 6);
+        bowlerObj.balls = bLegalBefore % 6;
+      }
+      if (
+        lastBall.isWicket &&
+        ![
+          WicketType.RUN_OUT,
+          WicketType.RETIRED_HURT,
+          WicketType.RETIRED_OUT,
+        ].includes(lastBall.wicketType as WicketType)
+      ) {
+        bowlerObj.wickets = Math.max(0, bowlerObj.wickets - 1);
+      }
+    }
+
+    return prev;
+  };
+
+  const handleUndo = async () => {
+    const previousState =
+      history.length > 0
+        ? history[history.length - 1]
+        : reconstructPreviousState(innings);
+    if (!previousState) return;
+
     isProcessingRef.current = true;
     setIsProcessing(true);
-    const previousState = history[history.length - 1];
-    setHistory((prev) => prev.slice(0, -1));
+    skipCreaseSyncRef.current = true;
+    const nextHistory = history.length > 0 ? history.slice(0, -1) : [];
+    setHistory(nextHistory);
     setInnings(previousState);
     setModalView("NONE");
     setPendingExtra(ExtraType.NONE);
     setLastCommentary("Last action undone.");
 
+    try {
+      window.localStorage.setItem(
+        getLiveKey(previousState.inningNumber),
+        JSON.stringify({
+          matchId,
+          innings: previousState,
+          history: nextHistory,
+          lastCommentary: "Last action undone.",
+        }),
+      );
+    } catch {
+      // Ignore storage errors
+    }
+    if (onStateChange) onStateChange(previousState);
+
     // Immediate sync after undo to revert spectator scores & delete last ball in DB
-    const s = previousState.players[previousState.strikerId]?.name || "";
+    const strikerObj = previousState.players[previousState.strikerId];
+    const s = strikerObj?.name || "";
     const ns = previousState.players[previousState.nonStrikerId]?.name || "";
-    const b = previousState.bowlers[previousState.currentBowlerId]?.name || "";
-    const bOvers =
-      previousState.bowlers[previousState.currentBowlerId]?.overs || 0;
-    const bBalls =
-      previousState.bowlers[previousState.currentBowlerId]?.balls || 0;
+    const bowlerObj = previousState.bowlers[previousState.currentBowlerId];
+    const b = bowlerObj?.name || "";
+    const bOvers = bowlerObj?.overs || 0;
+    const bBalls = bowlerObj?.balls || 0;
 
     try {
-      if (!matchId.startsWith("guest_") && userToken) {
+      if (!matchId.startsWith("guest_")) {
         const headers = await getAuthHeaders();
         await fetch(`${API_URL}/update-score`, {
           method: "POST",
           headers,
           body: JSON.stringify({
             matchId,
-            inningId: previousState.id,
+            inningId:
+              !previousState.id.startsWith("inn2_") ||
+              initialState.id.startsWith("inn2_")
+                ? previousState.id
+                : initialState.id,
+            battingTeamName: previousState.battingTeamName,
             strikerName: s,
             nonStrikerName: ns,
             bowlerName: b,
@@ -332,6 +508,12 @@ const MatchView: React.FC<MatchViewProps> = ({
             explicitTotalWickets: previousState.totalWickets,
             bowlerOvers: bOvers,
             bowlerBalls: bBalls,
+            bowlerRuns: bowlerObj?.runsConceded || 0,
+            bowlerWickets: bowlerObj?.wickets || 0,
+            runs: strikerObj?.runs || 0,
+            ballsFaced: strikerObj?.ballsFaced || 0,
+            fours: strikerObj?.fours || 0,
+            sixes: strikerObj?.sixes || 0,
             syncOnly: true,
             undo: true, // Tell backend to delete the most recent ball row
           }),
@@ -488,6 +670,7 @@ const MatchView: React.FC<MatchViewProps> = ({
     if (matchId.startsWith("guest_") || !userToken) return;
     if (!innings.strikerId || !innings.nonStrikerId || !innings.currentBowlerId)
       return;
+    if (isProcessingRef.current) return;
 
     try {
       const bOvers = innings.bowlers[innings.currentBowlerId]?.overs || 0;
@@ -499,7 +682,11 @@ const MatchView: React.FC<MatchViewProps> = ({
         headers,
         body: JSON.stringify({
           matchId,
-          inningId: innings.id,
+          inningId:
+            !innings.id.startsWith("inn2_") ||
+            initialState.id.startsWith("inn2_")
+              ? innings.id
+              : initialState.id,
           battingTeamName: innings.battingTeamName,
           strikerName: striker.name,
           nonStrikerName: nonStriker.name,
@@ -533,8 +720,12 @@ const MatchView: React.FC<MatchViewProps> = ({
     }
   };
 
-  // Auto-sync crease when players or match duration change
+  // Auto-sync crease only when players or match duration change manually (not during ball scoring/undo)
   useEffect(() => {
+    if (skipCreaseSyncRef.current) {
+      skipCreaseSyncRef.current = false;
+      return;
+    }
     if (innings.strikerId && innings.nonStrikerId && innings.currentBowlerId) {
       syncMatchState();
     }
@@ -558,7 +749,11 @@ const MatchView: React.FC<MatchViewProps> = ({
         headers,
         body: JSON.stringify({
           matchId,
-          inningId: finalInnings.id,
+          inningId:
+            !finalInnings.id.startsWith("inn2_") ||
+            initialState.id.startsWith("inn2_")
+              ? finalInnings.id
+              : initialState.id,
           battingTeamName: finalInnings.battingTeamName,
           ballData: ball,
           strikerName: finalInnings.players[finalInnings.strikerId]?.name || "",
@@ -623,6 +818,26 @@ const MatchView: React.FC<MatchViewProps> = ({
     fielderName?: string,
     outBatterId?: string,
   ) => {
+    if (!innings.strikerId || !innings.nonStrikerId) {
+      setModalView("BATTER_SELECT");
+      return;
+    }
+    if (!innings.currentBowlerId) {
+      setModalView("BOWLER_SELECT");
+      return;
+    }
+    const validBattersCountNow = innings.battingOrder.filter(
+      (id) => !innings.players[id]?.isOut,
+    ).length;
+    if (
+      innings.overs >= totalOvers ||
+      innings.totalWickets >= 10 ||
+      validBattersCountNow < 2 ||
+      Boolean(innings.target && innings.totalRuns >= innings.target)
+    ) {
+      return;
+    }
+
     if (isProcessingRef.current && !fielderName) {
       actionQueueRef.current.push(() =>
         handleScore(runs, isWicket, wicketType, fielderName, outBatterId),
@@ -820,6 +1035,8 @@ const MatchView: React.FC<MatchViewProps> = ({
       }
     }
 
+    const nextHistory = [...history, JSON.parse(JSON.stringify(innings))];
+    skipCreaseSyncRef.current = true;
     setInnings(finalInnings);
     // Innings ends if 10 wickets fall OR if fewer than 2 batters are left not out (handles teams < 11 players)
     const validBattersCount = finalInnings.battingOrder.filter(
@@ -833,31 +1050,6 @@ const MatchView: React.FC<MatchViewProps> = ({
 
     // Logic for next actions (Modals)
     setModalView("NONE"); // Close wicket type modal if open
-
-    if (!isMatchEnding) {
-      if (
-        isWicket &&
-        wicketType !== WicketType.RETIRED_HURT
-        // Note: RETIRED_OUT still needs modalView="BATTER_SELECT" since it does
-        // NOT set strikerId="" — the hardcoded modal only fires for strikerId="".
-        // RETIRED_HURT sets strikerId="" so it uses the hardcoded modal instead.
-      ) {
-        setModalView("BATTER_SELECT");
-      } else if (overCompleted) {
-        setModalView("BOWLER_SELECT");
-      }
-    }
-
-    await postScoreUpdate(newBallEvent, finalInnings);
-
-    // Release the processing lock after the API call completes.
-    // This prevents race conditions and state corruption from rapid clicking.
-    if (!isMatchEnding) {
-      isProcessingRef.current = false;
-      setIsProcessing(false);
-      processQueue();
-    }
-
     setPendingExtra(ExtraType.NONE);
     setPendingWicketInfo(null);
 
@@ -869,9 +1061,45 @@ const MatchView: React.FC<MatchViewProps> = ({
     setLastCommentary(commentary);
 
     if (isMatchEnding) {
-      // Delay slightly so users see the wicket/run
-      setTimeout(() => onInningsEnd(finalInnings), 500);
-      return; // Lock the UI permanently until the parent unmounts this view
+      try {
+        window.localStorage.setItem(
+          getLiveKey(finalInnings.inningNumber),
+          JSON.stringify({
+            matchId,
+            innings: finalInnings,
+            history: nextHistory,
+            lastCommentary: commentary,
+          }),
+        );
+      } catch {
+        // Ignore storage failure
+      }
+      isProcessingRef.current = false;
+      setIsProcessing(false);
+      void postScoreUpdate(newBallEvent, finalInnings);
+      onInningsEnd(finalInnings);
+      return;
+    }
+
+    if (
+      isWicket &&
+      wicketType !== WicketType.RETIRED_HURT
+      // Note: RETIRED_OUT still needs modalView="BATTER_SELECT" since it does
+      // NOT set strikerId="" — the hardcoded modal only fires for strikerId="".
+      // RETIRED_HURT sets strikerId="" so it uses the hardcoded modal instead.
+    ) {
+      setModalView("BATTER_SELECT");
+    } else if (overCompleted) {
+      setModalView("BOWLER_SELECT");
+    }
+
+    try {
+      await postScoreUpdate(newBallEvent, finalInnings);
+    } finally {
+      // Release the processing lock after the API call completes.
+      isProcessingRef.current = false;
+      setIsProcessing(false);
+      processQueue();
     }
   };
 
@@ -971,10 +1199,52 @@ const MatchView: React.FC<MatchViewProps> = ({
   // --- SUB COMPONENTS EXTRACTED ---
 
   const equation = getEquation();
+  const ballsBowled = innings.overs * 6 + innings.balls;
+  const crr =
+    ballsBowled > 0
+      ? ((innings.totalRuns / ballsBowled) * 6).toFixed(1)
+      : "0.0";
+  const totalBalls = totalOvers * 6;
+  const ballsLeft = Math.max(0, totalBalls - ballsBowled);
+  const runsNeeded = innings.target ? innings.target - innings.totalRuns : null;
+  const rawRrr =
+    runsNeeded !== null && ballsLeft > 0 ? (runsNeeded / ballsLeft) * 6 : null;
+  const rrr = rawRrr !== null ? Math.max(0, rawRrr).toFixed(1) : null;
+  const lastOverNum = innings.overs > 0 ? innings.overs - 1 : null;
+  const lastOverRuns =
+    lastOverNum !== null
+      ? innings.allBalls
+          .filter((b) => b.overNumber === lastOverNum)
+          .reduce((s, b) => s + b.runs + b.extraRuns, 0)
+      : null;
+  const dls =
+    previousInnings && previousInnings.totalRuns > 0
+      ? calculateDlsParScore(
+          previousInnings.totalRuns,
+          innings.totalRuns,
+          innings.totalWickets,
+          ballsBowled,
+          totalOvers,
+        )
+      : null;
+
+  const validBattersCount = innings.battingOrder.filter(
+    (id) => !innings.players[id]?.isOut,
+  ).length;
+  const isInningsComplete =
+    innings.totalWickets >= 10 ||
+    validBattersCount < 2 ||
+    innings.overs >= totalOvers ||
+    Boolean(innings.target && innings.totalRuns >= innings.target);
+  const canUndo =
+    history.length > 0 ||
+    (innings.allBalls && innings.allBalls.length > 0) ||
+    innings.overs > 0 ||
+    innings.balls > 0;
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-slate-900 text-slate-100 overflow-hidden selection:bg-indigo-500/30">
-      {innings.strikerId === "" && (
+    <div className="flex-1 flex flex-col min-h-0 bg-slate-950 text-slate-100 overflow-hidden selection:bg-indigo-500/30">
+      {!isInningsComplete && innings.strikerId === "" && (
         <BatterSelectModal
           innings={innings}
           onSelect={handleBatterSelected}
@@ -983,16 +1253,19 @@ const MatchView: React.FC<MatchViewProps> = ({
           onClose={() => setModalView("NONE")}
         />
       )}
-      {innings.strikerId !== "" && innings.nonStrikerId === "" && (
-        <BatterSelectModal
-          innings={innings}
-          onSelect={handleBatterSelected}
-          onRename={handleRenamePlayer}
-          onQuickAdd={handleQuickAddPlayer}
-          onClose={() => setModalView("NONE")}
-        />
-      )}
-      {innings.strikerId !== "" &&
+      {!isInningsComplete &&
+        innings.strikerId !== "" &&
+        innings.nonStrikerId === "" && (
+          <BatterSelectModal
+            innings={innings}
+            onSelect={handleBatterSelected}
+            onRename={handleRenamePlayer}
+            onQuickAdd={handleQuickAddPlayer}
+            onClose={() => setModalView("NONE")}
+          />
+        )}
+      {!isInningsComplete &&
+        innings.strikerId !== "" &&
         innings.nonStrikerId !== "" &&
         innings.currentBowlerId === "" && (
           <BowlerSelectModal
@@ -1096,8 +1369,8 @@ const MatchView: React.FC<MatchViewProps> = ({
       )}
 
       {/* Ultra-Slim Header (Fixed) */}
-      <div className="bg-slate-950 text-white shadow-2xl border-b border-indigo-500/30 shrink-0">
-        <div className="max-w-4xl mx-auto px-3 py-1.5">
+      <div className="shrink-0 text-white">
+        <div className="max-w-5xl mx-auto w-full px-3 py-1.5">
           <div className="flex justify-between items-center gap-4">
             <div className="flex-1 overflow-hidden">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1">
@@ -1186,37 +1459,111 @@ const MatchView: React.FC<MatchViewProps> = ({
               </div>
             </div>
 
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center justify-center shrink-0">
               <button
                 onClick={() => setShowScoreboard(true)}
-                className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 rounded text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
+                className="px-3.5 py-1 bg-indigo-600 hover:bg-indigo-500 rounded text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-md"
               >
                 Scorecard 📋
               </button>
               {Boolean(innings.target) && (
-                <span className="text-base md:text-xl font-black text-yellow-500 uppercase tracking-tight mt-3 max-w-[200px] md:max-w-[280px] text-center leading-tight">
-                  {equation ? `🎯 ${equation}` : `TGT: ${innings.target}`}
-                </span>
+                <div className="flex flex-col items-center mt-1.5">
+                  <span className="text-lg sm:text-xl md:text-2xl font-black text-amber-400 uppercase tracking-tight text-center leading-none whitespace-nowrap drop-shadow-sm">
+                    {equation ? `🎯 ${equation}` : `TGT: ${innings.target}`}
+                  </span>
+                </div>
               )}
             </div>
+          </div>
+
+          {/* CRR / RRR / DLS Tab Row - Fixed in Header & Always 100% Visible */}
+          <div className="mt-1.5 pt-1.5 border-t border-white/10">
+            <div
+              className={`grid ${dls ? "grid-cols-3" : "grid-cols-2"} gap-1.5 sm:gap-2`}
+            >
+              <div className="bg-slate-900/90 rounded-lg py-1 px-1 sm:px-2 text-center border border-white/10 shadow-sm">
+                <div className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase tracking-wider">
+                  CRR
+                </div>
+                <div className="text-sm md:text-base font-black text-white tabular-nums leading-tight mt-0.5">
+                  {crr}
+                </div>
+              </div>
+              {rrr !== null ? (
+                <div className="bg-amber-500/10 rounded-lg py-1 px-1 sm:px-2 text-center border border-amber-500/30 shadow-sm">
+                  <div className="text-[8px] md:text-[9px] font-black text-amber-500 uppercase tracking-wider">
+                    RRR
+                  </div>
+                  <div className="text-sm md:text-base font-black text-amber-400 tabular-nums leading-tight mt-0.5">
+                    {rrr}
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-slate-900/90 rounded-lg py-1 px-1 sm:px-2 text-center border border-white/10 shadow-sm">
+                  <div className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase tracking-wider">
+                    BALLS LEFT
+                  </div>
+                  <div className="text-sm md:text-base font-black text-white tabular-nums leading-tight mt-0.5">
+                    {ballsLeft}
+                  </div>
+                </div>
+              )}
+              {dls && (
+                <div
+                  className={`rounded-lg py-1 px-1 sm:px-2 text-center border transition-all shadow-sm ${
+                    dls.isAhead
+                      ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300"
+                      : dls.isTied
+                        ? "bg-amber-500/15 border-amber-500/40 text-amber-300"
+                        : "bg-red-500/15 border-red-500/40 text-red-300"
+                  }`}
+                >
+                  <div className="text-[8px] md:text-[9px] font-black uppercase tracking-wider flex items-center justify-center gap-0.5">
+                    <span>🌧️</span> DLS PAR
+                  </div>
+                  <div className="text-sm md:text-base font-black tabular-nums leading-tight mt-0.5">
+                    {dls.parScore}
+                  </div>
+                  <div className="text-[7px] md:text-[8px] font-bold truncate opacity-90 leading-none mt-0.5">
+                    {dls.statusText.replace(" (DLS)", "")}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* AI Match Prediction — Fixed in Top Header along with stats */}
+          <div className="mt-1">
+            <AiMatchPrediction
+              matchId={matchId}
+              teamA={innings.battingTeamName}
+              teamB={innings.bowlingTeamName}
+              totalOvers={totalOvers}
+              compact={true}
+              inning={innings.inningNumber}
+              currentScore={innings.totalRuns}
+              wicketsLost={innings.totalWickets}
+              targetScore={innings.target || -1}
+              ballsBowled={innings.overs * 6 + innings.balls}
+            />
           </div>
         </div>
       </div>
 
-      {/* Main Live Dashboard Area — top aligned, scrollable if needed */}
+      {/* Main Live Dashboard Area — balanced and distributed, scrollable if needed */}
       <div
         ref={middleContainerRef}
-        className="flex-1 min-h-0 overflow-y-auto scrollbar-hide py-1"
+        className="flex-1 min-h-0 overflow-y-auto w-full scrollbar-hide [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden py-1 flex flex-col"
       >
-        <div className="max-w-4xl mx-auto w-full px-3 space-y-1 pb-4 md:pb-6">
+        <div className="max-w-5xl mx-auto w-full px-3 py-1 flex-1 flex flex-col justify-evenly gap-2 sm:gap-2.5">
           {/* Active Player Cards */}
           <div className="grid grid-cols-2 gap-2">
             {/* Batters */}
-            <div className="space-y-1 relative">
+            <div className="space-y-1.5 relative">
               {[striker, nonStriker].map((b, idx) => (
                 <div
                   key={b.id || idx}
-                  className={`flex justify-between items-center px-3 py-1.5 rounded-xl border transition-all ${idx === 0 ? "bg-indigo-600 border-indigo-300 shadow-xl scale-[1.02] z-10" : "bg-slate-800 border-white/5 opacity-80"}`}
+                  className={`flex justify-between items-center px-3 py-2.5 rounded-xl transition-all ${idx === 0 ? "bg-indigo-600 border-2 border-indigo-300 shadow-xl z-10 font-black" : "bg-slate-800 border-2 border-transparent opacity-80"}`}
                 >
                   <div className="flex items-center gap-2 overflow-hidden">
                     <span
@@ -1241,8 +1588,11 @@ const MatchView: React.FC<MatchViewProps> = ({
                 </div>
               ))}
               <button
+                type="button"
                 onClick={handleSwapEnds}
-                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center bg-white text-indigo-950 rounded-full text-xs border-2 border-slate-900 active:scale-90 transition-all shadow-xl z-20"
+                aria-label="Swap Strike Ends"
+                title="Swap Strike Ends"
+                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center bg-white text-indigo-950 rounded-full text-sm border-2 border-slate-900 active:scale-90 hover:scale-105 transition-all shadow-xl z-20 cursor-pointer"
               >
                 🔄
               </button>
@@ -1250,7 +1600,7 @@ const MatchView: React.FC<MatchViewProps> = ({
 
             {/* Bowlers */}
             <div className="space-y-1">
-              <div className="flex justify-between items-center px-3 py-1.5 rounded-xl bg-slate-800 border border-white/10 shadow-inner h-full">
+              <div className="flex justify-between items-center px-3 py-2.5 rounded-xl bg-slate-800 border border-white/10 shadow-inner h-full">
                 <div className="flex flex-col min-w-0">
                   <div className="flex flex-col mb-1">
                     <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest leading-none mb-0.5 italic">
@@ -1284,303 +1634,265 @@ const MatchView: React.FC<MatchViewProps> = ({
             </div>
           </div>
 
-          {/* Over Tracking */}
-          <div className="bg-white/5 backdrop-blur-md rounded-xl p-1.5 border border-white/10 shadow-2xl">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">
-                Live Timeline
-              </span>
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest bg-white/5 px-2 py-0.5 rounded-full">
-                This Over
-              </span>
-            </div>
-            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-0.5">
-              {innings.currentOver.length === 0 ? (
-                <div className="flex items-center gap-2 text-slate-500">
-                  <div className="w-7 h-7 rounded-full border-2 border-dashed border-slate-700 flex items-center justify-center animate-pulse">
-                    <span className="text-[10px] italic">0</span>
-                  </div>
-                  <span className="text-[10px] font-black uppercase tracking-tighter opacity-50 italic">
-                    Waiting...
-                  </span>
-                </div>
-              ) : (
-                innings.currentOver.map((ball, idx) => {
-                  const isRetHurt =
-                    ball.wicketType === WicketType.RETIRED_HURT ||
-                    String(ball.wicketType) === "RETIRED_HURT";
-                  const isRetOut =
-                    ball.wicketType === WicketType.RETIRED_OUT ||
-                    String(ball.wicketType) === "RETIRED_OUT";
-                  return (
-                    <div
-                      key={idx}
-                      className="flex flex-col items-center gap-1 animate-in slide-in-from-right-4 duration-300"
-                    >
-                      <div
-                        className={`flex-shrink-0 w-7 h-7 md:w-9 md:h-9 rounded-full flex items-center justify-center text-[11px] md:text-[13px] font-black border-2 transition-all shadow-xl ${
-                          isRetHurt
-                            ? "bg-amber-500 text-amber-950 border-amber-300 shadow-amber-500/40"
-                            : ball.isWicket
-                              ? "bg-red-500 text-white border-red-300 shadow-red-500/40"
-                              : ball.runs === 4
-                                ? "bg-blue-600 text-white border-blue-400 shadow-blue-500/40"
-                                : ball.runs === 6
-                                  ? "bg-purple-600 text-white border-purple-400 shadow-purple-500/40"
-                                  : ball.isExtra
-                                    ? "bg-amber-500 text-amber-950 border-amber-300 shadow-amber-500/40"
-                                    : "bg-white text-slate-900 border-white shadow-white/10"
-                        }`}
-                      >
-                        {(() => {
-                          if (ball.isWicket || isRetHurt)
-                            return ball.runs > 0 ? `W+${ball.runs}` : "W";
-                          if (ball.isExtra) {
-                            if (ball.extraType === "WIDE")
-                              return ball.runs > 0 ? `Wd+${ball.runs}` : "Wd";
-                            if (ball.extraType === "NO_BALL")
-                              return ball.runs > 0 ? `Nb+${ball.runs}` : "Nb";
-                            if (ball.extraType === "BYE")
-                              return ball.runs > 0 ? `B+${ball.runs}` : "B";
-                            if (ball.extraType === "LEG_BYE")
-                              return ball.runs > 0 ? `Lb+${ball.runs}` : "Lb";
-                            return ball.runs > 0
-                              ? `${ball.extraType[0]}+${ball.runs}`
-                              : ball.extraType[0];
-                          }
-                          return ball.runs;
-                        })()}
-                      </div>
-                      <span
-                        className={`text-[8px] md:text-[9px] font-black uppercase ${isRetHurt ? "text-amber-400" : isRetOut ? "text-purple-400" : ball.isWicket ? "text-red-400" : "text-slate-500"}`}
-                      >
-                        {isRetHurt
-                          ? "RET_HURT"
-                          : isRetOut
-                            ? "RET_OUT"
-                            : ball.isWicket
-                              ? "WICKET"
-                              : ball.isExtra
-                                ? ball.extraType.split("_")[0]
-                                : "RUN"}
-                      </span>
+          {/* Over Timeline & Delivery Commentary — combined without bulky header to maximize scoring button space */}
+          <div className="bg-slate-900/80 backdrop-blur-md rounded-xl p-3 border border-white/10 shadow-lg">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-3">
+              {/* Over Timeline Balls */}
+              <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto scrollbar-hide pb-0.5 shrink-0">
+                <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest bg-white/5 px-2 py-0.5 rounded-full shrink-0">
+                  This Over
+                </span>
+                {innings.currentOver.length === 0 ? (
+                  <div className="flex items-center gap-1.5 text-slate-500">
+                    <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full border-2 border-dashed border-slate-700 flex items-center justify-center animate-pulse">
+                      <span className="text-[10px] italic">0</span>
                     </div>
-                  );
-                })
-              )}
-              {innings.currentOver.length > 0 &&
-                innings.currentOver.length < 6 &&
-                [...Array(6 - innings.currentOver.length)].map((_, i) => (
-                  <div
-                    key={`empty-${i}`}
-                    className="w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-dashed border-slate-700/50 flex items-center justify-center opacity-30"
-                  >
-                    <span className="text-[10px] text-slate-600 font-bold">
-                      •
+                    <span className="text-[10px] font-black uppercase tracking-tighter opacity-50 italic">
+                      Waiting...
                     </span>
                   </div>
-                ))}
-            </div>
-          </div>
-
-          {/* Live Commentary */}
-          <div className="bg-indigo-600/5 rounded-lg py-1 px-3 border border-indigo-500/10 shadow-inner">
-            <div className="flex items-center gap-2">
-              <span className="flex-shrink-0 text-[10px] font-black text-indigo-400 uppercase italic">
-                LIVE
-              </span>
-              <p className="text-xs md:text-sm text-slate-200 font-bold tracking-wide italic uppercase leading-none truncate">
-                {lastCommentary}
-              </p>
-            </div>
-          </div>
-
-          {/* Target Banner & Live Stats Strip */}
-          {(() => {
-            const ballsBowled = innings.overs * 6 + innings.balls;
-            const crr =
-              ballsBowled > 0
-                ? ((innings.totalRuns / ballsBowled) * 6).toFixed(1)
-                : "0.0";
-            const totalBalls = totalOvers * 6;
-            const ballsLeft = Math.max(0, totalBalls - ballsBowled);
-            const runsNeeded = innings.target
-              ? innings.target - innings.totalRuns
-              : null;
-            const rawRrr =
-              runsNeeded !== null && ballsLeft > 0
-                ? (runsNeeded / ballsLeft) * 6
-                : null;
-            const rrr = rawRrr !== null ? Math.max(0, rawRrr).toFixed(1) : null;
-            const lastOverNum = innings.overs > 0 ? innings.overs - 1 : null;
-            const lastOverRuns =
-              lastOverNum !== null
-                ? innings.allBalls
-                    .filter((b) => b.overNumber === lastOverNum)
-                    .reduce((s, b) => s + b.runs + b.extraRuns, 0)
-                : null;
-            return (
-              <div className="space-y-1 mt-1">
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="bg-slate-800/50 rounded-xl py-1.5 md:py-2 px-2 text-center border border-white/5">
-                    <div className="text-[10px] md:text-xs font-black text-slate-500 uppercase tracking-wider">
-                      CRR
-                    </div>
-                    <div className="text-base md:text-lg font-black text-white tabular-nums leading-tight mt-0.5">
-                      {crr}
-                    </div>
-                  </div>
-                  {rrr !== null ? (
-                    <div className="bg-yellow-500/10 rounded-xl py-1.5 md:py-2 px-2 text-center border border-yellow-500/20">
-                      <div className="text-[10px] md:text-xs font-black text-yellow-600 uppercase tracking-wider">
-                        RRR
+                ) : (
+                  innings.currentOver.map((ball, idx) => {
+                    const isRetHurt =
+                      ball.wicketType === WicketType.RETIRED_HURT ||
+                      String(ball.wicketType) === "RETIRED_HURT";
+                    const isRetOut =
+                      ball.wicketType === WicketType.RETIRED_OUT ||
+                      String(ball.wicketType) === "RETIRED_OUT";
+                    return (
+                      <div
+                        key={idx}
+                        className="flex flex-col items-center gap-0.5 animate-in slide-in-from-right-4 duration-300"
+                      >
+                        <div
+                          className={`flex-shrink-0 w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-[10px] sm:text-[11px] font-black border-2 transition-all shadow-md ${
+                            isRetHurt
+                              ? "bg-amber-500 text-amber-950 border-amber-300 shadow-amber-500/40"
+                              : ball.isWicket
+                                ? "bg-red-500 text-white border-red-300 shadow-red-500/40"
+                                : ball.runs === 4
+                                  ? "bg-blue-600 text-white border-blue-400 shadow-blue-500/40"
+                                  : ball.runs === 6
+                                    ? "bg-purple-600 text-white border-purple-400 shadow-purple-500/40"
+                                    : ball.isExtra
+                                      ? "bg-amber-500 text-amber-950 border-amber-300 shadow-amber-500/40"
+                                      : "bg-white text-slate-900 border-white shadow-white/10"
+                          }`}
+                        >
+                          {(() => {
+                            if (ball.isWicket || isRetHurt)
+                              return ball.runs > 0 ? `W+${ball.runs}` : "W";
+                            if (ball.isExtra) {
+                              if (ball.extraType === "WIDE")
+                                return ball.runs > 0 ? `Wd+${ball.runs}` : "Wd";
+                              if (ball.extraType === "NO_BALL")
+                                return ball.runs > 0 ? `Nb+${ball.runs}` : "Nb";
+                              if (ball.extraType === "BYE")
+                                return ball.runs > 0 ? `B+${ball.runs}` : "B";
+                              if (ball.extraType === "LEG_BYE")
+                                return ball.runs > 0 ? `Lb+${ball.runs}` : "Lb";
+                              return ball.runs > 0
+                                ? `${ball.extraType[0]}+${ball.runs}`
+                                : ball.extraType[0];
+                            }
+                            return ball.runs;
+                          })()}
+                        </div>
+                        <span
+                          className={`text-[7px] sm:text-[8px] font-black uppercase ${isRetHurt ? "text-amber-400" : isRetOut ? "text-purple-400" : ball.isWicket ? "text-red-400" : "text-slate-500"}`}
+                        >
+                          {isRetHurt
+                            ? "RH"
+                            : isRetOut
+                              ? "RO"
+                              : ball.isWicket
+                                ? "W"
+                                : ball.isExtra
+                                  ? ball.extraType.split("_")[0]
+                                  : "RUN"}
+                        </span>
                       </div>
-                      <div className="text-base md:text-lg font-black text-yellow-400 tabular-nums leading-tight mt-0.5">
-                        {rrr}
-                      </div>
+                    );
+                  })
+                )}
+                {innings.currentOver.length > 0 &&
+                  innings.currentOver.length < 6 &&
+                  [...Array(6 - innings.currentOver.length)].map((_, i) => (
+                    <div
+                      key={`empty-${i}`}
+                      className="w-6 h-6 sm:w-7 sm:h-7 rounded-full border-2 border-dashed border-slate-700/50 flex items-center justify-center opacity-30 shrink-0"
+                    >
+                      <span className="text-[10px] text-slate-600 font-bold">
+                        •
+                      </span>
                     </div>
-                  ) : (
-                    <div className="bg-slate-800/50 rounded-xl py-1.5 md:py-2 px-2 text-center border border-white/5">
-                      <div className="text-[10px] md:text-xs font-black text-slate-500 uppercase tracking-wider">
-                        BALLS LEFT
-                      </div>
-                      <div className="text-base md:text-lg font-black text-white tabular-nums leading-tight mt-0.5">
-                        {ballsLeft}
-                      </div>
-                    </div>
-                  )}
-                  <div className="bg-slate-800/50 rounded-xl py-1.5 md:py-2 px-2 text-center border border-white/5">
-                    <div className="text-[10px] md:text-xs font-black text-slate-500 uppercase tracking-wider">
-                      LAST OVR
-                    </div>
-                    <div className="text-base md:text-lg font-black text-indigo-400 tabular-nums leading-tight mt-0.5">
-                      {lastOverRuns !== null ? lastOverRuns : "—"}
-                    </div>
-                  </div>
-                </div>
+                  ))}
               </div>
-            );
-          })()}
-        </div>
-      </div>
 
-      {/* AI Match Prediction Section - Fixed Above Cockpit */}
-      <div className="shrink-0 px-3 pb-2 pt-1 border-t border-white/5 bg-slate-900/80 backdrop-blur-sm z-[80]">
-        <div className="w-full md:max-w-4xl md:mx-auto">
-          <AiMatchPrediction
-            matchId={matchId}
-            teamA={innings.battingTeamName}
-            teamB={innings.bowlingTeamName}
-            totalOvers={totalOvers}
-            compact={true}
-            inning={innings.inningNumber}
-            currentScore={innings.totalRuns}
-            wicketsLost={innings.totalWickets}
-            targetScore={innings.target || -1}
-            ballsBowled={innings.overs * 6 + innings.balls}
-          />
+              {/* Delivery Commentary Alone (without the words "LIVE COMMENTARY") */}
+              <div className="flex items-center gap-2 min-w-0 flex-1 sm:justify-end border-t sm:border-t-0 sm:border-l border-white/10 pt-1 sm:pt-0 sm:pl-3">
+                <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0 animate-pulse"></span>
+                <p className="text-xs sm:text-sm font-bold text-slate-200 tracking-wide uppercase italic truncate">
+                  {lastCommentary || "Match in progress"}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Operations Cockpit (Fixed at Bottom) */}
-      <div className="shrink-0 bg-slate-950 border-t border-white/5 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-[90]">
-        <div className="max-w-4xl mx-auto">
-          {/* Action Tabs */}
-          <div className="grid grid-cols-4 border-b border-white/5">
-            <button
-              onClick={handleUndo}
-              disabled={history.length === 0 || isProcessing}
-              className="py-2 md:py-1.5 flex flex-col items-center justify-center gap-0.5 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white hover:bg-white/5 transition-all border-r border-white/5 disabled:opacity-10"
-            >
-              <span className="text-xl text-indigo-400">↺</span>
-              Undo
-            </button>
-            <button
-              onClick={() => setModalView("BOWLER_SELECT")}
-              className="py-2 md:py-1.5 flex flex-col items-center justify-center gap-0.5 text-[8px] md:text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-white hover:bg-white/5 transition-all border-r border-white/5"
-            >
-              <span className="text-xl">🎾</span>
-              Change Bowler
-            </button>
-            <button
-              onClick={() => setModalView("BATTER_SELECT")}
-              className="py-2 md:py-1.5 flex flex-col items-center justify-center gap-0.5 text-[8px] md:text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-white hover:bg-white/5 transition-all border-r border-white/5"
-            >
-              <span className="text-xl">🏏</span>
-              Change Batter
-            </button>
-            <button
-              onClick={() => innings.strikerId && setModalView("RETIRE_MODAL")}
-              disabled={!innings.strikerId}
-              className={`py-2 md:py-1.5 flex flex-col items-center justify-center gap-0.5 text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all ${!innings.strikerId ? "opacity-40 cursor-not-allowed text-slate-600" : "text-slate-400 hover:text-white hover:bg-white/5"}`}
-            >
-              <span className="text-xl">🚪</span>
-              Retire
-            </button>
-          </div>
-
-          {/* Input Hub */}
-          <div className="px-2 py-3 md:p-3 space-y-2">
-            {/* Extras Console */}
-            <div className="grid grid-cols-4 gap-2 mb-1">
-              {["WIDE", "NO_BALL", "BYE", "LEG_BYE"].map((type) => {
-                const isActive = pendingExtra === (type as ExtraType);
-                return (
-                  <button
-                    key={type}
-                    onClick={() => {
-                      const next = isActive
-                        ? ExtraType.NONE
-                        : (type as ExtraType);
-                      setPendingExtra(next);
-                      if (next !== ExtraType.NONE) {
-                        setModalView("EXTRA_RUNS");
-                      }
-                    }}
-                    className={`py-4 md:py-3 lg:py-2 rounded-xl text-xs md:text-sm font-black border transition-all uppercase tracking-tighter leading-none ${isActive ? "bg-indigo-600 text-white border-indigo-300 shadow-2xl scale-95" : "bg-slate-900 text-slate-400 border-white/10 hover:border-white/30 hover:text-white"}`}
-                  >
-                    {type.replace("_", " ")}
-                  </button>
-                );
-              })}
-            </div>
-            {/* Keypad */}
-            <div className="grid grid-cols-4 gap-2">
-              {[0, 1, 2, 3].map((run) => (
+      <div className="shrink-0 z-[90]">
+        <div className="max-w-5xl mx-auto w-full px-3 pb-1">
+          {isInningsComplete ? (
+            <div className="my-2 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-3 sm:p-4 space-y-3 shadow-2xl">
+              <div className="text-center">
+                <div className="text-xs font-black uppercase tracking-[0.25em] text-indigo-400">
+                  {innings.inningNumber === 1
+                    ? "1st Innings Complete"
+                    : "Innings Complete"}
+                </div>
+                <div className="text-sm text-slate-200 font-black mt-1">
+                  {innings.battingTeamName}: {innings.totalRuns}/
+                  {innings.totalWickets} ({innings.overs}.{innings.balls} Overs)
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button
-                  key={run}
-                  onClick={() => handleScore(run)}
-                  className="h-16 sm:h-16 lg:h-14 rounded-xl md:rounded-lg bg-slate-800 border border-slate-700 hover:border-slate-500 hover:bg-slate-700 text-white font-black text-3xl active:scale-95 transition-all shadow-lg"
+                  type="button"
+                  onClick={handleUndo}
+                  disabled={!canUndo}
+                  className="h-16 sm:h-20 min-h-[64px] rounded-2xl bg-slate-800 hover:bg-slate-700 border-2 border-white/15 hover:border-indigo-400/50 text-white font-black text-base sm:text-lg uppercase tracking-wider italic active:scale-95 transition-all flex items-center justify-center gap-2 shadow-xl disabled:opacity-30 cursor-pointer"
                 >
-                  {run}
+                  <span className="text-2xl text-indigo-400">↺</span>
+                  <span>Undo Last Ball</span>
                 </button>
-              ))}
-              <button
-                onClick={() => handleScore(4)}
-                className="h-16 sm:h-16 lg:h-14 rounded-xl md:rounded-lg bg-cyan-500 hover:bg-cyan-400 text-white font-black text-3xl active:scale-95 transition-all shadow-[0_0_12px_rgba(6,182,212,0.6)] border border-cyan-400/50"
-              >
-                4
-              </button>
-              <button
-                onClick={() => handleScore(5)}
-                className="h-16 sm:h-16 lg:h-14 rounded-xl md:rounded-lg bg-amber-500 hover:bg-amber-400 text-white font-black text-3xl active:scale-95 transition-all shadow-[0_0_12px_rgba(245,158,11,0.6)] border border-amber-400/50"
-              >
-                5
-              </button>
-              <button
-                onClick={() => handleScore(6)}
-                className="h-16 sm:h-16 lg:h-14 rounded-xl md:rounded-lg bg-purple-500 hover:bg-purple-400 text-white font-black text-3xl active:scale-95 transition-all shadow-[0_0_15px_rgba(168,85,247,0.7)] border border-purple-400/50"
-              >
-                6
-              </button>
-              <button
-                onClick={() => setModalView("WICKET_TYPE")}
-                className="h-16 sm:h-16 lg:h-14 rounded-xl md:rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-black text-3xl active:scale-95 transition-all shadow-[0_0_15px_rgba(225,29,72,0.8)] border border-rose-500/50"
-              >
-                W
-              </button>
+                <button
+                  type="button"
+                  onClick={() => onInningsEnd(innings)}
+                  className="h-16 sm:h-20 min-h-[64px] rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 border-2 border-indigo-300/70 text-white font-black text-base sm:text-lg uppercase tracking-wider italic active:scale-95 transition-all flex items-center justify-center gap-2 shadow-[0_0_28px_rgba(99,102,241,0.65)] ring-2 ring-indigo-400/40 cursor-pointer"
+                >
+                  <span>
+                    {innings.inningNumber === 1
+                      ? "Proceed to 2nd Innings"
+                      : "Complete Match"}
+                  </span>
+                  <span className="text-2xl">
+                    {innings.inningNumber === 1 ? "🏏" : "🏆"}
+                  </span>
+                </button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <>
+              {/* Action Tabs */}
+              <div className="grid grid-cols-4 border-b border-white/5 rounded-t-xl overflow-hidden bg-slate-900/40 border-t border-x border-white/5">
+                <button
+                  onClick={handleUndo}
+                  disabled={!canUndo || isProcessing}
+                  className="py-2.5 sm:py-2 flex flex-col items-center justify-center gap-0.5 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white hover:bg-white/5 transition-all border-r border-white/5 disabled:opacity-10 active:scale-95"
+                >
+                  <span className="text-base sm:text-lg text-indigo-400">
+                    ↺
+                  </span>
+                  Undo
+                </button>
+                <button
+                  onClick={() => setModalView("BOWLER_SELECT")}
+                  className="py-2.5 sm:py-2 flex flex-col items-center justify-center gap-0.5 text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-white hover:bg-white/5 transition-all border-r border-white/5 active:scale-95"
+                >
+                  <span className="text-base sm:text-lg">🎾</span>
+                  Change Bowler
+                </button>
+                <button
+                  onClick={() => setModalView("BATTER_SELECT")}
+                  className="py-2.5 sm:py-2 flex flex-col items-center justify-center gap-0.5 text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-white hover:bg-white/5 transition-all border-r border-white/5 active:scale-95"
+                >
+                  <span className="text-base sm:text-lg">🏏</span>
+                  Change Batter
+                </button>
+                <button
+                  onClick={() =>
+                    innings.strikerId && setModalView("RETIRE_MODAL")
+                  }
+                  disabled={!innings.strikerId}
+                  className={`py-2.5 sm:py-2 flex flex-col items-center justify-center gap-0.5 text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${!innings.strikerId ? "opacity-40 cursor-not-allowed text-slate-600" : "text-slate-400 hover:text-white hover:bg-white/5"}`}
+                >
+                  <span className="text-base sm:text-lg">🚪</span>
+                  Retire
+                </button>
+              </div>
+
+              {/* Input Hub */}
+              <div className="py-2 space-y-2">
+                {/* Extras Console */}
+                <div className="grid grid-cols-4 gap-2 mb-1">
+                  {["WIDE", "NO_BALL", "BYE", "LEG_BYE"].map((type) => {
+                    const isActive = pendingExtra === (type as ExtraType);
+                    return (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => {
+                          const next = isActive
+                            ? ExtraType.NONE
+                            : (type as ExtraType);
+                          setPendingExtra(next);
+                          if (next !== ExtraType.NONE) {
+                            setModalView("EXTRA_RUNS");
+                          }
+                        }}
+                        className={`h-12 min-h-[48px] py-1.5 px-2 rounded-xl text-xs sm:text-sm font-black border transition-all uppercase tracking-tighter leading-none flex items-center justify-center active:scale-95 ${isActive ? "bg-amber-500 text-slate-950 border-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.6)] font-black" : "bg-slate-900 text-amber-400 border-amber-500/30 hover:border-amber-400 hover:text-amber-300"}`}
+                      >
+                        {type.replace("_", " ")}
+                      </button>
+                    );
+                  })}
+                </div>
+                {/* Keypad */}
+                <div className="grid grid-cols-4 gap-2 sm:gap-2.5">
+                  {[0, 1, 2, 3].map((run) => (
+                    <button
+                      key={run}
+                      type="button"
+                      onClick={() => handleScore(run)}
+                      className="h-16 sm:h-[4.25rem] lg:h-[4.5rem] min-h-[64px] rounded-2xl md:rounded-xl bg-slate-800 border border-slate-700 hover:border-slate-500 hover:bg-slate-700 text-white font-black text-3xl sm:text-4xl active:scale-95 transition-all shadow-lg"
+                    >
+                      {run}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => handleScore(4)}
+                    className="h-16 sm:h-[4.25rem] lg:h-[4.5rem] min-h-[64px] rounded-2xl md:rounded-xl bg-cyan-500 hover:bg-cyan-400 text-white font-black text-3xl sm:text-4xl active:scale-95 transition-all shadow-[0_0_15px_rgba(6,182,212,0.6)] border border-cyan-400/50"
+                  >
+                    4
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleScore(5)}
+                    className="h-16 sm:h-[4.25rem] lg:h-[4.5rem] min-h-[64px] rounded-2xl md:rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-black text-3xl sm:text-4xl active:scale-95 transition-all shadow-[0_0_15px_rgba(245,158,11,0.6)] border border-amber-400/50"
+                  >
+                    5
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleScore(6)}
+                    className="h-16 sm:h-[4.25rem] lg:h-[4.5rem] min-h-[64px] rounded-2xl md:rounded-xl bg-purple-500 hover:bg-purple-400 text-white font-black text-3xl sm:text-4xl active:scale-95 transition-all shadow-[0_0_18px_rgba(168,85,247,0.7)] border border-purple-400/50"
+                  >
+                    6
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModalView("WICKET_TYPE")}
+                    className="h-16 sm:h-[4.25rem] lg:h-[4.5rem] min-h-[64px] rounded-2xl md:rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-3xl sm:text-4xl active:scale-95 transition-all shadow-[0_0_18px_rgba(239,68,68,0.7)] border border-red-500/50"
+                  >
+                    W
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 

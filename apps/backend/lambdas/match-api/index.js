@@ -882,7 +882,23 @@ exports.handler = async (event, context) => {
         );
 
         const res = await client.query(
-          "INSERT INTO innings (match_id, inning_number, batting_team_name, bowling_team_name, target) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+          `INSERT INTO innings (match_id, inning_number, batting_team_name, bowling_team_name, target)
+           VALUES ($1, $2, $3, $4, $5)
+           ON CONFLICT (match_id, inning_number)
+           DO UPDATE SET
+             batting_team_name = EXCLUDED.batting_team_name,
+             bowling_team_name = EXCLUDED.bowling_team_name,
+             target = EXCLUDED.target,
+             total_runs = 0,
+             total_wickets = 0,
+             overs = 0,
+             balls = 0,
+             striker_name = NULL,
+             non_striker_name = NULL,
+             current_bowler_name = NULL,
+             is_completed = FALSE,
+             updated_at = CURRENT_TIMESTAMP
+           RETURNING id`,
           [matchId, nextInningNumber, battingTeam, bowlingTeam, target],
         );
         const inningId = res.rows[0].id;
@@ -937,18 +953,25 @@ exports.handler = async (event, context) => {
       const res = await client.query(`
                 SELECT m.*, 
                        (SELECT json_agg(json_build_object(
+                           'id', i.id,
                            'inning_number', i.inning_number,
                            'batting_team_name', i.batting_team_name,
-                           'total_runs', GREATEST(
-                             COALESCE(i.total_runs, 0),
-                             COALESCE((SELECT SUM(p.runs) FROM players p WHERE p.inning_id = i.id), 0),
-                             COALESCE((SELECT SUM(b.runs + CASE WHEN (b.is_extra = true OR b.is_extra::text = 'true') AND UPPER(COALESCE(b.extra_type, '')) IN ('WIDE','NO_BALL') THEN COALESCE(NULLIF(b.extra_runs, 0), 1) ELSE COALESCE(b.extra_runs, 0) END) FROM ball_events b WHERE b.inning_id = i.id), 0)
-                           ),
-                           'total_wickets', GREATEST(
-                             COALESCE(i.total_wickets, 0),
-                             COALESCE((SELECT COUNT(*) FROM players p WHERE p.inning_id = i.id AND p.is_out = true AND p.wicket_type != 'RETIRED_HURT'), 0),
-                             COALESCE((SELECT COUNT(*) FROM ball_events b WHERE b.inning_id = i.id AND (b.is_wicket = true OR b.is_wicket::text = 'true') AND b.wicket_type != 'RETIRED_HURT'), 0)
-                           ),
+                           'total_runs', CASE
+                             WHEN (SELECT COUNT(*) FROM ball_events b WHERE b.inning_id = i.id) > 0 THEN
+                               GREATEST(
+                                 COALESCE((SELECT SUM(p.runs) FROM players p WHERE p.inning_id = i.id), 0),
+                                 COALESCE((SELECT SUM(b.runs + CASE WHEN (b.is_extra = true OR b.is_extra::text = 'true') AND UPPER(COALESCE(b.extra_type, '')) IN ('WIDE','NO_BALL') THEN COALESCE(NULLIF(b.extra_runs, 0), 1) ELSE COALESCE(b.extra_runs, 0) END) FROM ball_events b WHERE b.inning_id = i.id), 0)
+                               )
+                             ELSE COALESCE(i.total_runs, 0)
+                           END,
+                           'total_wickets', CASE
+                             WHEN (SELECT COUNT(*) FROM ball_events b WHERE b.inning_id = i.id) > 0 THEN
+                               GREATEST(
+                                 COALESCE((SELECT COUNT(*) FROM players p WHERE p.inning_id = i.id AND p.is_out = true AND p.wicket_type != 'RETIRED_HURT'), 0),
+                                 COALESCE((SELECT COUNT(*) FROM ball_events b WHERE b.inning_id = i.id AND (b.is_wicket = true OR b.is_wicket::text = 'true') AND b.wicket_type != 'RETIRED_HURT'), 0)
+                               )
+                             ELSE COALESCE(i.total_wickets, 0)
+                           END,
                            'overs', i.overs,
                            'balls', i.balls
                        ) ORDER BY i.inning_number) FROM innings i WHERE i.match_id = m.id) as innings
@@ -1030,16 +1053,29 @@ exports.handler = async (event, context) => {
         if (status === "COMPLETED") {
           // Synchronously sync explicit innings aggregates to fix Eventual Consistency WebSocket race condition
           if (finalInnings) {
-            await client.query(
-              "UPDATE innings SET total_runs = $1, total_wickets = $2, overs = $3, balls = $4 WHERE id = $5",
-              [
-                finalInnings.totalRuns,
-                finalInnings.totalWickets,
-                finalInnings.overs,
-                finalInnings.balls,
-                finalInnings.id,
-              ],
-            );
+            if (String(finalInnings.id || "").startsWith("inn2_")) {
+              await client.query(
+                "UPDATE innings SET total_runs = $1, total_wickets = $2, overs = $3, balls = $4 WHERE match_id = $5 AND inning_number = 2",
+                [
+                  finalInnings.totalRuns,
+                  finalInnings.totalWickets,
+                  finalInnings.overs,
+                  finalInnings.balls,
+                  matchId,
+                ],
+              );
+            } else {
+              await client.query(
+                "UPDATE innings SET total_runs = $1, total_wickets = $2, overs = $3, balls = $4 WHERE id = $5",
+                [
+                  finalInnings.totalRuns,
+                  finalInnings.totalWickets,
+                  finalInnings.overs,
+                  finalInnings.balls,
+                  finalInnings.id,
+                ],
+              );
+            }
           }
           if (previousInnings) {
             await client.query(
@@ -1252,13 +1288,15 @@ exports.handler = async (event, context) => {
         const formattedUsers = (usersRes.Users || []).map((u) => {
           const emailAttr = u.Attributes?.find((a) => a.Name === "email");
           const email = emailAttr ? emailAttr.Value : u.Username;
+          const isGuest =
+            email.startsWith("guest-") || email.endsWith("@cricscore.local");
           return {
             username: u.Username,
             email: email,
             status: u.UserStatus,
             isAdmin:
               adminUsers.has(email) || email === process.env.ADMIN_REPORT_EMAIL,
-            isScorer: scorerUsers.has(email),
+            isScorer: !isGuest || scorerUsers.has(email),
           };
         });
 

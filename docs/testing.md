@@ -26,17 +26,18 @@ CHAT_API_URL=https://api.example.com npm run test:all
 
 Unit tests are isolated tests that verify individual functions, utilities, or background cloud logic without spinning up external dependencies.
 
-- **Frontend Unit Tests**: Validate React Types, state handlers, and Duckworth-Lewis-Stern (DLS) Par Score calculations.
-  - _Location:_ `apps/frontend/src/test/types.test.ts`, `apps/frontend/src/test/dlsUtils.test.ts`
-- **ML Engine Unit Tests (PyTest)**: Validate live win probability inference, 120-ball feature scaling for 1-to-20 over matches, and heuristic overrides in Python.
+- **Frontend Unit Tests**: Validate React Types, state handlers, live WebSocket score merge utilities, Duckworth-Lewis-Stern (DLS) Par Score calculations (1–50 overs), scorer access guards, localStorage safety, and summary formatting.
+  - _Location:_ `apps/frontend/src/test/types.test.ts`, `apps/frontend/src/test/dlsUtils.test.ts`, `apps/frontend/src/test/applyLiveScoreToMatches.test.ts`, `apps/frontend/src/test/scorerAccess.test.ts`, `apps/frontend/src/test/storageSafety.test.ts`, `apps/frontend/src/test/summaryFormat.test.ts`, `apps/frontend/src/test/authConfig.test.ts`
+- **ML Engine Unit Tests (PyTest)**: Validate format-agnostic ball-by-ball dynamic-programming win probability (`win_probability.py`), DLS resource parity alignment on achievable chases, 10-to-20 over T20 model blending, and decided/impossible chase overrides in Python.
   - _Location:_ `apps/ml-engine/test_predict.py`
-- **Backend Event-Driven Unit Tests**: Validate AWS Lambda workers (e.g., `storage-worker`, `broadcaster`, `score-update`) using `aws-sdk-client-mock`.
-  - _Location:_ `apps/backend/lambdas/storage-worker/index.test.js`, `apps/backend/lambdas/broadcaster/index.test.js`, `apps/backend/lambdas/score-update/index.test.js`, `apps/backend/lambdas/onconnect/index.test.js`, `apps/backend/lambdas/ondisconnect/index.test.js`
+- **Backend Event-Driven Unit Tests**: Validate AWS Lambda workers (e.g., `storage-worker`, `broadcaster`, `score-update`, `chat-api` handlers and MCP tools) using `aws-sdk-client-mock` and Vitest mocks.
+  - _Location:_ `apps/backend/lambdas/storage-worker/index.test.js`, `apps/backend/lambdas/broadcaster/index.test.js`, `apps/backend/lambdas/score-update/index.test.js`, `apps/backend/lambdas/onconnect/index.test.js`, `apps/backend/lambdas/ondisconnect/index.test.js`, `apps/backend/lambdas/chat-api/handlers/*.test.js`, `apps/backend/lambdas/chat-api/mcp/tools/tools.test.js`
 
 ### Running Unit Tests
 
 - **Frontend:** `npm run test --prefix apps/frontend` (Note: This executes both Unit and Integration tests).
 - **Backend:** `npm run test --prefix apps/backend` (Use `npm run test:watch --prefix apps/backend` for active development).
+- **ML Engine:** `./apps/ml-engine/venv/bin/pytest apps/ml-engine/test_predict.py`
 
 ---
 
@@ -44,8 +45,8 @@ Unit tests are isolated tests that verify individual functions, utilities, or ba
 
 Integration tests verify that different components and services work together correctly, simulating interactions without rendering in a real browser.
 
-- **Frontend Component Integration**: We use **React Testing Library** to mount React components in a virtual DOM, simulate user clicks, input typing, and verify that the components properly validate payloads before firing network calls.
-  - _Location:_ `apps/frontend/src/test/MatchSetup.test.tsx`
+- **Frontend Component Integration**: We use **React Testing Library** to mount React components in a virtual DOM, simulate user clicks, input typing, WebSocket messages, and verify that the components properly validate state transitions and payloads before firing network calls.
+  - _Location:_ `apps/frontend/src/test/MatchSetup.test.tsx`, `apps/frontend/src/test/MatchView.test.tsx`, `apps/frontend/src/test/LiveScoreboard.test.tsx`, `apps/frontend/src/test/AiMatchPrediction.test.tsx`, `apps/frontend/src/test/ChatComponent.test.tsx`
 
 ### Running Integration Tests
 

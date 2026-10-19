@@ -8,9 +8,11 @@ import {
   FileText,
   ChevronDown,
   Copy,
+  Check,
   PlusCircle,
   Volume2,
   VolumeX,
+  Sparkles,
 } from "lucide-react";
 import {
   safeLocalStorageGet,
@@ -122,6 +124,16 @@ export function ChatComponent({
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [isSpeechEnabled, setIsSpeechEnabled] = useState(false);
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const QUICK_PROMPTS = [
+    "What are the Powerplay rules?",
+    "Wide vs No-Ball: Which takes precedence?",
+    "How many fielders are allowed outside the circle?",
+    "How many players are required at toss to avoid forfeit?",
+    "Current run rate?",
+  ];
 
   const [isUploadingRules] = useState(false);
   const [uploadedDocs, setUploadedDocs] = useState<string[]>([]);
@@ -264,11 +276,17 @@ export function ChatComponent({
     ]);
   };
 
-  const handleCopy = (text: string) => {
+  const handleCopy = async (text: string, idx: number) => {
     try {
-      navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(text);
+      setCopiedIdx(idx);
+      setToastMessage("Copied to clipboard!");
+      setTimeout(() => {
+        setCopiedIdx(null);
+        setToastMessage(null);
+      }, 1800);
     } catch (e) {
-      console.error(e);
+      console.error("Clipboard copy failed", e);
     }
   };
 
@@ -278,7 +296,7 @@ export function ChatComponent({
   };
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col w-full max-w-4xl mx-auto bg-slate-900 rounded-none sm:rounded-xl border-0 sm:border border-white/10 shadow-2xl overflow-hidden relative">
+    <div className="flex-1 min-h-0 flex flex-col w-full max-w-5xl mx-auto bg-slate-900 rounded-none sm:rounded-xl border-0 sm:border border-white/10 shadow-2xl overflow-hidden relative">
       <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-transparent pointer-events-none" />
       <div className="shrink-0 p-3 sm:p-4 bg-slate-800/95 backdrop-blur-sm border-b border-white/10 flex items-center justify-between gap-2 relative z-20 sticky top-0 shadow-md">
         <div className="flex items-center gap-1.5 shrink-0">
@@ -365,6 +383,14 @@ export function ChatComponent({
         </div>
       </div>
 
+      {/* Floating Copy Toast */}
+      {toastMessage && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-emerald-500 text-slate-950 font-black text-xs rounded-full shadow-2xl flex items-center gap-1.5 animate-in fade-in slide-in-from-top-2 duration-150">
+          <Check size={14} />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       <div className="flex-1 min-h-0 flex flex-col relative">
         <div
           ref={messageListRef}
@@ -372,40 +398,92 @@ export function ChatComponent({
           style={{ WebkitOverflowScrolling: "touch" }}
         >
           <div className="flex-1 min-h-[1rem] shrink-0"></div>
-          <div className="space-y-3 sm:space-y-4 flex flex-col shrink-0">
-            {messages.map((msg, idx) => (
-              <div
-                key={idx}
-                className={`flex gap-2.5 sm:gap-3 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
-              >
-                <div
-                  className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0 ${msg.role === "user" ? "bg-indigo-500" : "bg-slate-700"}`}
-                >
-                  {msg.role === "user" ? (
-                    <User size={14} className="text-white sm:w-4 sm:h-4" />
-                  ) : (
-                    <Bot size={14} className="text-indigo-300 sm:w-4 sm:h-4" />
-                  )}
-                </div>
-                <div
-                  className={`p-3 rounded-2xl max-w-[85%] sm:max-w-[80%] shadow-md relative group ${msg.role === "user" ? "bg-indigo-600 text-white rounded-tr-none shadow-indigo-500/20" : "bg-slate-800 text-slate-200 rounded-tl-none border border-white/5 pr-8"}`}
-                >
-                  <FormattedContent content={msg.content} />
 
-                  {msg.role === "assistant" &&
-                    msg.content !==
-                      "Hi! Ask me anything about the live match!" && (
-                      <button
-                        onClick={() => handleCopy(msg.content)}
-                        className="absolute right-2 bottom-2 p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-indigo-500/20 rounded-md opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
-                        title="Copy response"
-                      >
-                        <Copy size={14} />
-                      </button>
-                    )}
+          {/* Welcome & Default Questions (One-by-one vertical list) */}
+          {messages.length <= 1 && (
+            <div className="flex flex-col items-center justify-center py-6 px-3 text-center my-auto animate-in fade-in duration-300 w-full max-w-md mx-auto">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center text-white shadow-xl shadow-indigo-500/25 border border-indigo-400/30 mb-3">
+                <Bot size={28} />
+              </div>
+              <h3 className="text-base font-black text-white uppercase tracking-wider italic mb-1">
+                CricScore AI Assistant
+              </h3>
+              <p className="text-xs text-slate-400 max-w-xs leading-relaxed mb-4">
+                Ask questions about the live score, player statistics,
+                tournament rulebooks, or match predictions.
+              </p>
+
+              <div className="w-full space-y-2 text-left">
+                <span className="text-[10px] font-black uppercase text-indigo-400 tracking-wider flex items-center gap-1.5 px-1 mb-2">
+                  <Sparkles size={12} className="text-amber-400" />
+                  Suggested Questions
+                </span>
+                <div className="flex flex-col gap-2">
+                  {QUICK_PROMPTS.map((prompt, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => submitText(prompt, false)}
+                      disabled={loading}
+                      aria-label={prompt}
+                      className="w-full text-left p-3 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 border border-white/5 hover:border-indigo-500/40 text-slate-200 hover:text-white transition-all text-xs font-semibold flex items-center justify-between group active:scale-[0.98] shadow-sm"
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <span className="w-5 h-5 rounded-md bg-indigo-500/20 text-indigo-300 flex items-center justify-center text-[10px] font-bold shrink-0">
+                          {i + 1}
+                        </span>
+                        <span className="leading-snug">{prompt}</span>
+                      </span>
+                      <Send
+                        size={12}
+                        className="text-slate-500 group-hover:text-indigo-400 shrink-0 ml-2 transition-colors"
+                      />
+                    </button>
+                  ))}
                 </div>
               </div>
-            ))}
+            </div>
+          )}
+
+          <div className="space-y-3 sm:space-y-4 flex flex-col shrink-0">
+            {messages.length > 1 &&
+              messages.map((msg, idx) => (
+                <div
+                  key={idx}
+                  className={`flex gap-2.5 sm:gap-3 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
+                >
+                  <div
+                    className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0 ${msg.role === "user" ? "bg-indigo-500" : "bg-slate-700"}`}
+                  >
+                    {msg.role === "user" ? (
+                      <User size={14} className="text-white sm:w-4 sm:h-4" />
+                    ) : (
+                      <Bot
+                        size={14}
+                        className="text-indigo-300 sm:w-4 sm:h-4"
+                      />
+                    )}
+                  </div>
+                  <div
+                    className={`p-3 rounded-2xl max-w-[85%] sm:max-w-[80%] shadow-md relative group pr-8 ${msg.role === "user" ? "bg-indigo-600 text-white rounded-tr-none shadow-indigo-500/20" : "bg-slate-800 text-slate-200 rounded-tl-none border border-white/5"}`}
+                  >
+                    <FormattedContent content={msg.content} />
+
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(msg.content, idx)}
+                      className="absolute right-2 bottom-2 p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-md opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all active:scale-90"
+                      title="Copy message"
+                    >
+                      {copiedIdx === idx ? (
+                        <Check size={14} className="text-emerald-400" />
+                      ) : (
+                        <Copy size={14} />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ))}
             {loading && (
               <div className="flex gap-2.5 sm:gap-3 flex-row">
                 <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-700 flex items-center justify-center shrink-0">
@@ -431,6 +509,27 @@ export function ChatComponent({
           </div>
         </div>
       </div>
+
+      {/* Quick Prompt Suggestion Chips (Visible during active chat) */}
+      {messages.length > 1 && (
+        <div className="shrink-0 px-3 py-2 overflow-x-auto scrollbar-none flex items-center gap-2 border-t border-white/5 bg-slate-900/95 z-20">
+          <span className="text-[10px] font-black uppercase text-indigo-400 tracking-wider shrink-0 flex items-center gap-1">
+            <Sparkles size={12} className="text-amber-400" />
+            Quick:
+          </span>
+          {QUICK_PROMPTS.map((prompt, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => submitText(prompt, false)}
+              disabled={loading}
+              className="px-3 py-1 rounded-full bg-slate-800 hover:bg-indigo-600/30 text-slate-300 hover:text-indigo-200 border border-white/10 hover:border-indigo-500/40 text-[11px] font-bold whitespace-nowrap transition-all active:scale-95 shrink-0 disabled:opacity-50"
+            >
+              {prompt}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div
         className="shrink-0 p-2.5 sm:p-4 bg-slate-800 border-t border-white/10 z-30 sticky bottom-0"
@@ -471,7 +570,7 @@ export function ChatComponent({
             // dismissing the mobile keyboard.
             onMouseDown={(e) => e.preventDefault()}
             disabled={!input.trim() || loading}
-            className="p-2.5 sm:p-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl disabled:opacity-50 transition-colors shrink-0 shadow-lg shadow-indigo-600/20"
+            className="p-2.5 sm:p-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-2xl disabled:opacity-50 transition-all shrink-0 shadow-lg shadow-indigo-600/30 hover:shadow-[0_0_12px_rgba(99,102,241,0.5)] active:scale-95"
             title="Send message"
           >
             <Send size={18} />
@@ -494,10 +593,10 @@ export function ChatComponent({
                 }
               }
             }}
-            className={`p-2.5 sm:p-3 rounded-2xl transition-colors shrink-0 shadow-lg ${
+            className={`p-2.5 sm:p-3 rounded-2xl transition-all shrink-0 shadow-lg active:scale-95 ${
               isSpeechEnabled
-                ? "bg-indigo-600/40 text-indigo-300 shadow-indigo-600/20"
-                : "bg-slate-700/60 text-slate-400 hover:text-slate-200"
+                ? "bg-gradient-to-r from-indigo-600 to-amber-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.6)] border border-amber-400/50"
+                : "bg-slate-800 text-slate-400 hover:text-slate-200 border border-white/10"
             }`}
             title={
               isSpeechEnabled
@@ -506,7 +605,7 @@ export function ChatComponent({
             }
           >
             {isSpeechEnabled ? (
-              <Volume2 size={18} className="text-indigo-400 shrink-0" />
+              <Volume2 size={18} className="text-white shrink-0" />
             ) : (
               <VolumeX size={18} className="shrink-0" />
             )}

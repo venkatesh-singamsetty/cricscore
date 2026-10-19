@@ -242,6 +242,7 @@ resource "aws_ecr_repository" "ml_predict" {
 
 resource "null_resource" "docker_build_push" {
   triggers = {
+    repository_url = aws_ecr_repository.ml_predict.repository_url
     # Rebuild when any file in ml-engine changes
     dir_sha1 = sha1(join("", [for f in fileset("${path.module}/../../apps/ml-engine", "*") : filesha1("${path.module}/../../apps/ml-engine/${f}")]))
   }

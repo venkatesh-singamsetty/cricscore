@@ -100,6 +100,9 @@ OPENAI_API_KEY='your-openai-api-key'
 | Dev         | `cricscoredev.example.org` | `cricscoredev`   |
 | Prod        | `cricscore.example.org`    | `cricscore`      |
 
+> [!TIP]
+> Always specify the base name in `.env.local` (e.g. `SUBDOMAIN_PREFIX='cricscore'`, not `'cricscoredev'`). The deploy script automatically appends `dev` for dev environments.
+
 - `TF_STATE_BUCKET` is optional. By default it becomes `<PROJECT_NAME>-tfstate-<your AWS account ID>`. Set it only to reuse an existing bucket.
 - Optional overrides: `DEV_DOMAIN_NAME`, `DEV_PROJECT_NAME`, `DEV_SUBDOMAIN_PREFIX` (and `PROD_*`).
 - Optional Sentry: `cp apps/frontend/.env.example apps/frontend/.env` and set `VITE_SENTRY_DSN`.
