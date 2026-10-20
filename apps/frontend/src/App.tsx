@@ -809,6 +809,14 @@ const App: React.FC = () => {
               target,
               battingSquad: nextBattingTeam.players,
               bowlingSquad: nextBowlingTeam.players,
+              previousInnings: {
+                id: completedInnings.id,
+                battingTeamName: completedInnings.battingTeamName,
+                totalRuns: completedInnings.totalRuns,
+                totalWickets: completedInnings.totalWickets,
+                overs: completedInnings.overs,
+                balls: completedInnings.balls,
+              },
             }),
           },
         );

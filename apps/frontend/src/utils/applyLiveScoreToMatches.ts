@@ -10,9 +10,23 @@ export interface MatchInningSummary {
 
 export interface MatchListItem {
   id: string;
+  status?: string;
+  total_overs?: number;
   innings?: MatchInningSummary[] | string | null;
   updated_at?: string;
   [key: string]: unknown;
+}
+
+export interface PreviousInningsSnapshot {
+  id?: string;
+  battingTeamName?: string;
+  batting_team_name?: string;
+  totalRuns?: number;
+  total_runs?: number;
+  totalWickets?: number;
+  total_wickets?: number;
+  overs?: number;
+  balls?: number;
 }
 
 export interface LiveScorePayload {
@@ -21,6 +35,9 @@ export interface LiveScorePayload {
   match_id?: string;
   inningId?: string;
   inning_id?: string;
+  inningNumber?: number;
+  inning_number?: number;
+  target?: number;
   battingTeamName?: string;
   batting_team_name?: string;
   explicitTotalRuns?: number;
@@ -53,6 +70,8 @@ export interface LiveScorePayload {
   bowlerWickets?: number;
   syncOnly?: boolean;
   undo?: boolean;
+  matchCompleted?: boolean;
+  previousInnings?: PreviousInningsSnapshot;
   ballData?: any;
   data?: LiveScorePayload;
 }
@@ -164,13 +183,60 @@ export function applyLiveScoreToMatches<T extends MatchListItem>(
   }
 
   const match = matches[matchIndex];
-  const innings = normalizeInnings(match.innings);
-  if (!innings || innings.length === 0) {
+  const rawInnings = normalizeInnings(match.innings);
+  if (!rawInnings || rawInnings.length === 0) {
     return { matches, applied: false };
+  }
+
+  const innings = [...rawInnings];
+
+  // If the scorer included an authoritative previousInnings snapshot, reconcile Innings 1 first
+  // so a lagging background DB read can never leave Innings 1 stuck at a stale mid-innings score.
+  if (payload.previousInnings && innings.length > 0) {
+    const prevSnap = payload.previousInnings;
+    const prevTeam = prevSnap.battingTeamName || prevSnap.batting_team_name;
+    const prevIdx = prevTeam
+      ? innings.findIndex(
+          (i) =>
+            i.batting_team_name?.trim().toLowerCase() ===
+            prevTeam.trim().toLowerCase(),
+        )
+      : 0;
+    const targetIdx = prevIdx >= 0 ? prevIdx : 0;
+    const existingPrev = innings[targetIdx];
+    const snapOvers = pickNumber(prevSnap.overs) ?? existingPrev.overs;
+    const snapBalls = pickNumber(prevSnap.balls) ?? existingPrev.balls;
+    const snapRuns = pickNumber(
+      prevSnap.totalRuns,
+      prevSnap.total_runs,
+      existingPrev.total_runs,
+    )!;
+    const snapWickets = pickNumber(
+      prevSnap.totalWickets,
+      prevSnap.total_wickets,
+      existingPrev.total_wickets,
+    )!;
+    const existingBalls =
+      Number(existingPrev.overs || 0) * 6 + Number(existingPrev.balls || 0);
+    const incomingSnapBalls =
+      Number(snapOvers || 0) * 6 + Number(snapBalls || 0);
+    if (incomingSnapBalls >= existingBalls) {
+      innings[targetIdx] = {
+        ...existingPrev,
+        total_runs: Math.max(snapRuns, Number(existingPrev.total_runs || 0)),
+        total_wickets: Math.max(
+          snapWickets,
+          Number(existingPrev.total_wickets || 0),
+        ),
+        overs: snapOvers,
+        balls: snapBalls,
+      };
+    }
   }
 
   const inningId = payload.inningId || payload.inning_id;
   const battingTeam = payload.battingTeamName || payload.batting_team_name;
+  const inningNumber = pickNumber(payload.inningNumber, payload.inning_number);
 
   let innIndex = -1;
   if (inningId) {
@@ -187,10 +253,25 @@ export function applyLiveScoreToMatches<T extends MatchListItem>(
         i.batting_team_name?.trim().toLowerCase() ===
         battingTeam.trim().toLowerCase(),
     );
-    // If battingTeam is explicitly provided (e.g. 2nd innings team) and not yet in match.innings,
-    // return applied: false so MatchList refreshes from the server instead of overwriting innings 1.
     if (innIndex < 0) {
-      return { matches, applied: false };
+      // If the payload explicitly carries 2nd-innings metadata (or previousInnings),
+      // dynamically append the 2nd innings entry so MatchList updates immediately
+      // without triggering a background GET /matches that could race with SQS.
+      if (inningNumber === 2 || payload.previousInnings) {
+        const createdSecondInning: MatchInningSummary = {
+          id: inningId || `inn2_${matchId}`,
+          inning_number: 2,
+          batting_team_name: battingTeam,
+          total_runs: 0,
+          total_wickets: 0,
+          overs: 0,
+          balls: 0,
+        };
+        innings.push(createdSecondInning);
+        innIndex = innings.length - 1;
+      } else {
+        return { matches, applied: false };
+      }
     }
   }
   if (innIndex < 0) {
@@ -307,9 +388,35 @@ export function applyLiveScoreToMatches<T extends MatchListItem>(
 
   const newInnings = [...innings];
   newInnings[innIndex] = nextInning;
+
+  // Determine if the 2nd innings has concluded the match so MatchList transitions to COMPLETED immediately
+  let nextStatus = match.status;
+  if (payload.matchCompleted) {
+    nextStatus = "COMPLETED";
+  } else if (newInnings.length >= 2 && innIndex === 1 && !payload.undo) {
+    const i1Runs = Number(newInnings[0].total_runs || 0);
+    const i2Runs = Number(nextInning.total_runs || 0);
+    const i2Wickets = Number(nextInning.total_wickets || 0);
+    const maxOvers = pickNumber(
+      payload.matchTotalOvers,
+      payload.match_total_overs,
+      Number(match.total_overs || 0) || undefined,
+    );
+    if (
+      i2Runs > i1Runs ||
+      i2Wickets >= 10 ||
+      (maxOvers !== undefined &&
+        maxOvers > 0 &&
+        Number(nextInning.overs || 0) >= maxOvers)
+    ) {
+      nextStatus = "COMPLETED";
+    }
+  }
+
   const nextMatches = [...matches];
   nextMatches[matchIndex] = {
     ...match,
+    ...(nextStatus ? { status: nextStatus } : {}),
     innings: newInnings,
     updated_at: new Date().toISOString(),
   };

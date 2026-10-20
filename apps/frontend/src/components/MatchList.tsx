@@ -92,7 +92,66 @@ const MatchList: React.FC<MatchListProps> = ({
             new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
           );
         });
-        setMatches(sorted);
+        setMatches((prev) => {
+          if (!background || prev.length === 0) return sorted;
+          return sorted.map((incoming) => {
+            const existing = prev.find((m) => m.id === incoming.id);
+            if (!existing) return incoming;
+            const incInnings = Array.isArray(incoming.innings)
+              ? incoming.innings
+              : [];
+            const exInnings = Array.isArray(existing.innings)
+              ? existing.innings
+              : [];
+            const mergedInnings = incInnings.map((incInn) => {
+              const exInn = exInnings.find(
+                (i) =>
+                  (i.id && incInn.id && i.id === incInn.id) ||
+                  i.batting_team_name?.trim().toLowerCase() ===
+                    incInn.batting_team_name?.trim().toLowerCase(),
+              );
+              if (!exInn) return incInn;
+              const incBalls =
+                Number(incInn.overs || 0) * 6 + Number(incInn.balls || 0);
+              const exBalls =
+                Number(exInn.overs || 0) * 6 + Number(exInn.balls || 0);
+              if (exBalls > incBalls) {
+                return {
+                  ...incInn,
+                  overs: exInn.overs,
+                  balls: exInn.balls,
+                  total_runs: Math.max(
+                    Number(exInn.total_runs || 0),
+                    Number(incInn.total_runs || 0),
+                  ),
+                  total_wickets: Math.max(
+                    Number(exInn.total_wickets || 0),
+                    Number(incInn.total_wickets || 0),
+                  ),
+                };
+              }
+              return incInn;
+            });
+            // Preserve any 2nd innings already tracked via WebSocket if background DB read hasn't seen it yet
+            for (const exInn of exInnings) {
+              const alreadyPresent = mergedInnings.some(
+                (i) =>
+                  (i.id && exInn.id && i.id === exInn.id) ||
+                  i.batting_team_name?.trim().toLowerCase() ===
+                    exInn.batting_team_name?.trim().toLowerCase(),
+              );
+              if (!alreadyPresent) {
+                mergedInnings.push(exInn);
+              }
+            }
+            return {
+              ...incoming,
+              status:
+                existing.status === "COMPLETED" ? "COMPLETED" : incoming.status,
+              innings: mergedInnings,
+            };
+          });
+        });
       } catch (err) {
         console.error("Failed to fetch matches:", err);
       } finally {
