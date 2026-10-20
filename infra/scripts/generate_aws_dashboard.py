@@ -228,7 +228,17 @@ PROD_SNS_ALERTS = "cricscore-lambda-alerts"
 PROD_ECR_REPO = "cricscore-ml-predict"
 PROD_ECR_IMG = get_ecr_latest(PROD_ECR_REPO)
 
-GENERATED_TIME = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+def get_commit_info():
+    """Get latest commit date and short hash for idempotent document header."""
+    try:
+        out = subprocess.check_output(["git", "log", "-1", "--format=%cd (%h)", "--date=short"], stderr=subprocess.DEVNULL).decode().strip()
+        if out:
+            return out
+    except Exception:
+        pass
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+GENERATED_VERSION = get_commit_info()
 
 def build_markdown():
     lines = []
@@ -236,7 +246,7 @@ def build_markdown():
     lines.append("")
     lines.append("A central single-pane-of-glass directory providing direct UI links, exact resource IDs, container images, ML model artifacts, database vector schemas, and security scan reports for both **Development** and **Production** environments.")
     lines.append("")
-    lines.append(f"> **Automated Generation**: Refreshed on `{GENERATED_TIME}` for AWS Account `{ACCOUNT_ID}` (`{REGION}`). To refresh, run `./infra/scripts/generate_aws_dashboard.sh`.")
+    lines.append(f"> **Automated Generation**: Synchronized as of `{GENERATED_VERSION}` for AWS Account `{ACCOUNT_ID}` (`{REGION}`). To refresh, run `./infra/scripts/generate_aws_dashboard.sh`.")
     lines.append("")
     lines.append("---")
     lines.append("")
@@ -473,6 +483,14 @@ def main():
     doc_path = REPO_ROOT / "docs" / "aws_resources_dashboard.md"
     content = build_markdown()
     doc_path.write_text(content)
+    # Format with prettier for deterministic markdown formatting
+    subprocess.run(
+        ["npx", "prettier", "--write", str(doc_path)],
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        cwd=REPO_ROOT
+    )
     print(f"✅ CricScore Central Dashboard successfully generated at {doc_path}")
 
 if __name__ == "__main__":

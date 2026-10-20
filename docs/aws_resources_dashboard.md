@@ -2,7 +2,7 @@
 
 A central single-pane-of-glass directory providing direct UI links, exact resource IDs, container images, ML model artifacts, database vector schemas, and security scan reports for both **Development** and **Production** environments.
 
-> **Automated Generation**: Refreshed on `2026-10-20 04:43:32 UTC` for AWS Account `926789386606` (`us-east-1`). To refresh, run `./infra/scripts/generate_aws_dashboard.sh`.
+> **Automated Generation**: Synchronized as of `2026-10-19 (9eae44b)` for AWS Account `926789386606` (`us-east-1`). To refresh, run `./infra/scripts/generate_aws_dashboard.sh`.
 
 ---
 
