@@ -57,8 +57,8 @@ The MLOps pipeline consists of four main stages:
 
 1. **Data Ingestion & Preprocessing**: Automatically downloads raw ball-by-ball JSON data from [Cricsheet](https://cricsheet.org/) and compiles it into a structured tabular format (`live_data.csv`).
 2. **Model Training & Multi-Algorithm Benchmarking**: Compares 8 candidate models (Logistic Regression, Gaussian Naive Bayes, Decision Trees, Linear SVM with Platt scaling, Random Forest, Extra Trees, HistGradientBoosting, and **XGBoost**). The training pipeline strictly enforces match-grouped data splitting (70% train, 15% validation, 15% test) to prevent **target leakage** (see detailed analysis in [ML Models Handbook](ml_models_handbook.md)). The winning model (**XGBoost**) is tracked in MLflow and written to `model_manifest.json` with SHA-256 integrity checksums.
-3. **Continuous Integration (CI) Quality Gates**: The GitHub Actions workflow (`mlops-pipeline.yml`) runs on changes to `apps/ml-engine/` pushed to `main`, monthly, or by manual dispatch. It executes validation quality gates (`accuracy >= 0.60`, `roc_auc >= 0.65`, `size <= 25MB`), tests via `pytest`, and uploads versioned artifacts.
-4. **Serverless Inference**: Terraform builds and pushes the `apps/ml-engine` Docker image to ECR for the prediction Lambda, which is exposed through `POST /match/predict`. The runtime verifies the model SHA-256 hash on cold start and blends the model with the Markov Dynamic Programming (DP) and Duckworth-Lewis-Stern (DLS) resource par engine.
+3. **Continuous Integration (CI) Quality Gates**: The GitHub Actions workflow (`mlops-pipeline.yml`) runs only when dataset or training scripts change (`cricket-data/**`, `data_pipeline.py`, `compare_models.py`, `train_model.py`, `requirements-train.txt`), monthly on schedule, or by manual dispatch (avoiding redundant retraining on routine PRs). It executes validation quality gates (`accuracy >= 0.60`, `roc_auc >= 0.65`, `size <= 25MB`), tests via `pytest`, and uploads versioned artifacts.
+4. **S3 Versioned Model Registry & Serverless Inference**: Terraform uploads versioned model artifacts (`live_win_predictor_model.joblib`, `model_manifest.json`, `live_metadata.json`) to S3 (`s3://<project>-match-backups-.../models/<ml_model_version>/`) and builds/pushes the `apps/ml-engine` Docker image to ECR tagged with both `:<ml_model_version>` (`:v2.2.0`) and `:latest` (with an automated ECR lifecycle policy that expires untagged layers after 1 day). At runtime (`POST /match/predict`), `predict.py` lazily imports heavy ML libraries during the invoke phase (keeping Lambda init `<70ms`), caches `/tmp/models/<MODEL_VERSION>/` from S3, verifies the SHA-256 hash, and blends the model with the Markov Dynamic Programming (DP) and Duckworth-Lewis-Stern (DLS) resource par engine.
 
 ---
 
@@ -333,10 +333,14 @@ if actual_sha256 != expected_sha256:
     raise ValueError("Model checksum verification failed! Rejecting untrusted artifact.")
 ```
 
-To rollback to a previous version on AWS Lambda without retraining:
+To deploy or rollback to a specific version tag in S3 & ECR without retraining:
 
 ```bash
+# Option A: Full Terraform + S3 + ECR tag deploy/rollback
+./infra/scripts/deploy.sh --env dev --use-local-env --model-version v2.2.0
+
+# Option B: Instant Lambda environment variable rollback (fetches models/<version>/ from S3)
 aws lambda update-function-configuration \
   --function-name cricscoredev-ml-predict \
-  --environment "Variables={MODEL_VERSION=v2.0.0}"
+  --environment "Variables={MODEL_VERSION=v2.1.0,MODEL_S3_BUCKET=<match-backups-bucket>}"
 ```

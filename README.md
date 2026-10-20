@@ -28,7 +28,7 @@ The project models a live cricket platform featuring:
 - **Serverless Compute**: Fully managed AWS Lambda backends.
 - **Event-Driven Architecture**: Fan-out messaging via SNS and SQS for fault-tolerant state processing.
 - **AI Chat**: Retrieval-augmented answers with Text-to-SQL and vector search.
-- **Live MLOps**: On-demand win-probability inference using an AWS Lambda container image stored in ECR.
+- **Live MLOps**: On-demand win-probability inference using an AWS Lambda container image with versioned model artifacts (`v2.2.0-xgboost`) stored in S3 and ECR.
 - **Multi-Cloud Infrastructure**: Terraform-managed deployments bridging AWS and Aiven PostgreSQL.
 - **Real-Time Streaming**: WebSocket API Gateway for instant, low-latency score updates.
 - **DevSecOps Governance**: End-to-end CI/CD automation with automated security and compliance scanning.
@@ -212,11 +212,12 @@ flowchart TD
     subgraph Experimentation ["Phase 2: Multi-Algorithm Experimentation & Leakage-Free Validation"]
         Splitter["Match-Grouped Split (70% Train, 15% Val, 15% Test: Zero Leakage)"]
 
-        subgraph Candidates ["Candidate Algorithm Benchmark"]
+        subgraph Candidates ["Candidate Algorithm Benchmark (8 Models)"]
             LogReg["LogisticRegression (Baseline)"]
+            NB["GaussianNB / DecisionTree / LinearSVC"]
             HGB["HistGradientBoostingClassifier"]
-            RF["RandomForestClassifier"]
-            ET["ExtraTreesClassifier"]
+            RF["RandomForest / ExtraTrees"]
+            XGB["XGBoost (Champion v2.2.0)"]
         end
 
         Metrics["Evaluation Metrics: Log Loss, Brier Score, ROC-AUC, Accuracy, Latency"]
@@ -227,7 +228,7 @@ flowchart TD
 
     subgraph Governance ["Phase 3: Promotion Gates & Manifest Generation"]
         Gate{"Quality Gates: Accuracy >= 0.60 & ROC-AUC >= 0.65?"}
-        Winner["Promoted Winner: HistGradientBoosting"]
+        Winner["Promoted Winner: XGBoost (v2.2.0)"]
         Manifest["model_manifest.json (Semantic Version, Metrics, SHA-256 Checksum)"]
         Report["comparison_report.md (Markdown Benchmark Table)"]
 
@@ -235,15 +236,15 @@ flowchart TD
         Gate -->|Approved| Winner --> Manifest --> Report
     end
 
-    subgraph Automation ["Phase 4: CI/CD Automation (GitHub Actions)"]
-        WorkflowA["Workflow A: mlops-pipeline.yml (Train, Benchmark & Validate)"]
-        WorkflowB["Workflow B: ml-model-release.yml (Promote, S3 Publish & Instant Rollback)"]
-        ECR["Amazon ECR Container Registry"]
+    subgraph Automation ["Phase 4: CI/CD & S3 Model Registry"]
+        WorkflowA["mlops-pipeline.yml (Dataset/Training Changes & Monthly Cron)"]
+        S3Registry[("Amazon S3: Versioned Model Registry (models/v2.2.0/)")]
+        ECR["Amazon ECR Container Registry (:v2.2.0 + Lifecycle Policy)"]
     end
 
     subgraph Serving ["Phase 5: Real-Time Hybrid Inference (AWS Lambda)"]
-        LambdaContainer["cricscore-ml-predict Lambda (Python 3.12 Container)"]
-        SafeLoader["Safe SHA-256 Checksum Loader & MODEL_VERSION Routing"]
+        LambdaContainer["cricscore-ml-predict Lambda (Python 3.12, 1024MB, Lazy Imports)"]
+        SafeLoader["S3 /tmp Cache + SHA-256 Checksum Loader & MODEL_VERSION Routing"]
 
         subgraph HybridEngine ["Format-Agnostic Probability Engine (1–20 Overs)"]
             FirstInn["1st Innings: Par-RPO Projection Logistic Curve"]
@@ -252,8 +253,9 @@ flowchart TD
         end
 
         Manifest --> WorkflowA
-        WorkflowA --> WorkflowB
-        WorkflowB -->|Deploy / Rollback| ECR --> LambdaContainer
+        WorkflowA --> S3Registry
+        S3Registry -->|MODEL_VERSION| SafeLoader
+        ECR --> LambdaContainer
         LambdaContainer --> SafeLoader --> TerminalCheck --> FirstInn
         TerminalCheck --> SecondInn
     end
@@ -298,13 +300,14 @@ flowchart TD
 
 ### Machine Learning & MLOps
 
-| Technology     | Purpose                                         |
-| -------------- | ----------------------------------------------- |
-| Python 3.10    | MLOps workflow and ML Lambda container runtime  |
-| Scikit-Learn   | Logistic Regression model for win probability   |
-| Pandas / NumPy | High-performance data manipulation and matrices |
-| AWS ECR        | Docker container registry for Serverless ML     |
-| Joblib         | Model serialization and artifact packaging      |
+| Technology         | Purpose                                                                       |
+| ------------------ | ----------------------------------------------------------------------------- |
+| Python 3.12        | MLOps workflow and ML Lambda container runtime                                |
+| XGBoost (`v2.2.0`) | Promoted champion gradient boosting model for live win probability            |
+| Scikit-Learn       | Multi-algorithm benchmarking (8 classification + 5 regression + 2 clustering) |
+| Pandas / NumPy     | High-performance data manipulation and matrices                               |
+| AWS S3 + ECR       | Versioned S3 model registry (`models/<tag>/`) & tagged ECR images             |
+| Joblib + DVC       | Model serialization, SHA-256 checksum verification & data tracking            |
 
 ### Infrastructure & Cloud
 
@@ -411,10 +414,11 @@ CricScore includes an **AI Chat Assistant** that uses an OpenAI-compatible API; 
 
 ### 8. 🧠 Serverless MLOps & Live Prediction
 
-**Win Probability Inference**
-CricScore includes a model-training workflow and a win-probability inference Lambda. The inference model evaluates match-state features such as runs, wickets, target score, and balls remaining. Terraform builds and pushes the inference Lambda's Docker image to **AWS ECR**; the GitHub MLOps workflow separately tests, trains, evaluates, and uploads model artifacts. On-demand Lambda execution avoids an always-on inference server, but AWS usage and ECR storage may still incur costs.
+**Win Probability Inference & S3 Model Registry**
+CricScore includes a multi-algorithm model-training benchmark (`compare_models.py`) and a real-time win-probability inference Lambda (`ml-predict`, 1024 MB, lazy-loaded libraries for <70ms init). The promoted **XGBoost (`v2.2.0`)** champion model is stored in a versioned **Amazon S3 Model Registry** (`s3://<bucket>/models/<version>/`) and tagged in **Amazon ECR** (`:v2.2.0` + `:latest`) with automated ECR lifecycle cleanup to expire untagged layers after 1 day. At runtime, Lambda downloads and caches the versioned model in `/tmp`, verifies its SHA-256 checksum against `model_manifest.json`, and blends it with Markov Dynamic Programming (`win_probability.py`) and DLS resource par. Deploying or rolling back a model version is a single command (`./infra/scripts/deploy.sh --env prod --use-local-env --model-version v2.2.0`).
 
-- 📖 **[MLOps & Prediction Guide](./docs/mlops_tutorial.md)**: Training workflow and inference deployment, [Win Prediction Specification](./docs/mlops_tutorial.md#-8-win-prediction-engine-specification) (par-RPO scaling, RRR caps, wicket sensitivity), and [DLS Method](./docs/mlops_tutorial.md#️-9-duckworth-lewis-stern-dls-method) (ICC resource decay, par-score calculations).
+- 📖 **[MLOps & Prediction Guide](./docs/mlops_tutorial.md)**: Training workflow, S3 versioned model registry, tag-based rollback, [Win Prediction Specification](./docs/mlops_tutorial.md#-8-win-prediction-engine-specification), and [DLS Method](./docs/mlops_tutorial.md#️-9-duckworth-lewis-stern-dls-method).
+- 📖 **[Classical ML Models & Interview Handbook](./docs/ml_models_handbook.md)**: Mathematical formulas, cricket domain mappings, empirical benchmarks, and revision cheat sheets across all 14 classical ML models (8 classification, 5 regression, 2 clustering).
 
 ### 9. 🤖 AI Agent Governance & Skills
 

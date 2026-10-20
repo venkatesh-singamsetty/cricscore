@@ -1,3 +1,256 @@
+## [4.13.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.12.0...v4.13.0) (2026-10-20)
+
+### 🚀 Features
+
+* Python AI service, XGBoost v2.2.0 champion, unified platform dashboard, and security hardening ([#267](https://github.com/venkatesh-singamsetty/cricscore/issues/267)) ([47184be]())
+## 🚀 Summary of Changes
+
+This Pull Request delivers a major evolution to the CricScore platform,
+introducing the Python Agentic AI service, promoting XGBoost v2.2.0 as
+the live production win-prediction champion, establishing a Unified
+Platform Dashboard, hardening chat security with read-only database
+isolation, and expanding CI/CD gates.
+
+### 🐛 Bug Fixes
+
+* **live-score:** eliminate storage-worker SQS backlog and MatchList score reversion ([#269](https://github.com/venkatesh-singamsetty/cricscore/issues/269)) ([8c8e4e9]())
+## Summary
+Fixes the real-time live score lag and score reversion on `MatchList`
+("Latest Fixtures") observed during fast E2E match scoring.
+
+### Root Cause
+1. **SQS FIFO Queue Backlog in `storage-worker`**:
+- `storage-worker` previously created a new `pg.Client` and performed a
+fresh SSL/TLS handshake to Aiven PostgreSQL on every single SQS
+invocation (~600ms/ball), AND executed 11 sequential `INSERT INTO
+players` round-trips for `battingOrderNames` on every ball
+(~1,300ms/ball), resulting in **~2,240ms per ball**.
+- During rapid E2E scoring (~1 ball/sec), `storage-worker` fell ~20
+seconds behind (still at Ball `0.3`, `13/0` in Postgres when Innings 1
+finished at `25/4 (2.0)`).
+2. **Stale `GET /matches` Overwrite on Innings 2 Transition**:
+- While WebSocket broadcasts (`broadcaster` via SNS, ~50ms) kept
+`MatchList` updated live during Innings 1, when Innings 2 started,
+`applyLiveScoreToMatches` saw the new batting team wasn't in
+`match.innings` yet and returned `applied: false`, triggering
+`fetchMatches(true)` (`GET /matches`).
+- Because `storage-worker` was still draining Ball `0.3` of Innings 1 in
+Postgres, `GET /matches` returned `13/0 (0.3)` and overwrote the live
+`25/4 (2.0)` state in `MatchList`!
+3. **Lagging SQS Messages Overwriting Synchronous Totals**:
+- Non-`syncOnly` `UPDATE innings` in `storage-worker` unconditionally
+overwrote `overs`, `balls`, `total_runs`, and `total_wickets`, allowing
+lagging SQS balls to regress totals written synchronously by `POST
+/match/{id}/innings` or `PATCH /match/{id}`.
+
+### Fixes Implemented
+- **`apps/backend/lambdas/storage-worker/index.js`**:
+  - Reuse a warm module-scoped `pg.Pool` across Lambda invocations.
+- Batch `battingOrderNames` into a single multi-row `INSERT INTO players
+... ON CONFLICT DO NOTHING` query (reducing per-ball execution from
+~2,240ms to ~600–995ms).
+- Add a monotonic `(overs * 6 + balls)` progression guard on non-undo
+`UPDATE innings` so lagging SQS balls never regress `overs`, `balls`,
+`total_runs`, or `total_wickets`.
+- **`apps/backend/lambdas/match-api/index.js` &
+`apps/frontend/src/App.tsx`**:
+- Pass `previousInnings` totals in `POST /match/{matchId}/innings` and
+commit Innings 1's final `total_runs`, `total_wickets`, `overs`, and
+`balls` synchronously before broadcasting `HUB_UPDATE`.
+- **`apps/frontend/src/utils/applyLiveScoreToMatches.ts`,
+`MatchList.tsx`, & `MatchView.tsx`**:
+- Include `inningNumber`, `target`, `matchCompleted`, and
+`previousInnings` in `MatchView.tsx` score updates.
+- Reconcile Innings 1 from `previousInnings`, dynamically append Innings
+2 on its first ball without needing a background `GET /matches`
+round-trip, and immediately transition `match.status` to `COMPLETED`
+(displaying the `WON BY ...` banner) on the winning ball.
+- Guard `MatchList.tsx` background `fetchMatches(true)` refreshes so
+they never regress higher in-memory `overs * 6 + balls` or `COMPLETED`
+status.
+
+## Verification
+- ✅ Unit tests added in
+`apps/frontend/src/test/applyLiveScoreToMatches.test.ts`,
+`apps/backend/lambdas/storage-worker/index.test.js`, and
+`apps/backend/lambdas/match-api/index.test.js`.
+- ✅ Deployed to `dev` (`./infra/scripts/deploy.sh --env dev
+--use-local-env`) and verified all 14 Playwright E2E tests pass (`14
+passed in 1.0m`).
+- ✅ Full local validation (`./infra/scripts/validate_local.sh
+--skip-e2e`) passed with 0 errors and instant pre-push receipt
+verification.
+* **ml-predict:** resolve Lambda cold-start init timeout with lazy imports and 1024MB memory ([#268](https://github.com/venkatesh-singamsetty/cricscore/issues/268)) ([3d87919]())
+## Summary
+Resolves the failing Playwright E2E step during `Deploy, Test & OWASP
+ZAP DEV` on `main` (run
+[39374998248](https://github.com/venkatesh-singamsetty/cricscore/actions/runs/39374998248/job/118471359341)).
+
+### Root Cause
+1. AWS Lambda enforces a strict **10-second hard limit on `Phase:
+init`** for standard on-demand functions.
+2. In `apps/ml-engine/predict.py`, top-level imports of heavy Python
+C-extensions (`joblib`, `pandas`, and `xgboost`) on a 512MB container
+Lambda (0.29 vCPU) exceeded the 10-second window during cold start
+initialization, causing CloudWatch logs to record:
+   `INIT_REPORT Init Duration: 9999.56 ms Phase: init Status: timeout`.
+3. Playwright E2E's client request timed out after 15s (`TimeoutError:
+apiRequestContext.post: Timeout 15000ms exceeded`).
+
+### Fix Applied
+1. **Lazy Loading in `predict.py`**:
+- Defer `joblib`, `pandas`, and `xgboost` imports to the invoke phase
+(`_load_ml_libraries()`).
+- Reduced module initialization time from **> 10,000 ms** to **70 ms**.
+- Added transparent module-level `__getattr__` for full backward
+compatibility with test suites.
+2. **Lambda Compute Scaling**:
+- Increased `ml_predict` Lambda memory from 512 MB to 1024 MB in
+`infra/terraform/lambda.tf` to allocate 1 full vCPU, cutting unpickling
+and inference latency by 2.5x.
+3. **Playwright Cold-Start Headroom**:
+- Added `timeout: 30000` and `test.setTimeout(45000)` to
+`apps/e2e/tests/ai-api.spec.ts` for container cold starts.
+
+### Verification
+- Local Pytest: 24/24 unit tests passed
+(`apps/ml-engine/test_predict.py`).
+- Local Playwright E2E: 14/14 tests passed against live DEV environment
+(`apps/e2e`).
+- Full local pre-push validation passed.
+
+### 🧰 Maintenance & Dependencies
+
+* **release:** 4.11.0 [skip ci] ([ac741c2]()), closes [hashicorp/terraform-provider-aws#50474]() [256-#261]() [256-#261]()
+## [4.11.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.10.2...v4.11.0) (2026-10-20)
+
+### 🚀 Features
+
+* admin match list, chat memory cleanup, and workflow hardening ([#266](https://github.com/venkatesh-singamsetty/cricscore/issues/266)) ([43c54a5]())
+## Summary of Changes
+
+### 1. Admin Panel Default Match View & Guest Badges
+- In `MatchList.tsx`, show all matches by default with the newest
+matches at the top.
+- Added a `GUEST 👻` badge chip to guest matches on the card header.
+- Toggling the `GUESTS 👻` filter filters down to guest-only matches;
+clicking it again restores the default all-match view.
+- Added unit tests in `apps/frontend/src/test/MatchList.test.tsx`.
+
+### 2. Chat Memory Session Lifecycle & Privacy
+- Exported centralized `CHAT_MEMORY_KEY = "cricscore-chat-memory"` in
+`storageSafety.ts` and `ChatComponent.tsx`.
+- Automatically purge device-local chat memory in `App.tsx` on:
+  - User sign out (`handleSignOut`).
+  - Guest scorer start and exit.
+  - Account switching (`userEmail` identity change in `prevEmailRef`).
+- Added unit tests in `ChatComponent.test.tsx` and
+`storageSafety.test.ts`.
+
+### 3. Workflow & CI/CD Hardening
+- Updated `.releaserc.json` to generate detailed multi-line GitHub
+Release notes from full PR commit bodies.
+- Fixed `drift.yml` by setting up Node.js, hydrating Lambda production
+dependencies, and supplying required mock TF_VARs for plan checks.
+
+### 4. Architecture & Observability Documentation
+- Restored the original, clean Fan-Out `graph TD` architecture diagram
+in `README.md` and sequence diagrams in `docs/architecture.md`.
+- Updated `docs/cost_management.md` and `docs/observability.md` with
+complete Lambda memory/timeout tables, 7-day log retention governance,
+and CloudWatch telemetry queries.
+
+## Validation
+- `./infra/scripts/validate_local.sh --skip-e2e` passed completely
+(75/75 frontend tests, backend Lambda tests, Python ML tests, linting,
+Checkov, GitLeaks, and Syft SBOM).
+* Python AI service, XGBoost v2.2.0 champion, unified platform dashboard, and security hardening ([#267](https://github.com/venkatesh-singamsetty/cricscore/issues/267)) ([47184be]())
+## 🚀 Summary of Changes
+
+This Pull Request delivers a major evolution to the CricScore platform,
+introducing the Python Agentic AI service, promoting XGBoost v2.2.0 as
+the live production win-prediction champion, establishing a Unified
+Platform Dashboard, hardening chat security with read-only database
+isolation, and expanding CI/CD gates.
+* responsive UI/UX overhaul, live score sync, format-agnostic DLS & DP+DLS hybrid ML engine ([#264](https://github.com/venkatesh-singamsetty/cricscore/issues/264)) ([81c168d]())
+## Summary
+
+This PR delivers a comprehensive **Responsive UI/UX Overhaul
+(v4.11.0)**, **Real-Time Live Score State Reconciliation**,
+**Format-Agnostic DLS Par Score Scaling (1–20 Overs)**, and a **Hybrid
+DP + DLS Win Probability Engine** across the frontend, backend Lambdas,
+ML inference container, and Terraform configuration.
+
+### 🐛 Bug Fixes
+
+* **e2e:** resolve Playwright user-journey timeout and CodeQL unused variables ([#265](https://github.com/venkatesh-singamsetty/cricscore/issues/265)) ([f5fe43e]())
+## Summary
+
+Fixes the 15-minute Playwright E2E timeout in GitHub Actions job
+`Deploy, Test & OWASP ZAP DEV` (`user-journey.spec.ts`) and removes the
+two unused `lastOverRuns` variables flagged by CodeQL.
+* **release:** 4.11.0 [skip ci] ([309c4c2]()), closes [hashicorp/terraform-provider-aws#50474]() [256-#261]()
+## [4.11.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.10.2...v4.11.0) (2026-10-19)
+
+### 🚀 Features
+
+* admin match list, chat memory cleanup, and workflow hardening ([#266](https://github.com/venkatesh-singamsetty/cricscore/issues/266)) ([43c54a5]())
+## Summary of Changes
+
+### 1. Admin Panel Default Match View & Guest Badges
+- In `MatchList.tsx`, show all matches by default with the newest
+matches at the top.
+- Added a `GUEST 👻` badge chip to guest matches on the card header.
+- Toggling the `GUESTS 👻` filter filters down to guest-only matches;
+clicking it again restores the default all-match view.
+- Added unit tests in `apps/frontend/src/test/MatchList.test.tsx`.
+
+### 2. Chat Memory Session Lifecycle & Privacy
+- Exported centralized `CHAT_MEMORY_KEY = "cricscore-chat-memory"` in
+`storageSafety.ts` and `ChatComponent.tsx`.
+- Automatically purge device-local chat memory in `App.tsx` on:
+  - User sign out (`handleSignOut`).
+  - Guest scorer start and exit.
+  - Account switching (`userEmail` identity change in `prevEmailRef`).
+- Added unit tests in `ChatComponent.test.tsx` and
+`storageSafety.test.ts`.
+
+### 3. Workflow & CI/CD Hardening
+- Updated `.releaserc.json` to generate detailed multi-line GitHub
+Release notes from full PR commit bodies.
+- Fixed `drift.yml` by setting up Node.js, hydrating Lambda production
+dependencies, and supplying required mock TF_VARs for plan checks.
+
+### 4. Architecture & Observability Documentation
+- Restored the original, clean Fan-Out `graph TD` architecture diagram
+in `README.md` and sequence diagrams in `docs/architecture.md`.
+- Updated `docs/cost_management.md` and `docs/observability.md` with
+complete Lambda memory/timeout tables, 7-day log retention governance,
+and CloudWatch telemetry queries.
+
+## Validation
+- `./infra/scripts/validate_local.sh --skip-e2e` passed completely
+(75/75 frontend tests, backend Lambda tests, Python ML tests, linting,
+Checkov, GitLeaks, and Syft SBOM).
+* responsive UI/UX overhaul, live score sync, format-agnostic DLS & DP+DLS hybrid ML engine ([#264](https://github.com/venkatesh-singamsetty/cricscore/issues/264)) ([81c168d]())
+## Summary
+
+This PR delivers a comprehensive **Responsive UI/UX Overhaul
+(v4.11.0)**, **Real-Time Live Score State Reconciliation**,
+**Format-Agnostic DLS Par Score Scaling (1–20 Overs)**, and a **Hybrid
+DP + DLS Win Probability Engine** across the frontend, backend Lambdas,
+ML inference container, and Terraform configuration.
+
+### 🐛 Bug Fixes
+
+* **e2e:** resolve Playwright user-journey timeout and CodeQL unused variables ([#265](https://github.com/venkatesh-singamsetty/cricscore/issues/265)) ([f5fe43e]())
+## Summary
+
+Fixes the 15-minute Playwright E2E timeout in GitHub Actions job
+`Deploy, Test & OWASP ZAP DEV` (`user-journey.spec.ts`) and removes the
+two unused `lastOverRuns` variables flagged by CodeQL.
+* update gitleaksignore fingerprints for historical commits ([b5d6d39]())
+
 ## [4.11.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.10.2...v4.11.0) (2026-10-20)
 
 ### 🚀 Features
@@ -308,12 +561,6 @@ two unused `lastOverRuns` variables flagged by CodeQL.
   - Converted heavy ML libraries (`joblib`, `pandas`, `xgboost`) to lazy-loaded modules initialized inside the invoke phase, reducing module import time from >10s to 70ms.
   - Increased `ml_predict` Lambda memory from 512 MB to 1024 MB in `infra/terraform/lambda.tf` to grant 1 full vCPU, accelerating C-extension loading and model unpickling.
   - Added 30-second timeout headroom in `apps/e2e/tests/ai-api.spec.ts` for container cold starts during automated verification.
-
-- **S3 Versioned Model Registry, ECR Cost Optimization & Tag-Based Model Rollback**:
-  - **Cleaned Up 12+ GB of Untagged ECR Images**: Purged 29 accumulated untagged ECR container images (7 in `cricscoredev-ml-predict` and 22 in `cricscore-ml-predict`) and added `aws_ecr_lifecycle_policy.ml_predict_cleanup` in `infra/terraform/lambda.tf` plus immediate untagged image cleanup during deploy so old image layers never accumulate past the ECR free tier.
-  - **S3 Versioned Model Registry (`models/<version>/`)**: Added `aws_s3_object` resources (`ml_model_joblib`, `ml_model_manifest`, `ml_model_metadata`) in `infra/terraform/s3_backups.tf` and wired `MODEL_S3_BUCKET` + `MODEL_VERSION` (`var.ml_model_version`, default `v2.2.0`) into `ml_predict` Lambda. `predict.py` downloads and caches `/tmp/models/<MODEL_VERSION>/` from S3 with SHA-256 verification and automatic bundled fallback.
-  - **Tag-Based Deployment & Instant Rollback (`--model-version`)**: Tagged ECR images with both `:${var.ml_model_version}` (`:v2.2.0`) and `:latest`, and added `--model-version <tag>` to `./infra/scripts/deploy.sh` so deploying or rolling back to any model version tag in S3/ECR is a single command (`./infra/scripts/deploy.sh --env dev --use-local-env --model-version v2.1.0`).
-  - **Eliminated Redundant PR Model Retraining**: Narrowed `.github/workflows/mlops-pipeline.yml` triggers to dataset and training script changes (`cricket-data/**`, `data_pipeline.py`, `compare_models.py`, `train_model.py`, `requirements-train.txt`), monthly cron, and manual `workflow_dispatch` so inference/test PRs (`predict.py`, `test_predict.py`) do not waste CI minutes retraining on unchanged data.
 
 - **Real-Time Live Score & Storage-Worker Synchronization Hardening**:
   - **10x Faster `storage-worker` Persistence**: Replaced per-invocation `pg.Client` TLS handshakes with a warm module-scoped `pg.Pool` and converted 11 sequential `battingOrderNames` player inserts into a single multi-row batch `INSERT ... ON CONFLICT DO NOTHING`, reducing SQS event processing latency from ~2.24s to ~150ms per ball.
