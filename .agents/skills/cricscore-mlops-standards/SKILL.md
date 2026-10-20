@@ -39,10 +39,14 @@ Refer to `docs/mlops_tutorial.md`, `docs/ml_models_handbook.md`, `apps/ml-engine
     - `ballsLeft <= 0` or `wicketsLost >= 10` or `runsNeeded > ballsLeft * 6` -> `0.0` (bowling team won / mathematically impossible)
   - Blends exact ball-by-ball Markov Dynamic Programming (`_chase_win_prob_dp`) with format-normalized DLS resource par (`_dls_resource_remaining` matching `apps/frontend/src/utils/dlsUtils.ts`) when the required run rate is physically achievable ($\le 2.3$ runs/ball full weight, tapering linearly to `0.0` at $3.0$ runs/ball).
 
-## 4. Container Packaging & Terraform Deployment
+## 4. S3 Versioned Model Registry, ECR Lifecycle & Container Packaging
 
+- **S3 Versioned Model Registry (`infra/terraform/s3_backups.tf`)**:
+  - Uploads `live_win_predictor_model.joblib`, `model_manifest.json`, and `live_metadata.json` under `models/${var.ml_model_version}/` in the environment's `match_backups` S3 bucket.
+  - `ml_predict` Lambda receives `MODEL_S3_BUCKET` and `MODEL_VERSION = var.ml_model_version` (`v2.2.0`), downloads and caches `/tmp/models/<MODEL_VERSION>/` with SHA-256 verification, and falls back to bundled artifacts if offline.
+  - Use `./infra/scripts/deploy.sh --env dev|prod --use-local-env --model-version <tag>` to deploy or roll back to a specific model version tag.
 - **`apps/ml-engine/Dockerfile`**: Uses `public.ecr.aws/lambda/python:3.12`. Upgrades pip (`RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt`) to select pre-compiled Linux x86_64 binary wheels for XGBoost. Copies `predict.py`, `win_probability.py`, `live_win_predictor_model.joblib`, `live_metadata.json`, and `model_manifest.json` into `${LAMBDA_TASK_ROOT}`.
-- **`infra/terraform/lambda.tf` (`null_resource.docker_build_push`)**: Hashes all files in `apps/ml-engine/*` (`dir_sha1`), builds `--platform linux/amd64 --provenance=false`, pushes to ECR (`${var.project_name}-ml-predict:latest`), and updates the Lambda function code.
+- **`infra/terraform/lambda.tf` (`null_resource.docker_build_push` & `aws_ecr_lifecycle_policy`)**: Tags images with both `:${var.ml_model_version}` and `:latest`, proactively deletes untagged images after pushing, and enforces an ECR lifecycle policy to expire untagged images after 1 day.
 - **Git Hygiene**: Never commit `apps/ml-engine/__pycache__/`, `*.pyc`, or `apps/ml-engine/venv/`.
 
 ## 5. Validation

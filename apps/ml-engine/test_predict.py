@@ -194,3 +194,44 @@ def test_real_promoted_xgboost_artifact_loads_and_infers():
     _real_load_artifacts()
     assert predict.model is not None
     assert "xgboost" in predict.metadata.get("algorithm", "").lower() or "v2" in predict.metadata.get("modelVersion", "")
+
+
+def test_s3_versioned_model_loading(tmp_path, monkeypatch):
+    """Verify that when MODEL_S3_BUCKET and MODEL_VERSION are set, load_artifacts downloads the tagged version from S3."""
+    import sys
+    import types
+
+    downloaded_keys = []
+
+    class FakeS3Client:
+        def download_file(self, bucket, key, dest):
+            downloaded_keys.append((bucket, key))
+            if key.endswith("model_manifest.json"):
+                Path_dest = predict.Path(dest)
+                Path_dest.write_text(predict.LOCAL_MANIFEST_FILE.read_text())
+            elif key.endswith("live_win_predictor_model.joblib"):
+                Path_dest = predict.Path(dest)
+                Path_dest.write_bytes(predict.LOCAL_MODEL_FILE.read_bytes())
+
+    fake_boto3 = types.ModuleType("boto3")
+    fake_boto3.client = lambda service_name: FakeS3Client()
+    monkeypatch.setitem(sys.modules, "boto3", fake_boto3)
+    monkeypatch.setenv("MODEL_S3_BUCKET", "cricscore-test-models-bucket")
+    monkeypatch.setenv("MODEL_VERSION", "v2.2.0")
+
+    # Redirect /tmp/models/v2.2.0 cache check by clearing any existing cached files first
+    cache_dir = predict.Path("/tmp") / "models" / "v2.2.0"
+    if cache_dir.exists():
+        for f in cache_dir.iterdir():
+            f.unlink()
+
+    predict.model = None
+    predict.metadata = None
+    predict.current_loaded_version = None
+
+    _real_load_artifacts()
+
+    assert predict.model is not None
+    assert predict.current_loaded_version == "v2.2.0"
+    assert ("cricscore-test-models-bucket", "models/v2.2.0/model_manifest.json") in downloaded_keys
+    assert ("cricscore-test-models-bucket", "models/v2.2.0/live_win_predictor_model.joblib") in downloaded_keys

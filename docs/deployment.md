@@ -239,12 +239,21 @@ CHAT_API_URL='<http_api_url>' npm run test:all
 
 ## Central Platform & Artifacts Dashboard
 
-After any dev or prod deployment, `./infra/scripts/deploy.sh` automatically refreshes the central platform dashboard by running `./infra/scripts/generate_platform_dashboard.sh`. This script inspects GitHub Actions workflows, repository variables/secrets inventory, live Terraform state from S3, ECR container image digests, ML model metrics, and Aiven PostgreSQL schemas to generate [`docs/platform_dashboard.md`](./platform_dashboard.md).
+After any dev or prod deployment, `./infra/scripts/deploy.sh` automatically refreshes the central platform dashboard by running `./infra/scripts/generate_platform_dashboard.sh`. This script inspects GitHub Actions workflows, repository variables/secrets inventory, live Terraform state from S3, S3 versioned ML model registry URIs (`s3://<bucket>/models/<version>/`), ECR container image digests, ML model metrics, and Aiven PostgreSQL schemas to generate [`docs/platform_dashboard.md`](./platform_dashboard.md).
 
 You can also run it manually at any time to refresh all direct console deep links, GitHub resources, and artifact pointers:
 
 ```bash
 ./infra/scripts/generate_platform_dashboard.sh
+```
+
+### Deploying or Rolling Back a Specific ML Model Version Tag
+
+Model artifacts (`live_win_predictor_model.joblib`, `model_manifest.json`, `live_metadata.json`) are stored by semantic version tag in S3 (`s3://<project>-match-backups-.../models/<version>/`) and tagged in ECR (`:<version>` + `:latest`). To deploy or roll back to a specific model version tag:
+
+```bash
+./infra/scripts/deploy.sh --env dev --use-local-env --model-version v2.2.0
+./infra/scripts/deploy.sh --env prod --use-local-env --model-version v2.2.0
 ```
 
 ---

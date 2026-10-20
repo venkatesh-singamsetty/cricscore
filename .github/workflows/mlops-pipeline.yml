@@ -3,15 +3,22 @@ name: MLOps Pipeline (Live Win Predictor)
 on:
   push:
     paths:
-      - 'apps/ml-engine/**'
       - 'cricket-data/**'
+      - 'apps/ml-engine/data_pipeline.py'
+      - 'apps/ml-engine/compare_models.py'
+      - 'apps/ml-engine/train_model.py'
+      - 'apps/ml-engine/requirements-train.txt'
       - '.github/workflows/mlops-pipeline.yml'
     branches:
       - main
   pull_request:
     paths:
-      - 'apps/ml-engine/**'
       - 'cricket-data/**'
+      - 'apps/ml-engine/data_pipeline.py'
+      - 'apps/ml-engine/compare_models.py'
+      - 'apps/ml-engine/train_model.py'
+      - 'apps/ml-engine/requirements-train.txt'
+      - '.github/workflows/mlops-pipeline.yml'
   workflow_dispatch:
     inputs:
       version:

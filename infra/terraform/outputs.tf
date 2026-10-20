@@ -33,3 +33,11 @@ output "http_api_url" {
 output "websocket_url" {
   value = "wss://${aws_apigatewayv2_domain_name.ws_api.domain_name}"
 }
+
+output "model_s3_bucket" {
+  value = aws_s3_bucket.match_backups.id
+}
+
+output "ml_model_s3_uri" {
+  value = "s3://${aws_s3_bucket.match_backups.id}/${aws_s3_object.ml_model_joblib.key}"
+}

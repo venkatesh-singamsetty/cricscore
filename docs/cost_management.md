@@ -22,7 +22,7 @@ This document provides estimated operational costs for the CricScore platform. F
 | `<project>-ondisconnect`      | ZIP (Node24) | `128 MB`  | `10s`   | `7 days`      | Removes disconnected spectator `connectionId` from DynamoDB         |
 | `<project>-cognito-presignup` | ZIP (Node24) | `128 MB`  | `10s`   | `7 days`      | Auto-confirms `guest-*@cricscore.local` shadow accounts             |
 | `<project>-chat-api`          | ZIP (Node24) | `1024 MB` | `30s`   | `7 days`      | Read-only Agentic RAG (`pgvector` + execute_sql guard + AI summary) |
-| `<project>-ml-predict`        | ECR Image    | `512 MB`  | `30s`   | `7 days`      | XGBoost (`v2.2.0`) + Markov DP + DLS real-time win probability      |
+| `<project>-ml-predict`        | ECR Image    | `1024 MB` | `30s`   | `7 days`      | XGBoost (`v2.2.0`, S3 versioned model registry) + Markov DP + DLS   |
 
 ### 2. **Real-time: WebSocket API Gateway**
 
@@ -93,14 +93,17 @@ This document provides estimated operational costs for the CricScore platform. F
 - **Guest accounts**: Each guest scorer creates a shadow Cognito account (`guest-*@cricscore.local`) that counts as 1 MAU per month. Admins can purge stale guest accounts via the authenticated Match Ops Admin Panel (`Purge Guest Accounts`) to keep MAU count near zero.
 - **Cost for typical usage**: **$0/month**.
 
-### 13. **ML Inference: AWS ECR & Containerized Lambda (`ml-predict`)**
+### 13. **ML Inference: S3 Versioned Model Registry & ECR Containerized Lambda (`ml-predict`)**
 
-- **Architecture**: Packages the promoted **XGBoost** model (`v2.2.0-xgboost`, compressed size **73 KB**) blended with Markov Dynamic Programming (`win_probability.py`) + Duckworth-Lewis-Stern (DLS) resource par as a Linux x86_64 container image in Amazon ECR (`512 MB` RAM, `30s` timeout).
+- **Architecture**: Stores versioned **XGBoost** model bundles (`v2.2.0`, ~227 KB `.joblib` + `model_manifest.json` + `live_metadata.json`) in the existing S3 bucket (`s3://<project>-match-backups-.../models/<version>/`, costing **$0.00** under the 5 GB S3 free tier) and runs the inference engine (`predict.py` + `win_probability.py` Markov DP + DLS resource par) in a Linux x86_64 Lambda container (`1024 MB` RAM, `30s` timeout, lazy-loaded libraries for `<70ms` cold-start `Phase: init`).
 - **Inference Latency & Compute Economics**:
   - Warm execution duration is **~1.56 ms** per ball prediction.
-  - At 512 MB memory, 1.56 ms consumes only `0.00078 GB-seconds` per invocation.
-  - Under the AWS Lambda permanent free allowance of **400,000 GB-seconds/month**, the platform can execute over **500,000,000 predictions/month completely FREE** before incurring compute charges.
-- **ECR Storage Cost**: The private ECR repository retains a single mutable `:latest` image (~240 MB compressed). AWS ECR provides **500 MB of free private repository storage per month**, making storage **$0.00/month**.
+  - At 1024 MB (1 GB) memory, 1.56 ms consumes only `0.00156 GB-seconds` per invocation.
+  - Under the AWS Lambda permanent free allowance of **400,000 GB-seconds/month**, the platform can execute over **250,000,000 predictions/month completely FREE** before incurring compute charges.
+- **ECR Storage & Automated Lifecycle Governance**:
+  - Each ECR repository (`cricscoredev-ml-predict` and `cricscore-ml-predict`) enforces an automated `aws_ecr_lifecycle_policy` that expires untagged images after 1 day and retains only the active version tag (`:v2.2.0` + `:latest`), plus immediate untagged image cleanup during `deploy.sh`.
+- **On-Demand Retraining (`mlops-pipeline.yml`)**:
+  - Retraining in GitHub Actions only triggers when `cricket-data/**` or training scripts (`data_pipeline.py`, `compare_models.py`, `train_model.py`, `requirements-train.txt`) change, on the monthly schedule, or via manual dispatch—saving CI minutes on routine PRs.
 - **Client-Side Short-Circuit Optimization (`AiMatchPrediction.tsx`)**:
   - Before the first legal ball is bowled (`ballsBowled === 0 && wickets === 0`), the UI renders an instant `50% - 50%` baseline without invoking Lambda.
   - When a chase is mathematically decided (`runsNeeded <= 0`, `ballsLeft <= 0`, `wickets >= 10`, or `runsNeeded > ballsLeft * 6`), the frontend resolves `100% / 0%` or `0% / 100%` locally without a network round-trip.

@@ -93,3 +93,9 @@ variable "google_client_secret" {
   description = "Google OAuth Client Secret for Cognito Federation"
   default     = "dummy-client-secret" # Placeholder
 }
+
+variable "ml_model_version" {
+  type        = string
+  description = "Semantic version tag of the ML win predictor model stored in S3 and ECR (e.g. v2.2.0)"
+  default     = "v2.2.0"
+}

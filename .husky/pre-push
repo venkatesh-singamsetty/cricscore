@@ -8,6 +8,19 @@ fi
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 RECEIPT_FILE="$REPO_ROOT/.git/.local_validation_receipt"
 
+# Enforce branch is up-to-date with origin/main before pushing so PRs never have merge conflicts
+CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")"
+if [ "$CURRENT_BRANCH" != "main" ] && [ -n "$CURRENT_BRANCH" ]; then
+  git fetch origin main --quiet 2>/dev/null || true
+  if git rev-parse --verify origin/main >/dev/null 2>&1; then
+    if ! git merge-base --is-ancestor origin/main HEAD; then
+      echo "❌ Branch '$CURRENT_BRANCH' is behind 'origin/main' (e.g. a PR or Semantic Release commit landed on main)."
+      echo "👉 Run: git fetch origin main && git merge origin/main --no-edit"
+      exit 1
+    fi
+  fi
+fi
+
 HASH_CMD=""
 if command -v sha256sum >/dev/null 2>&1; then
   HASH_CMD="sha256sum"

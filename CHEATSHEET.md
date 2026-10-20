@@ -166,6 +166,10 @@ Always use `deploy.sh` with `--use-local-env` (which loads `.env.local`, reconfi
 # Deploy to Production Environment (only after verifying dev)
 ./infra/scripts/deploy.sh --env prod --use-local-env
 
+# Deploy or Rollback a Specific Tagged ML Model Version in S3 & ECR
+./infra/scripts/deploy.sh --env dev --use-local-env --model-version v2.2.0
+./infra/scripts/deploy.sh --env prod --use-local-env --model-version v2.2.0
+
 # Fast Pre-Push Validation (Lint, Vitest, npm audit, build, Terraform fmt/validate, Checkov, GitLeaks, Trivy, Syft)
 ./infra/scripts/validate_local.sh --skip-e2e
 
