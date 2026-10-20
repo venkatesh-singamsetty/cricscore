@@ -17,8 +17,6 @@ import json
 import os
 import re
 import subprocess
-import sys
-from datetime import datetime, timezone
 from pathlib import Path
 import urllib.parse
 
@@ -64,6 +62,7 @@ def get_github_repo():
         if out.strip():
             return out.decode().strip()
     except Exception:
+        # Fallback to git remote url if gh CLI is unavailable or unauthenticated
         pass
     try:
         out = subprocess.check_output(["git", "config", "--get", "remote.origin.url"], stderr=subprocess.DEVNULL).decode().strip()
@@ -71,6 +70,7 @@ def get_github_repo():
         if m:
             return m.group(1)
     except Exception:
+        # Fallback to default canonical repository name if remote URL cannot be parsed
         pass
     return "venkatesh-singamsetty/cricscore"
 

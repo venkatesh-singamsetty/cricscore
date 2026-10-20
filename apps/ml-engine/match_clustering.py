@@ -12,10 +12,8 @@ Clusters matches by:
 - Wickets lost per innings
 """
 
-import sys
 import time
 from pathlib import Path
-import numpy as np
 import pandas as pd
 
 from sklearn.preprocessing import StandardScaler

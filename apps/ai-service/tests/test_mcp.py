@@ -1,8 +1,6 @@
 import asyncio
 import json
 
-import pytest
-
 from cricscore_ai.graph import Deps
 from cricscore_ai.mcp_server import create_server, get_model_metadata_info
 from tests.conftest import FakeEmbedder, FakePredictor, FakeRepo, MID

@@ -7,7 +7,8 @@ from pathlib import Path
 
 # Config
 DATA_URL = "https://cricsheet.org/downloads/t20s_json.zip"
-DATA_DIR = Path("data")
+SCRIPT_DIR = Path(__file__).resolve().parent
+DATA_DIR = SCRIPT_DIR / "data"
 RAW_DIR = DATA_DIR / "raw"
 OUTPUT_FILE = DATA_DIR / "live_data.csv"
 

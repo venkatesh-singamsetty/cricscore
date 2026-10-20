@@ -54,6 +54,7 @@ except ImportError:
 # --- Paths & Constants ---
 ENGINE_DIR = Path(__file__).resolve().parent
 DATA_FILE = ENGINE_DIR / "data" / "live_data.csv"
+ALT_DATA_FILE = ENGINE_DIR.parent.parent / "data" / "live_data.csv"
 DVC_FILE = ENGINE_DIR.parent.parent / "cricket-data" / "t20s_json.zip.dvc"
 MLRUNS_DIR = ENGINE_DIR / "mlruns"
 MODEL_OUTPUT_FILE = ENGINE_DIR / "live_win_predictor_model.joblib"
@@ -93,6 +94,7 @@ def get_dataset_version() -> str:
             if outs and "md5" in outs[0]:
                 return f"dvc:{outs[0]['md5']}"
         except Exception:
+            # Fallback to dataset file hash if PyYAML is unavailable or DVC file malformed
             pass
     # Fallback to dataset file hash if available
     if DATA_FILE.exists():
@@ -122,11 +124,12 @@ def load_and_split_data(sample_max: int = 120000, random_seed: int = 42):
     data leakage across balls of the same match.
     Split: 70% Train, 15% Validation, 15% Held-out Test.
     """
-    if not DATA_FILE.exists():
-        raise FileNotFoundError(f"Dataset not found at {DATA_FILE}. Run data_pipeline.py first.")
+    active_data_file = DATA_FILE if DATA_FILE.exists() else ALT_DATA_FILE
+    if not active_data_file.exists():
+        raise FileNotFoundError(f"Dataset not found at {DATA_FILE} or {ALT_DATA_FILE}. Run data_pipeline.py first.")
 
-    print(f"📊 Loading dataset from {DATA_FILE}...")
-    df = pd.read_csv(DATA_FILE)
+    print(f"📊 Loading dataset from {active_data_file}...")
+    df = pd.read_csv(active_data_file)
 
     # Filter invalid/abandoned matches without definitive winner
     df = df[df["winner"].isin(df["batting_team"]) | df["winner"].isin(df["bowling_team"])].copy()

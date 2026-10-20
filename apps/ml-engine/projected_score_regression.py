@@ -11,7 +11,6 @@ Evaluates 5 classical regression models for predicting final 1st-innings total s
 Metrics evaluated: RMSE (Root Mean Squared Error), MAE (Mean Absolute Error), R² Score.
 """
 
-import sys
 import time
 from pathlib import Path
 import numpy as np

@@ -15,10 +15,21 @@ class RepositoryError(Exception):
 
 
 class Repository(Protocol):
-    def get_match(self, match_id: str) -> dict[str, Any] | None: ...
-    def get_match_statistics(self, match_id: str) -> dict[str, Any]: ...
-    def list_recent_matches(self, limit: int) -> list[dict[str, Any]]: ...
-    def search_rules(self, embedding: list[float], limit: int) -> list[dict[str, Any]]: ...
+    def get_match(self, match_id: str) -> dict[str, Any] | None:
+        """Fetch single match by ID."""
+        raise NotImplementedError
+
+    def get_match_statistics(self, match_id: str) -> dict[str, Any]:
+        """Fetch match scorecard statistics."""
+        raise NotImplementedError
+
+    def list_recent_matches(self, limit: int) -> list[dict[str, Any]]:
+        """List most recent matches."""
+        raise NotImplementedError
+
+    def search_rules(self, embedding: list[float], limit: int) -> list[dict[str, Any]]:
+        """Search vector rules by embedding similarity."""
+        raise NotImplementedError
 
 
 # Columns deliberately exclude scorer_email (PII) and ai_summary.
@@ -53,6 +64,7 @@ class PostgresRepository:
                 try:
                     self._conn.close()
                 except Exception:
+                    # Ignore connection close failure when re-establishing connection
                     pass
         try:
             self._conn = psycopg.connect(self._dsn, autocommit=True, connect_timeout=5)

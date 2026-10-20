@@ -13,15 +13,21 @@ class ProviderError(Exception):
 
 
 class LLM(Protocol):
-    def complete(self, system: str, messages: list[dict[str, str]]) -> str: ...
+    def complete(self, system: str, messages: list[dict[str, str]]) -> str:
+        """Generate LLM completion."""
+        raise NotImplementedError
 
 
 class Embedder(Protocol):
-    def embed(self, text: str) -> list[float]: ...
+    def embed(self, text: str) -> list[float]:
+        """Generate text embedding vector."""
+        raise NotImplementedError
 
 
 class Predictor(Protocol):
-    def predict(self, features: dict[str, Any]) -> dict[str, Any]: ...
+    def predict(self, features: dict[str, Any]) -> dict[str, Any]:
+        """Predict match outcome probabilities."""
+        raise NotImplementedError
 
 
 def _post(url: str, key: str, payload: dict, timeout: float) -> dict:

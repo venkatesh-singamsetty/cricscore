@@ -15,9 +15,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Semantic model version to evaluate (e.g. v2.1.0)'
+        description: 'Semantic model version to evaluate (e.g. v2.2.0)'
         required: false
-        default: 'v2.1.0'
+        default: 'v2.2.0'
   schedule:
     - cron: '0 0 1 * *' # Monthly trigger to capture new cricket matches
 
@@ -56,7 +56,7 @@ jobs:
       - name: Run Model Comparison & MLflow Tracking
         env:
           CI: 'true'
-          VERSION: ${{ github.event.inputs.version || 'v2.1.0' }}
+          VERSION: ${{ github.event.inputs.version || 'v2.2.0' }}
         run: |
           python apps/ml-engine/compare_models.py "$VERSION"
 
@@ -81,7 +81,7 @@ jobs:
       - name: Upload Model Manifest & Artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: live-win-predictor-${{ github.event.inputs.version || 'v2.1.0' }}
+          name: live-win-predictor-${{ github.event.inputs.version || 'v2.2.0' }}
           path: |
             apps/ml-engine/live_win_predictor_model.joblib
             apps/ml-engine/live_metadata.json

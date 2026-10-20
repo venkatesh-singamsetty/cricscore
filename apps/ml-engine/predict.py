@@ -6,8 +6,10 @@ import joblib
 import pandas as pd
 
 try:
-    import xgboost  # Ensure XGBoost estimators are registered for joblib unpickling
+    import xgboost as _xgb  # Register XGBoost estimators for joblib unpickling
+    _ = _xgb.__version__
 except ImportError:
+    # XGBoost is optional in minimal test fallback environments
     pass
 
 from win_probability import win_probability

@@ -4,7 +4,6 @@ supplies the verified `isAdmin` flag."""
 from __future__ import annotations
 
 import json
-import os
 from typing import Any
 
 from pydantic import ValidationError
