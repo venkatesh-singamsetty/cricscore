@@ -246,7 +246,7 @@ def build_markdown():
     lines.append("")
     lines.append("A central single-pane-of-glass directory providing direct UI links, exact resource IDs, container images, ML model artifacts, database vector schemas, and security scan reports for both **Development** and **Production** environments.")
     lines.append("")
-    lines.append(f"> **Automated Generation**: Synchronized as of `{GENERATED_VERSION}` for AWS Account `{ACCOUNT_ID}` (`{REGION}`). To refresh, run `./infra/scripts/generate_aws_dashboard.sh`.")
+    lines.append(f"> **Automated Directory**: Active resource inventory for AWS Account `{ACCOUNT_ID}` (`{REGION}`). To refresh, run `./infra/scripts/generate_aws_dashboard.sh`.")
     lines.append("")
     lines.append("---")
     lines.append("")
