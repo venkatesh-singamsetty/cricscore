@@ -27,3 +27,28 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "match_backups_sse
     }
   }
 }
+
+# --- S3 Versioned ML Model Registry ---
+resource "aws_s3_object" "ml_model_joblib" {
+  bucket       = aws_s3_bucket.match_backups.id
+  key          = "models/${var.ml_model_version}/live_win_predictor_model.joblib"
+  source       = "${path.module}/../../apps/ml-engine/live_win_predictor_model.joblib"
+  etag         = filemd5("${path.module}/../../apps/ml-engine/live_win_predictor_model.joblib")
+  content_type = "application/octet-stream"
+}
+
+resource "aws_s3_object" "ml_model_manifest" {
+  bucket       = aws_s3_bucket.match_backups.id
+  key          = "models/${var.ml_model_version}/model_manifest.json"
+  source       = "${path.module}/../../apps/ml-engine/model_manifest.json"
+  etag         = filemd5("${path.module}/../../apps/ml-engine/model_manifest.json")
+  content_type = "application/json"
+}
+
+resource "aws_s3_object" "ml_model_metadata" {
+  bucket       = aws_s3_bucket.match_backups.id
+  key          = "models/${var.ml_model_version}/live_metadata.json"
+  source       = "${path.module}/../../apps/ml-engine/live_metadata.json"
+  etag         = filemd5("${path.module}/../../apps/ml-engine/live_metadata.json")
+  content_type = "application/json"
+}

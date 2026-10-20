@@ -78,22 +78,27 @@ def load_artifacts():
         meta_path = LOCAL_METADATA_FILE
         manifest_path = LOCAL_MANIFEST_FILE
 
-        # S3 Remote Loading Mode
+        # S3 Remote Loading Mode (version-tagged artifact in S3 with automatic local bundle fallback)
         if s3_bucket and target_version:
-            import boto3
-            cache_dir = Path('/tmp') / 'models' / target_version
-            cache_dir.mkdir(parents=True, exist_ok=True)
-            s3_model_path = cache_dir / 'live_win_predictor_model.joblib'
-            s3_manifest_path = cache_dir / 'model_manifest.json'
+            try:
+                import boto3
+                cache_dir = Path('/tmp') / 'models' / target_version
+                cache_dir.mkdir(parents=True, exist_ok=True)
+                s3_model_path = cache_dir / 'live_win_predictor_model.joblib'
+                s3_manifest_path = cache_dir / 'model_manifest.json'
 
-            s3 = boto3.client('s3')
-            if not s3_manifest_path.exists():
-                s3.download_file(s3_bucket, f'models/{target_version}/model_manifest.json', str(s3_manifest_path))
-            if not s3_model_path.exists():
-                s3.download_file(s3_bucket, f'models/{target_version}/live_win_predictor_model.joblib', str(s3_model_path))
+                s3 = boto3.client('s3')
+                if not s3_manifest_path.exists():
+                    s3.download_file(s3_bucket, f'models/{target_version}/model_manifest.json', str(s3_manifest_path))
+                if not s3_model_path.exists():
+                    s3.download_file(s3_bucket, f'models/{target_version}/live_win_predictor_model.joblib', str(s3_model_path))
 
-            model_path = s3_model_path
-            manifest_path = s3_manifest_path
+                model_path = s3_model_path
+                manifest_path = s3_manifest_path
+            except Exception as s3_err:
+                print(f"⚠️ S3 model fetch for {target_version} from {s3_bucket} failed ({s3_err}); falling back to bundled artifact.")
+                model_path = LOCAL_MODEL_FILE
+                manifest_path = LOCAL_MANIFEST_FILE
 
         # Read metadata or manifest
         if manifest_path.exists():

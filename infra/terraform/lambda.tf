@@ -241,9 +241,45 @@ resource "aws_ecr_repository" "ml_predict" {
   force_delete         = true
 }
 
+resource "aws_ecr_lifecycle_policy" "ml_predict_cleanup" {
+  repository = aws_ecr_repository.ml_predict.name
+
+  policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Immediately expire untagged images after 1 day to stay within 500MB free tier"
+        selection = {
+          tagStatus   = "untagged"
+          countType   = "sinceImagePushed"
+          countUnit   = "days"
+          countNumber = 1
+        }
+        action = {
+          type = "expire"
+        }
+      },
+      {
+        rulePriority = 2
+        description  = "Keep only the 2 most recent tagged images (current version tag + latest)"
+        selection = {
+          tagStatus     = "tagged"
+          tagPrefixList = ["v", "latest"]
+          countType     = "imageCountMoreThan"
+          countNumber   = 2
+        }
+        action = {
+          type = "expire"
+        }
+      }
+    ]
+  })
+}
+
 resource "null_resource" "docker_build_push" {
   triggers = {
     repository_url = aws_ecr_repository.ml_predict.repository_url
+    model_version  = var.ml_model_version
     # Rebuild when any file in ml-engine changes
     dir_sha1 = sha1(join("", [for f in fileset("${path.module}/../../apps/ml-engine", "*") : filesha1("${path.module}/../../apps/ml-engine/${f}")]))
   }
@@ -253,8 +289,20 @@ resource "null_resource" "docker_build_push" {
     command     = <<EOF
       set -euo pipefail
       aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin ${aws_ecr_repository.ml_predict.repository_url}
-      docker build --platform linux/amd64 --provenance=false -t ${aws_ecr_repository.ml_predict.repository_url}:latest ${path.module}/../../apps/ml-engine
+      docker build --platform linux/amd64 --provenance=false \
+        -t ${aws_ecr_repository.ml_predict.repository_url}:${var.ml_model_version} \
+        -t ${aws_ecr_repository.ml_predict.repository_url}:latest \
+        ${path.module}/../../apps/ml-engine
+      docker push ${aws_ecr_repository.ml_predict.repository_url}:${var.ml_model_version}
       docker push ${aws_ecr_repository.ml_predict.repository_url}:latest
+
+      # Proactively delete any untagged images immediately so ECR storage never accumulates
+      untagged_digests=$(aws ecr list-images --repository-name ${aws_ecr_repository.ml_predict.name} --filter tagStatus=UNTAGGED --query 'imageIds[*].imageDigest' --output text --region ${var.aws_region} || true)
+      if [ -n "$untagged_digests" ]; then
+        for digest in $untagged_digests; do
+          aws ecr batch-delete-image --repository-name ${aws_ecr_repository.ml_predict.name} --image-ids imageDigest="$digest" --region ${var.aws_region} >/dev/null || true
+        done
+      fi
 
       set +e
       lambda_info=$(aws lambda get-function --function-name ${var.project_name}-ml-predict --region ${var.aws_region} 2>&1)
@@ -262,7 +310,7 @@ resource "null_resource" "docker_build_push" {
       set -e
 
       if [ "$lambda_status" -eq 0 ]; then
-        aws lambda update-function-code --function-name ${var.project_name}-ml-predict --image-uri ${aws_ecr_repository.ml_predict.repository_url}:latest --region ${var.aws_region}
+        aws lambda update-function-code --function-name ${var.project_name}-ml-predict --image-uri ${aws_ecr_repository.ml_predict.repository_url}:${var.ml_model_version} --region ${var.aws_region}
         aws lambda wait function-updated --function-name ${var.project_name}-ml-predict --region ${var.aws_region}
       elif [[ "$lambda_info" == *"ResourceNotFoundException"* ]]; then
         echo "Lambda function is not created yet; Terraform will create it from the pushed image."
@@ -278,7 +326,7 @@ resource "aws_lambda_function" "ml_predict" {
   function_name = "${var.project_name}-ml-predict"
   role          = aws_iam_role.lambda_role.arn
   package_type  = "Image"
-  image_uri     = "${aws_ecr_repository.ml_predict.repository_url}:latest"
+  image_uri     = "${aws_ecr_repository.ml_predict.repository_url}:${var.ml_model_version}"
   timeout       = 30
   memory_size   = 1024
 
@@ -288,7 +336,8 @@ resource "aws_lambda_function" "ml_predict" {
 
   environment {
     variables = {
-      MODEL_VERSION = "v2.2.0"
+      MODEL_VERSION   = var.ml_model_version
+      MODEL_S3_BUCKET = aws_s3_bucket.match_backups.id
     }
   }
 
@@ -296,5 +345,10 @@ resource "aws_lambda_function" "ml_predict" {
     Project = var.project_name
   }
 
-  depends_on = [null_resource.docker_build_push]
+  depends_on = [
+    null_resource.docker_build_push,
+    aws_s3_object.ml_model_joblib,
+    aws_s3_object.ml_model_manifest,
+    aws_s3_object.ml_model_metadata
+  ]
 }

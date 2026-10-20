@@ -38,8 +38,13 @@ while [[ "$#" -gt 0 ]]; do
       ENV_FILE="$2"
       shift 2
       ;;
+    --model-version)
+      ML_MODEL_VERSION="$2"
+      shift 2
+      ;;
     --help|-h)
-      echo "Usage: $0 --env dev|prod [--use-local-env] [--bootstrap | --bootstrap-only] [--migrate] [--check]"
+      echo "Usage: $0 --env dev|prod [--use-local-env] [--model-version v2.2.0] [--bootstrap | --bootstrap-only] [--migrate] [--check]"
+      echo "  --model-version   Specify the semantic ML model version tag to deploy/restore from S3 & ECR (default: v2.2.0)."
       echo "  --bootstrap       Create the state bucket and Route 53 zone, then continue deployment."
       echo "  --bootstrap-only  Create the state bucket and Route 53 zone, print nameservers, then exit."
       echo "  --check           Verify tools, AWS login and .env.local, then exit without changing anything."
@@ -142,6 +147,7 @@ if [ -z "${TF_VAR_llm_api_key:-}" ] && [ -n "${OPENAI_API_KEY:-}" ]; then export
 if [ -n "${OPENAI_API_KEY:-}" ]; then export TF_VAR_openai_api_key="$OPENAI_API_KEY"; fi
 if [ -n "${LLM_BASE_URL:-}" ]; then export TF_VAR_llm_base_url="$LLM_BASE_URL"; fi
 if [ -n "${LLM_MODEL:-}" ]; then export TF_VAR_llm_model="$LLM_MODEL"; fi
+if [ -n "${ML_MODEL_VERSION:-}" ]; then export TF_VAR_ml_model_version="$ML_MODEL_VERSION"; fi
 
 if [[ "$BOOTSTRAP" == true ]]; then
   echo "🏗️ Bootstrapping the Terraform state bucket and Route 53 zone..."

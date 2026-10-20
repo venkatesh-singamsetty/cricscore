@@ -136,20 +136,28 @@ resource "aws_iam_role_policy_attachment" "lambda_xray_attach" {
   policy_arn = "arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess"
 }
 
-# --- IAM Policy for S3 Match Backups ---
+# --- IAM Policy for S3 Match Backups & Versioned ML Models ---
 resource "aws_iam_policy" "lambda_s3_backups" {
   name        = "${var.project_name}-lambda-s3-backups"
-  description = "Allow Lambda to upload match backups to S3"
+  description = "Allow Lambda to upload match backups and read versioned ML model artifacts from S3"
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
         Action = [
-          "s3:PutObject"
+          "s3:PutObject",
+          "s3:GetObject"
         ]
         Effect   = "Allow"
         Resource = "${aws_s3_bucket.match_backups.arn}/*"
+      },
+      {
+        Action = [
+          "s3:ListBucket"
+        ]
+        Effect   = "Allow"
+        Resource = aws_s3_bucket.match_backups.arn
       }
     ]
   })

@@ -29,18 +29,18 @@ A central single-pane-of-glass directory providing live references across all la
 
 ### ⚙️ GitHub Actions Workflow Catalog
 
-| Workflow Name                      | File                                 | Trigger Events                       | Primary Responsibilities                                                                                | Direct Console Link                                                                                    |
-| ---------------------------------- | ------------------------------------ | ------------------------------------ | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| **CI (Continuous Integration)**    | `.github/workflows/ci.yml`           | Pull requests, push to `main`        | 4 validation suites: Security, Frontend, Backend, Python AI/ML; deploys and tests `dev` on `main` merge | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/ci.yml)           |
-| **CD (Continuous Delivery)**       | `.github/workflows/cd.yml`           | Release published (`v*`)             | Production deployment, Playwright E2E against Prod, OWASP ZAP baseline scan                             | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/cd.yml)           |
-| **Semantic Release**               | `.github/workflows/release.yml`      | CI success on `main`                 | Analyzes conventional commits, cuts next `v*` tag, publishes release notes & updates changelog          | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/release.yml)      |
-| **CodeQL SAST Analysis**           | `.github/workflows/codeql.yml`       | PRs, push to `main`, weekly schedule | Multi-language static application security testing (JS/TS & Python)                                     | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/codeql.yml)       |
-| **Generate SBOM**                  | `.github/workflows/sbom.yml`         | Nightly / release                    | Generates Syft Software Bill of Materials in SPDX JSON format (`spdx-json` artifact)                    | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/sbom.yml)         |
-| **MLOps Pipeline (Win Predictor)** | `.github/workflows/mlops.yml`        | Changes in `apps/ml-engine/**`       | Model benchmark evaluation, XGBoost champion verification, container build & ECR push                   | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/mlops.yml)        |
-| **Terraform Drift Detection**      | `.github/workflows/drift-check.yml`  | Daily schedule                       | Verifies Terraform state synchronization with AWS resources                                             | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/drift-check.yml)  |
-| **Database Keep-Alive**            | `.github/workflows/db-keepalive.yml` | Scheduled (every 4 hrs)              | Sends ping query to prevent Aiven PostgreSQL free service hibernation                                   | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/db-keepalive.yml) |
-| **Terraform Force Unlock**         | `.github/workflows/unlock.yml`       | Manual `workflow_dispatch`           | Emergency administrative release of stuck S3 backend locks                                              | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/unlock.yml)       |
-| **Dependabot Updates**             | `.github/dependabot.yml`             | Scheduled / auto                     | Automated security PRs for npm, pip, and GitHub Actions dependencies                                    | [Open Dependabot](https://github.com/venkatesh-singamsetty/cricscore/security/dependabot)              |
+| Workflow Name                      | File                                   | Trigger Events                                                                                                  | Primary Responsibilities                                                                                | Direct Console Link                                                                                      |
+| ---------------------------------- | -------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| **CI (Continuous Integration)**    | `.github/workflows/ci.yml`             | Pull requests, push to `main`                                                                                   | 4 validation suites: Security, Frontend, Backend, Python AI/ML; deploys and tests `dev` on `main` merge | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/ci.yml)             |
+| **CD (Continuous Delivery)**       | `.github/workflows/cd.yml`             | Release published (`v*`)                                                                                        | Production deployment, Playwright E2E against Prod, OWASP ZAP baseline scan                             | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/cd.yml)             |
+| **Semantic Release**               | `.github/workflows/release.yml`        | CI success on `main`                                                                                            | Analyzes conventional commits, cuts next `v*` tag, publishes release notes & updates changelog          | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/release.yml)        |
+| **CodeQL SAST Analysis**           | `.github/workflows/codeql.yml`         | PRs, push to `main`, weekly schedule                                                                            | Multi-language static application security testing (JS/TS & Python)                                     | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/codeql.yml)         |
+| **Generate SBOM**                  | `.github/workflows/sbom.yml`           | Nightly / release                                                                                               | Generates Syft Software Bill of Materials in SPDX JSON format (`spdx-json` artifact)                    | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/sbom.yml)           |
+| **MLOps Pipeline (Win Predictor)** | `.github/workflows/mlops-pipeline.yml` | Dataset or training script changes (`cricket-data/**`, `train_model.py`, `compare_models.py`), monthly schedule | Model benchmark evaluation, XGBoost champion verification, artifact upload                              | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/mlops-pipeline.yml) |
+| **Terraform Drift Detection**      | `.github/workflows/drift-check.yml`    | Daily schedule                                                                                                  | Verifies Terraform state synchronization with AWS resources                                             | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/drift-check.yml)    |
+| **Database Keep-Alive**            | `.github/workflows/db-keepalive.yml`   | Scheduled (every 4 hrs)                                                                                         | Sends ping query to prevent Aiven PostgreSQL free service hibernation                                   | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/db-keepalive.yml)   |
+| **Terraform Force Unlock**         | `.github/workflows/unlock.yml`         | Manual `workflow_dispatch`                                                                                      | Emergency administrative release of stuck S3 backend locks                                              | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/unlock.yml)         |
+| **Dependabot Updates**             | `.github/dependabot.yml`               | Scheduled / auto                                                                                                | Automated security PRs for npm, pip, and GitHub Actions dependencies                                    | [Open Dependabot](https://github.com/venkatesh-singamsetty/cricscore/security/dependabot)                |
 
 ### 📋 GitHub Repository Variables (`vars.*`)
 
@@ -110,8 +110,8 @@ A central single-pane-of-glass directory providing live references across all la
 - **SNS Match Events Topic**: [`cricscoredev-match-events`](https://us-east-1.console.aws.amazon.com/sns/v3/home?region=us-east-1#/topic/arn:aws:sns:us-east-1:926789386606:cricscoredev-match-events)
 - **SNS Lambda Alerts Topic**: [`cricscoredev-lambda-alerts`](https://us-east-1.console.aws.amazon.com/sns/v3/home?region=us-east-1#/topic/arn:aws:sns:us-east-1:926789386606:cricscoredev-lambda-alerts)
 - **ECR Docker Image Repo**: [`cricscoredev-ml-predict`](https://us-east-1.console.aws.amazon.com/ecr/repositories/private/926789386606/cricscoredev-ml-predict?region=us-east-1)
-  - **Latest Tag Digest**: `sha256:583d51d5f70eaa96f507b1d428203778d9fc8c554fc728ab5c1c56464d5ebdb8`
-  - **Image Size**: `652.1 MB` | **Last Pushed**: `2026-10-20 01:01:31`
+  - **Latest Tag Digest**: `sha256:0a3e191a4a531dd9115f9ab40631fbbd7b80c3c47bb6f7ea18d783e7e4157fc9`
+  - **Image Size**: `652.11 MB` | **Last Pushed**: `2026-10-20 01:48:26`
 
 ### ⚡ Serverless Compute & Telemetry (AWS Lambda)
 
@@ -157,8 +157,8 @@ A central single-pane-of-glass directory providing live references across all la
 - **SNS Match Events Topic**: [`cricscore-match-events`](https://us-east-1.console.aws.amazon.com/sns/v3/home?region=us-east-1#/topic/arn:aws:sns:us-east-1:926789386606:cricscore-match-events)
 - **SNS Lambda Alerts Topic**: [`cricscore-lambda-alerts`](https://us-east-1.console.aws.amazon.com/sns/v3/home?region=us-east-1#/topic/arn:aws:sns:us-east-1:926789386606:cricscore-lambda-alerts)
 - **ECR Docker Image Repo**: [`cricscore-ml-predict`](https://us-east-1.console.aws.amazon.com/ecr/repositories/private/926789386606/cricscore-ml-predict?region=us-east-1)
-  - **Latest Tag Digest**: `sha256:60b781245f820cb52592c27596205f13012ad6f91094e21849ea25b62b85a1fc`
-  - **Image Size**: `652.11 MB` | **Last Pushed**: `2026-10-20 00:02:21`
+  - **Latest Tag Digest**: `sha256:0a3e191a4a531dd9115f9ab40631fbbd7b80c3c47bb6f7ea18d783e7e4157fc9`
+  - **Image Size**: `652.11 MB` | **Last Pushed**: `2026-10-20 01:46:45`
 
 ### ⚡ Serverless Compute & Telemetry (AWS Lambda)
 
@@ -181,6 +181,8 @@ A central single-pane-of-glass directory providing live references across all la
 ### Active Champion Model Architecture
 
 - **Champion Version**: `v2.2.0` (XGBoost)
+- **S3 Versioned Model Registry (Dev)**: `s3://cricscoredev-match-backups-937fe838a46144fff5facd682f/models/v2.2.0/live_win_predictor_model.joblib` ([Open in S3 Console](https://us-east-1.console.aws.amazon.com/s3/buckets/cricscoredev-match-backups-937fe838a46144fff5facd682f?region=us-east-1&prefix=models/v2.2.0/))
+- **S3 Versioned Model Registry (Prod)**: `s3://cricscore-match-backups-0dd0d65575f13cfa1e7a7f820d/models/v2.2.0/live_win_predictor_model.joblib` ([Open in S3 Console](https://us-east-1.console.aws.amazon.com/s3/buckets/cricscore-match-backups-0dd0d65575f13cfa1e7a7f820d?region=us-east-1&prefix=models/v2.2.0/))
 - **Local Model Artifact**: [`apps/ml-engine/live_win_predictor_model.joblib`](file:///Users/venkat/workspace/gitRepos/cricscore/apps/ml-engine/live_win_predictor_model.joblib)
 - **Baseline Fallback Model**: [`apps/ml-engine/win_predictor_model.joblib`](file:///Users/venkat/workspace/gitRepos/cricscore/apps/ml-engine/win_predictor_model.joblib)
 - **Model Manifest Specification**: [`apps/ml-engine/model_manifest.json`](file:///Users/venkat/workspace/gitRepos/cricscore/apps/ml-engine/model_manifest.json)
@@ -203,12 +205,13 @@ A central single-pane-of-glass directory providing live references across all la
 ### Docker Container Images (AWS ECR)
 
 - **Base Image**: `public.ecr.aws/lambda/python:3.12` (Container architecture: `linux/amd64`)
+- **Cost & Retention Policy**: Automated ECR lifecycle policy expires untagged images after 1 day and retains only the active version tag (`:v2.2.0` + `:latest`).
 - **Dev ECR Repository**: [`cricscoredev-ml-predict`](https://us-east-1.console.aws.amazon.com/ecr/repositories/private/926789386606/cricscoredev-ml-predict?region=us-east-1)
-  - **Latest Image URI**: `926789386606.dkr.ecr.us-east-1.amazonaws.com/cricscoredev-ml-predict:latest`
-  - **Digest**: `sha256:583d51d5f70eaa96f507b1d428203778d9fc8c554fc728ab5c1c56464d5ebdb8` | **Size**: `652.1 MB` | **Pushed**: `2026-10-20 01:01:31`
+  - **Versioned Image URI**: `926789386606.dkr.ecr.us-east-1.amazonaws.com/cricscoredev-ml-predict:v2.2.0` (also tagged `:latest`)
+  - **Digest**: `sha256:0a3e191a4a531dd9115f9ab40631fbbd7b80c3c47bb6f7ea18d783e7e4157fc9` | **Size**: `652.11 MB` | **Pushed**: `2026-10-20 01:48:26`
 - **Prod ECR Repository**: [`cricscore-ml-predict`](https://us-east-1.console.aws.amazon.com/ecr/repositories/private/926789386606/cricscore-ml-predict?region=us-east-1)
-  - **Latest Image URI**: `926789386606.dkr.ecr.us-east-1.amazonaws.com/cricscore-ml-predict:latest`
-  - **Digest**: `sha256:60b781245f820cb52592c27596205f13012ad6f91094e21849ea25b62b85a1fc` | **Size**: `652.11 MB` | **Pushed**: `2026-10-20 00:02:21`
+  - **Versioned Image URI**: `926789386606.dkr.ecr.us-east-1.amazonaws.com/cricscore-ml-predict:v2.2.0` (also tagged `:latest`)
+  - **Digest**: `sha256:0a3e191a4a531dd9115f9ab40631fbbd7b80c3c47bb6f7ea18d783e7e4157fc9` | **Size**: `652.11 MB` | **Pushed**: `2026-10-20 01:46:45`
 
 ---
 
