@@ -502,3 +502,13 @@ The live **Match Win Predictor** calculates win probabilities from match state. 
 2. **Shortened Match Scale Normalization**: For shortened matches (e.g., 1-over matches), raw inputs of `balls_left = 5` and `current_score = 6` at ball 0.1 would trick a linear model into thinking the match is in the 20th over. `predict.py` normalizes `balls_left` and `current_score` by a factor of `(120 / total_match_balls)` during the 1st innings to evaluate probabilities on a 120-ball T20 equivalent scale.
 3. **Start-of-Match Baseline (50% / 50%)**: At the start of the 1st innings (`currentScore = 0`, `wicketsLost = 0`), the model forces a 50% / 50% baseline probability before the first ball is bowled.
 4. **Impossible Chase Override**: During the 2nd innings, if the required runs exceed the maximum possible runs (`runsNeeded > ballsLeft * 6`), the frontend and backend cap win probabilities to 0% for the chasing team and 100% for the defending team.
+
+## 🔒 Chat is read-only (security hardening)
+
+`POST /chat` is reachable without authentication so guests can use the assistant. Therefore:
+
+- The client-supplied `isAdmin` flag is **ignored**; `delete_guest_data` / `delete_incomplete_matches` are never registered in the chat path. Deletions are done only from Match Ops (Admin Panel).
+- `execute_sql` accepts a single `SELECT`/`WITH` statement and rejects write/DDL keywords before touching the database (in addition to `BEGIN READ ONLY` + 3s timeout).
+- Client history is filtered to `user`/`assistant` roles (last 10 turns).
+
+A Python LangGraph service (`apps/ai-service`) is being added as a replacement for the single-agent loop; it is not yet wired in.

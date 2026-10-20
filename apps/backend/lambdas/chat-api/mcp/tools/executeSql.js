@@ -14,7 +14,29 @@ const { pool, setSearchPath } = require("../../config/db");
  * @param {string} args.query - The SELECT SQL query to execute
  * @returns {object} MCP content response
  */
+const FORBIDDEN_SQL =
+  /\b(insert|update|delete|drop|alter|truncate|create|grant|revoke|copy|call|do|set|reset|pg_sleep|pg_read_file|pg_ls_dir|lo_import|lo_export|dblink)\b/i;
+
+/**
+ * Defense in depth on top of BEGIN READ ONLY: single SELECT/WITH statement only.
+ * @returns {string|null} error message, or null when the query is acceptable
+ */
+function validateReadOnlySql(query) {
+  if (typeof query !== "string" || !query.trim()) return "Query is required.";
+  const q = query.trim().replace(/;+\s*$/, "");
+  if (q.includes(";")) return "Only a single statement is allowed.";
+  if (!/^(select|with)\b/i.test(q)) return "Only SELECT queries are allowed.";
+  if (FORBIDDEN_SQL.test(q)) return "Query contains a forbidden keyword.";
+  return null;
+}
+
 async function executeSqlTool({ query }) {
+  const invalid = validateReadOnlySql(query);
+  if (invalid) {
+    return {
+      content: [{ type: "text", text: "Error executing SQL: " + invalid }],
+    };
+  }
   console.log("MCP Tool [execute_sql] query:", query);
   let queryResult = "";
 
@@ -43,4 +65,4 @@ async function executeSqlTool({ query }) {
   };
 }
 
-module.exports = { executeSqlTool };
+module.exports = { executeSqlTool, validateReadOnlySql };

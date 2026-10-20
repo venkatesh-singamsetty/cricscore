@@ -190,3 +190,13 @@ GitHub Actions run validation on pull requests to `main`; deployment, AI evaluat
 
 - **Development**: `.github/workflows/ci.yml` validates changes on pull requests and deploys/tests Dev on `main` or manual dispatch.
 - **Production**: `.github/workflows/cd.yml` deploys on a version tag or manual dispatch, then runs AI evaluation, Playwright tests, and a ZAP baseline scan.
+
+## Python AI service (`apps/ai-service`)
+
+Unit tests (router, tools, LangGraph flows, handler, tracing) use in-memory fakes; no DB, LLM or network.
+
+```bash
+cd apps/ai-service && .venv/bin/pytest -q
+```
+
+Chat read-only guarantees are covered in `apps/backend/lambdas/chat-api/handlers/chatHandler.test.js` and `mcp/tools/tools.test.js` (`npm --prefix apps/backend test`).

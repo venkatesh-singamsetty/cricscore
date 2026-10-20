@@ -155,3 +155,7 @@ __pycache__/
 *.py[cod]
 apps/ml-engine/venv/
 
+
+# Python AI service
+apps/ai-service/.venv/
+.pytest_cache/
