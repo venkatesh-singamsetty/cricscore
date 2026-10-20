@@ -121,9 +121,47 @@ jobs:
         run: terraform validate
         working-directory: infra/terraform
 
+  validate_python:
+    name: Python AI & ML Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: |
+            apps/ai-service/requirements.txt
+            apps/ml-engine/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r apps/ai-service/requirements.txt
+          pip install -r apps/ml-engine/requirements.txt
+
+      - name: Run Python AI Service Tests
+        run: pytest apps/ai-service -q
+
+      - name: Run Python ML Engine Tests
+        run: pytest apps/ml-engine/test_predict.py -q
+
+      - name: Run Trivy vulnerability scanner on Python
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: "fs"
+          scan-ref: "apps/ai-service"
+          ignore-unfixed: true
+          format: "table"
+          exit-code: "1"
+          severity: "HIGH,CRITICAL"
+
   deploy_and_test_dev:
     name: Deploy, Test & OWASP ZAP DEV
-    needs: [validate_frontend, validate_backend, validate_security]
+    needs: [validate_frontend, validate_backend, validate_security, validate_python]
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: dev

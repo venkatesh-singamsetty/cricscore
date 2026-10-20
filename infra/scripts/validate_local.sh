@@ -46,6 +46,20 @@ echo "-----------------------------------"
 
 echo ""
 echo "-----------------------------------"
+echo "🛠️ 2.5. Python AI & ML Engine Validation..."
+echo "-----------------------------------"
+if [ -d "apps/ai-service/.venv" ]; then
+  echo "👉 Running Python AI Service Tests..."
+  ./apps/ai-service/.venv/bin/pytest apps/ai-service -q
+fi
+
+if [ -d "apps/ml-engine/venv" ]; then
+  echo "👉 Running Python ML Engine Tests..."
+  ./apps/ml-engine/venv/bin/pytest apps/ml-engine/test_predict.py -q
+fi
+
+echo ""
+echo "-----------------------------------"
 echo "🛠️ 3. Infrastructure Validation..."
 echo "-----------------------------------"
 echo "👉 Checking Terraform Formatting..."
