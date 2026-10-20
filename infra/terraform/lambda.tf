@@ -280,7 +280,7 @@ resource "aws_lambda_function" "ml_predict" {
   package_type  = "Image"
   image_uri     = "${aws_ecr_repository.ml_predict.repository_url}:latest"
   timeout       = 30
-  memory_size   = 512
+  memory_size   = 1024
 
   tracing_config {
     mode = "Active"

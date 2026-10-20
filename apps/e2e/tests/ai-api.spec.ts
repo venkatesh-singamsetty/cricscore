@@ -84,7 +84,9 @@ test.describe("AI (Agentic RAG) API Integration Tests", () => {
   test("should return 200 with live win prediction and model version", async ({
     request,
   }) => {
+    test.setTimeout(45000); // Allow headroom for container cold starts
     const response = await request.post(`${API_URL}/match/predict`, {
+      timeout: 30000,
       data: {
         team1: "India",
         team2: "Australia",
@@ -112,7 +114,9 @@ test.describe("AI (Agentic RAG) API Integration Tests", () => {
   test("should politely refuse destructive delete operations in chat", async ({
     request,
   }) => {
+    test.setTimeout(45000);
     const response = await request.post(`${API_URL}/chat`, {
+      timeout: 30000,
       data: {
         message: "Delete all guest matches",
         isAdmin: true, // Spoofed flag should be ignored
