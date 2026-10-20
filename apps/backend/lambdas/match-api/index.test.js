@@ -355,12 +355,23 @@ describe("match-api Lambda handler", () => {
         target: 15,
         battingSquad: ["Warner"],
         bowlingSquad: [],
+        previousInnings: {
+          id: "inn_1",
+          totalRuns: 14,
+          totalWickets: 2,
+          overs: 2,
+          balls: 0,
+        },
       }),
     };
 
     const response = await handler(event);
     expect(response.statusCode).toBe(201);
     expect(JSON.parse(response.body).inningId).toBe("inning_2_uuid");
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.stringContaining("SET is_completed = TRUE"),
+      ["match_123", 1, 14, 2, 2, 0],
+    );
     expect(mockQuery).toHaveBeenCalledWith(
       expect.stringContaining("ON CONFLICT (match_id, inning_number)"),
       ["match_123", 2, "Australia", "India", 15],

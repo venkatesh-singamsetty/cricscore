@@ -687,6 +687,8 @@ const MatchView: React.FC<MatchViewProps> = ({
             initialState.id.startsWith("inn2_")
               ? innings.id
               : initialState.id,
+          inningNumber: innings.inningNumber,
+          target: innings.target,
           battingTeamName: innings.battingTeamName,
           strikerName: striker.name,
           nonStrikerName: nonStriker.name,
@@ -696,6 +698,16 @@ const MatchView: React.FC<MatchViewProps> = ({
           matchTotalOvers: totalOvers,
           explicitTotalRuns: Number(innings.totalRuns || 0),
           explicitTotalWickets: Number(innings.totalWickets || 0),
+          previousInnings: previousInnings
+            ? {
+                id: previousInnings.id,
+                battingTeamName: previousInnings.battingTeamName,
+                totalRuns: previousInnings.totalRuns,
+                totalWickets: previousInnings.totalWickets,
+                overs: previousInnings.overs,
+                balls: previousInnings.balls,
+              }
+            : undefined,
           bowlerOvers: bOvers,
           bowlerBalls: bBalls,
           battingOrderNames: innings.battingOrder
@@ -739,6 +751,7 @@ const MatchView: React.FC<MatchViewProps> = ({
   const postScoreUpdate = async (
     ball: BallEvent,
     finalInnings: InningsState,
+    matchCompleted = false,
   ) => {
     if (matchId.startsWith("guest_") || !userToken) return;
     try {
@@ -754,6 +767,8 @@ const MatchView: React.FC<MatchViewProps> = ({
             initialState.id.startsWith("inn2_")
               ? finalInnings.id
               : initialState.id,
+          inningNumber: finalInnings.inningNumber,
+          target: finalInnings.target,
           battingTeamName: finalInnings.battingTeamName,
           ballData: ball,
           strikerName: finalInnings.players[finalInnings.strikerId]?.name || "",
@@ -765,6 +780,17 @@ const MatchView: React.FC<MatchViewProps> = ({
           matchTotalOvers: totalOvers,
           explicitTotalRuns: finalInnings.totalRuns,
           explicitTotalWickets: finalInnings.totalWickets,
+          matchCompleted,
+          previousInnings: previousInnings
+            ? {
+                id: previousInnings.id,
+                battingTeamName: previousInnings.battingTeamName,
+                totalRuns: previousInnings.totalRuns,
+                totalWickets: previousInnings.totalWickets,
+                overs: previousInnings.overs,
+                balls: previousInnings.balls,
+              }
+            : undefined,
           bowlerOvers: b?.overs || 0,
           bowlerBalls: b?.balls || 0,
           battingOrderNames: finalInnings.battingOrder
@@ -1076,7 +1102,11 @@ const MatchView: React.FC<MatchViewProps> = ({
       }
       isProcessingRef.current = false;
       setIsProcessing(false);
-      void postScoreUpdate(newBallEvent, finalInnings);
+      void postScoreUpdate(
+        newBallEvent,
+        finalInnings,
+        finalInnings.inningNumber === 2,
+      );
       onInningsEnd(finalInnings);
       return;
     }

@@ -1,19 +1,36 @@
-const { Client } = require("pg");
+const { Pool, Client } = require("pg");
 
-exports.handler = async (event) => {
+const cleanDbUrl = (process.env.DATABASE_URL || "").split("?")[0];
+const pool = new Pool({
+  connectionString: cleanDbUrl,
+  // codeql[js/disabling-certificate-validation] Aiven DB requires this unless explicit CA bundle is provided
+  ssl: { rejectUnauthorized: false },
+  max: 1,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
+});
+pool.on("error", (err) => console.error("Idle PostgreSQL client error:", err));
+
+exports.handler = async (event, context) => {
+  if (context) context.callbackWaitsForEmptyEventLoop = false;
   // SQS batch source check
   const records = event.Records || [];
   console.log(`Processing batch of ${records.length} events from SQS`);
 
-  const cleanDbUrl = (process.env.DATABASE_URL || "").split("?")[0];
-  const client = new Client({
-    connectionString: cleanDbUrl,
-    // codeql[js/disabling-certificate-validation] Aiven DB requires this unless explicit CA bundle is provided
-    ssl: { rejectUnauthorized: false },
-  });
+  const useClient = process.env.NODE_ENV === "test";
+  let client;
 
   try {
-    await client.connect();
+    if (useClient) {
+      client = new Client({
+        connectionString: cleanDbUrl,
+        // codeql[js/disabling-certificate-validation] Aiven DB requires this unless explicit CA bundle is provided
+        ssl: { rejectUnauthorized: false },
+      });
+      await client.connect();
+    } else {
+      client = await pool.connect();
+    }
     const dbSchema = process.env.DB_SCHEMA || "public";
     if (process.env.NODE_ENV !== "test") {
       await client.query(`SET search_path TO ${dbSchema}`);
@@ -206,10 +223,26 @@ exports.handler = async (event) => {
                     striker_name = COALESCE($1, striker_name), 
                     non_striker_name = COALESCE($2, non_striker_name), 
                     current_bowler_name = COALESCE($3, current_bowler_name), 
-                    overs = COALESCE($4, overs),
-                    balls = COALESCE($5, balls),
-                    total_runs = COALESCE($6, GREATEST(COALESCE(total_runs, 0), COALESCE((SELECT SUM(runs) FROM players WHERE inning_id = $8), 0))),
-                    total_wickets = COALESCE($7, COALESCE(total_wickets, 0)),
+                    overs = CASE
+                      WHEN (COALESCE($4, overs, 0) * 6 + COALESCE($5, balls, 0)) >= (COALESCE(overs, 0) * 6 + COALESCE(balls, 0))
+                      THEN COALESCE($4, overs)
+                      ELSE overs
+                    END,
+                    balls = CASE
+                      WHEN (COALESCE($4, overs, 0) * 6 + COALESCE($5, balls, 0)) >= (COALESCE(overs, 0) * 6 + COALESCE(balls, 0))
+                      THEN COALESCE($5, balls)
+                      ELSE balls
+                    END,
+                    total_runs = CASE
+                      WHEN (COALESCE($4, overs, 0) * 6 + COALESCE($5, balls, 0)) >= (COALESCE(overs, 0) * 6 + COALESCE(balls, 0))
+                      THEN COALESCE($6, GREATEST(COALESCE(total_runs, 0), COALESCE((SELECT SUM(runs) FROM players WHERE inning_id = $8), 0)))
+                      ELSE GREATEST(COALESCE($6, total_runs, 0), COALESCE(total_runs, 0), COALESCE((SELECT SUM(runs) FROM players WHERE inning_id = $8), 0))
+                    END,
+                    total_wickets = CASE
+                      WHEN (COALESCE($4, overs, 0) * 6 + COALESCE($5, balls, 0)) >= (COALESCE(overs, 0) * 6 + COALESCE(balls, 0))
+                      THEN COALESCE($7, COALESCE(total_wickets, 0))
+                      ELSE GREATEST(COALESCE($7, total_wickets, 0), COALESCE(total_wickets, 0))
+                    END,
                     updated_at = CURRENT_TIMESTAMP
                  WHERE id = $8`;
 
@@ -242,11 +275,19 @@ exports.handler = async (event) => {
         [matchId, matchTotalOvers],
       );
 
-      if (battingOrderNames && Array.isArray(battingOrderNames)) {
-        for (let i = 0; i < battingOrderNames.length; i++) {
+      if (
+        battingOrderNames &&
+        Array.isArray(battingOrderNames) &&
+        battingOrderNames.length > 0
+      ) {
+        const validNames = battingOrderNames.filter(Boolean);
+        if (validNames.length > 0) {
+          const playerValues = validNames
+            .map((_, i) => `($1, $${i + 2})`)
+            .join(",");
           await client.query(
-            "INSERT INTO players (inning_id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-            [inningId, battingOrderNames[i]],
+            `INSERT INTO players (inning_id, name) VALUES ${playerValues} ON CONFLICT DO NOTHING`,
+            [inningId, ...validNames],
           );
         }
       }
@@ -366,6 +407,12 @@ exports.handler = async (event) => {
     console.error("Storage Worker Error:", error);
     throw error; // Let SQS retry
   } finally {
-    await client.end();
+    if (client) {
+      if (useClient) {
+        await client.end();
+      } else if (typeof client.release === "function") {
+        client.release();
+      }
+    }
   }
 };

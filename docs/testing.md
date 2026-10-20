@@ -54,7 +54,7 @@ To prevent duplicate test execution and wasted developer time, `validate_local.s
 
 Unit tests are isolated tests that verify individual functions, utilities, or background cloud logic without spinning up external dependencies.
 
-- **Frontend Unit Tests**: Validate React Types, state handlers, live WebSocket score merge utilities, Duckworth-Lewis-Stern (DLS) Par Score calculations (1–50 overs), scorer access guards, localStorage safety, and summary formatting.
+- **Frontend Unit Tests**: Validate React Types, state handlers, live WebSocket score merge utilities (including `previousInnings` reconciliation, dynamic 2nd-innings creation, and instant `COMPLETED` transition on target chase), Duckworth-Lewis-Stern (DLS) Par Score calculations (1–50 overs), scorer access guards, localStorage safety, and summary formatting.
   - _Location:_ `apps/frontend/src/test/types.test.ts`, `apps/frontend/src/test/dlsUtils.test.ts`, `apps/frontend/src/test/applyLiveScoreToMatches.test.ts`, `apps/frontend/src/test/scorerAccess.test.ts`, `apps/frontend/src/test/storageSafety.test.ts`, `apps/frontend/src/test/summaryFormat.test.ts`, `apps/frontend/src/test/authConfig.test.ts`
 - **ML Engine Unit Tests (PyTest)**: Validate format-agnostic ball-by-ball dynamic-programming win probability (`win_probability.py`), DLS resource parity alignment on achievable chases, 10-to-20 over T20 model blending, and decided/impossible chase overrides in Python.
   - _Location:_ `apps/ml-engine/test_predict.py`

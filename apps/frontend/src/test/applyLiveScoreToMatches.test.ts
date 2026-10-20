@@ -187,6 +187,122 @@ describe("applyLiveScoreToMatches", () => {
     expect(applied).toBe(false);
     expect(next).toBe(singleInningMatches);
   });
+
+  it("reconciles Innings 1 from previousInnings and appends 2nd innings when inningNumber=2 is provided", () => {
+    const staleSingleInning: MatchListItem[] = [
+      {
+        id: matches[0].id,
+        status: "LIVE",
+        total_overs: 2,
+        team_a_name: "TEAM A",
+        team_b_name: "TEAM B",
+        innings: [
+          {
+            id: "inn-1",
+            inning_number: 1,
+            batting_team_name: "TEAM B",
+            total_runs: 13,
+            total_wickets: 0,
+            overs: 0,
+            balls: 3,
+          },
+        ],
+      },
+    ];
+
+    const { applied, matches: next } = applyLiveScoreToMatches(
+      staleSingleInning,
+      {
+        matchId: matches[0].id,
+        inningId: "inn2_temp",
+        inningNumber: 2,
+        battingTeamName: "TEAM A",
+        explicitTotalRuns: 4,
+        explicitTotalWickets: 0,
+        currentOvers: 0,
+        currentBalls: 1,
+        previousInnings: {
+          id: "inn-1",
+          battingTeamName: "TEAM B",
+          totalRuns: 25,
+          totalWickets: 4,
+          overs: 2,
+          balls: 0,
+        },
+      },
+    );
+
+    expect(applied).toBe(true);
+    const innings = next[0].innings as {
+      batting_team_name: string;
+      total_runs: number;
+      total_wickets: number;
+      overs: number;
+      balls: number;
+    }[];
+    expect(innings).toHaveLength(2);
+    expect(innings[0].batting_team_name).toBe("TEAM B");
+    expect(innings[0].total_runs).toBe(25);
+    expect(innings[0].total_wickets).toBe(4);
+    expect(innings[0].overs).toBe(2);
+    expect(innings[0].balls).toBe(0);
+    expect(innings[1].batting_team_name).toBe("TEAM A");
+    expect(innings[1].total_runs).toBe(4);
+    expect(innings[1].balls).toBe(1);
+  });
+
+  it("automatically transitions match status to COMPLETED when 2nd innings chases target", () => {
+    const liveSecondInnings: MatchListItem[] = [
+      {
+        id: matches[0].id,
+        status: "LIVE",
+        total_overs: 2,
+        team_a_name: "TEAM A",
+        team_b_name: "TEAM B",
+        innings: [
+          {
+            id: "inn-1",
+            inning_number: 1,
+            batting_team_name: "TEAM B",
+            total_runs: 25,
+            total_wickets: 4,
+            overs: 2,
+            balls: 0,
+          },
+          {
+            id: "inn-2",
+            inning_number: 2,
+            batting_team_name: "TEAM A",
+            total_runs: 22,
+            total_wickets: 3,
+            overs: 1,
+            balls: 5,
+          },
+        ],
+      },
+    ];
+
+    const { applied, matches: next } = applyLiveScoreToMatches(
+      liveSecondInnings,
+      {
+        matchId: matches[0].id,
+        inningId: "inn-2",
+        inningNumber: 2,
+        battingTeamName: "TEAM A",
+        explicitTotalRuns: 26,
+        explicitTotalWickets: 3,
+        currentOvers: 2,
+        currentBalls: 0,
+        matchCompleted: true,
+      },
+    );
+
+    expect(applied).toBe(true);
+    expect(next[0].status).toBe("COMPLETED");
+    const innings = next[0].innings as { total_runs: number; overs: number }[];
+    expect(innings[1].total_runs).toBe(26);
+    expect(innings[1].overs).toBe(2);
+  });
 });
 
 describe("event type helpers", () => {

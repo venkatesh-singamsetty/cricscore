@@ -855,6 +855,7 @@ exports.handler = async (event, context) => {
         target,
         battingSquad,
         bowlingSquad,
+        previousInnings,
       } = JSON.parse(body);
 
       const nextInningNumber = Number(inningNumber) || 2;
@@ -873,12 +874,37 @@ exports.handler = async (event, context) => {
 
       await client.query("BEGIN");
       try {
-        // ✅ Mark innings 1 as completed before creating innings 2
-        await client.query(
-          `UPDATE innings SET is_completed = TRUE, updated_at = CURRENT_TIMESTAMP
-                     WHERE match_id = $1 AND inning_number = $2`,
-          [matchId, nextInningNumber - 1],
-        );
+        // ✅ Mark innings 1 as completed and commit its authoritative final score before creating innings 2
+        if (
+          previousInnings &&
+          previousInnings.totalRuns !== undefined &&
+          previousInnings.totalWickets !== undefined
+        ) {
+          await client.query(
+            `UPDATE innings
+             SET is_completed = TRUE,
+                 total_runs = $3,
+                 total_wickets = $4,
+                 overs = COALESCE($5, overs),
+                 balls = COALESCE($6, balls),
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE match_id = $1 AND inning_number = $2`,
+            [
+              matchId,
+              nextInningNumber - 1,
+              previousInnings.totalRuns,
+              previousInnings.totalWickets,
+              previousInnings.overs,
+              previousInnings.balls,
+            ],
+          );
+        } else {
+          await client.query(
+            `UPDATE innings SET is_completed = TRUE, updated_at = CURRENT_TIMESTAMP
+                       WHERE match_id = $1 AND inning_number = $2`,
+            [matchId, nextInningNumber - 1],
+          );
+        }
 
         const res = await client.query(
           `INSERT INTO innings (match_id, inning_number, batting_team_name, bowling_team_name, target)

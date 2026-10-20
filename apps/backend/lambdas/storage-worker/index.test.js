@@ -256,4 +256,47 @@ describe("Storage Worker Lambda", () => {
       expect(batterUpdate?.[1][1]).toBe(0);
     },
   );
+
+  it("batches battingOrderNames into a single multi-row INSERT and guards against lagging ball regressions", async () => {
+    await handler({
+      Records: [
+        {
+          body: JSON.stringify({
+            matchId: "match_123",
+            inningId: "inn_123",
+            syncOnly: false,
+            currentOvers: 1,
+            currentBalls: 2,
+            explicitTotalRuns: 18,
+            explicitTotalWickets: 1,
+            battingOrderNames: ["P1", "P2", "P3"],
+            ballData: {
+              runs: 2,
+              isExtra: false,
+              isWicket: false,
+              batterName: "P1",
+              bowlerName: "B1",
+              overNumber: 1,
+              ballNumber: 2,
+            },
+          }),
+        },
+      ],
+    });
+
+    const bulkInsertCall = mockQuery.mock.calls.find(([query]) =>
+      String(query).includes(
+        "INSERT INTO players (inning_id, name) VALUES ($1, $2),($1, $3),($1, $4) ON CONFLICT DO NOTHING",
+      ),
+    );
+    expect(bulkInsertCall).toBeDefined();
+    expect(bulkInsertCall?.[1]).toEqual(["inn_123", "P1", "P2", "P3"]);
+
+    const inningsUpdate = mockQuery.mock.calls.find(([query]) =>
+      String(query).includes("UPDATE innings SET"),
+    );
+    expect(String(inningsUpdate?.[0])).toContain(
+      "WHEN (COALESCE($4, overs, 0) * 6 + COALESCE($5, balls, 0)) >= (COALESCE(overs, 0) * 6 + COALESCE(balls, 0))",
+    );
+  });
 });
