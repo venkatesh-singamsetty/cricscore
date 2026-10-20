@@ -1,3 +1,53 @@
+## [4.14.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.13.0...v4.14.0) (2026-10-20)
+
+### 🚀 Features
+
+* **mlops:** migrate to S3 versioned model registry, tag-based deploy, and ECR lifecycle cleanup ([#270](https://github.com/venkatesh-singamsetty/cricscore/issues/270)) ([9027121]())
+## Summary
+Implements versioned S3 model storage (`models/<version>/`), tag-based
+model deployment & rollback (`--model-version <tag>`), automated ECR
+untagged image cleanup, and eliminates redundant MLOps retraining on PRs
+when source datasets/training scripts have not changed.
+
+### Key Changes
+1. **Deleted 29 Accumulated Untagged ECR Images (~12 GB Freed) +
+Lifecycle Policy (`infra/terraform/lambda.tf`)**:
+- Purged 7 untagged images in `cricscoredev-ml-predict` and 22 untagged
+images in `cricscore-ml-predict`.
+- Added `aws_ecr_lifecycle_policy.ml_predict_cleanup` plus immediate
+untagged image cleanup in `null_resource.docker_build_push` so untagged
+images never accumulate again.
+2. **S3 Versioned Model Registry (`infra/terraform/s3_backups.tf`,
+`iam.tf`, `lambda.tf`, `apps/ml-engine/predict.py`)**:
+- Uploads `live_win_predictor_model.joblib`, `model_manifest.json`, and
+`live_metadata.json` to
+`s3://<project>-match-backups-.../models/<ml_model_version>/`
+(`v2.2.0`).
+- Injects `MODEL_S3_BUCKET` and `MODEL_VERSION` into `ml_predict`
+Lambda, which downloads and caches `/tmp/models/<MODEL_VERSION>/` with
+SHA-256 checksum verification and bundled fallback.
+3. **Tag-Based Deployment & Rollback (`infra/scripts/deploy.sh`,
+`infra/terraform/variables.tf`)**:
+- Tags ECR images with both `:${var.ml_model_version}` (`:v2.2.0`) and
+`:latest`.
+- Added `--model-version <tag>` flag to `./infra/scripts/deploy.sh` for
+single-command deployment or rollback to any version tag in S3/ECR.
+4. **Stopped Redundant PR Model Retraining
+(`.github/workflows/mlops-pipeline.yml`)**:
+- Narrowed `mlops-pipeline.yml` triggers to actual dataset and training
+script changes (`cricket-data/**`, `data_pipeline.py`,
+`compare_models.py`, `train_model.py`, `requirements-train.txt`),
+monthly schedule, and manual `workflow_dispatch`.
+
+## Verification
+- ✅ Deployed to both `prod` and `dev` (`models/v2.2.0/` verified in both
+S3 buckets, ECR repositories cleaned down to 1 active image tagged
+`v2.2.0` + `latest`, and live `/match/predict` endpoints verified).
+- ✅ Added `test_s3_versioned_model_loading` in
+`apps/ml-engine/test_predict.py` (25/25 passing).
+- ✅ Full `./infra/scripts/validate_local.sh --skip-e2e` passed with 0
+errors.
+
 ## [4.13.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.12.0...v4.13.0) (2026-10-20)
 
 ### 🚀 Features
