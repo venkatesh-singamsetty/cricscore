@@ -26,18 +26,21 @@ def _optional(factory):
         return None
 
 
+def default_deps() -> Deps:
+    """Providers from environment; any that is not configured is None (feature degrades safely)."""
+    return Deps(
+        repo=_optional(PostgresRepository),
+        llm=_optional(OpenAICompatLLM),
+        embedder=_optional(OpenAICompatEmbedder),
+        predictor=_optional(LambdaPredictor),
+    )
+
+
 def _get_graph():
     """Built once per warm container; DB connection is cached inside the repository."""
     global _graph
     if _graph is None:
-        _graph = build_graph(
-            Deps(
-                repo=_optional(PostgresRepository),
-                llm=_optional(OpenAICompatLLM),
-                embedder=_optional(OpenAICompatEmbedder),
-                predictor=_optional(LambdaPredictor),
-            )
-        )
+        _graph = build_graph(default_deps())
     return _graph
 
 

@@ -200,3 +200,5 @@ cd apps/ai-service && .venv/bin/pytest -q
 ```
 
 Chat read-only guarantees are covered in `apps/backend/lambdas/chat-api/handlers/chatHandler.test.js` and `mcp/tools/tools.test.js` (`npm --prefix apps/backend test`).
+
+MCP server tests (`apps/ai-service/tests/test_mcp.py`, `test_mcp_stdio.py`) cover the approved tool list, valid/invalid IDs, DB errors, unconfigured dependencies, and a real stdio client round-trip.

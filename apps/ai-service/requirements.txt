@@ -3,3 +3,4 @@ langgraph==1.2.16
 langchain-core==1.6.12
 pydantic==2.14.1
 psycopg[binary]==3.3.6
+mcp==2.3.0

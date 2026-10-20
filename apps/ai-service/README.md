@@ -21,3 +21,14 @@ python3.12 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 ## Env vars (placeholders)
 
 `AI_DATABASE_URL` (or `DATABASE_URL`), `DB_SCHEMA`, `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`, `EMBEDDING_MODEL`, `ML_PREDICT_FUNCTION`, optional `LANGSMITH_TRACING`, `LANGSMITH_API_KEY`.
+
+## MCP server (Phase 4)
+
+Read-only tools for MCP clients (Claude Desktop, Cursor, MCP Inspector): `get_match_details`, `get_match_statistics`, `list_recent_matches`, `search_tournament_rules`, `get_model_metadata`, `predict_match_outcome`. They call the same validated functions as the LangGraph agents (`tools.py`); there are no write/admin/SQL tools. Errors are returned as `{"error": "<safe message>"}`.
+
+- **Transport:** local stdio only. It trusts the operator's local environment (`AI_DATABASE_URL`, keys), so use a read-only DB role. A remote transport is intentionally not implemented; it must be authenticated before exposure.
+- **Run:** `.venv/bin/python -m cricscore_ai.mcp_server`
+- **Inspect:** `npx @modelcontextprotocol/inspector .venv/bin/python -m cricscore_ai.mcp_server`
+- **Client config example:** `{"mcpServers":{"cricscore":{"command":"/abs/path/apps/ai-service/.venv/bin/python","args":["-m","cricscore_ai.mcp_server"],"cwd":"/abs/path/apps/ai-service","env":{"AI_DATABASE_URL":"<read-only-url>","DB_SCHEMA":"dev","LLM_API_KEY":"<key>"}}}}`
+- `get_model_metadata` reads `apps/ml-engine/live_metadata.json` (override with `ML_METADATA_PATH`).
+- Note: pinned to `mcp` 2.x (`MCPServer`); v1 code using `FastMCP` is not compatible.
