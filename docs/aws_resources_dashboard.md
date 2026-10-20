@@ -110,8 +110,8 @@ A central single-pane-of-glass directory providing live references across all la
 - **SNS Match Events Topic**: [`cricscoredev-match-events`](https://us-east-1.console.aws.amazon.com/sns/v3/home?region=us-east-1#/topic/arn:aws:sns:us-east-1:926789386606:cricscoredev-match-events)
 - **SNS Lambda Alerts Topic**: [`cricscoredev-lambda-alerts`](https://us-east-1.console.aws.amazon.com/sns/v3/home?region=us-east-1#/topic/arn:aws:sns:us-east-1:926789386606:cricscoredev-lambda-alerts)
 - **ECR Docker Image Repo**: [`cricscoredev-ml-predict`](https://us-east-1.console.aws.amazon.com/ecr/repositories/private/926789386606/cricscoredev-ml-predict?region=us-east-1)
-  - **Latest Tag Digest**: `sha256:359dff98d3c287b4ef4a4cc411e5fb7a769a86f401c5a364e1151459703ab5c5`
-  - **Image Size**: `652.11 MB` | **Last Pushed**: `2026-10-19 23:14:42`
+  - **Latest Tag Digest**: `sha256:2ac1a6b80af22866e883c19356667938ed87bd3b0e1606d70721e04f6a87b42e`
+  - **Image Size**: `652.1 MB` | **Last Pushed**: `2026-10-20 00:30:48`
 
 ### ⚡ Serverless Compute & Telemetry (AWS Lambda)
 
@@ -205,7 +205,7 @@ A central single-pane-of-glass directory providing live references across all la
 - **Base Image**: `public.ecr.aws/lambda/python:3.12` (Container architecture: `linux/amd64`)
 - **Dev ECR Repository**: [`cricscoredev-ml-predict`](https://us-east-1.console.aws.amazon.com/ecr/repositories/private/926789386606/cricscoredev-ml-predict?region=us-east-1)
   - **Latest Image URI**: `926789386606.dkr.ecr.us-east-1.amazonaws.com/cricscoredev-ml-predict:latest`
-  - **Digest**: `sha256:359dff98d3c287b4ef4a4cc411e5fb7a769a86f401c5a364e1151459703ab5c5` | **Size**: `652.11 MB` | **Pushed**: `2026-10-19 23:14:42`
+  - **Digest**: `sha256:2ac1a6b80af22866e883c19356667938ed87bd3b0e1606d70721e04f6a87b42e` | **Size**: `652.1 MB` | **Pushed**: `2026-10-20 00:30:48`
 - **Prod ECR Repository**: [`cricscore-ml-predict`](https://us-east-1.console.aws.amazon.com/ecr/repositories/private/926789386606/cricscore-ml-predict?region=us-east-1)
   - **Latest Image URI**: `926789386606.dkr.ecr.us-east-1.amazonaws.com/cricscore-ml-predict:latest`
   - **Digest**: `sha256:60b781245f820cb52592c27596205f13012ad6f91094e21849ea25b62b85a1fc` | **Size**: `652.11 MB` | **Pushed**: `2026-10-20 00:02:21`

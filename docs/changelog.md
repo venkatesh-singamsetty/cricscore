@@ -2,6 +2,12 @@
 
 ### 🛠️ Unified Platform & Artifacts Dashboard Automation
 
+- **ML Predictor Cold Start Hardening**:
+  - Resolved AWS Lambda 10-second on-demand initialization timeout (`INIT_REPORT Phase: init Status: timeout`) in `apps/ml-engine/predict.py`.
+  - Converted heavy ML libraries (`joblib`, `pandas`, `xgboost`) to lazy-loaded modules initialized inside the invoke phase, reducing module import time from >10s to 70ms.
+  - Increased `ml_predict` Lambda memory from 512 MB to 1024 MB in `infra/terraform/lambda.tf` to grant 1 full vCPU, accelerating C-extension loading and model unpickling.
+  - Added 30-second timeout headroom in `apps/e2e/tests/ai-api.spec.ts` for container cold starts during automated verification.
+
 - **Pre-Push Validation Caching & Duplicate Test Elimination**:
   - Implemented smart state receipt verification in `.husky/pre-push` and `infra/scripts/validate_local.sh`.
   - When full local validation passes, a SHA-256 state receipt is stored in `.git/.local_validation_receipt` combining HEAD commit and working tree status.

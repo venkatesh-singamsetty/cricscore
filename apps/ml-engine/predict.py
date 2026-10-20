@@ -2,17 +2,42 @@ import os
 import json
 import hashlib
 from pathlib import Path
-import joblib
-import pandas as pd
-
-try:
-    import xgboost as _xgb  # Register XGBoost estimators for joblib unpickling
-    _ = _xgb.__version__
-except ImportError:
-    # XGBoost is optional in minimal test fallback environments
-    pass
 
 from win_probability import win_probability
+
+# Lazy-loaded ML modules to ensure Lambda cold start init completes in <50ms,
+# strictly avoiding AWS Lambda's 10-second hard timeout during Phase: init.
+joblib = None
+pd = None
+_xgb = None
+
+
+def _load_ml_libraries():
+    """Lazily import joblib, pandas, and xgboost inside invoke phase."""
+    global joblib, pd, _xgb
+    if joblib is None:
+        import joblib as _jl
+        joblib = _jl
+    if pd is None:
+        import pandas as _pandas
+        pd = _pandas
+    if _xgb is None:
+        try:
+            import xgboost as _xgboost
+            _ = _xgboost.__version__
+            _xgb = _xgboost
+        except ImportError:
+            # XGBoost is optional in minimal test fallback environments
+            pass
+
+
+def __getattr__(name: str):
+    """Module-level attribute lookup for transparent backward compatibility in tests."""
+    if name in ('joblib', 'pd', '_xgb'):
+        _load_ml_libraries()
+        return globals()[name]
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
+
 
 ENGINE_DIR = Path(__file__).resolve().parent
 LOCAL_MODEL_FILE = ENGINE_DIR / 'live_win_predictor_model.joblib'
@@ -40,6 +65,7 @@ def load_artifacts():
     Supports local bundling or versioned S3 loading (/tmp caching).
     """
     global model, metadata, current_loaded_version
+    _load_ml_libraries()
     target_version = os.environ.get('MODEL_VERSION')
     s3_bucket = os.environ.get('MODEL_S3_BUCKET')
 
@@ -115,6 +141,7 @@ def handler(event, context):
     Invoked via API Gateway (POST /match/predict).
     """
     try:
+        _load_ml_libraries()
         body = json.loads(event.get('body', '{}'))
         batting_team = body.get('team1')  # Front-end passes batting team as team1
         bowling_team = body.get('team2')  # Front-end passes bowling team as team2
