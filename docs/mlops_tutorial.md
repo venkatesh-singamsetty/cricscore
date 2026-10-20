@@ -56,9 +56,9 @@ graph TD
 The MLOps pipeline consists of four main stages:
 
 1. **Data Ingestion & Preprocessing**: Automatically downloads raw ball-by-ball JSON data from [Cricsheet](https://cricsheet.org/) and compiles it into a structured tabular format (`live_data.csv`).
-2. **Model Training & Evaluation**: Trains a lightweight Scikit-Learn `LogisticRegression` model. The training script strictly enforces chronological data splitting to prevent **data leakage** (future events predicting past outcomes).
-3. **Continuous Integration (CI) Gate**: The GitHub Actions workflow runs on changes to `apps/ml-engine/` pushed to `main`, monthly, or by manual dispatch. It runs a `pytest` test and fails the workflow if measured accuracy is below 60%, then uploads the model and metadata as artifacts.
-4. **Serverless Inference**: Terraform builds and pushes the `apps/ml-engine` Docker image to ECR for the prediction Lambda, which is exposed through `POST /match/predict`. The CI training workflow uploads artifacts; it does not deploy that model image to ECR.
+2. **Model Training & Multi-Algorithm Benchmarking**: Compares 8 candidate models (Logistic Regression, Gaussian Naive Bayes, Decision Trees, Linear SVM with Platt scaling, Random Forest, Extra Trees, HistGradientBoosting, and **XGBoost**). The training pipeline strictly enforces match-grouped data splitting (70% train, 15% validation, 15% test) to prevent **target leakage** (see detailed analysis in [ML Models Handbook](ml_models_handbook.md)). The winning model (**XGBoost**) is tracked in MLflow and written to `model_manifest.json` with SHA-256 integrity checksums.
+3. **Continuous Integration (CI) Quality Gates**: The GitHub Actions workflow (`mlops-pipeline.yml`) runs on changes to `apps/ml-engine/` pushed to `main`, monthly, or by manual dispatch. It executes validation quality gates (`accuracy >= 0.60`, `roc_auc >= 0.65`, `size <= 25MB`), tests via `pytest`, and uploads versioned artifacts.
+4. **Serverless Inference**: Terraform builds and pushes the `apps/ml-engine` Docker image to ECR for the prediction Lambda, which is exposed through `POST /match/predict`. The runtime verifies the model SHA-256 hash on cold start and blends the model with the Markov Dynamic Programming (DP) and Duckworth-Lewis-Stern (DLS) resource par engine.
 
 ---
 

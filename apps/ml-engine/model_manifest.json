@@ -1,8 +1,8 @@
 {
   "modelName": "cricket-win-predictor",
-  "modelVersion": "v2.1.0",
-  "algorithm": "HistGradientBoosting",
-  "gitCommit": "3197f01d020941b0d15146fe54b1a0b6b8b61b72",
+  "modelVersion": "v2.2.0",
+  "algorithm": "XGBoost",
+  "gitCommit": "07817d15b96e0127f9c580a81c0704406366fca8",
   "datasetVersion": "dvc:31e19c47bdbc05d773938754d8589516",
   "featureSchemaVersion": "v2.0",
   "features": [
@@ -22,24 +22,25 @@
     "target_score"
   ],
   "trainingParameters": {
-    "max_iter": 100,
-    "max_depth": 8,
+    "n_estimators": 100,
+    "max_depth": 6,
     "learning_rate": 0.1,
-    "role": "candidate"
+    "eval_metric": "logloss",
+    "role": "candidate_extreme_gradient_boosting"
   },
   "randomSeed": 42,
   "evaluationMetrics": {
     "validation": {
-      "accuracy": 0.6789,
-      "log_loss": 0.5998,
-      "brier_score": 0.2063,
-      "roc_auc": 0.7642
+      "accuracy": 0.6835,
+      "log_loss": 0.5786,
+      "brier_score": 0.1992,
+      "roc_auc": 0.7723
     },
     "test": {
-      "accuracy": 0.6855,
-      "log_loss": 0.6083,
-      "brier_score": 0.2084,
-      "roc_auc": 0.7504
+      "accuracy": 0.6901,
+      "log_loss": 0.6018,
+      "brier_score": 0.206,
+      "roc_auc": 0.7529
     },
     "baselineLogisticRegressionVal": {
       "accuracy": 0.6559,
@@ -49,13 +50,13 @@
     }
   },
   "confusionMatrix": [
-    [6596, 2858],
-    [2910, 5978]
+    [6443, 3011],
+    [2673, 6215]
   ],
   "runtimePerformance": {
-    "trainingDurationSeconds": 3.379,
-    "inferenceLatency100RowsMs": 5.979483108967543,
-    "modelSizeMb": 0.372
+    "trainingDurationSeconds": 0.691,
+    "inferenceLatency100RowsMs": 1.984541630372405,
+    "modelSizeMb": 0.217
   },
   "pythonVersion": "3.12.12",
   "dependencies": {
@@ -65,9 +66,9 @@
   },
   "artifact": {
     "filename": "live_win_predictor_model.joblib",
-    "sha256": "47349f74781d5c2dcbdd2c89e20b86f98d7316cef537bfdec5b380647843663f",
-    "sizeBytes": 390478
+    "sha256": "de9e39513fbac895df7c86c449ef0a6b687717b5d1f40af08b5a5b13aa37c0cf",
+    "sizeBytes": 227565
   },
   "approvalStatus": "approved",
-  "createdAt": "2026-10-20T02:53:16.723897+00:00"
+  "createdAt": "2026-10-20T04:12:06.260254+00:00"
 }

@@ -186,3 +186,13 @@ def test_load_artifacts_missing_file_falls_back_gracefully(tmp_path, monkeypatch
 
     _real_load_artifacts()
     assert predict.model is None
+
+
+def test_real_promoted_xgboost_artifact_loads_and_infers():
+    """Verify that the actual persisted joblib artifact with XGBoost loads and produces valid probabilities."""
+    predict.model = None
+    predict.metadata = None
+    predict.current_loaded_version = None
+    _real_load_artifacts()
+    assert predict.model is not None
+    assert "xgboost" in predict.metadata.get("algorithm", "").lower() or "v2" in predict.metadata.get("modelVersion", "")

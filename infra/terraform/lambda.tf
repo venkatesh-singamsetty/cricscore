@@ -288,7 +288,7 @@ resource "aws_lambda_function" "ml_predict" {
 
   environment {
     variables = {
-      MODEL_VERSION = "v2.1.0"
+      MODEL_VERSION = "v2.2.0"
     }
   }
 

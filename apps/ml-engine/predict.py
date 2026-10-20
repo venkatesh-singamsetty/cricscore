@@ -5,6 +5,11 @@ from pathlib import Path
 import joblib
 import pandas as pd
 
+try:
+    import xgboost  # Ensure XGBoost estimators are registered for joblib unpickling
+except ImportError:
+    pass
+
 from win_probability import win_probability
 
 ENGINE_DIR = Path(__file__).resolve().parent

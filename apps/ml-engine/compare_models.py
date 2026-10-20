@@ -20,12 +20,18 @@ import numpy as np
 import pandas as pd
 import joblib
 
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, SGDClassifier
+from sklearn.naive_bayes import GaussianNB
+from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import (
     RandomForestClassifier,
     ExtraTreesClassifier,
     HistGradientBoostingClassifier,
 )
+try:
+    import xgboost as xgb
+except ImportError:
+    xgb = None
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
@@ -215,25 +221,55 @@ def run_experiment(version: str = "v2.1.0", random_seed: int = 42):
             "model": LogisticRegression(max_iter=1000, random_state=random_seed),
             "params": {"max_iter": 1000, "solver": "lbfgs", "role": "baseline"},
         },
-        "HistGradientBoosting": {
-            "model": HistGradientBoostingClassifier(
-                max_iter=100, max_depth=8, learning_rate=0.1, random_state=random_seed
-            ),
-            "params": {"max_iter": 100, "max_depth": 8, "learning_rate": 0.1, "role": "candidate"},
+        "GaussianNB": {
+            "model": GaussianNB(),
+            "params": {"var_smoothing": 1e-9, "role": "candidate_naive_bayes"},
+        },
+        "DecisionTree": {
+            "model": DecisionTreeClassifier(max_depth=6, random_state=random_seed),
+            "params": {"max_depth": 6, "criterion": "gini", "role": "candidate_decision_tree"},
+        },
+        "LinearSVM_SGD": {
+            "model": SGDClassifier(loss="log_loss", max_iter=1000, random_state=random_seed),
+            "params": {"loss": "log_loss", "penalty": "l2", "role": "candidate_linear_svm"},
         },
         "RandomForest": {
             "model": RandomForestClassifier(
                 n_estimators=50, max_depth=10, random_state=random_seed, n_jobs=-1
             ),
-            "params": {"n_estimators": 50, "max_depth": 10, "role": "candidate"},
+            "params": {"n_estimators": 50, "max_depth": 10, "role": "candidate_ensemble"},
         },
         "ExtraTrees": {
             "model": ExtraTreesClassifier(
                 n_estimators=50, max_depth=10, random_state=random_seed, n_jobs=-1
             ),
-            "params": {"n_estimators": 50, "max_depth": 10, "role": "candidate"},
+            "params": {"n_estimators": 50, "max_depth": 10, "role": "candidate_ensemble"},
+        },
+        "HistGradientBoosting": {
+            "model": HistGradientBoostingClassifier(
+                max_iter=100, max_depth=8, learning_rate=0.1, random_state=random_seed
+            ),
+            "params": {"max_iter": 100, "max_depth": 8, "learning_rate": 0.1, "role": "candidate_gradient_boosting"},
         },
     }
+
+    if xgb is not None:
+        candidates["XGBoost"] = {
+            "model": xgb.XGBClassifier(
+                n_estimators=100,
+                max_depth=6,
+                learning_rate=0.1,
+                eval_metric="logloss",
+                random_state=random_seed,
+            ),
+            "params": {
+                "n_estimators": 100,
+                "max_depth": 6,
+                "learning_rate": 0.1,
+                "eval_metric": "logloss",
+                "role": "candidate_extreme_gradient_boosting",
+            },
+        }
 
     if mlflow:
         MLRUNS_DIR.mkdir(parents=True, exist_ok=True)
@@ -471,5 +507,10 @@ def generate_comparison_report(results: dict, winner: str, test_metrics: dict, m
 
 
 if __name__ == "__main__":
-    version = sys.argv[1] if len(sys.argv) > 1 else "v2.1.0"
+    import argparse
+    parser = argparse.ArgumentParser(description="CricScore MLOps Candidate Model Comparison")
+    parser.add_argument("pos_version", nargs="?", default=None, help="Model version (positional)")
+    parser.add_argument("--version", "-v", dest="opt_version", default=None, help="Model version flag")
+    args = parser.parse_args()
+    version = args.opt_version or args.pos_version or "v2.2.0"
     run_experiment(version=version)
