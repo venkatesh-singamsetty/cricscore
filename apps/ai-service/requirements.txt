@@ -1,0 +1,6 @@
+# Runtime (pinned; Python 3.12 Lambda ZIP). boto3 is provided by the Lambda runtime.
+langgraph==1.2.16
+langchain-core==1.6.12
+pydantic==2.14.1
+psycopg[binary]==3.3.6
+mcp==2.3.0

@@ -1,4 +1,32 @@
 #!/usr/bin/env sh
 
-echo "🚀 Running full local validation before pushing (Skipping Playwright E2E)..."
-./infra/scripts/validate_local.sh --skip-e2e
+if [ -n "$SKIP_VALIDATE" ] || [ -n "$SKIP_PRE_PUSH" ]; then
+  echo "⏭️  Skipping pre-push validation (SKIP_PRE_PUSH/SKIP_VALIDATE set)."
+  exit 0
+fi
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+RECEIPT_FILE="$REPO_ROOT/.git/.local_validation_receipt"
+
+HASH_CMD=""
+if command -v sha256sum >/dev/null 2>&1; then
+  HASH_CMD="sha256sum"
+elif command -v shasum >/dev/null 2>&1; then
+  HASH_CMD="shasum -a 256"
+fi
+
+if [ -f "$RECEIPT_FILE" ] && [ -n "$HASH_CMD" ]; then
+  LAST_STATE="$(cat "$RECEIPT_FILE" 2>/dev/null)"
+  TREE_HASH="$(git rev-parse HEAD 2>/dev/null || echo "no-head")"
+  STATUS_HASH="$(git status --porcelain | $HASH_CMD | awk '{print $1}')"
+  CURRENT_STATE="${TREE_HASH}:${STATUS_HASH}"
+
+  if [ -n "$CURRENT_STATE" ] && [ "$LAST_STATE" = "$CURRENT_STATE" ]; then
+    SHORT_HEAD="$(git rev-parse --short HEAD 2>/dev/null || echo "HEAD")"
+    echo "⚡ Local validation already passed for ${SHORT_HEAD}. Skipping duplicate tests!"
+    exit 0
+  fi
+fi
+
+echo "🚀 Running local validation before pushing (Skipping Playwright E2E)..."
+"$REPO_ROOT/infra/scripts/validate_local.sh" --skip-e2e

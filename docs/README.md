@@ -24,7 +24,7 @@ Welcome to the CricScore documentation directory. This folder contains all archi
 - [**Security Posture**](./security_posture.md) — DevSecOps pipeline, automated static/dynamic scanning, and IAM strategies.
 - [**Branch Protection**](./branch_protection.md) — Guidance for branch-protection settings and pull-request checks.
 - [**Cost Management**](./cost_management.md) — Breakdown of the free-tier optimizations and cost analysis per AWS service.
-- [**AWS Resources Dashboard**](./aws_resources_dashboard.md) — An auto-generated dashboard providing direct links to the live AWS infrastructure in the console.
+- [**Central Platform Dashboard**](./platform_dashboard.md) — An auto-generated single-pane-of-glass dashboard providing direct links to GitHub workflows, variables, secrets, live AWS infrastructure, ECR images, XGBoost ML artifacts, and Aiven PostgreSQL.
 - [**Observability**](./observability.md) — AWS X-Ray distributed tracing and CloudWatch monitoring.
 
 ## 🛠️ Engineering & Development

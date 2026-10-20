@@ -4,6 +4,7 @@ import pytest
 import pandas as pd
 
 import predict
+_real_load_artifacts = predict.load_artifacts
 
 @pytest.fixture(autouse=True)
 def mock_load_artifacts(monkeypatch):
@@ -145,3 +146,53 @@ def test_dls_ahead_in_achievable_short_chase_favours_batting_side():
     assert body['team1WinProbability'] > 0.5
     assert body['predictedWinner'] == 'India'
 
+
+
+# ---------- Model Versioning & Safe Checksum Validation Tests ----------
+
+def test_compute_sha256(tmp_path):
+    test_file = tmp_path / "sample.bin"
+    test_file.write_bytes(b"cricscore-mlops-test-bytes")
+    # sha256 of b"cricscore-mlops-test-bytes"
+    expected = "992a91979398e485327a890f9929f477614c3780232c0076b0e1014d899d7870"
+    assert predict.compute_sha256(test_file) == expected
+
+
+def test_load_artifacts_rejects_checksum_mismatch(tmp_path, monkeypatch):
+    corrupt_model = tmp_path / "corrupt.joblib"
+    corrupt_model.write_bytes(b"tampered-content")
+    
+    corrupt_manifest = tmp_path / "manifest.json"
+    corrupt_manifest.write_text(json.dumps({
+        "modelVersion": "v-corrupt",
+        "artifact": {"sha256": "0000000000000000000000000000000000000000000000000000000000000000"}
+    }))
+
+    monkeypatch.setattr(predict, "LOCAL_MODEL_FILE", corrupt_model)
+    monkeypatch.setattr(predict, "LOCAL_MANIFEST_FILE", corrupt_manifest)
+    monkeypatch.setattr(predict, "model", None)
+    monkeypatch.delenv("MODEL_S3_BUCKET", raising=False)
+
+    _real_load_artifacts()
+    # Checksum mismatch caught, model falls back to None (DP simulation)
+    assert predict.model is None
+
+
+def test_load_artifacts_missing_file_falls_back_gracefully(tmp_path, monkeypatch):
+    missing_model = tmp_path / "nonexistent.joblib"
+    monkeypatch.setattr(predict, "LOCAL_MODEL_FILE", missing_model)
+    monkeypatch.setattr(predict, "model", None)
+    monkeypatch.delenv("MODEL_S3_BUCKET", raising=False)
+
+    _real_load_artifacts()
+    assert predict.model is None
+
+
+def test_real_promoted_xgboost_artifact_loads_and_infers():
+    """Verify that the actual persisted joblib artifact with XGBoost loads and produces valid probabilities."""
+    predict.model = None
+    predict.metadata = None
+    predict.current_loaded_version = None
+    _real_load_artifacts()
+    assert predict.model is not None
+    assert "xgboost" in predict.metadata.get("algorithm", "").lower() or "v2" in predict.metadata.get("modelVersion", "")

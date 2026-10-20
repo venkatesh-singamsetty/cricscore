@@ -1,0 +1,5 @@
+outs:
+- md5: 31e19c47bdbc05d773938754d8589516
+  size: 22750261
+  hash: md5
+  path: t20s_json.zip

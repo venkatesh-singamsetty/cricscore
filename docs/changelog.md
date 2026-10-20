@@ -1,46 +1,101 @@
+## [4.12.0] (2026-10-20)
+
+### 🛠️ Unified Platform & Artifacts Dashboard Automation
+
+- **Pre-Push Validation Caching & Duplicate Test Elimination**:
+  - Implemented smart state receipt verification in `.husky/pre-push` and `infra/scripts/validate_local.sh`.
+  - When full local validation passes, a SHA-256 state receipt is stored in `.git/.local_validation_receipt` combining HEAD commit and working tree status.
+  - Subsequent `git push` runs verify this receipt in `< 0.1s` and skip duplicate test execution, saving 1–2 minutes per push while preserving safety guards when working tree changes.
+  - Added support for explicit bypass via `SKIP_PRE_PUSH=1` or `git push --no-verify`.
+
+- **Unified Platform Dashboard (`generate_platform_dashboard.py` & `.sh`)**:
+  - Replaced the AWS-only dashboard with a unified, all-encompassing **Central Platform Dashboard** ([`docs/platform_dashboard.md`](./platform_dashboard.md)).
+  - **GitHub Repository Level Architecture & Inventory**:
+    - Cataloged all 11 active GitHub Actions workflows (`ci.yml`, `cd.yml`, `release.yml`, `codeql.yml`, `sbom.yml`, `mlops.yml`, `drift-check.yml`, `db-keepalive.yml`, `unlock.yml`, `dependabot`, `dependency-graph`) with triggers, responsibilities, and direct console links.
+    - Added complete GitHub repository variables inventory (`ADMIN_EMAIL`, `AWS_REGION`, `DOMAIN_NAME`, `ZONE_DOMAIN`, `PROJECT_NAME`, `SUBDOMAIN_PREFIX`, `TF_STATE_BUCKET`, `LLM_MODEL`, `LLM_BASE_URL`).
+    - Added comprehensive GitHub repository secrets inventory (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_ROLE_ARN`, `TF_DATABASE_URL`, `TF_SES_SOURCE_EMAIL`, `OPENAI_API_KEY`, `GH_PAT`, `GITHUB_TOKEN`) with consumption targets and security isolation boundaries (zero secret values exposed).
+    - Mapped all CI/CD pipeline and build artifacts (`spdx-json` SBOM, CodeQL SAST SARIF reports, Trivy vulnerability logs, GitLeaks audit, Playwright E2E reports, Semantic Release changelog).
+  - Maintained complete live cloud and ML registry references for both **Development** and **Production**:
+    - Live CloudFront CDN distributions (`E1K3FWDNEXFSL0` dev, `E3FVVHMKMZ5G5O` prod)
+    - S3 buckets (hosting, match backups, logs, terraform state)
+    - HTTP and WebSocket API Gateways with direct route viewer deep links
+    - Cognito User Pools and user management consoles
+    - DynamoDB connection tables and item explorer
+    - SQS FIFO queues and SNS topic links
+    - ECR repositories with latest image tag digests, sizes, and push timestamps
+    - All 9 Serverless Lambdas with direct links to Function Console and CloudWatch log groups
+    - ML champion model details (`v2.2.0-xgboost`, 7 features, validation/test metrics, DVC dataset tracking, MLflow runs)
+    - Aiven PostgreSQL 16 host, port, database, schemas, and HNSW vector index
+  - Integrated into `./infra/scripts/deploy.sh` and pre-commit hooks for automated zero-effort synchronization.
+  - Added dashboard validation step to `./infra/scripts/validate_local.sh`.
+
+### 🚀 MLOps & Machine Learning Suite Evolution
+
+- **XGBoost Integration & Model Promotion (`v2.2.0`)**:
+  - Expanded candidate algorithm benchmark (`compare_models.py`) to include 8 classification architectures: Logistic Regression (baseline), Gaussian Naive Bayes, Decision Trees, Linear SVM with Platt scaling, Random Forest, Extra Trees, HistGradientBoosting, and XGBoost.
+  - XGBoost achieved superior performance across all evaluation metrics: Validation Log Loss **0.5786** (vs 0.5998 for HistGradientBoosting and 0.8069 for Logistic Regression), Validation ROC-AUC **0.7723** (vs 0.7642), Validation Brier Score **0.1992** (vs 0.2063), and Test Accuracy **69.01%**.
+  - Persisted model size reduced from 381 KB to **73 KB** with sub-millisecond inference latency (1.65ms batch, 1.56ms single ball).
+  - Promoted XGBoost as `v2.2.0-xgboost` with SHA-256 verification in `model_manifest.json` and `live_metadata.json`.
+- **1st-Innings Projected Score Regression Benchmark (`projected_score_regression.py`)**:
+  - Evaluated 5 classical regression models (Simple Linear, Polynomial degree 2, Support Vector Regression, Lasso L1, and Ridge L2) on predicting final 1st-innings total runs.
+  - Polynomial Regression (degree 2) achieved lowest RMSE (24.45 runs) and MAE (17.50 runs) by capturing late-innings acceleration dynamics.
+- **Pitch Condition & Scoring Archetype Clustering (`match_clustering.py`)**:
+  - Evaluated unsupervised K-Means and Hierarchical Agglomerative clustering on 3,310 innings.
+  - Identified 3 distinct match condition archetypes: Batting Paradise (~201 runs, 10.1 RPO), Bowling Minefield (~106 runs, 5.5 RPO), and Balanced Competitive (~155 runs, 7.8 RPO) with Silhouette Score of 0.3662.
+- **Comprehensive Revision & Technical Interview Handbook (`docs/ml_models_handbook.md`)**:
+  - Added mathematical formulas, cricket mappings, empirical results, and interview cheat sheets for all 14 classical ML models.
+
 ## [4.11.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.10.2...v4.11.0) (2026-10-19)
 
 ### 🚀 Features
 
-* admin match list, chat memory cleanup, and workflow hardening ([#266](https://github.com/venkatesh-singamsetty/cricscore/issues/266)) ([43c54a5]())
+- admin match list, chat memory cleanup, and workflow hardening ([#266](https://github.com/venkatesh-singamsetty/cricscore/issues/266)) ([43c54a5](<>))
+
 ## Summary of Changes
 
 ### 1. Admin Panel Default Match View & Guest Badges
+
 - In `MatchList.tsx`, show all matches by default with the newest
-matches at the top.
+  matches at the top.
 - Added a `GUEST 👻` badge chip to guest matches on the card header.
 - Toggling the `GUESTS 👻` filter filters down to guest-only matches;
-clicking it again restores the default all-match view.
+  clicking it again restores the default all-match view.
 - Added unit tests in `apps/frontend/src/test/MatchList.test.tsx`.
 
 ### 2. Chat Memory Session Lifecycle & Privacy
+
 - Exported centralized `CHAT_MEMORY_KEY = "cricscore-chat-memory"` in
-`storageSafety.ts` and `ChatComponent.tsx`.
+  `storageSafety.ts` and `ChatComponent.tsx`.
 - Automatically purge device-local chat memory in `App.tsx` on:
   - User sign out (`handleSignOut`).
   - Guest scorer start and exit.
   - Account switching (`userEmail` identity change in `prevEmailRef`).
 - Added unit tests in `ChatComponent.test.tsx` and
-`storageSafety.test.ts`.
+  `storageSafety.test.ts`.
 
 ### 3. Workflow & CI/CD Hardening
+
 - Updated `.releaserc.json` to generate detailed multi-line GitHub
-Release notes from full PR commit bodies.
+  Release notes from full PR commit bodies.
 - Fixed `drift.yml` by setting up Node.js, hydrating Lambda production
-dependencies, and supplying required mock TF_VARs for plan checks.
+  dependencies, and supplying required mock TF_VARs for plan checks.
 
 ### 4. Architecture & Observability Documentation
+
 - Restored the original, clean Fan-Out `graph TD` architecture diagram
-in `README.md` and sequence diagrams in `docs/architecture.md`.
+  in `README.md` and sequence diagrams in `docs/architecture.md`.
 - Updated `docs/cost_management.md` and `docs/observability.md` with
-complete Lambda memory/timeout tables, 7-day log retention governance,
-and CloudWatch telemetry queries.
+  complete Lambda memory/timeout tables, 7-day log retention governance,
+  and CloudWatch telemetry queries.
 
 ## Validation
+
 - `./infra/scripts/validate_local.sh --skip-e2e` passed completely
-(75/75 frontend tests, backend Lambda tests, Python ML tests, linting,
-Checkov, GitLeaks, and Syft SBOM).
-* responsive UI/UX overhaul, live score sync, format-agnostic DLS & DP+DLS hybrid ML engine ([#264](https://github.com/venkatesh-singamsetty/cricscore/issues/264)) ([81c168d]())
+  (75/75 frontend tests, backend Lambda tests, Python ML tests, linting,
+  Checkov, GitLeaks, and Syft SBOM).
+
+* responsive UI/UX overhaul, live score sync, format-agnostic DLS & DP+DLS hybrid ML engine ([#264](https://github.com/venkatesh-singamsetty/cricscore/issues/264)) ([81c168d](<>))
+
 ## Summary
 
 This PR delivers a comprehensive **Responsive UI/UX Overhaul
@@ -51,27 +106,32 @@ ML inference container, and Terraform configuration.
 
 ### 🐛 Bug Fixes
 
-* **e2e:** resolve Playwright user-journey timeout and CodeQL unused variables ([#265](https://github.com/venkatesh-singamsetty/cricscore/issues/265)) ([f5fe43e]())
+- **e2e:** resolve Playwright user-journey timeout and CodeQL unused variables ([#265](https://github.com/venkatesh-singamsetty/cricscore/issues/265)) ([f5fe43e](<>))
+
 ## Summary
 
 Fixes the 15-minute Playwright E2E timeout in GitHub Actions job
 `Deploy, Test & OWASP ZAP DEV` (`user-journey.spec.ts`) and removes the
 two unused `lastOverRuns` variables flagged by CodeQL.
-* **infra:** exclude AWS provider 6.69.0 ([#263](https://github.com/venkatesh-singamsetty/cricscore/issues/263)) ([8ab15af]()), closes [hashicorp/terraform-provider-aws#50474]()
-The Dev deploy failed on `main` with `UpdateFunctionCode ...
+
+- **infra:** exclude AWS provider 6.69.0 ([#263](https://github.com/venkatesh-singamsetty/cricscore/issues/263)) ([8ab15af](<>)), closes [hashicorp/terraform-provider-aws#50474](<>)
+  The Dev deploy failed on `main` with `UpdateFunctionCode ...
 bufio.Scanner: token too long`. This is a regression in
-* UI/email polish, deploy script and docs streamlining, dependency updates ([#262](https://github.com/venkatesh-singamsetty/cricscore/issues/262)) ([b2cb850]()), closes [256-#261]()
+- UI/email polish, deploy script and docs streamlining, dependency updates ([#262](https://github.com/venkatesh-singamsetty/cricscore/issues/262)) ([b2cb850](<>)), closes [256-#261](<>)
+
 ## Summary
 
 **UI / product**
+
 - Change batter/bowler via dropdown; single-tap chat send
 - Dark-themed, robust match emails
 - Real team names in match setup (defaults renamed), winning team
-highlighted in results
+  highlighted in results
 - Scorecard header/target text polish; responsive sign-in and setup
-layout fixes
+  layout fixes
 
 **Deploy scripts**
+
 - `deploy.sh --check` preflight (tools, AWS creds, Docker, required env)
 - Optional `TF_STATE_BUCKET` (defaults to `<project>-tfstate-<account
 id>`)
@@ -80,126 +140,142 @@ id>`)
 - New `make_admin.sh` to add a user to the Cognito Admin group
 
 **Docs**
+
 - `docs/deployment.md` rewritten as a step-by-step checklist (accounts,
-tools, env, bootstrap, Dev/Prod, admin, CI/CD)
+  tools, env, bootstrap, Dev/Prod, admin, CI/CD)
 - Root README trimmed: removed duplicated deploy/local/rate-limit
-sections; link text refreshed
+  sections; link text refreshed
 
 **Dependencies**
 
 ### 🧰 Maintenance & Dependencies
 
-* **release:** 4.11.0 [skip ci] ([45dea47]())
-## [4.11.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.10.2...v4.11.0) (2026-10-19)
-
-### 🚀 Features
-
-* responsive UI/UX overhaul, live score sync, format-agnostic DLS & DP+DLS hybrid ML engine ([#264](https://github.com/venkatesh-singamsetty/cricscore/issues/264)) ([bdc916c](https://github.com/venkatesh-singamsetty/cricscore/commit/bdc916cd0dfadf27206c9fe8daa56721537480d0))
-
-### 🐛 Bug Fixes
-
-* **e2e:** resolve Playwright user-journey timeout and CodeQL unused variables ([#265](https://github.com/venkatesh-singamsetty/cricscore/issues/265)) ([8ab787e](https://github.com/venkatesh-singamsetty/cricscore/commit/8ab787e5011a2b6a4e3cd55c32e9979d36cdad3c))
-* **infra:** exclude AWS provider 6.69.0 ([#263](https://github.com/venkatesh-singamsetty/cricscore/issues/263)) ([9a3944d](https://github.com/venkatesh-singamsetty/cricscore/commit/9a3944d5837109aabba692bdbe75085c8aaa14d7)), closes [hashicorp/terraform-provider-aws#50474](https://github.com/hashicorp/terraform-provider-aws/issues/50474)
-* UI/email polish, deploy script and docs streamlining, dependency updates ([#262](https://github.com/venkatesh-singamsetty/cricscore/issues/262)) ([1045e87](https://github.com/venkatesh-singamsetty/cricscore/commit/1045e87bed249e458c4c9c3949317846da890a19)), closes [256-#261](https://github.com/venkatesh-singamsetty/256-/issues/261)
-* **release:** 4.12.0 [skip ci] ([3d1702f]())
-## [4.12.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.11.0...v4.12.0) (2026-10-19)
-
-### 🚀 Features
-
-* admin match list, chat memory cleanup, and workflow hardening ([#266](https://github.com/venkatesh-singamsetty/cricscore/issues/266)) ([9b627f8]())
-## Summary of Changes
-
-### 1. Admin Panel Default Match View & Guest Badges
-- In `MatchList.tsx`, show all matches by default with the newest
-matches at the top.
-- Added a `GUEST 👻` badge chip to guest matches on the card header.
-- Toggling the `GUESTS 👻` filter filters down to guest-only matches;
-clicking it again restores the default all-match view.
-- Added unit tests in `apps/frontend/src/test/MatchList.test.tsx`.
-
-### 2. Chat Memory Session Lifecycle & Privacy
-- Exported centralized `CHAT_MEMORY_KEY = "cricscore-chat-memory"` in
-`storageSafety.ts` and `ChatComponent.tsx`.
-- Automatically purge device-local chat memory in `App.tsx` on:
-  - User sign out (`handleSignOut`).
-  - Guest scorer start and exit.
-  - Account switching (`userEmail` identity change in `prevEmailRef`).
-- Added unit tests in `ChatComponent.test.tsx` and
-`storageSafety.test.ts`.
-
-### 3. Workflow & CI/CD Hardening
-- Updated `.releaserc.json` to generate detailed multi-line GitHub
-Release notes from full PR commit bodies.
-- Fixed `drift.yml` by setting up Node.js, hydrating Lambda production
-dependencies, and supplying required mock TF_VARs for plan checks.
-
-### 4. Architecture & Observability Documentation
-- Restored the original, clean Fan-Out `graph TD` architecture diagram
-in `README.md` and sequence diagrams in `docs/architecture.md`.
-- Updated `docs/cost_management.md` and `docs/observability.md` with
-complete Lambda memory/timeout tables, 7-day log retention governance,
-and CloudWatch telemetry queries.
-
-## Validation
-- `./infra/scripts/validate_local.sh --skip-e2e` passed completely
-(75/75 frontend tests, backend Lambda tests, Python ML tests, linting,
-Checkov, GitLeaks, and Syft SBOM).
-* update gitleaksignore fingerprints for historical commits ([b5d6d39]())
-
-## [4.12.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.11.0...v4.12.0) (2026-10-19)
-
-### 🚀 Features
-
-* admin match list, chat memory cleanup, and workflow hardening ([#266](https://github.com/venkatesh-singamsetty/cricscore/issues/266)) ([9b627f8]())
-## Summary of Changes
-
-### 1. Admin Panel Default Match View & Guest Badges
-- In `MatchList.tsx`, show all matches by default with the newest
-matches at the top.
-- Added a `GUEST 👻` badge chip to guest matches on the card header.
-- Toggling the `GUESTS 👻` filter filters down to guest-only matches;
-clicking it again restores the default all-match view.
-- Added unit tests in `apps/frontend/src/test/MatchList.test.tsx`.
-
-### 2. Chat Memory Session Lifecycle & Privacy
-- Exported centralized `CHAT_MEMORY_KEY = "cricscore-chat-memory"` in
-`storageSafety.ts` and `ChatComponent.tsx`.
-- Automatically purge device-local chat memory in `App.tsx` on:
-  - User sign out (`handleSignOut`).
-  - Guest scorer start and exit.
-  - Account switching (`userEmail` identity change in `prevEmailRef`).
-- Added unit tests in `ChatComponent.test.tsx` and
-`storageSafety.test.ts`.
-
-### 3. Workflow & CI/CD Hardening
-- Updated `.releaserc.json` to generate detailed multi-line GitHub
-Release notes from full PR commit bodies.
-- Fixed `drift.yml` by setting up Node.js, hydrating Lambda production
-dependencies, and supplying required mock TF_VARs for plan checks.
-
-### 4. Architecture & Observability Documentation
-- Restored the original, clean Fan-Out `graph TD` architecture diagram
-in `README.md` and sequence diagrams in `docs/architecture.md`.
-- Updated `docs/cost_management.md` and `docs/observability.md` with
-complete Lambda memory/timeout tables, 7-day log retention governance,
-and CloudWatch telemetry queries.
-
-## Validation
-- `./infra/scripts/validate_local.sh --skip-e2e` passed completely
-(75/75 frontend tests, backend Lambda tests, Python ML tests, linting,
-Checkov, GitLeaks, and Syft SBOM).
+- **release:** 4.11.0 [skip ci] ([45dea47](<>))
 
 ## [4.11.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.10.2...v4.11.0) (2026-10-19)
 
 ### 🚀 Features
 
-* responsive UI/UX overhaul, live score sync, format-agnostic DLS & DP+DLS hybrid ML engine ([#264](https://github.com/venkatesh-singamsetty/cricscore/issues/264)) ([bdc916c](https://github.com/venkatesh-singamsetty/cricscore/commit/bdc916cd0dfadf27206c9fe8daa56721537480d0))
+- responsive UI/UX overhaul, live score sync, format-agnostic DLS & DP+DLS hybrid ML engine ([#264](https://github.com/venkatesh-singamsetty/cricscore/issues/264)) ([bdc916c](https://github.com/venkatesh-singamsetty/cricscore/commit/bdc916cd0dfadf27206c9fe8daa56721537480d0))
 
 ### 🐛 Bug Fixes
 
-* **e2e:** resolve Playwright user-journey timeout and CodeQL unused variables ([#265](https://github.com/venkatesh-singamsetty/cricscore/issues/265)) ([8ab787e](https://github.com/venkatesh-singamsetty/cricscore/commit/8ab787e5011a2b6a4e3cd55c32e9979d36cdad3c))
-* **infra:** exclude AWS provider 6.69.0 ([#263](https://github.com/venkatesh-singamsetty/cricscore/issues/263)) ([9a3944d](https://github.com/venkatesh-singamsetty/cricscore/commit/9a3944d5837109aabba692bdbe75085c8aaa14d7)), closes [hashicorp/terraform-provider-aws#50474](https://github.com/hashicorp/terraform-provider-aws/issues/50474)
-* UI/email polish, deploy script and docs streamlining, dependency updates ([#262](https://github.com/venkatesh-singamsetty/cricscore/issues/262)) ([1045e87](https://github.com/venkatesh-singamsetty/cricscore/commit/1045e87bed249e458c4c9c3949317846da890a19)), closes [256-#261](https://github.com/venkatesh-singamsetty/256-/issues/261)
+- **e2e:** resolve Playwright user-journey timeout and CodeQL unused variables ([#265](https://github.com/venkatesh-singamsetty/cricscore/issues/265)) ([8ab787e](https://github.com/venkatesh-singamsetty/cricscore/commit/8ab787e5011a2b6a4e3cd55c32e9979d36cdad3c))
+- **infra:** exclude AWS provider 6.69.0 ([#263](https://github.com/venkatesh-singamsetty/cricscore/issues/263)) ([9a3944d](https://github.com/venkatesh-singamsetty/cricscore/commit/9a3944d5837109aabba692bdbe75085c8aaa14d7)), closes [hashicorp/terraform-provider-aws#50474](https://github.com/hashicorp/terraform-provider-aws/issues/50474)
+- UI/email polish, deploy script and docs streamlining, dependency updates ([#262](https://github.com/venkatesh-singamsetty/cricscore/issues/262)) ([1045e87](https://github.com/venkatesh-singamsetty/cricscore/commit/1045e87bed249e458c4c9c3949317846da890a19)), closes [256-#261](https://github.com/venkatesh-singamsetty/256-/issues/261)
+- **release:** 4.12.0 [skip ci] ([3d1702f](<>))
+
+## [4.12.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.11.0...v4.12.0) (2026-10-19)
+
+### 🚀 Features
+
+- admin match list, chat memory cleanup, and workflow hardening ([#266](https://github.com/venkatesh-singamsetty/cricscore/issues/266)) ([9b627f8](<>))
+
+## Summary of Changes
+
+### 1. Admin Panel Default Match View & Guest Badges
+
+- In `MatchList.tsx`, show all matches by default with the newest
+  matches at the top.
+- Added a `GUEST 👻` badge chip to guest matches on the card header.
+- Toggling the `GUESTS 👻` filter filters down to guest-only matches;
+  clicking it again restores the default all-match view.
+- Added unit tests in `apps/frontend/src/test/MatchList.test.tsx`.
+
+### 2. Chat Memory Session Lifecycle & Privacy
+
+- Exported centralized `CHAT_MEMORY_KEY = "cricscore-chat-memory"` in
+  `storageSafety.ts` and `ChatComponent.tsx`.
+- Automatically purge device-local chat memory in `App.tsx` on:
+  - User sign out (`handleSignOut`).
+  - Guest scorer start and exit.
+  - Account switching (`userEmail` identity change in `prevEmailRef`).
+- Added unit tests in `ChatComponent.test.tsx` and
+  `storageSafety.test.ts`.
+
+### 3. Workflow & CI/CD Hardening
+
+- Updated `.releaserc.json` to generate detailed multi-line GitHub
+  Release notes from full PR commit bodies.
+- Fixed `drift.yml` by setting up Node.js, hydrating Lambda production
+  dependencies, and supplying required mock TF_VARs for plan checks.
+
+### 4. Architecture & Observability Documentation
+
+- Restored the original, clean Fan-Out `graph TD` architecture diagram
+  in `README.md` and sequence diagrams in `docs/architecture.md`.
+- Updated `docs/cost_management.md` and `docs/observability.md` with
+  complete Lambda memory/timeout tables, 7-day log retention governance,
+  and CloudWatch telemetry queries.
+
+## Validation
+
+- `./infra/scripts/validate_local.sh --skip-e2e` passed completely
+  (75/75 frontend tests, backend Lambda tests, Python ML tests, linting,
+  Checkov, GitLeaks, and Syft SBOM).
+
+* update gitleaksignore fingerprints for historical commits ([b5d6d39](<>))
+
+## [4.12.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.11.0...v4.12.0) (2026-10-19)
+
+### 🚀 Features
+
+- admin match list, chat memory cleanup, and workflow hardening ([#266](https://github.com/venkatesh-singamsetty/cricscore/issues/266)) ([9b627f8](<>))
+
+## Summary of Changes
+
+### 1. Admin Panel Default Match View & Guest Badges
+
+- In `MatchList.tsx`, show all matches by default with the newest
+  matches at the top.
+- Added a `GUEST 👻` badge chip to guest matches on the card header.
+- Toggling the `GUESTS 👻` filter filters down to guest-only matches;
+  clicking it again restores the default all-match view.
+- Added unit tests in `apps/frontend/src/test/MatchList.test.tsx`.
+
+### 2. Chat Memory Session Lifecycle & Privacy
+
+- Exported centralized `CHAT_MEMORY_KEY = "cricscore-chat-memory"` in
+  `storageSafety.ts` and `ChatComponent.tsx`.
+- Automatically purge device-local chat memory in `App.tsx` on:
+  - User sign out (`handleSignOut`).
+  - Guest scorer start and exit.
+  - Account switching (`userEmail` identity change in `prevEmailRef`).
+- Added unit tests in `ChatComponent.test.tsx` and
+  `storageSafety.test.ts`.
+
+### 3. Workflow & CI/CD Hardening
+
+- Updated `.releaserc.json` to generate detailed multi-line GitHub
+  Release notes from full PR commit bodies.
+- Fixed `drift.yml` by setting up Node.js, hydrating Lambda production
+  dependencies, and supplying required mock TF_VARs for plan checks.
+
+### 4. Architecture & Observability Documentation
+
+- Restored the original, clean Fan-Out `graph TD` architecture diagram
+  in `README.md` and sequence diagrams in `docs/architecture.md`.
+- Updated `docs/cost_management.md` and `docs/observability.md` with
+  complete Lambda memory/timeout tables, 7-day log retention governance,
+  and CloudWatch telemetry queries.
+
+## Validation
+
+- `./infra/scripts/validate_local.sh --skip-e2e` passed completely
+  (75/75 frontend tests, backend Lambda tests, Python ML tests, linting,
+  Checkov, GitLeaks, and Syft SBOM).
+
+## [4.11.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.10.2...v4.11.0) (2026-10-19)
+
+### 🚀 Features
+
+- responsive UI/UX overhaul, live score sync, format-agnostic DLS & DP+DLS hybrid ML engine ([#264](https://github.com/venkatesh-singamsetty/cricscore/issues/264)) ([bdc916c](https://github.com/venkatesh-singamsetty/cricscore/commit/bdc916cd0dfadf27206c9fe8daa56721537480d0))
+
+### 🐛 Bug Fixes
+
+- **e2e:** resolve Playwright user-journey timeout and CodeQL unused variables ([#265](https://github.com/venkatesh-singamsetty/cricscore/issues/265)) ([8ab787e](https://github.com/venkatesh-singamsetty/cricscore/commit/8ab787e5011a2b6a4e3cd55c32e9979d36cdad3c))
+- **infra:** exclude AWS provider 6.69.0 ([#263](https://github.com/venkatesh-singamsetty/cricscore/issues/263)) ([9a3944d](https://github.com/venkatesh-singamsetty/cricscore/commit/9a3944d5837109aabba692bdbe75085c8aaa14d7)), closes [hashicorp/terraform-provider-aws#50474](https://github.com/hashicorp/terraform-provider-aws/issues/50474)
+- UI/email polish, deploy script and docs streamlining, dependency updates ([#262](https://github.com/venkatesh-singamsetty/cricscore/issues/262)) ([1045e87](https://github.com/venkatesh-singamsetty/cricscore/commit/1045e87bed249e458c4c9c3949317846da890a19)), closes [256-#261](https://github.com/venkatesh-singamsetty/256-/issues/261)
 
 ## [4.11.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.10.2...v4.11.0) (2026-10-18)
 

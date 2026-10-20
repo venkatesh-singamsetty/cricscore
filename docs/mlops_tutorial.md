@@ -56,9 +56,9 @@ graph TD
 The MLOps pipeline consists of four main stages:
 
 1. **Data Ingestion & Preprocessing**: Automatically downloads raw ball-by-ball JSON data from [Cricsheet](https://cricsheet.org/) and compiles it into a structured tabular format (`live_data.csv`).
-2. **Model Training & Evaluation**: Trains a lightweight Scikit-Learn `LogisticRegression` model. The training script strictly enforces chronological data splitting to prevent **data leakage** (future events predicting past outcomes).
-3. **Continuous Integration (CI) Gate**: The GitHub Actions workflow runs on changes to `apps/ml-engine/` pushed to `main`, monthly, or by manual dispatch. It runs a `pytest` test and fails the workflow if measured accuracy is below 60%, then uploads the model and metadata as artifacts.
-4. **Serverless Inference**: Terraform builds and pushes the `apps/ml-engine` Docker image to ECR for the prediction Lambda, which is exposed through `POST /match/predict`. The CI training workflow uploads artifacts; it does not deploy that model image to ECR.
+2. **Model Training & Multi-Algorithm Benchmarking**: Compares 8 candidate models (Logistic Regression, Gaussian Naive Bayes, Decision Trees, Linear SVM with Platt scaling, Random Forest, Extra Trees, HistGradientBoosting, and **XGBoost**). The training pipeline strictly enforces match-grouped data splitting (70% train, 15% validation, 15% test) to prevent **target leakage** (see detailed analysis in [ML Models Handbook](ml_models_handbook.md)). The winning model (**XGBoost**) is tracked in MLflow and written to `model_manifest.json` with SHA-256 integrity checksums.
+3. **Continuous Integration (CI) Quality Gates**: The GitHub Actions workflow (`mlops-pipeline.yml`) runs on changes to `apps/ml-engine/` pushed to `main`, monthly, or by manual dispatch. It executes validation quality gates (`accuracy >= 0.60`, `roc_auc >= 0.65`, `size <= 25MB`), tests via `pytest`, and uploads versioned artifacts.
+4. **Serverless Inference**: Terraform builds and pushes the `apps/ml-engine` Docker image to ECR for the prediction Lambda, which is exposed through `POST /match/predict`. The runtime verifies the model SHA-256 hash on cold start and blends the model with the Markov Dynamic Programming (DP) and Duckworth-Lewis-Stern (DLS) resource par engine.
 
 ---
 
@@ -278,3 +278,65 @@ As this is an experimental pipeline, there are several ways to scale it up:
 
 - **Player-Level Data**: Aggregating individual player statistics (strike rate, bowling economy) to determine team strength dynamically based on who is currently at the crease.
 - **Deep Learning**: Now that we use ECR Containers, we have the space to include heavier frameworks like PyTorch or TensorFlow if the model complexity increases.
+
+---
+
+## 🔬 10. Reproducible Multi-Algorithm MLOps Pipeline (DVC + MLflow + Manifests)
+
+The CricScore ML engine includes a reproducible comparison and release pipeline (`apps/ml-engine/compare_models.py`):
+
+### 10.1 Algorithm Comparison & Leakage-Free Validation
+
+We systematically compare four candidate algorithms against the actual binary classification target ($\text{Target} = 1$ if batting team wins, $0$ if bowling team wins):
+
+1. **`LogisticRegression` (Baseline)**: Fast, calibrated baseline for live probability curves.
+2. **`HistGradientBoostingClassifier`**: Fast histogram-based gradient boosting capable of capturing non-linear interactions between balls remaining, required run rate, and wickets in hand.
+3. **`RandomForestClassifier`**: Robust ensemble of decision trees with out-of-bag variance reduction.
+4. **`ExtraTreesClassifier`**: Randomized ensemble providing high variance reduction and fast splits.
+
+#### Data Leakage Prevention Guarantees:
+
+- **Match-Grouped Split**: Splitting is partitioned strictly by unique `match_id` across Train (70%), Validation (15%), and Test (15%). Balls from the same match never leak across partitions.
+- **In-Play Observables Only**: Features are strictly limited to match state available at prediction time (`batting_team`, `bowling_team`, `inning`, `balls_left`, `current_score`, `wickets_lost`, `target_score`).
+
+### 10.2 MLflow Experiment Tracking
+
+- **Local Tracking**: Tracks runs into `apps/ml-engine/mlruns` using `mlflow-skinny` without requiring paid hosted servers.
+- **Logged Entities**: Hyperparameters, dataset hash, git commit SHA, training duration, model artifact sizes, inference latency per 100 rows, Log Loss, Brier Score, and ROC-AUC.
+
+### 10.3 DVC Dataset Versioning
+
+- **Metadata Tracking**: Raw ball-by-ball archive hashes are versioned in `cricket-data/t20s_json.zip.dvc`.
+- **Reproducible Pipeline**: `dvc.yaml` defines the execution stages (`prepare` and `train_and_compare`).
+- **Reproduce Locally**:
+  ```bash
+  dvc repro
+  ```
+
+### 10.4 Model Manifest & Release Verification
+
+Each model build generates an immutable `model_manifest.json` containing:
+
+- Semantic version (e.g., `v2.1.0`)
+- Promoted algorithm and training hyperparameters
+- Training Git commit SHA and DVC dataset content hash
+- Test-set evaluation metrics (Accuracy, Log Loss, Brier Score, ROC-AUC)
+- SHA-256 checksum of the generated `.joblib` model artifact
+
+### 10.5 Safe Loading & Rollback
+
+`predict.py` safely verifies the SHA-256 checksum against the manifest before loading:
+
+```python
+# Checksum validation before execution
+if actual_sha256 != expected_sha256:
+    raise ValueError("Model checksum verification failed! Rejecting untrusted artifact.")
+```
+
+To rollback to a previous version on AWS Lambda without retraining:
+
+```bash
+aws lambda update-function-configuration \
+  --function-name cricscoredev-ml-predict \
+  --environment "Variables={MODEL_VERSION=v2.0.0}"
+```

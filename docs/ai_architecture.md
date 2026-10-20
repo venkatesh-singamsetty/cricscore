@@ -202,7 +202,9 @@ Instead of using a Vector Database (which introduces sync latency), the CricScor
    - **Read-Only:** All LLM-generated queries are strictly wrapped in a `BEGIN READ ONLY;` transaction to prevent data corruption or hallucinated `DROP TABLE` commands.
    - **Performance Protection:** A strict `statement_timeout = 3000` is enforced at the transaction level to prevent the LLM from generating wildly complex joins that could bottleneck the database.
    - **Schema Selection:** The `chat-api` Lambda sets its configured search path before queries; it includes the environment schema and `public` for pgvector.
-   - **Caller Authentication:** `/chat` is configured without an API Gateway JWT authorizer. The handler accepts `isAdmin` from the request body and does not validate it against Cognito claims. Do not rely on the frontend or this flag to authorize admin tools.
+   - **Caller Authentication & Read-Only Guarantee:** `/chat` is open without an API Gateway JWT authorizer so that both fans and guests can use the assistant. However, the client-supplied `isAdmin` parameter in the request body is strictly ignored: destructive tools (`delete_guest_data`, `delete_incomplete_matches`) are NEVER registered in the chat execution loop. Administrative data purges must be performed directly in the authenticated Match Ops Admin Panel.
+   - **SQL Security Guard:** In addition to `BEGIN READ ONLY;` and a 3-second statement timeout, `execute_sql` validates queries to enforce a single `SELECT` or `WITH` statement, rejecting write/DDL keywords (`DELETE`, `UPDATE`, `DROP`, `ALTER`, `INSERT`) and dangerous functions (`pg_sleep`, `pg_read_file`, `dblink`) before contacting the database.
+   - **Admin-Protected Rulebook Management:** `POST /rules/upload`, `GET /rules`, and `DELETE /rules` are protected by API Gateway Cognito JWT authorization and verified server-side in `chat-api/config/auth.js` to ensure the caller belongs to the `Admin` group or matches `ADMIN_REPORT_EMAIL`.
 
 ### Database Connection Notes
 
@@ -502,3 +504,13 @@ The live **Match Win Predictor** calculates win probabilities from match state. 
 2. **Shortened Match Scale Normalization**: For shortened matches (e.g., 1-over matches), raw inputs of `balls_left = 5` and `current_score = 6` at ball 0.1 would trick a linear model into thinking the match is in the 20th over. `predict.py` normalizes `balls_left` and `current_score` by a factor of `(120 / total_match_balls)` during the 1st innings to evaluate probabilities on a 120-ball T20 equivalent scale.
 3. **Start-of-Match Baseline (50% / 50%)**: At the start of the 1st innings (`currentScore = 0`, `wicketsLost = 0`), the model forces a 50% / 50% baseline probability before the first ball is bowled.
 4. **Impossible Chase Override**: During the 2nd innings, if the required runs exceed the maximum possible runs (`runsNeeded > ballsLeft * 6`), the frontend and backend cap win probabilities to 0% for the chasing team and 100% for the defending team.
+
+## 🔒 Chat is read-only (security hardening)
+
+`POST /chat` is reachable without authentication so guests can use the assistant. Therefore:
+
+- The client-supplied `isAdmin` flag is **ignored**; `delete_guest_data` / `delete_incomplete_matches` are never registered in the chat path. Deletions are done only from Match Ops (Admin Panel).
+- `execute_sql` accepts a single `SELECT`/`WITH` statement and rejects write/DDL keywords before touching the database (in addition to `BEGIN READ ONLY` + 3s timeout).
+- Client history is filtered to `user`/`assistant` roles (last 10 turns).
+
+A Python LangGraph service (`apps/ai-service`) is being added as a replacement for the single-agent loop; it is not yet wired in.

@@ -237,6 +237,18 @@ CHAT_API_URL='<http_api_url>' npm run test:all
 
 ---
 
+## Central Platform & Artifacts Dashboard
+
+After any dev or prod deployment, `./infra/scripts/deploy.sh` automatically refreshes the central platform dashboard by running `./infra/scripts/generate_platform_dashboard.sh`. This script inspects GitHub Actions workflows, repository variables/secrets inventory, live Terraform state from S3, ECR container image digests, ML model metrics, and Aiven PostgreSQL schemas to generate [`docs/platform_dashboard.md`](./platform_dashboard.md).
+
+You can also run it manually at any time to refresh all direct console deep links, GitHub resources, and artifact pointers:
+
+```bash
+./infra/scripts/generate_platform_dashboard.sh
+```
+
+---
+
 ## Troubleshooting
 
 See [troubleshooting.md](./troubleshooting.md) for solutions to common issues.

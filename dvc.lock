@@ -1,0 +1,30 @@
+schema: '2.0'
+stages:
+  train_and_compare:
+    cmd: python apps/ml-engine/compare_models.py v2.1.0
+    deps:
+    - path: apps/ml-engine/compare_models.py
+      hash: md5
+      md5: 0ff551104e0e6f83e8e5ab36073c9a4a
+      size: 18185
+    - path: cricket-data/t20s_json.zip
+      hash: md5
+      md5: 31e19c47bdbc05d773938754d8589516
+      size: 22750261
+    outs:
+    - path: apps/ml-engine/comparison_report.md
+      hash: md5
+      md5: c6104bfc76777be3e28e300d35287ac3
+      size: 1807
+    - path: apps/ml-engine/live_metadata.json
+      hash: md5
+      md5: d47af9d14f98863aab7ab67972607571
+      size: 611
+    - path: apps/ml-engine/live_win_predictor_model.joblib
+      hash: md5
+      md5: 6c8f2f9691bc484d05fe5d60bfabfbed
+      size: 390478
+    - path: apps/ml-engine/model_manifest.json
+      hash: md5
+      md5: 26ab65ade17f3ca52f071a42fe589a49
+      size: 1820

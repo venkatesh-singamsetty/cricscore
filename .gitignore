@@ -148,10 +148,23 @@ tmp_*.tsx
 *.rej
 patch*.diff
 merge_prs.sh
-cricket-data/
+cricket-data/*
+!cricket-data/*.dvc
+!cricket-data/.gitignore
 
 # Python bytecode & virtualenvs
 __pycache__/
 *.py[cod]
 apps/ml-engine/venv/
 
+
+# Python AI service
+apps/ai-service/.venv/
+.pytest_cache/
+
+# MLflow and DVC local artifacts
+mlruns/
+apps/ml-engine/mlruns/
+apps/ml-engine/.venv-train/
+.dvc/cache/
+.dvc/tmp/

@@ -22,6 +22,34 @@ CHAT_API_URL=https://api.example.com npm run test:all
 
 ---
 
+## ⚡ Full Local Pre-Push Validation & Smart Hook Caching
+
+Before pushing code, run the unified local validation script:
+
+```bash
+./infra/scripts/validate_local.sh --skip-e2e
+```
+
+This executes the entire local test battery in sequence:
+
+1. **Frontend**: Lint (`tsc --noEmit`), unit & integration tests (`vitest`), high-severity npm audit, and Vite production build.
+2. **Backend**: Unit tests (`vitest`) and npm audit across Lambdas.
+3. **Python AI & ML**: Pytest suites for `apps/ai-service` and `apps/ml-engine`.
+4. **Infrastructure**: Terraform format & validation, and platform dashboard generation.
+5. **Security & SBOM**: Checkov IaC scanning, GitLeaks secrets detection, Trivy vulnerability scanning, and Syft SBOM generation.
+
+### Zero-Waste Pre-Push Git Hook
+
+To prevent duplicate test execution and wasted developer time, `validate_local.sh` records a cryptographically signed state receipt (`.git/.local_validation_receipt`) matching the current commit and working tree state.
+
+- When `git push` runs, the `.husky/pre-push` hook verifies if the current tree state already passed validation.
+- If already validated, the hook exits instantly (**< 0.1s**) with:
+  `⚡ Local validation already passed for <commit>. Skipping duplicate tests!`
+- If uncommitted changes exist or validation was not run, `pre-push` executes the validation automatically as a safety gate.
+- To bypass manually if needed, push with `git push --no-verify` or set `SKIP_PRE_PUSH=1 git push`.
+
+---
+
 ## 1. Unit Tests
 
 Unit tests are isolated tests that verify individual functions, utilities, or background cloud logic without spinning up external dependencies.
@@ -184,9 +212,66 @@ The production deployment workflow runs AI evaluation and Playwright tests again
 
 ---
 
-## Continuous Integration (CI)
+## Continuous Integration (CI) & Pull Request Verification
 
-GitHub Actions run validation on pull requests to `main`; deployment, AI evaluation, and deployed-site Playwright tests run in the development or production workflow.
+Every Pull Request opened or updated against `main` triggers four mandatory, blocking validation jobs in `.github/workflows/ci.yml` and CodeQL analysis in `.github/workflows/codeql.yml`:
 
-- **Development**: `.github/workflows/ci.yml` validates changes on pull requests and deploys/tests Dev on `main` or manual dispatch.
-- **Production**: `.github/workflows/cd.yml` deploys on a version tag or manual dispatch, then runs AI evaluation, Playwright tests, and a ZAP baseline scan.
+| PR Gate / Job           | Suites Covered                                 | Exact Commands Run                                                                                        |
+| ----------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| **`validate_security`** | Secrets & IaC Security                         | `gitleaks detect`, `checkov -d infra/terraform/`                                                          |
+| **`validate_frontend`** | Lint, Unit/Component Tests, Audit, Build       | `npm run lint` (`tsc --noEmit`), `vitest run` (75 tests), `trivy fs`, `npm run build`                     |
+| **`validate_backend`**  | Lambda Unit Tests, Trivy, Terraform Validation | `npm test` (85 Lambda tests), `trivy fs`, `terraform fmt -check`, `terraform validate`                    |
+| **`validate_python`**   | Python AI Service & ML Engine Tests, Pip Trivy | `pytest apps/ai-service -q` (57 tests), `pytest apps/ml-engine/test_predict.py -q` (24 tests), `trivy fs` |
+| **`CodeQL Analysis`**   | Dual-language Static Security Analysis         | CodeQL AST queries across `javascript-typescript` and `python`                                            |
+
+Pull requests must pass **all 5 gates** before merging. They do not deploy or interact with live cloud databases.
+
+### Post-Merge Execution (DEV Deployment & Live Verification)
+
+When merged to `main`, `ci.yml` automatically triggers `deploy_and_test_dev`:
+
+1. Runs database migrations (`migrate.sh`).
+2. Applies Terraform and updates Lambda containers in ECR.
+3. Builds and syncs the frontend to S3 and invalidates CloudFront.
+4. Executes live AI chat evaluation (`npm run test:ai`).
+5. Executes the full **Playwright E2E Test Suite (14 tests)** against `https://cricscoredev.venkateshsingamsetty.com`.
+6. Executes the **OWASP ZAP DAST** baseline vulnerability scan.
+
+---
+
+## Python AI service (`apps/ai-service`)
+
+Unit tests (router, tools, LangGraph flows, handler, tracing) use in-memory fakes; no DB, LLM or network.
+
+```bash
+cd apps/ai-service && .venv/bin/pytest -q
+```
+
+Chat read-only guarantees are covered in `apps/backend/lambdas/chat-api/handlers/chatHandler.test.js` and `mcp/tools/tools.test.js` (`npm --prefix apps/backend test`).
+
+MCP server tests (`apps/ai-service/tests/test_mcp.py`, `test_mcp_stdio.py`) cover the approved tool list, valid/invalid IDs, DB errors, unconfigured dependencies, and a real stdio client round-trip.
+
+---
+
+## Machine Learning & MLOps Tests (`apps/ml-engine`)
+
+- **Inference Unit & Checksum Tests**:
+  Covers 1-over, 5-over, 20-over formats, first-innings and chase probabilities, DLS par alignment, model SHA-256 verification, and simulation fallback:
+
+  ```bash
+  apps/ml-engine/venv/bin/pytest apps/ml-engine/test_predict.py -v
+  ```
+
+- **Candidate Model Comparison & Pipeline Verification**:
+  Evaluates 8 candidate algorithms (Logistic Regression, GaussianNB, DecisionTree, LinearSVM, RandomForest, ExtraTrees, HistGradientBoosting, and promoted champion XGBoost), checks quality gates (Accuracy >= 0.60, ROC-AUC >= 0.65), logs MLflow metrics, and generates release manifests:
+
+  ```bash
+  python apps/ml-engine/compare_models.py v2.2.0
+  # Or via reproducible DVC pipeline:
+  dvc repro
+  ```
+
+- **Classical ML Regression & Clustering Benchmarks**:
+  - 1st-innings total score regression: `python apps/ml-engine/projected_score_regression.py`
+  - Pitch condition & scoring archetype clustering: `python apps/ml-engine/match_clustering.py`
+  - Complete 14-model reference guide: [`docs/ml_models_handbook.md`](ml_models_handbook.md)

@@ -13,6 +13,7 @@
 const { chatHandler } = require("./handlers/chatHandler");
 const { summaryHandler } = require("./handlers/summaryHandler");
 const { uploadRulesHandler } = require("./handlers/uploadRulesHandler");
+const { requireAdmin } = require("./config/auth");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -39,6 +40,12 @@ exports.handler = async (event) => {
         body.forceRefresh,
         body.matchData,
       );
+    }
+
+    // Rulebook management is admin-only (JWT authorizer + server-side role check).
+    if (path.includes("/rules")) {
+      const denied = requireAdmin(event, corsHeaders);
+      if (denied) return denied;
     }
 
     // Route: List Tournament Rulebooks

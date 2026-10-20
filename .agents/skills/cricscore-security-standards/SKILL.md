@@ -13,8 +13,11 @@ description: Use when changing authentication, authorization, database/API handl
 
 ## 2. Authentication, Authorization & Database Safety
 
-- **Verified Identity Only**: Enforce authorization in backend Lambdas (`match-api`, `score-update`, `chat-api`) using verified Cognito JWT claims or validated guest/scorer session rules. Never trust a client-supplied `isAdmin` flag without server-side verification for destructive operations (`delete_match`, `cleanup_matches_by_date`, rulebook upload).
-- **SQL Injection Prevention**: Always use parameterized queries (`$1, $2, ...`) with `pg.Pool`. In `chat-api` MCP `query_postgres`, enforce read-only `SELECT` validation, row limits, and query timeouts.
+- **Strict Read-Only AI Chat Guarantee**: The `/chat` endpoint is intentionally open without a JWT authorizer so fans and guests can use the assistant. However, client-supplied `isAdmin` flags in request bodies are strictly ignored: destructive tools (`delete_guest_data`, `delete_incomplete_matches`) are permanently disabled from chat execution loops to prevent prompt injection or flag spoofing. Admin data purges must be executed through authenticated Match Ops Admin Panel routes.
+- **SQL Injection Prevention & Query Validation**: In `chat-api` (`execute_sql.js`), all LLM-generated queries are pre-validated to ensure a single `SELECT` or `WITH` statement, rejecting write/DDL keywords (`DELETE`, `UPDATE`, `DROP`, `ALTER`, `INSERT`) and dangerous functions (`pg_sleep`, `pg_read_file`, `dblink`), wrapped in a `BEGIN READ ONLY;` transaction with a 3-second statement timeout.
+- **Admin-Protected Rulebooks**: `POST /rules/upload`, `GET /rules`, and `DELETE /rules` are guarded by API Gateway Cognito JWT authorizers and verified server-side (`auth.js`) for the `Admin` group or `ADMIN_REPORT_EMAIL`.
+- **Model Manifest Integrity**: Prediction Lambda (`apps/ml-engine/predict.py`) computes and verifies the SHA-256 hash of `live_win_predictor_model.joblib` against `model_manifest.json` before deserialization.
+- **Verified Identity Only**: Enforce authorization in backend Lambdas (`match-api`, `score-update`, `chat-api`) using verified Cognito JWT claims or validated guest/scorer session rules.
 - **Safe Error Handling**: Return structured HTTP 4xx/5xx JSON responses without leaking stack traces, connection strings, or internal schema details.
 
 ## 3. Automated Security Scanners (Local & CI)

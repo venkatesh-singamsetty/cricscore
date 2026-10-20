@@ -1,9 +1,9 @@
 {
-  "modelVersion": "v2.0.0-live",
-  "trainingDate": "2026-10-04T07:15:17.196635",
+  "modelVersion": "v2.2.0-xgboost",
+  "trainingDate": "2026-10-20T04:12:06.260254+00:00",
   "datasetSource": "Cricsheet T20s Ball-by-Ball",
-  "numBallsTrained": 80000,
-  "numBallsTested": 20000,
+  "numBallsTrained": 84129,
+  "numBallsTested": 18342,
   "features": [
     "batting_team",
     "bowling_team",
@@ -13,10 +13,12 @@
     "wickets_lost",
     "target_score"
   ],
-  "modelType": "LogisticRegression (scikit-learn)",
+  "modelType": "XGBoost (scikit-learn)",
   "metrics": {
-    "accuracy": 0.7988,
-    "logLoss": 0.41570620455578317,
-    "rocAuc": 0.8883883832772349
-  }
+    "accuracy": 0.6901,
+    "logLoss": 0.6018,
+    "rocAuc": 0.7529,
+    "brierScore": 0.206
+  },
+  "sha256": "de9e39513fbac895df7c86c449ef0a6b687717b5d1f40af08b5a5b13aa37c0cf"
 }

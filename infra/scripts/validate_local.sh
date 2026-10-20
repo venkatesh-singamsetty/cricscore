@@ -46,6 +46,20 @@ echo "-----------------------------------"
 
 echo ""
 echo "-----------------------------------"
+echo "🛠️ 2.5. Python AI & ML Engine Validation..."
+echo "-----------------------------------"
+if [ -d "apps/ai-service/.venv" ]; then
+  echo "👉 Running Python AI Service Tests..."
+  ./apps/ai-service/.venv/bin/pytest apps/ai-service -q
+fi
+
+if [ -d "apps/ml-engine/venv" ]; then
+  echo "👉 Running Python ML Engine Tests..."
+  ./apps/ml-engine/venv/bin/pytest apps/ml-engine/test_predict.py -q
+fi
+
+echo ""
+echo "-----------------------------------"
 echo "🛠️ 3. Infrastructure Validation..."
 echo "-----------------------------------"
 echo "👉 Checking Terraform Formatting..."
@@ -53,6 +67,9 @@ echo "👉 Checking Terraform Formatting..."
 
 echo "👉 Validating Terraform Logic..."
 ./infra/scripts/terraform.sh validate
+
+echo "👉 Verifying Central Platform Dashboard Generation..."
+./infra/scripts/generate_platform_dashboard.sh
 
 echo "✅ Terraform S3 backend locking is enforced by Terraform during plan and apply."
 
@@ -116,3 +133,20 @@ echo ""
 echo "-----------------------------------"
 echo "✅ All local validations passed! You are safe to push."
 echo "-----------------------------------"
+
+# Record receipt in .git directory to avoid duplicate pre-push runs
+if [ -d "$REPO_ROOT/.git" ]; then
+  HASH_CMD=""
+  if command -v sha256sum >/dev/null 2>&1; then
+    HASH_CMD="sha256sum"
+  elif command -v shasum >/dev/null 2>&1; then
+    HASH_CMD="shasum -a 256"
+  fi
+
+  if [ -n "$HASH_CMD" ]; then
+    TREE_HASH="$(git rev-parse HEAD 2>/dev/null || echo "no-head")"
+    STATUS_HASH="$(git status --porcelain | $HASH_CMD | awk '{print $1}')"
+    echo "${TREE_HASH}:${STATUS_HASH}" > "$REPO_ROOT/.git/.local_validation_receipt"
+  fi
+fi
+

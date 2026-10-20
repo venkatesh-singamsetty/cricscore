@@ -252,7 +252,11 @@ if [ -n "$DIST_ID" ]; then
     aws cloudfront create-invalidation --distribution-id $DIST_ID --paths "/*" --no-cli-pager
 fi
 
-# 7. Success message
+# 7. Refresh Central Platform Dashboard
+echo "📝 Refreshing Central Platform Dashboard..."
+(cd ../.. && ./infra/scripts/generate_platform_dashboard.sh) || echo "⚠️ Dashboard generation skipped or failed (non-blocking)."
+
+# 8. Success message
 WEBSITE_URL=$(terraform output -raw website_url)
 echo "--------------------------------------------------------"
 echo "✅ DEPLOYMENT SUCCESSFUL!"

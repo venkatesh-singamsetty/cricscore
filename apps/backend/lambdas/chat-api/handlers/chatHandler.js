@@ -33,7 +33,21 @@ ball_events(id, inning_id, over_number, ball_number, bowler_name, batter_name, r
  * @returns {object} Lambda response object
  */
 async function chatHandler(body, corsHeaders) {
-  const { message, matchId, history = [], isAdmin = false } = body;
+  const { message, matchId } = body;
+  // SECURITY: chat is read-only for everyone. The client-supplied `isAdmin` flag is
+  // intentionally ignored (the /chat route is unauthenticated), so destructive MCP
+  // tools can never be registered from this path. Deletions live in Match Ops.
+  const isAdmin = false;
+  const history = Array.isArray(body.history)
+    ? body.history
+        .filter(
+          (h) =>
+            h &&
+            (h.role === "user" || h.role === "assistant") &&
+            typeof h.content === "string",
+        )
+        .slice(-10)
+    : [];
 
   if (!message) {
     return {
@@ -126,7 +140,7 @@ async function chatHandler(body, corsHeaders) {
 8. DELETE INCOMPLETE MATCHES (ADMIN): If the admin asks to delete incomplete matches → ALWAYS call 'delete_incomplete_matches'. Do NOT ask for confirmation first, just execute the tool.
 `
     : `
-6. ADMIN-ONLY ACTIONS: Do not discuss, suggest, or perform guest cleanup, match deletion, or any other admin-only action unless the caller is explicitly an admin. If a non-admin asks for these actions, politely refuse and explain that admin privileges are required.
+6. READ-ONLY CHAT: You cannot delete, modify or clean up any data. If asked to delete matches, guest data or any records, politely refuse and explain that admins must do this from the Match Ops (Admin Panel).
 `;
   const systemPrompt = `You are CricScore AI, an expert cricket analyst for this specific tournament.
 

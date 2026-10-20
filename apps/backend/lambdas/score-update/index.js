@@ -23,11 +23,7 @@ const getClaims = (event) => {
     event.requestContext?.authorizer?.jwt?.claims ||
     event.requestContext?.authorizer?.claims ||
     {};
-  const headers = event.headers || {};
-  const headerEmail = headers["x-scorer-email"] || headers["X-Scorer-Email"];
-  if (!claims.email && headerEmail) {
-    claims.email = headerEmail;
-  }
+  // SECURITY: identity comes only from the verified JWT, never from client headers.
   return claims;
 };
 

@@ -149,7 +149,6 @@ const getClaims = (event) => {
   const authorizer = event.requestContext?.authorizer || {};
   const claims = authorizer.jwt?.claims || authorizer.claims || {};
   const headers = event.headers || {};
-  const headerEmail = headers["x-scorer-email"] || headers["X-Scorer-Email"];
   const guestHeader = headers["x-guest-email"] || headers["X-Guest-Email"];
   if (
     !claims.email &&
@@ -161,10 +160,8 @@ const getClaims = (event) => {
   if (!claims.email && guestHeader && guestHeader.startsWith("guest-")) {
     claims.email = guestHeader;
   }
-  if (!claims.email && headerEmail) {
-    claims.email = headerEmail;
-    claims["cognito:groups"] = ["Admin"];
-  }
+  // SECURITY: never derive identity or admin rights from client-supplied headers
+  // (the former `x-scorer-email` header granted the Admin group to anyone).
   console.log("CLAIMS:", JSON.stringify(claims));
   return claims;
 };
@@ -175,11 +172,13 @@ const isAuthorized = (event, matchRecord) => {
   const isSuperAdmin =
     userEmail && userEmail === process.env.ADMIN_REPORT_EMAIL;
   const groups = claims["cognito:groups"] || [];
-  const hasAdminGroup = Array.isArray(groups)
-    ? groups.includes("Admin")
-    : typeof groups === "string"
-      ? groups.includes("Admin")
-      : false;
+  // Exact group-name match (API Gateway may serialize arrays as "[Admin Other]").
+  const groupList = Array.isArray(groups)
+    ? groups
+    : String(groups)
+        .replace(/[[\]"]/g, "")
+        .split(/[\s,]+/);
+  const hasAdminGroup = groupList.includes("Admin");
 
   if (isSuperAdmin || hasAdminGroup) return true;
   if (matchRecord && userEmail && userEmail === matchRecord.scorer_email)

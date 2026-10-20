@@ -4,14 +4,25 @@ on:
   push:
     paths:
       - 'apps/ml-engine/**'
+      - 'cricket-data/**'
+      - '.github/workflows/mlops-pipeline.yml'
     branches:
       - main
-  workflow_dispatch: # Allow manual trigger
+  pull_request:
+    paths:
+      - 'apps/ml-engine/**'
+      - 'cricket-data/**'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Semantic model version to evaluate (e.g. v2.2.0)'
+        required: false
+        default: 'v2.2.0'
   schedule:
-    - cron: '0 0 1 * *' # Run automatically on the 1st of every month to capture new cricket matches
+    - cron: '0 0 1 * *' # Monthly trigger to capture new cricket matches
 
 jobs:
-  train-and-deploy-model:
+  train-and-evaluate-models:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -20,40 +31,60 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
-          python-version: '3.10'
+          python-version: '3.12'
           cache: 'pip'
 
-      - name: Install ML Dependencies
+      - name: Install ML Inference & Training Dependencies
         working-directory: apps/ml-engine
-        run: pip install -r requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-train.txt
 
       - name: Run Inference Handler Unit Tests
         working-directory: apps/ml-engine
         run: pytest test_predict.py -v
 
-      - name: Download & Parse Data (Phase 1)
-        working-directory: apps/ml-engine
-        run: python data_pipeline.py
+      - name: Ensure Dataset Available (DVC or Data Pipeline)
+        run: |
+          if [ ! -f apps/ml-engine/data/live_data.csv ]; then
+            echo "📥 Extracting raw match dataset..."
+            python apps/ml-engine/data_pipeline.py
+          else
+            echo "✅ Dataset live_data.csv already present."
+          fi
 
-      - name: Train & Evaluate Model (Phase 2 & 3)
-        working-directory: apps/ml-engine
+      - name: Run Model Comparison & MLflow Tracking
         env:
           CI: 'true'
+          VERSION: ${{ github.event.inputs.version || 'v2.2.0' }}
         run: |
-          python live_train.py
+          python apps/ml-engine/compare_models.py "$VERSION"
+
+      - name: Verify Quality Gate Thresholds
+        run: |
+          APPROVAL_STATUS=$(jq -r '.approvalStatus' apps/ml-engine/model_manifest.json)
+          ACCURACY=$(jq -r '.evaluationMetrics.test.accuracy' apps/ml-engine/model_manifest.json)
+          ROCAUC=$(jq -r '.evaluationMetrics.test.roc_auc' apps/ml-engine/model_manifest.json)
+          ALGORITHM=$(jq -r '.algorithm' apps/ml-engine/model_manifest.json)
           
-          # Phase 3: Fail workflow if accuracy < 60%
-          ACCURACY=$(jq '.metrics.accuracy' live_metadata.json)
-          if (( $(echo "$ACCURACY < 0.60" | bc -l) )); then
-            echo "❌ Model failed evaluation threshold (Accuracy: $ACCURACY)"
+          echo "Selected Model: $ALGORITHM"
+          echo "Test Accuracy: $ACCURACY (Min: 0.60)"
+          echo "Test ROC-AUC: $ROCAUC (Min: 0.65)"
+          echo "Approval Status: $APPROVAL_STATUS"
+
+          if [ "$APPROVAL_STATUS" != "approved" ]; then
+            echo "❌ Model failed promotion thresholds."
             exit 1
           fi
-          echo "✅ Model passed minimum threshold (Accuracy: $ACCURACY)"
+          echo "✅ Model approved for release."
 
-      - name: Upload Model Artifact (Phase 4)
+      - name: Upload Model Manifest & Artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: live-win-predictor-v1
+          name: live-win-predictor-${{ github.event.inputs.version || 'v2.2.0' }}
           path: |
             apps/ml-engine/live_win_predictor_model.joblib
             apps/ml-engine/live_metadata.json
+            apps/ml-engine/model_manifest.json
+            apps/ml-engine/comparison_report.md
+            apps/ml-engine/mlruns/

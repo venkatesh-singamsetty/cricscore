@@ -4,8 +4,36 @@ import { Pool } from "pg";
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
-const { executeSqlTool } = require("./executeSql.js");
+const { executeSqlTool, validateReadOnlySql } = require("./executeSql.js");
 const { searchRulesTool } = require("./searchRules.js");
+
+describe("execute_sql read-only guard", () => {
+  it.each([
+    "DELETE FROM matches",
+    "SELECT 1; DROP TABLE matches",
+    "WITH x AS (DELETE FROM matches RETURNING *) SELECT * FROM x",
+    "SELECT pg_sleep(10)",
+    "UPDATE matches SET status='X'",
+    "",
+  ])("rejects %s", (q) => {
+    expect(validateReadOnlySql(q)).not.toBeNull();
+  });
+
+  it("allows SELECT and WITH, tolerating a trailing semicolon", () => {
+    expect(validateReadOnlySql("SELECT * FROM matches;")).toBeNull();
+    expect(
+      validateReadOnlySql("WITH a AS (SELECT 1) SELECT * FROM a"),
+    ).toBeNull();
+  });
+
+  it("does not touch the database for rejected queries", async () => {
+    const connect = vi.spyOn(Pool.prototype, "connect");
+    connect.mockClear();
+    const r = await executeSqlTool({ query: "DELETE FROM matches" });
+    expect(r.content[0].text).toContain("Error executing SQL");
+    expect(connect).not.toHaveBeenCalled();
+  });
+});
 
 describe("MCP Tool: execute_sql", () => {
   let querySpy, connectSpy;
