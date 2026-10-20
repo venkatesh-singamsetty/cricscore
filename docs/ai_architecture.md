@@ -202,7 +202,9 @@ Instead of using a Vector Database (which introduces sync latency), the CricScor
    - **Read-Only:** All LLM-generated queries are strictly wrapped in a `BEGIN READ ONLY;` transaction to prevent data corruption or hallucinated `DROP TABLE` commands.
    - **Performance Protection:** A strict `statement_timeout = 3000` is enforced at the transaction level to prevent the LLM from generating wildly complex joins that could bottleneck the database.
    - **Schema Selection:** The `chat-api` Lambda sets its configured search path before queries; it includes the environment schema and `public` for pgvector.
-   - **Caller Authentication:** `/chat` is configured without an API Gateway JWT authorizer. The handler accepts `isAdmin` from the request body and does not validate it against Cognito claims. Do not rely on the frontend or this flag to authorize admin tools.
+   - **Caller Authentication & Read-Only Guarantee:** `/chat` is open without an API Gateway JWT authorizer so that both fans and guests can use the assistant. However, the client-supplied `isAdmin` parameter in the request body is strictly ignored: destructive tools (`delete_guest_data`, `delete_incomplete_matches`) are NEVER registered in the chat execution loop. Administrative data purges must be performed directly in the authenticated Match Ops Admin Panel.
+   - **SQL Security Guard:** In addition to `BEGIN READ ONLY;` and a 3-second statement timeout, `execute_sql` validates queries to enforce a single `SELECT` or `WITH` statement, rejecting write/DDL keywords (`DELETE`, `UPDATE`, `DROP`, `ALTER`, `INSERT`) and dangerous functions (`pg_sleep`, `pg_read_file`, `dblink`) before contacting the database.
+   - **Admin-Protected Rulebook Management:** `POST /rules/upload`, `GET /rules`, and `DELETE /rules` are protected by API Gateway Cognito JWT authorization and verified server-side in `chat-api/config/auth.js` to ensure the caller belongs to the `Admin` group or matches `ADMIN_REPORT_EMAIL`.
 
 ### Database Connection Notes
 
