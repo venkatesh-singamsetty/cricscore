@@ -12,17 +12,17 @@ This document provides estimated operational costs for the CricScore platform. F
 - **Est. Max Load**: 1M requests / 3 Lambdas = 333,333 ball events = **~1,350 Matches per month** remaining within the AWS Lambda request allowance.
 - **Lambda Function Sizing & Timeout Matrix (`infra/terraform/lambda.tf`)**:
 
-| Function                      | Package Type | Memory    | Timeout | Log Retention | Primary Role                                                     |
-| :---------------------------- | :----------- | :-------- | :------ | :------------ | :--------------------------------------------------------------- |
-| `<project>-match-api`         | ZIP (Node24) | `128 MB`  | `30s`   | `7 days`      | Match CRUD, deep-link hydration, admin ops, SES email, S3 backup |
-| `<project>-score-upd`         | ZIP (Node24) | `256 MB`  | `30s`   | `7 days`      | Validates ball events and fans out to SNS + SQS FIFO             |
-| `<project>-storage-worker`    | ZIP (Node24) | `256 MB`  | `30s`   | `7 days`      | Consumes SQS FIFO (`batch_size = 1`) and writes to PostgreSQL    |
-| `<project>-broadcaster`       | ZIP (Node24) | `128 MB`  | `10s`   | `7 days`      | Consumes SNS events and pushes WebSocket frames via API Gateway  |
-| `<project>-onconnect`         | ZIP (Node24) | `128 MB`  | `10s`   | `7 days`      | Registers active spectator WebSocket `connectionId` in DynamoDB  |
-| `<project>-ondisconnect`      | ZIP (Node24) | `128 MB`  | `10s`   | `7 days`      | Removes disconnected spectator `connectionId` from DynamoDB      |
-| `<project>-cognito-presignup` | ZIP (Node24) | `128 MB`  | `10s`   | `7 days`      | Auto-confirms `guest-*@cricscore.local` shadow accounts          |
-| `<project>-chat-api`          | ZIP (Node24) | `1024 MB` | `30s`   | `7 days`      | Agentic RAG (`pgvector` + Text-to-SQL MCP tools + AI summary)    |
-| `<project>-ml-predict`        | ECR Image    | `512 MB`  | `30s`   | `7 days`      | Hybrid Markov DP + DLS + Scikit-Learn win-probability inference  |
+| Function                      | Package Type | Memory    | Timeout | Log Retention | Primary Role                                                        |
+| :---------------------------- | :----------- | :-------- | :------ | :------------ | :------------------------------------------------------------------ |
+| `<project>-match-api`         | ZIP (Node24) | `128 MB`  | `30s`   | `7 days`      | Match CRUD, deep-link hydration, admin ops, SES email, S3 backup    |
+| `<project>-score-upd`         | ZIP (Node24) | `256 MB`  | `30s`   | `7 days`      | Validates ball events and fans out to SNS + SQS FIFO                |
+| `<project>-storage-worker`    | ZIP (Node24) | `256 MB`  | `30s`   | `7 days`      | Consumes SQS FIFO (`batch_size = 1`) and writes to PostgreSQL       |
+| `<project>-broadcaster`       | ZIP (Node24) | `128 MB`  | `10s`   | `7 days`      | Consumes SNS events and pushes WebSocket frames via API Gateway     |
+| `<project>-onconnect`         | ZIP (Node24) | `128 MB`  | `10s`   | `7 days`      | Registers active spectator WebSocket `connectionId` in DynamoDB     |
+| `<project>-ondisconnect`      | ZIP (Node24) | `128 MB`  | `10s`   | `7 days`      | Removes disconnected spectator `connectionId` from DynamoDB         |
+| `<project>-cognito-presignup` | ZIP (Node24) | `128 MB`  | `10s`   | `7 days`      | Auto-confirms `guest-*@cricscore.local` shadow accounts             |
+| `<project>-chat-api`          | ZIP (Node24) | `1024 MB` | `30s`   | `7 days`      | Read-only Agentic RAG (`pgvector` + execute_sql guard + AI summary) |
+| `<project>-ml-predict`        | ECR Image    | `512 MB`  | `30s`   | `7 days`      | XGBoost (`v2.2.0`) + Markov DP + DLS real-time win probability      |
 
 ### 2. **Real-time: WebSocket API Gateway**
 
@@ -90,16 +90,21 @@ This document provides estimated operational costs for the CricScore platform. F
 
 - **Free Tier Limit**: Published Cognito Lite/Essentials free-tier allowances cover up to 10,000–50,000 MAUs depending on account tier; check current pricing before estimating.
 - **What's included**: Sign-up, sign-in, token issuance (JWT), user pool storage, group management (`Admin` group), and pre-signup Lambda triggers.
-- **Guest accounts**: Each guest scorer creates a shadow Cognito account (`guest-*@cricscore.local`) that counts as 1 MAU per month. Admins can purge stale guest accounts via the Admin Panel (`Purge Guest Accounts`) or AI Chat to keep MAU count near zero.
+- **Guest accounts**: Each guest scorer creates a shadow Cognito account (`guest-*@cricscore.local`) that counts as 1 MAU per month. Admins can purge stale guest accounts via the authenticated Match Ops Admin Panel (`Purge Guest Accounts`) to keep MAU count near zero.
 - **Cost for typical usage**: **$0/month**.
 
 ### 13. **ML Inference: AWS ECR & Containerized Lambda (`ml-predict`)**
 
-- **Architecture**: Packages the Hybrid Ball-by-Ball Markov Dynamic Programming (`win_probability.py`) + Duckworth-Lewis-Stern (DLS) + Scikit-Learn Logistic Regression model (`predict.py`) as an `arm64`/`amd64` container image in Amazon ECR (`512 MB` RAM, `30s` timeout).
+- **Architecture**: Packages the promoted **XGBoost** model (`v2.2.0-xgboost`, compressed size **73 KB**) blended with Markov Dynamic Programming (`win_probability.py`) + Duckworth-Lewis-Stern (DLS) resource par as a Linux x86_64 container image in Amazon ECR (`512 MB` RAM, `30s` timeout).
+- **Inference Latency & Compute Economics**:
+  - Warm execution duration is **~1.56 ms** per ball prediction.
+  - At 512 MB memory, 1.56 ms consumes only `0.00078 GB-seconds` per invocation.
+  - Under the AWS Lambda permanent free allowance of **400,000 GB-seconds/month**, the platform can execute over **500,000,000 predictions/month completely FREE** before incurring compute charges.
+- **ECR Storage Cost**: The private ECR repository retains a single mutable `:latest` image (~240 MB compressed). AWS ECR provides **500 MB of free private repository storage per month**, making storage **$0.00/month**.
 - **Client-Side Short-Circuit Optimization (`AiMatchPrediction.tsx`)**:
   - Before the first legal ball is bowled (`ballsBowled === 0 && wickets === 0`), the UI renders an instant `50% - 50%` baseline without invoking Lambda.
   - When a chase is mathematically decided (`runsNeeded <= 0`, `ballsLeft <= 0`, `wickets >= 10`, or `runsNeeded > ballsLeft * 6`), the frontend resolves `100% / 0%` or `0% / 100%` locally without a network round-trip.
-- **Cost**: Uses standard Lambda compute/request allowances and minimal single-image ECR storage (`:latest` mutable tag reuse).
+- **Total ML Inference Cost**: **$0.00/month**.
 
 ---
 
@@ -202,12 +207,25 @@ The AI Assistant uses native OpenAI models with extreme cost efficiency:
 3.  **Domain Selection**: Use low-cost TLDs (like `.site` or `.me`) via registrars like **Spaceship** or **Porkbun** to keep your yearly overhead under **$2.00**.
 4.  **Review Backup Storage**: Frontend S3 bucket versioning is enabled; DynamoDB point-in-time recovery is not configured in the current Terraform. Review retained versions and backups for storage costs.
 5.  **Avoid Customer Managed KMS Keys (CMKs)**: Each CMK costs $1.00/month regardless of usage. Use free AWS-managed alternatives: `AES256` for S3, `alias/aws/sns` for SNS, `sqs_managed_sse_enabled` for SQS.
-6.  **Purge Guest Cognito Accounts**: Guest shadow accounts (`guest-*@cricscore.local`) each count as 1 Cognito MAU/month. Use the Admin Panel or AI Chat (`delete all guest users`) to remove stale accounts before they accumulate.
+6.  **Purge Guest Cognito Accounts**: Guest shadow accounts (`guest-*@cricscore.local`) each count as 1 Cognito MAU/month. Use the Match Ops Admin Panel (`Purge Guest Accounts`) to remove stale accounts before they accumulate.
 7.  **Match Backup Size**: S3 match backup snapshots are small (~5–15KB each) but grow over time. The Admin Panel cleanup also removes match records; pair it with periodic S3 lifecycle rules if needed.
 
-## ⚖️ Total Monthly Estimated Cost
+## ⚖️ Total Monthly Estimated Cost Breakdown
 
-- **Small-to-Medium Tournaments**: **~$0.66** (Route 53 + Amortized Domain Registration).
-- **AI Chatbot Usage**: **~$0.40** per 1,000 user questions (billed directly by OpenAI).
-- **Large-scale Public Launch**: **$10.00 - $25.00** (Only if you require high-availability RDS).
-- **Cognito**: **$0/month** for ≤50,000 MAUs. Scales to ~$275/mo at 100,000 MAUs (enterprise territory).
+| Component                         | Service Provider         |    Monthly Cost    | Free-Tier Allowance / Details                                                 |
+| --------------------------------- | ------------------------ | :----------------: | ----------------------------------------------------------------------------- |
+| **Serverless Compute**            | AWS Lambda (9 functions) |     **$0.00**      | 1M free requests + 400,000 GB-seconds/mo (covers ~1,388 full matches)         |
+| **Real-Time WebSockets**          | AWS API Gateway          |     **$0.00**      | 1M free messages + 750,000 connection minutes/mo                              |
+| **Relational Database & Vectors** | Aiven PostgreSQL 16      |     **$0.00**      | Free tier includes 1 CPU, 1GB RAM, 1GB disk with `pgvector` (~20,000 matches) |
+| **Static App Hosting & CDN**      | AWS S3 & CloudFront      |     **$0.00**      | S3: 5GB free storage; CloudFront: 1TB free data transfer out/mo               |
+| **WebSocket Connection Tracking** | AWS DynamoDB             |     **$0.00**      | Pay-Per-Request with 25GB free storage & 2.5M reads/writes                    |
+| **Event Fan-Out & Buffering**     | AWS SNS & SQS FIFO       |     **$0.00**      | 1M free publishes/mo; SQS FIFO buffer handles live score surges               |
+| **Container Image Registry**      | AWS ECR (`ml-predict`)   |     **$0.00**      | 500 MB free private repository storage/mo (image is ~240MB)                   |
+| **User Identity & Auth**          | AWS Cognito User Pool    |     **$0.00**      | Free for ≤50,000 MAUs/month (both regular and guest users)                    |
+| **Observability & Logs**          | AWS CloudWatch & X-Ray   |     **$0.00**      | 5GB free log ingestion (7-day retention) + 100k free X-Ray traces             |
+| **Match PDF Email Reports**       | AWS SES                  |     **$0.00**      | 62,000 free emails/mo when sent from Lambda                                   |
+| **MLOps Pipeline & Registry**     | Local Git, DVC & MLflow  |     **$0.00**      | Zero cloud tracking fees (runs locally in `.venv` and GitHub Actions)         |
+| **DNS Routing**                   | AWS Route 53 Hosted Zone |     **$0.50**      | Fixed $0.50/month per hosted zone for custom domain routing                   |
+| **Custom Domain Registration**    | Spaceship / Porkbun      |     **~$0.16**     | Amortized (~$2.00/year for `.site` / `.me`, ~$10/yr for `.com`)               |
+| **AI Chat & SQL Agent**           | OpenAI (`gpt-4o-mini`)   |     **~$0.40**     | Pay-as-you-go (~$0.0004 per query; ~$0.40 per 1,000 questions)                |
+| **TOTAL MONTHLY OPERATING COST**  |                          | **~$1.06 / month** | **Complete production platform for ~$1/month**                                |
