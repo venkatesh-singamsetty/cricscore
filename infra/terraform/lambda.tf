@@ -209,6 +209,7 @@ module "chat_api" {
     LLM_BASE_URL         = var.llm_base_url
     LLM_MODEL            = var.llm_model
     COGNITO_USER_POOL_ID = aws_cognito_user_pool.pool.id
+    ADMIN_REPORT_EMAIL   = var.admin_email
     FRONTEND_URL         = "https://${var.domain_name}"
   }
 }

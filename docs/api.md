@@ -24,9 +24,9 @@ CricScore provides a RESTful interface for scoring actions and a real-time WebSo
 | `/match/predict`            | `POST`          | Request a win prediction                   | None                                       |
 | `/chat`                     | `POST`          | AI chat                                    | None                                       |
 | `/chat/summary`             | `POST`          | Generate or retrieve a match summary       | None                                       |
-| `/rules`                    | `GET`           | List rule documents                        | None                                       |
-| `/rules`                    | `DELETE`        | Delete a rule document                     | None                                       |
-| `/rules/upload`             | `POST`          | Upload and embed a PDF rule document       | None                                       |
+| `/rules`                    | `GET`           | List rule documents                        | Cognito JWT + Admin group (server-checked) |
+| `/rules`                    | `DELETE`        | Delete a rule document                     | Cognito JWT + Admin group (server-checked) |
+| `/rules/upload`             | `POST`          | Upload and embed a PDF rule document       | Cognito JWT + Admin group (server-checked) |
 | `/admin/users`              | `GET`           | List Cognito users                         | Cognito JWT; admin checked by Lambda       |
 | `/admin/users`              | `DELETE`        | Delete a Cognito user                      | Cognito JWT; admin checked by Lambda       |
 | `/admin/users/roles`        | `POST`/`DELETE` | Add or remove a user role                  | Cognito JWT; admin checked by Lambda       |
@@ -34,7 +34,7 @@ CricScore provides a RESTful interface for scoring actions and a real-time WebSo
 | `/admin/matches/guests`     | `DELETE`        | Delete guest matches                       | Cognito JWT; admin checked by Lambda       |
 | `/admin/matches/incomplete` | `DELETE`        | Delete incomplete matches                  | Cognito JWT; admin checked by Lambda       |
 
-> **Authorization note:** These entries reflect API Gateway route authorizer settings. Routes marked `None` do not require a JWT at API Gateway. In particular, `/chat` receives an `isAdmin` value from the request body, which the chat handler uses to expose destructive MCP tools; this value is not validated against a Cognito claim. `/chat/summary` can also invoke the LLM without a JWT, and `/rules/upload` and `DELETE /rules` are not protected by the API Gateway authorizer. Do not treat these chat or rule-management routes as admin-protected based only on frontend UI visibility.
+> **Authorization note:** Routes marked `None` do not require a JWT at API Gateway. `/chat` is open so guests can chat, but it is strictly read-only: the request-body `isAdmin` value is ignored and no destructive tools are registered (see `docs/security_fixes.md`). `/chat/summary` can still invoke the LLM without a JWT. Rulebook management routes require a Cognito JWT **and** the `Admin` group (or `ADMIN_REPORT_EMAIL`), re-checked server-side in `chat-api`.
 
 ---
 
