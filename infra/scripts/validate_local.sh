@@ -133,3 +133,20 @@ echo ""
 echo "-----------------------------------"
 echo "✅ All local validations passed! You are safe to push."
 echo "-----------------------------------"
+
+# Record receipt in .git directory to avoid duplicate pre-push runs
+if [ -d "$REPO_ROOT/.git" ]; then
+  HASH_CMD=""
+  if command -v sha256sum >/dev/null 2>&1; then
+    HASH_CMD="sha256sum"
+  elif command -v shasum >/dev/null 2>&1; then
+    HASH_CMD="shasum -a 256"
+  fi
+
+  if [ -n "$HASH_CMD" ]; then
+    TREE_HASH="$(git rev-parse HEAD 2>/dev/null || echo "no-head")"
+    STATUS_HASH="$(git status --porcelain | $HASH_CMD | awk '{print $1}')"
+    echo "${TREE_HASH}:${STATUS_HASH}" > "$REPO_ROOT/.git/.local_validation_receipt"
+  fi
+fi
+

@@ -22,6 +22,34 @@ CHAT_API_URL=https://api.example.com npm run test:all
 
 ---
 
+## ⚡ Full Local Pre-Push Validation & Smart Hook Caching
+
+Before pushing code, run the unified local validation script:
+
+```bash
+./infra/scripts/validate_local.sh --skip-e2e
+```
+
+This executes the entire local test battery in sequence:
+
+1. **Frontend**: Lint (`tsc --noEmit`), unit & integration tests (`vitest`), high-severity npm audit, and Vite production build.
+2. **Backend**: Unit tests (`vitest`) and npm audit across Lambdas.
+3. **Python AI & ML**: Pytest suites for `apps/ai-service` and `apps/ml-engine`.
+4. **Infrastructure**: Terraform format & validation, and platform dashboard generation.
+5. **Security & SBOM**: Checkov IaC scanning, GitLeaks secrets detection, Trivy vulnerability scanning, and Syft SBOM generation.
+
+### Zero-Waste Pre-Push Git Hook
+
+To prevent duplicate test execution and wasted developer time, `validate_local.sh` records a cryptographically signed state receipt (`.git/.local_validation_receipt`) matching the current commit and working tree state.
+
+- When `git push` runs, the `.husky/pre-push` hook verifies if the current tree state already passed validation.
+- If already validated, the hook exits instantly (**< 0.1s**) with:
+  `⚡ Local validation already passed for <commit>. Skipping duplicate tests!`
+- If uncommitted changes exist or validation was not run, `pre-push` executes the validation automatically as a safety gate.
+- To bypass manually if needed, push with `git push --no-verify` or set `SKIP_PRE_PUSH=1 git push`.
+
+---
+
 ## 1. Unit Tests
 
 Unit tests are isolated tests that verify individual functions, utilities, or background cloud logic without spinning up external dependencies.

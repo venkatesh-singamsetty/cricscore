@@ -17,6 +17,7 @@ description: Use when preparing a CricScore branch or pull request, selecting lo
    - Ensure no `.env`, `.env.local`, `__pycache__/`, `*.pyc`, `venv/`, or temporary test screenshots (`*.png` in `apps/e2e/`) are tracked or staged.
 4. **Run Full Local Validation Before Pushing**:
    - Run `./infra/scripts/validate_local.sh --skip-e2e` for fast pre-push verification (Frontend lint, Vitest, `npm audit`, Vite build, Backend Vitest, Backend `npm audit`, Terraform `fmt` & `validate`, Checkov, GitLeaks, Trivy, Syft SBOM).
+   - Validation automatically leaves a cached receipt in `.git/.local_validation_receipt` keyed to current commit and tree status. Git's `.husky/pre-push` checks this receipt and skips duplicate re-runs instantly (<0.1s) when pushing, avoiding redundant test runs.
    - When UI flows, selectors, or APIs change, deploy to `dev` first and run Playwright E2E against `dev` (`cd apps/e2e && npx playwright test --reporter=list`) so `CI` on `main` never fails or hangs.
    - When `apps/ml-engine/` changes, run `./apps/ml-engine/venv/bin/pytest apps/ml-engine/test_predict.py`.
 

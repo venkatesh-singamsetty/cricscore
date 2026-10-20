@@ -2,6 +2,12 @@
 
 ### 🛠️ Unified Platform & Artifacts Dashboard Automation
 
+- **Pre-Push Validation Caching & Duplicate Test Elimination**:
+  - Implemented smart state receipt verification in `.husky/pre-push` and `infra/scripts/validate_local.sh`.
+  - When full local validation passes, a SHA-256 state receipt is stored in `.git/.local_validation_receipt` combining HEAD commit and working tree status.
+  - Subsequent `git push` runs verify this receipt in `< 0.1s` and skip duplicate test execution, saving 1–2 minutes per push while preserving safety guards when working tree changes.
+  - Added support for explicit bypass via `SKIP_PRE_PUSH=1` or `git push --no-verify`.
+
 - **Unified Platform Dashboard (`generate_platform_dashboard.py` & `.sh`)**:
   - Replaced the AWS-only dashboard with a unified, all-encompassing **Central Platform Dashboard** ([`docs/platform_dashboard.md`](./platform_dashboard.md)).
   - **GitHub Repository Level Architecture & Inventory**:

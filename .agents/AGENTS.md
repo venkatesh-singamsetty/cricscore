@@ -29,7 +29,7 @@
 
 - **Never push directly to `main`**: Always work on a `feat/*` or `fix/*` branch and open a Pull Request.
 - **Always sync with `origin/main` before pushing**: Run `git fetch origin main && git merge origin/main` before pushing or opening/updating a PR so the branch is never out-of-date with `main`.
-- **Validate locally before pushing**: Always run `./infra/scripts/validate_local.sh` (and `./apps/ml-engine/venv/bin/pytest apps/ml-engine/test_predict.py` for ML changes) locally before pushing. Never use GitHub Actions for trial-and-error debugging.
+- **Validate locally before pushing**: Run `./infra/scripts/validate_local.sh` (and `./apps/ml-engine/venv/bin/pytest apps/ml-engine/test_predict.py` for ML changes) locally before pushing. Local validation writes a state receipt to `.git/.local_validation_receipt`, so `.husky/pre-push` detects this and skips duplicate execution instantly (<0.1s) on `git push`. Never use GitHub Actions for trial-and-error debugging.
 - **Post-PR Check & CodeQL Resolution**: After pushing or opening a PR, inspect GitHub Actions status (`gh pr checks`) and inline review/CodeQL comments (`gh api repos/venkatesh-singamsetty/cricscore/pulls/<PR>/comments`) and resolve any findings immediately.
 
 ## 4. Testing & Documentation Completeness
