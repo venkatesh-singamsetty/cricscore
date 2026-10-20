@@ -237,6 +237,18 @@ CHAT_API_URL='<http_api_url>' npm run test:all
 
 ---
 
+## Central Resources & Artifacts Dashboard
+
+After any dev or prod deployment, `./infra/scripts/deploy.sh` automatically refreshes the central dashboard by running `./infra/scripts/generate_aws_dashboard.sh`. This script inspects live Terraform state from S3, ECR container image digests, ML model metrics, and Aiven PostgreSQL schemas to generate [`docs/aws_resources_dashboard.md`](./aws_resources_dashboard.md).
+
+You can also run it manually at any time to refresh all direct AWS console deep links and artifact pointers:
+
+```bash
+./infra/scripts/generate_aws_dashboard.sh
+```
+
+---
+
 ## Troubleshooting
 
 See [troubleshooting.md](./troubleshooting.md) for solutions to common issues.

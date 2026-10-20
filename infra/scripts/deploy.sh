@@ -252,7 +252,11 @@ if [ -n "$DIST_ID" ]; then
     aws cloudfront create-invalidation --distribution-id $DIST_ID --paths "/*" --no-cli-pager
 fi
 
-# 7. Success message
+# 7. Refresh Central AWS & Artifacts Dashboard
+echo "📝 Refreshing Central AWS & Artifacts Dashboard..."
+(cd ../.. && ./infra/scripts/generate_aws_dashboard.sh) || echo "⚠️ Dashboard generation skipped or failed (non-blocking)."
+
+# 8. Success message
 WEBSITE_URL=$(terraform output -raw website_url)
 echo "--------------------------------------------------------"
 echo "✅ DEPLOYMENT SUCCESSFUL!"

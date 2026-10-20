@@ -1,5 +1,23 @@
 ## [4.12.0] (2026-10-20)
 
+### 🛠️ Central Resources & Artifacts Dashboard Automation
+
+- **Automated Central Dashboard (`generate_aws_dashboard.py` & `.sh`)**:
+  - Rebuilt the dashboard generator into an automated, zero-manual-effort single-pane-of-glass script.
+  - Dynamically inspects Terraform remote state in S3 (`cricscore/dev` and `cricscore/prod`), ECR container image digests, ML model metrics, and Aiven PostgreSQL schemas to generate [`docs/aws_resources_dashboard.md`](./aws_resources_dashboard.md).
+  - Generates direct AWS Console deep links for both **Development** and **Production**:
+    - CloudFront distributions (`E1K3FWDNEXFSL0` dev, `E3FVVHMKMZ5G5O` prod)
+    - S3 buckets (static hosting, match backups, CloudFront access logs, Terraform state)
+    - HTTP and WebSocket API Gateways with direct route editor links
+    - Cognito User Pools and user management consoles
+    - DynamoDB connection tables and item explorer
+    - SQS FIFO queues and SNS topic links
+    - ECR repositories with latest image tag digests, sizes, and push timestamps
+    - All 9 Serverless Lambdas with direct links to Function Console and CloudWatch log groups
+  - Centralizes ML champion model details (`v2.2.0-xgboost`, 7 features, validation/test metrics, DVC dataset tracking, MLflow runs), database tables and HNSW vector index schemas, and security/SBOM CI/CD artifacts.
+  - Integrated into `./infra/scripts/deploy.sh` so deployments automatically refresh the dashboard without manual effort.
+  - Added dashboard validation step to `./infra/scripts/validate_local.sh`.
+
 ### 🚀 MLOps & Machine Learning Suite Evolution
 
 - **XGBoost Integration & Model Promotion (`v2.2.0`)**:
