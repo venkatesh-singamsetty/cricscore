@@ -1,7 +1,5 @@
 import json
-import os
 import pytest
-import pandas as pd
 
 import predict
 _real_load_artifacts = predict.load_artifacts

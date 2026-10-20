@@ -1,4 +1,3 @@
-import os
 import urllib.request
 import zipfile
 import json
@@ -94,7 +93,6 @@ def parse_matches():
                 legal_balls = 0
                 
                 for over_data in inning.get('overs', []):
-                    over_num = over_data.get('over', 0)
                     for delivery in over_data.get('deliveries', []):
                         runs = delivery.get('runs', {}).get('total', 0)
                         is_wicket = len(delivery.get('wickets', [])) > 0
