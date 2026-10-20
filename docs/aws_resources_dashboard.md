@@ -1,20 +1,84 @@
-# 🛠️ CricScore Platform, AWS & Artifacts Dashboard
+# 🛠️ CricScore Unified Platform & Artifacts Dashboard
 
-A central single-pane-of-glass directory providing direct UI links, exact resource IDs, container images, ML model artifacts, database vector schemas, and security scan reports for both **Development** and **Production** environments.
+A central single-pane-of-glass directory providing live references across all layers of the CricScore platform: GitHub repository architecture, variables, secrets, actions, build artifacts, serverless infrastructure, container images, machine learning models, database vector schemas, and security reports.
 
-> **Automated Directory**: Active resource inventory for AWS Account `926789386606` (`us-east-1`). To refresh, run `./infra/scripts/generate_aws_dashboard.sh`.
+> **Automated Directory**: Active resource inventory for `venkatesh-singamsetty/cricscore` across AWS Account `926789386606` (`us-east-1`) and Aiven Cloud. To refresh, run `./infra/scripts/generate_platform_dashboard.sh`.
 
 ---
 
 ## 📌 Quick Navigation
 
+- [🐙 GitHub Repository Resources, Actions, Vars & Secrets](#-github-repository-resources-actions-vars--secrets)
 - [🟢 Development Environment](#-development-dev)
 - [🔵 Production Environment](#-production-prod)
-- [🤖 ML Models & Container Images](#-ml-models-container-images--mlops-registry)
+- [🤖 ML Models, Container Images & MLOps Registry](#-ml-models-container-images--mlops-registry)
 - [🗄️ Database, Vectors & RAG Architecture](#-database-vectors--rag-architecture-aiven-postgresql)
 - [📦 Storage & S3 Buckets](#-storage-s3-buckets--terraform-state)
 - [🛡️ Security Posture, SBOM & CI/CD Scans](#-security-posture-sbom--cicd-scans)
 - [📊 Observability, Traces & Alarms](#-observability-tracing--alarms-aws-x-ray--cloudwatch)
+
+---
+
+## 🐙 GitHub Repository Resources, Actions, Vars & Secrets
+
+- **GitHub Repository**: [`venkatesh-singamsetty/cricscore`](https://github.com/venkatesh-singamsetty/cricscore)
+- **Default Branch**: `main` (Protected; all changes merge via pull requests)
+- **Active Feature Branch**: `feat/python-ai-service`
+- **GitHub Environments**: [`dev`](https://github.com/venkatesh-singamsetty/cricscore/deployments/activity_log?environment=dev) and [`prod`](https://github.com/venkatesh-singamsetty/cricscore/deployments/activity_log?environment=prod)
+- **Releases & Version Tags**: [`GitHub Releases`](https://github.com/venkatesh-singamsetty/cricscore/releases) (Automated semantic versioning via `semantic-release`)
+
+### ⚙️ GitHub Actions Workflow Catalog
+
+| Workflow Name                      | File                                 | Trigger Events                       | Primary Responsibilities                                                                                | Direct Console Link                                                                                    |
+| ---------------------------------- | ------------------------------------ | ------------------------------------ | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| **CI (Continuous Integration)**    | `.github/workflows/ci.yml`           | Pull requests, push to `main`        | 4 validation suites: Security, Frontend, Backend, Python AI/ML; deploys and tests `dev` on `main` merge | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/ci.yml)           |
+| **CD (Continuous Delivery)**       | `.github/workflows/cd.yml`           | Release published (`v*`)             | Production deployment, Playwright E2E against Prod, OWASP ZAP baseline scan                             | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/cd.yml)           |
+| **Semantic Release**               | `.github/workflows/release.yml`      | CI success on `main`                 | Analyzes conventional commits, cuts next `v*` tag, publishes release notes & updates changelog          | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/release.yml)      |
+| **CodeQL SAST Analysis**           | `.github/workflows/codeql.yml`       | PRs, push to `main`, weekly schedule | Multi-language static application security testing (JS/TS & Python)                                     | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/codeql.yml)       |
+| **Generate SBOM**                  | `.github/workflows/sbom.yml`         | Nightly / release                    | Generates Syft Software Bill of Materials in SPDX JSON format (`spdx-json` artifact)                    | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/sbom.yml)         |
+| **MLOps Pipeline (Win Predictor)** | `.github/workflows/mlops.yml`        | Changes in `apps/ml-engine/**`       | Model benchmark evaluation, XGBoost champion verification, container build & ECR push                   | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/mlops.yml)        |
+| **Terraform Drift Detection**      | `.github/workflows/drift-check.yml`  | Daily schedule                       | Verifies Terraform state synchronization with AWS resources                                             | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/drift-check.yml)  |
+| **Database Keep-Alive**            | `.github/workflows/db-keepalive.yml` | Scheduled (every 4 hrs)              | Sends ping query to prevent Aiven PostgreSQL free service hibernation                                   | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/db-keepalive.yml) |
+| **Terraform Force Unlock**         | `.github/workflows/unlock.yml`       | Manual `workflow_dispatch`           | Emergency administrative release of stuck S3 backend locks                                              | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/unlock.yml)       |
+| **Dependabot Updates**             | `.github/dependabot.yml`             | Scheduled / auto                     | Automated security PRs for npm, pip, and GitHub Actions dependencies                                    | [Open Dependabot](https://github.com/venkatesh-singamsetty/cricscore/security/dependabot)              |
+
+### 📋 GitHub Repository Variables (`vars.*`)
+
+| Variable Name      | Expected Value / Format              | Injection Scope     | Description                                                          |
+| ------------------ | ------------------------------------ | ------------------- | -------------------------------------------------------------------- |
+| `AWS_REGION`       | `us-east-1`                          | CI, CD, Workflows   | Target AWS deployment region (defaults to `us-east-1`)               |
+| `DOMAIN_NAME`      | `cricscore.venkateshsingamsetty.com` | CI, CD, Terraform   | Production primary domain name                                       |
+| `ZONE_DOMAIN`      | `venkateshsingamsetty.com`           | CI, CD, Terraform   | Route 53 apex hosted zone domain                                     |
+| `PROJECT_NAME`     | `cricscore`                          | CI, CD, Terraform   | Root project prefix for AWS resources (`cricscoredev` / `cricscore`) |
+| `SUBDOMAIN_PREFIX` | `cricscore`                          | CI, CD, Terraform   | Subdomain prefix for custom domains                                  |
+| `TF_STATE_BUCKET`  | `venky-2026-terraform-state`         | CI, CD, Terraform   | Global S3 bucket storing remote Terraform state                      |
+| `ADMIN_EMAIL`      | Scorer admin email                   | Terraform, Cognito  | Root administrator email pre-assigned to the Admin group             |
+| `LLM_MODEL`        | `gpt-4o-mini`                        | AI Service, Lambdas | Model identifier used for cricket chat assistant                     |
+| `LLM_BASE_URL`     | Optional URL                         | AI Service, Lambdas | Custom endpoint override for OpenAI-compatible providers             |
+
+### 🔒 GitHub Repository Secrets Inventory (`secrets.*`)
+
+> [!NOTE]
+> In compliance with CricScore Security Standards, only secret metadata and purposes are documented here. Secret values are injected directly into GitHub Actions runners and backend Lambda environments, never exposed to clients or checked into source code.
+
+| Secret Identifier         | Consumed By           | Purpose & Security Isolation                                                                             | Presence & Verification                                                                               |
+| ------------------------- | --------------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `AWS_ACCESS_KEY_ID`       | CI, CD, Drift Check   | IAM access key used by GitHub Actions runners for Terraform apply and S3/CloudFront sync.                | [GitHub Secrets Console](https://github.com/venkatesh-singamsetty/cricscore/settings/secrets/actions) |
+| `AWS_SECRET_ACCESS_KEY`   | CI, CD, Drift Check   | IAM secret access key paired with `AWS_ACCESS_KEY_ID`.                                                   | [GitHub Secrets Console](https://github.com/venkatesh-singamsetty/cricscore/settings/secrets/actions) |
+| `AWS_ROLE_ARN`            | CI, CD (Optional)     | IAM Role ARN for GitHub Actions OIDC federation (eliminates long-lived access keys).                     | [GitHub Secrets Console](https://github.com/venkatesh-singamsetty/cricscore/settings/secrets/actions) |
+| `TF_DATABASE_URL`         | CI (Migrate), Lambdas | Aiven PostgreSQL connection URI (`postgres://...sslmode=require`). Injected solely into backend Lambdas. | [GitHub Secrets Console](https://github.com/venkatesh-singamsetty/cricscore/settings/secrets/actions) |
+| `TF_SES_SOURCE_EMAIL`     | Terraform, Match API  | Verified sender email for post-match score report delivery.                                              | [GitHub Secrets Console](https://github.com/venkatesh-singamsetty/cricscore/settings/secrets/actions) |
+| `OPENAI_API_KEY`          | Chat API, AI Service  | API key for OpenAI `gpt-4o-mini` conversational assistant. Bounded to 600 max tokens/turn.               | [GitHub Secrets Console](https://github.com/venkatesh-singamsetty/cricscore/settings/secrets/actions) |
+| `GH_PAT` / `GITHUB_TOKEN` | Semantic Release      | GitHub Personal Access Token or workflow token with `contents: write` to publish releases and Git tags.  | Managed by GitHub                                                                                     |
+
+### 📦 GitHub Pipeline & Build Artifacts
+
+- **Software Bill of Materials (SPDX JSON)**: Downloadable artifact `spdx-json` on every run of [`Generate SBOM`](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/sbom.yml).
+- **CodeQL Analysis Databases & SARIF Reports**: Available under [`Security → Code scanning`](https://github.com/venkatesh-singamsetty/cricscore/security/code-scanning).
+- **Trivy Container & Dependency Scan Reports**: Emitted in the CI step log output of [`ci.yml`](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/ci.yml).
+- **GitLeaks Secrets Scan Audit**: Logged on every PR commit in [`ci.yml`](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/ci.yml).
+- **Playwright E2E Test Reports**: Generated on deployment runs in [`ci.yml`](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/ci.yml) and [`cd.yml`](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/cd.yml).
+- **Semantic Release Changelog**: Automatically published in [`docs/changelog.md`](file:///Users/venkat/workspace/gitRepos/cricscore/docs/changelog.md) and [`GitHub Releases`](https://github.com/venkatesh-singamsetty/cricscore/releases).
 
 ---
 
@@ -204,14 +268,6 @@ A central single-pane-of-glass directory providing direct UI links, exact resour
 - [**Checkov IaC Scanner**](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/ci.yml): Terraform configuration security checks (0 failed checks enforced).
 - [**Syft SBOM Pipeline**](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/sbom.yml): Software Bill of Materials (available as downloadable artifact `spdx-json`).
 - [**OWASP ZAP Dynamic Scanner (DAST)**](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/ci.yml): Automated baseline web app security scanning on dev deployments.
-
-### Pipeline Workflows
-
-- [**CI Pipeline (`ci.yml`)**](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/ci.yml): 4 PR verification suites (Security, Frontend, Backend, Python AI/ML).
-- [**Deploy Dev Pipeline (`deploy-dev.yml`)**](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/deploy-dev.yml): Continuous deployment to `dev` environment.
-- [**Deploy Prod Pipeline (`deploy-prod.yml`)**](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/deploy-prod.yml): Verified deployment to `prod` environment.
-- [**CodeQL Analysis (`codeql.yml`)**](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/codeql.yml): Multi-language SAST scans.
-- [**Open GitHub Issues**](https://github.com/venkatesh-singamsetty/cricscore/issues?q=is%3Aissue+is%3Aopen): Active defect and enhancement tracking.
 
 ---
 

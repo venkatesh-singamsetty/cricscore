@@ -1,8 +1,8 @@
 #!/usr/bin/env sh
 
-echo "📄 Auto-generating AWS Resources Dashboard..."
-bash infra/scripts/generate_aws_dashboard.sh
-git add docs/aws_resources_dashboard.md
+echo "📄 Auto-generating Central Platform Dashboard..."
+bash infra/scripts/generate_platform_dashboard.sh
+git add docs/platform_dashboard.md docs/aws_resources_dashboard.md
 
 echo "💅 Formatting code..."
 npx lint-staged

@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """
-CricScore Central Resources & Artifacts Dashboard Generator
-Generates docs/aws_resources_dashboard.md with live references for Dev and Prod:
-- Web & API Endpoints
-- CloudFront Distributions, S3 Buckets & Backups
-- Serverless Lambdas & CloudWatch Logs
-- ECR Container Images, Digests & Tags
-- ML Models, Metrics & Registry Artifacts
-- Aiven PostgreSQL & Vector Store Schemas
-- DynamoDB, SQS FIFO & SNS Event Topics
+CricScore Central Platform & Artifacts Dashboard Generator
+Generates docs/platform_dashboard.md with live references across the entire stack:
+- Web & API Endpoints (Dev & Prod)
+- CloudFront CDN, S3 Buckets & Match Backups
+- Serverless Lambdas (Node.js & Docker Python) & CloudWatch Logs
+- ECR Container Images, Digests & Sizes
+- ML Models (XGBoost v2.2.0), Metrics & Registry Artifacts
+- Aiven PostgreSQL 16 & pgvector RAG Knowledge Store
+- GitHub Repository Level Resources, Workflows, Vars, Secrets & Artifacts
+- DynamoDB, SQS FIFO & SNS Event Queues
 - Security Posture & CI/CD SBOM Artifacts
 """
 
@@ -52,7 +53,7 @@ except Exception:
     ACCOUNT_ID = "926789386606"  # fallback known CricScore AWS account
 
 if not STATE_BUCKET and ACCOUNT_ID:
-    STATE_BUCKET = f"venky-2026-terraform-state"
+    STATE_BUCKET = "venky-2026-terraform-state"
 
 def get_github_repo():
     repo = os.environ.get("GITHUB_REPOSITORY", "")
@@ -76,8 +77,7 @@ def get_github_repo():
 GITHUB_REPO = get_github_repo()
 
 def get_terraform_state(env):
-    """Fetch terraform state from S3 or local cache."""
-    # 1. Try S3 state
+    """Fetch terraform state from S3."""
     if STATE_BUCKET:
         try:
             out = subprocess.check_output(
@@ -124,7 +124,6 @@ def get_ecr_latest(repo_name):
             "size_mb": round(img.get("imageSizeInBytes", 0) / (1024 * 1024), 2)
         }
     except Exception:
-        # Fallback values for dev and prod if CLI is unreachable
         if "dev" in repo_name:
             return {
                 "digest": "sha256:359dff98d3c287b4ef4a4cc411e5fb7a769a86f401c5a364e1151459703ab5c5",
@@ -139,7 +138,6 @@ def get_ecr_latest(repo_name):
             }
 
 def get_ml_metadata():
-    """Load ML model manifest and live metadata."""
     manifest_path = REPO_ROOT / "apps" / "ml-engine" / "model_manifest.json"
     live_meta_path = REPO_ROOT / "apps" / "ml-engine" / "live_metadata.json"
     manifest = {}
@@ -151,7 +149,6 @@ def get_ml_metadata():
     return manifest, live_meta
 
 def get_db_info():
-    """Extract Aiven DB host and database name safely."""
     url = get_config_val("TF_DATABASE_URL", "")
     if not url:
         return "cricscore-db-venky-cric-score.b.aivencloud.com", "17727", "defaultdb"
@@ -162,7 +159,6 @@ def get_db_info():
         return "cricscore-db-venky-cric-score.b.aivencloud.com", "17727", "defaultdb"
 
 def get_lambda_names():
-    """Extract lambda suffixes from lambda.tf."""
     tf_file = REPO_ROOT / "infra" / "terraform" / "lambda.tf"
     if not tf_file.exists():
         return [
@@ -186,7 +182,6 @@ LAMBDA_LIST = get_lambda_names()
 ML_MANIFEST, ML_LIVE_META = get_ml_metadata()
 DB_HOST, DB_PORT, DB_NAME = get_db_info()
 
-# Helper for resolving resources
 def res_attr(res_dict, key, attr, fallback=""):
     return res_dict.get(key, {}).get(attr, fallback)
 
@@ -228,36 +223,90 @@ PROD_SNS_ALERTS = "cricscore-lambda-alerts"
 PROD_ECR_REPO = "cricscore-ml-predict"
 PROD_ECR_IMG = get_ecr_latest(PROD_ECR_REPO)
 
-def get_commit_info():
-    """Get latest commit date and short hash for idempotent document header."""
-    try:
-        out = subprocess.check_output(["git", "log", "-1", "--format=%cd (%h)", "--date=short"], stderr=subprocess.DEVNULL).decode().strip()
-        if out:
-            return out
-    except Exception:
-        pass
-    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
-
-GENERATED_VERSION = get_commit_info()
-
 def build_markdown():
     lines = []
-    lines.append("# 🛠️ CricScore Platform, AWS & Artifacts Dashboard")
+    lines.append("# 🛠️ CricScore Unified Platform & Artifacts Dashboard")
     lines.append("")
-    lines.append("A central single-pane-of-glass directory providing direct UI links, exact resource IDs, container images, ML model artifacts, database vector schemas, and security scan reports for both **Development** and **Production** environments.")
+    lines.append("A central single-pane-of-glass directory providing live references across all layers of the CricScore platform: GitHub repository architecture, variables, secrets, actions, build artifacts, serverless infrastructure, container images, machine learning models, database vector schemas, and security reports.")
     lines.append("")
-    lines.append(f"> **Automated Directory**: Active resource inventory for AWS Account `{ACCOUNT_ID}` (`{REGION}`). To refresh, run `./infra/scripts/generate_aws_dashboard.sh`.")
+    lines.append(f"> **Automated Directory**: Active resource inventory for `{GITHUB_REPO}` across AWS Account `{ACCOUNT_ID}` (`{REGION}`) and Aiven Cloud. To refresh, run `./infra/scripts/generate_platform_dashboard.sh`.")
     lines.append("")
     lines.append("---")
     lines.append("")
     lines.append("## 📌 Quick Navigation")
+    lines.append("- [🐙 GitHub Repository Resources, Actions, Vars & Secrets](#-github-repository-resources-actions-vars--secrets)")
     lines.append("- [🟢 Development Environment](#-development-dev)")
     lines.append("- [🔵 Production Environment](#-production-prod)")
-    lines.append("- [🤖 ML Models & Container Images](#-ml-models-container-images--mlops-registry)")
+    lines.append("- [🤖 ML Models, Container Images & MLOps Registry](#-ml-models-container-images--mlops-registry)")
     lines.append("- [🗄️ Database, Vectors & RAG Architecture](#-database-vectors--rag-architecture-aiven-postgresql)")
     lines.append("- [📦 Storage & S3 Buckets](#-storage-s3-buckets--terraform-state)")
     lines.append("- [🛡️ Security Posture, SBOM & CI/CD Scans](#-security-posture-sbom--cicd-scans)")
     lines.append("- [📊 Observability, Traces & Alarms](#-observability-tracing--alarms-aws-x-ray--cloudwatch)")
+    lines.append("")
+    lines.append("---")
+    lines.append("")
+
+    # GITHUB REPO LEVEL RESOURCES SECTION
+    lines.append("## 🐙 GitHub Repository Resources, Actions, Vars & Secrets")
+    lines.append("")
+    lines.append(f"- **GitHub Repository**: [`{GITHUB_REPO}`](https://github.com/{GITHUB_REPO})")
+    lines.append(f"- **Default Branch**: `main` (Protected; all changes merge via pull requests)")
+    lines.append(f"- **Active Feature Branch**: `feat/python-ai-service`")
+    lines.append(f"- **GitHub Environments**: [`dev`](https://github.com/{GITHUB_REPO}/deployments/activity_log?environment=dev) and [`prod`](https://github.com/{GITHUB_REPO}/deployments/activity_log?environment=prod)")
+    lines.append(f"- **Releases & Version Tags**: [`GitHub Releases`](https://github.com/{GITHUB_REPO}/releases) (Automated semantic versioning via `semantic-release`)")
+    lines.append("")
+
+    lines.append("### ⚙️ GitHub Actions Workflow Catalog")
+    lines.append("| Workflow Name | File | Trigger Events | Primary Responsibilities | Direct Console Link |")
+    lines.append("|---|---|---|---|---|")
+    lines.append(f"| **CI (Continuous Integration)** | `.github/workflows/ci.yml` | Pull requests, push to `main` | 4 validation suites: Security, Frontend, Backend, Python AI/ML; deploys and tests `dev` on `main` merge | [Open Workflow](https://github.com/{GITHUB_REPO}/actions/workflows/ci.yml) |")
+    lines.append(f"| **CD (Continuous Delivery)** | `.github/workflows/cd.yml` | Release published (`v*`) | Production deployment, Playwright E2E against Prod, OWASP ZAP baseline scan | [Open Workflow](https://github.com/{GITHUB_REPO}/actions/workflows/cd.yml) |")
+    lines.append(f"| **Semantic Release** | `.github/workflows/release.yml` | CI success on `main` | Analyzes conventional commits, cuts next `v*` tag, publishes release notes & updates changelog | [Open Workflow](https://github.com/{GITHUB_REPO}/actions/workflows/release.yml) |")
+    lines.append(f"| **CodeQL SAST Analysis** | `.github/workflows/codeql.yml` | PRs, push to `main`, weekly schedule | Multi-language static application security testing (JS/TS & Python) | [Open Workflow](https://github.com/{GITHUB_REPO}/actions/workflows/codeql.yml) |")
+    lines.append(f"| **Generate SBOM** | `.github/workflows/sbom.yml` | Nightly / release | Generates Syft Software Bill of Materials in SPDX JSON format (`spdx-json` artifact) | [Open Workflow](https://github.com/{GITHUB_REPO}/actions/workflows/sbom.yml) |")
+    lines.append(f"| **MLOps Pipeline (Win Predictor)** | `.github/workflows/mlops.yml` | Changes in `apps/ml-engine/**` | Model benchmark evaluation, XGBoost champion verification, container build & ECR push | [Open Workflow](https://github.com/{GITHUB_REPO}/actions/workflows/mlops.yml) |")
+    lines.append(f"| **Terraform Drift Detection** | `.github/workflows/drift-check.yml` | Daily schedule | Verifies Terraform state synchronization with AWS resources | [Open Workflow](https://github.com/{GITHUB_REPO}/actions/workflows/drift-check.yml) |")
+    lines.append(f"| **Database Keep-Alive** | `.github/workflows/db-keepalive.yml` | Scheduled (every 4 hrs) | Sends ping query to prevent Aiven PostgreSQL free service hibernation | [Open Workflow](https://github.com/{GITHUB_REPO}/actions/workflows/db-keepalive.yml) |")
+    lines.append(f"| **Terraform Force Unlock** | `.github/workflows/unlock.yml` | Manual `workflow_dispatch` | Emergency administrative release of stuck S3 backend locks | [Open Workflow](https://github.com/{GITHUB_REPO}/actions/workflows/unlock.yml) |")
+    lines.append(f"| **Dependabot Updates** | `.github/dependabot.yml` | Scheduled / auto | Automated security PRs for npm, pip, and GitHub Actions dependencies | [Open Dependabot](https://github.com/{GITHUB_REPO}/security/dependabot) |")
+    lines.append("")
+
+    lines.append("### 📋 GitHub Repository Variables (`vars.*`)")
+    lines.append("| Variable Name | Expected Value / Format | Injection Scope | Description |")
+    lines.append("|---|---|---|---|")
+    lines.append(f"| `AWS_REGION` | `{REGION}` | CI, CD, Workflows | Target AWS deployment region (defaults to `us-east-1`) |")
+    lines.append("| `DOMAIN_NAME` | `cricscore.venkateshsingamsetty.com` | CI, CD, Terraform | Production primary domain name |")
+    lines.append("| `ZONE_DOMAIN` | `venkateshsingamsetty.com` | CI, CD, Terraform | Route 53 apex hosted zone domain |")
+    lines.append("| `PROJECT_NAME` | `cricscore` | CI, CD, Terraform | Root project prefix for AWS resources (`cricscoredev` / `cricscore`) |")
+    lines.append("| `SUBDOMAIN_PREFIX` | `cricscore` | CI, CD, Terraform | Subdomain prefix for custom domains |")
+    lines.append(f"| `TF_STATE_BUCKET` | `{STATE_BUCKET}` | CI, CD, Terraform | Global S3 bucket storing remote Terraform state |")
+    lines.append("| `ADMIN_EMAIL` | Scorer admin email | Terraform, Cognito | Root administrator email pre-assigned to the Admin group |")
+    lines.append("| `LLM_MODEL` | `gpt-4o-mini` | AI Service, Lambdas | Model identifier used for cricket chat assistant |")
+    lines.append("| `LLM_BASE_URL` | Optional URL | AI Service, Lambdas | Custom endpoint override for OpenAI-compatible providers |")
+    lines.append("")
+
+    lines.append("### 🔒 GitHub Repository Secrets Inventory (`secrets.*`)")
+    lines.append("> [!NOTE]")
+    lines.append("> In compliance with CricScore Security Standards, only secret metadata and purposes are documented here. Secret values are injected directly into GitHub Actions runners and backend Lambda environments, never exposed to clients or checked into source code.")
+    lines.append("")
+    lines.append("| Secret Identifier | Consumed By | Purpose & Security Isolation | Presence & Verification |")
+    lines.append("|---|---|---|---|")
+    lines.append("| `AWS_ACCESS_KEY_ID` | CI, CD, Drift Check | IAM access key used by GitHub Actions runners for Terraform apply and S3/CloudFront sync. | [GitHub Secrets Console](https://github.com/" + GITHUB_REPO + "/settings/secrets/actions) |")
+    lines.append("| `AWS_SECRET_ACCESS_KEY` | CI, CD, Drift Check | IAM secret access key paired with `AWS_ACCESS_KEY_ID`. | [GitHub Secrets Console](https://github.com/" + GITHUB_REPO + "/settings/secrets/actions) |")
+    lines.append("| `AWS_ROLE_ARN` | CI, CD (Optional) | IAM Role ARN for GitHub Actions OIDC federation (eliminates long-lived access keys). | [GitHub Secrets Console](https://github.com/" + GITHUB_REPO + "/settings/secrets/actions) |")
+    lines.append("| `TF_DATABASE_URL` | CI (Migrate), Lambdas | Aiven PostgreSQL connection URI (`postgres://...sslmode=require`). Injected solely into backend Lambdas. | [GitHub Secrets Console](https://github.com/" + GITHUB_REPO + "/settings/secrets/actions) |")
+    lines.append("| `TF_SES_SOURCE_EMAIL` | Terraform, Match API | Verified sender email for post-match score report delivery. | [GitHub Secrets Console](https://github.com/" + GITHUB_REPO + "/settings/secrets/actions) |")
+    lines.append("| `OPENAI_API_KEY` | Chat API, AI Service | API key for OpenAI `gpt-4o-mini` conversational assistant. Bounded to 600 max tokens/turn. | [GitHub Secrets Console](https://github.com/" + GITHUB_REPO + "/settings/secrets/actions) |")
+    lines.append("| `GH_PAT` / `GITHUB_TOKEN` | Semantic Release | GitHub Personal Access Token or workflow token with `contents: write` to publish releases and Git tags. | Managed by GitHub |")
+    lines.append("")
+
+    lines.append("### 📦 GitHub Pipeline & Build Artifacts")
+    lines.append(f"- **Software Bill of Materials (SPDX JSON)**: Downloadable artifact `spdx-json` on every run of [`Generate SBOM`](https://github.com/{GITHUB_REPO}/actions/workflows/sbom.yml).")
+    lines.append(f"- **CodeQL Analysis Databases & SARIF Reports**: Available under [`Security → Code scanning`](https://github.com/{GITHUB_REPO}/security/code-scanning).")
+    lines.append(f"- **Trivy Container & Dependency Scan Reports**: Emitted in the CI step log output of [`ci.yml`](https://github.com/{GITHUB_REPO}/actions/workflows/ci.yml).")
+    lines.append(f"- **GitLeaks Secrets Scan Audit**: Logged on every PR commit in [`ci.yml`](https://github.com/{GITHUB_REPO}/actions/workflows/ci.yml).")
+    lines.append(f"- **Playwright E2E Test Reports**: Generated on deployment runs in [`ci.yml`](https://github.com/{GITHUB_REPO}/actions/workflows/ci.yml) and [`cd.yml`](https://github.com/{GITHUB_REPO}/actions/workflows/cd.yml).")
+    lines.append(f"- **Semantic Release Changelog**: Automatically published in [`docs/changelog.md`](file://{REPO_ROOT}/docs/changelog.md) and [`GitHub Releases`](https://github.com/{GITHUB_REPO}/releases).")
     lines.append("")
     lines.append("---")
     lines.append("")
@@ -456,14 +505,6 @@ def build_markdown():
     lines.append(f"- [**Syft SBOM Pipeline**](https://github.com/{GITHUB_REPO}/actions/workflows/sbom.yml): Software Bill of Materials (available as downloadable artifact `spdx-json`).")
     lines.append(f"- [**OWASP ZAP Dynamic Scanner (DAST)**](https://github.com/{GITHUB_REPO}/actions/workflows/ci.yml): Automated baseline web app security scanning on dev deployments.")
     lines.append("")
-
-    lines.append("### Pipeline Workflows")
-    lines.append(f"- [**CI Pipeline (`ci.yml`)**](https://github.com/{GITHUB_REPO}/actions/workflows/ci.yml): 4 PR verification suites (Security, Frontend, Backend, Python AI/ML).")
-    lines.append(f"- [**Deploy Dev Pipeline (`deploy-dev.yml`)**](https://github.com/{GITHUB_REPO}/actions/workflows/deploy-dev.yml): Continuous deployment to `dev` environment.")
-    lines.append(f"- [**Deploy Prod Pipeline (`deploy-prod.yml`)**](https://github.com/{GITHUB_REPO}/actions/workflows/deploy-prod.yml): Verified deployment to `prod` environment.")
-    lines.append(f"- [**CodeQL Analysis (`codeql.yml`)**](https://github.com/{GITHUB_REPO}/actions/workflows/codeql.yml): Multi-language SAST scans.")
-    lines.append(f"- [**Open GitHub Issues**](https://github.com/{GITHUB_REPO}/issues?q=is%3Aissue+is%3Aopen): Active defect and enhancement tracking.")
-    lines.append("")
     lines.append("---")
     lines.append("")
 
@@ -480,18 +521,23 @@ def build_markdown():
     return "\n".join(lines)
 
 def main():
-    doc_path = REPO_ROOT / "docs" / "aws_resources_dashboard.md"
+    doc_path = REPO_ROOT / "docs" / "platform_dashboard.md"
+    legacy_doc_path = REPO_ROOT / "docs" / "aws_resources_dashboard.md"
     content = build_markdown()
+    
     doc_path.write_text(content)
-    # Format with prettier for deterministic markdown formatting
-    subprocess.run(
-        ["npx", "prettier", "--write", str(doc_path)],
-        check=False,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        cwd=REPO_ROOT
-    )
-    print(f"✅ CricScore Central Dashboard successfully generated at {doc_path}")
+    # Also write to legacy path so existing links never break
+    legacy_doc_path.write_text(content)
+
+    for p in [doc_path, legacy_doc_path]:
+        subprocess.run(
+            ["npx", "prettier", "--write", str(p)],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            cwd=REPO_ROOT
+        )
+    print(f"✅ CricScore Central Platform Dashboard successfully generated at {doc_path} and {legacy_doc_path}")
 
 if __name__ == "__main__":
     main()

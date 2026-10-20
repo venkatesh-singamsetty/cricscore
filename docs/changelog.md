@@ -1,21 +1,26 @@
 ## [4.12.0] (2026-10-20)
 
-### 🛠️ Central Resources & Artifacts Dashboard Automation
+### 🛠️ Unified Platform & Artifacts Dashboard Automation
 
-- **Automated Central Dashboard (`generate_aws_dashboard.py` & `.sh`)**:
-  - Rebuilt the dashboard generator into an automated, zero-manual-effort single-pane-of-glass script.
-  - Dynamically inspects Terraform remote state in S3 (`cricscore/dev` and `cricscore/prod`), ECR container image digests, ML model metrics, and Aiven PostgreSQL schemas to generate [`docs/aws_resources_dashboard.md`](./aws_resources_dashboard.md).
-  - Generates direct AWS Console deep links for both **Development** and **Production**:
-    - CloudFront distributions (`E1K3FWDNEXFSL0` dev, `E3FVVHMKMZ5G5O` prod)
-    - S3 buckets (static hosting, match backups, CloudFront access logs, Terraform state)
-    - HTTP and WebSocket API Gateways with direct route editor links
+- **Unified Platform Dashboard (`generate_platform_dashboard.py` & `.sh`)**:
+  - Replaced the AWS-only dashboard with a unified, all-encompassing **Central Platform Dashboard** ([`docs/platform_dashboard.md`](./platform_dashboard.md)).
+  - **GitHub Repository Level Architecture & Inventory**:
+    - Cataloged all 11 active GitHub Actions workflows (`ci.yml`, `cd.yml`, `release.yml`, `codeql.yml`, `sbom.yml`, `mlops.yml`, `drift-check.yml`, `db-keepalive.yml`, `unlock.yml`, `dependabot`, `dependency-graph`) with triggers, responsibilities, and direct console links.
+    - Added complete GitHub repository variables inventory (`ADMIN_EMAIL`, `AWS_REGION`, `DOMAIN_NAME`, `ZONE_DOMAIN`, `PROJECT_NAME`, `SUBDOMAIN_PREFIX`, `TF_STATE_BUCKET`, `LLM_MODEL`, `LLM_BASE_URL`).
+    - Added comprehensive GitHub repository secrets inventory (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_ROLE_ARN`, `TF_DATABASE_URL`, `TF_SES_SOURCE_EMAIL`, `OPENAI_API_KEY`, `GH_PAT`, `GITHUB_TOKEN`) with consumption targets and security isolation boundaries (zero secret values exposed).
+    - Mapped all CI/CD pipeline and build artifacts (`spdx-json` SBOM, CodeQL SAST SARIF reports, Trivy vulnerability logs, GitLeaks audit, Playwright E2E reports, Semantic Release changelog).
+  - Maintained complete live cloud and ML registry references for both **Development** and **Production**:
+    - Live CloudFront CDN distributions (`E1K3FWDNEXFSL0` dev, `E3FVVHMKMZ5G5O` prod)
+    - S3 buckets (hosting, match backups, logs, terraform state)
+    - HTTP and WebSocket API Gateways with direct route viewer deep links
     - Cognito User Pools and user management consoles
     - DynamoDB connection tables and item explorer
     - SQS FIFO queues and SNS topic links
     - ECR repositories with latest image tag digests, sizes, and push timestamps
     - All 9 Serverless Lambdas with direct links to Function Console and CloudWatch log groups
-  - Centralizes ML champion model details (`v2.2.0-xgboost`, 7 features, validation/test metrics, DVC dataset tracking, MLflow runs), database tables and HNSW vector index schemas, and security/SBOM CI/CD artifacts.
-  - Integrated into `./infra/scripts/deploy.sh` so deployments automatically refresh the dashboard without manual effort.
+    - ML champion model details (`v2.2.0-xgboost`, 7 features, validation/test metrics, DVC dataset tracking, MLflow runs)
+    - Aiven PostgreSQL 16 host, port, database, schemas, and HNSW vector index
+  - Integrated into `./infra/scripts/deploy.sh` and pre-commit hooks for automated zero-effort synchronization.
   - Added dashboard validation step to `./infra/scripts/validate_local.sh`.
 
 ### 🚀 MLOps & Machine Learning Suite Evolution

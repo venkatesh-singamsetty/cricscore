@@ -68,8 +68,8 @@ echo "👉 Checking Terraform Formatting..."
 echo "👉 Validating Terraform Logic..."
 ./infra/scripts/terraform.sh validate
 
-echo "👉 Verifying Central Dashboard Generation..."
-./infra/scripts/generate_aws_dashboard.sh
+echo "👉 Verifying Central Platform Dashboard Generation..."
+./infra/scripts/generate_platform_dashboard.sh
 
 echo "✅ Terraform S3 backend locking is enforced by Terraform during plan and apply."
 

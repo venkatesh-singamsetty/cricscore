@@ -365,7 +365,7 @@ Lambda logs are sent to CloudWatch Logs. AWS X-Ray sampling is configured with a
 
 - 📖 **[Observability Suite](./docs/observability.md)**: CloudWatch Logs, X-Ray tracing, CloudWatch alarms and SNS alerts, plus optional Sentry/Uptime setup.
 - 📖 **[Cost & Performance](./docs/cost_management.md)**: Cost monitoring guidance and architecture scale limits.
-- 📖 **[Central Resources & Artifacts Dashboard](./docs/aws_resources_dashboard.md)**: Automated single-pane-of-glass directory featuring live Dev & Prod AWS console deep links, ECR container images, XGBoost ML artifacts, Aiven PostgreSQL vector schemas, and security scan reports.
+- 📖 **[Central Platform & Artifacts Dashboard](./docs/platform_dashboard.md)**: Automated single-pane-of-glass directory featuring GitHub repository resources, workflows, variables, secrets inventory, live Dev & Prod AWS console deep links, ECR container images, XGBoost ML artifacts, Aiven PostgreSQL vector schemas, and security scan reports.
 
 ### 3. ✅ Rigorous Testing
 
