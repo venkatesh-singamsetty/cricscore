@@ -69,6 +69,7 @@ def parse_matches():
                 continue
                 
             match_id = file_path.stem
+            match_date = (info.get('dates') or [''])[0]
             innings = data.get('innings', [])
             
             # First pass: Get 1st innings total score for target calculation
@@ -113,6 +114,7 @@ def parse_matches():
                             
                         row = {
                             'match_id': match_id,
+                            'date': match_date,
                             'venue': venue,
                             'city': city,
                             'batting_team': batting_team,

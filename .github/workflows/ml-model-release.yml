@@ -1,0 +1,111 @@
+name: Model Release & Rollback Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      model_version:
+        description: 'Semantic model version (e.g. v2.1.0)'
+        required: true
+        default: 'v2.1.0'
+      action:
+        description: 'Release new version or rollback to previous'
+        required: true
+        type: choice
+        options:
+          - release
+          - rollback
+        default: 'release'
+      target_env:
+        description: 'Target AWS environment'
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+        default: 'dev'
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: model-release-${{ github.event.inputs.target_env }}
+  cancel-in-progress: false
+
+jobs:
+  promote-or-rollback-model:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Configure AWS Credentials (OIDC or Secrets)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
+
+      - name: Verify Manifest & Artifact Checksum
+        working-directory: apps/ml-engine
+        run: |
+          VERSION="${{ github.event.inputs.model_version }}"
+          ACTION="${{ github.event.inputs.action }}"
+          echo "Target Action: $ACTION | Version: $VERSION"
+
+          if [ "$ACTION" == "release" ]; then
+            if [ ! -f "model_manifest.json" ] || [ ! -f "live_win_predictor_model.joblib" ]; then
+              echo "❌ Model manifest or artifact not found in repository."
+              exit 1
+            fi
+
+            EXPECTED_SHA=$(jq -r '.artifact.sha256' model_manifest.json)
+            ACTUAL_SHA=$(sha256sum live_win_predictor_model.joblib | awk '{print $1}')
+
+            if [ "$EXPECTED_SHA" != "$ACTUAL_SHA" ]; then
+              echo "❌ Checksum verification failed! Expected: $EXPECTED_SHA, Got: $ACTUAL_SHA"
+              exit 1
+            fi
+            echo "✅ Checksum verified: $ACTUAL_SHA"
+          fi
+
+      - name: Deploy / Rollback Lambda Model Version
+        run: |
+          TARGET_ENV="${{ github.event.inputs.target_env }}"
+          VERSION="${{ github.event.inputs.model_version }}"
+          PROJECT_NAME=$([ "$TARGET_ENV" == "dev" ] && echo "cricscoredev" || echo "cricscore")
+          FUNCTION_NAME="${PROJECT_NAME}-ml-predict"
+
+          echo "🚀 Updating Lambda $FUNCTION_NAME to MODEL_VERSION=$VERSION..."
+
+          # Update the Lambda environment variable MODEL_VERSION
+          aws lambda update-function-configuration \
+            --function-name "$FUNCTION_NAME" \
+            --environment "Variables={MODEL_VERSION=$VERSION}"
+
+          aws lambda wait function-updated --function-name "$FUNCTION_NAME"
+          echo "✅ Lambda updated successfully to MODEL_VERSION=$VERSION"
+
+      - name: Run Live Inference Regression Smoke Test
+        run: |
+          TARGET_ENV="${{ github.event.inputs.target_env }}"
+          DOMAIN=$([ "$TARGET_ENV" == "dev" ] && echo "https://api.cricscoredev.venkateshsingamsetty.com" || echo "https://api.cricscore.venkateshsingamsetty.com")
+          
+          echo "🧪 Running smoke test against $DOMAIN/match/predict..."
+          
+          PAYLOAD='{"team1":"India","team2":"Australia","inning":2,"ballsLeft":30,"ballsBowled":90,"currentScore":150,"wicketsLost":3,"targetScore":180}'
+          
+          RESPONSE=$(curl -sf -X POST -H "Content-Type: application/json" -d "$PAYLOAD" "$DOMAIN/match/predict")
+          echo "Response: $RESPONSE"
+          
+          PREDICTED_WINNER=$(echo "$RESPONSE" | jq -r '.predictedWinner')
+          if [ -z "$PREDICTED_WINNER" ] || [ "$PREDICTED_WINNER" == "null" ]; then
+            echo "❌ Smoke test failed: invalid prediction response."
+            exit 1
+          fi
+          
+          echo "✅ Smoke test passed: Predicted Winner = $PREDICTED_WINNER"

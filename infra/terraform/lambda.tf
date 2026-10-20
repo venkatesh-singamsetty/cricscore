@@ -286,6 +286,12 @@ resource "aws_lambda_function" "ml_predict" {
     mode = "Active"
   }
 
+  environment {
+    variables = {
+      MODEL_VERSION = "v2.1.0"
+    }
+  }
+
   tags = {
     Project = var.project_name
   }

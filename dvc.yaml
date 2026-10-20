@@ -1,0 +1,15 @@
+stages:
+  train_and_compare:
+    cmd: python apps/ml-engine/compare_models.py v2.1.0
+    deps:
+      - apps/ml-engine/compare_models.py
+      - cricket-data/t20s_json.zip
+    outs:
+      - apps/ml-engine/live_win_predictor_model.joblib:
+          cache: false
+      - apps/ml-engine/live_metadata.json:
+          cache: false
+      - apps/ml-engine/model_manifest.json:
+          cache: false
+      - apps/ml-engine/comparison_report.md:
+          cache: false

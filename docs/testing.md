@@ -202,3 +202,20 @@ cd apps/ai-service && .venv/bin/pytest -q
 Chat read-only guarantees are covered in `apps/backend/lambdas/chat-api/handlers/chatHandler.test.js` and `mcp/tools/tools.test.js` (`npm --prefix apps/backend test`).
 
 MCP server tests (`apps/ai-service/tests/test_mcp.py`, `test_mcp_stdio.py`) cover the approved tool list, valid/invalid IDs, DB errors, unconfigured dependencies, and a real stdio client round-trip.
+
+## Machine Learning & MLOps Tests (`apps/ml-engine`)
+
+- **Inference Unit & Checksum Tests**:
+  Covers 1-over, 5-over, 20-over formats, first-innings and chase probabilities, DLS par alignment, model SHA-256 verification, and simulation fallback:
+
+  ```bash
+  apps/ml-engine/venv/bin/pytest apps/ml-engine/test_predict.py -v
+  ```
+
+- **Candidate Model Comparison & Pipeline Verification**:
+  Evaluates candidate algorithms, checks quality gates (Accuracy >= 0.60, ROC-AUC >= 0.65), logs MLflow metrics, and generates release manifests:
+  ```bash
+  python apps/ml-engine/compare_models.py v2.1.0
+  # Or via reproducible DVC pipeline:
+  dvc repro
+  ```
