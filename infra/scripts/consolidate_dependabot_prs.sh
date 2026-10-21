@@ -97,14 +97,16 @@ elif [[ "$MODE" == "close" ]]; then
 
   git fetch origin "$CURRENT_BRANCH" >/dev/null 2>&1 || true
 
-  for ROW in $(echo "$PRS_JSON" | jq -c '.[]'); do
+  while IFS= read -r ROW; do
+    [[ -z "$ROW" ]] && continue
     NUM=$(echo "$ROW" | jq -r '.number')
     SHA=$(echo "$ROW" | jq -r '.headRefOid')
+    git fetch origin "pull/$NUM/head" >/dev/null 2>&1 || true
     if ! git merge-base --is-ancestor "$SHA" "origin/$CURRENT_BRANCH" 2>/dev/null; then
       echo "❌ Safety Gate: Dependabot PR #$NUM ($SHA) is NOT an ancestor of origin/$CURRENT_BRANCH. Aborting close!"
       exit 1
     fi
-  done
+  done < <(echo "$PRS_JSON" | jq -c '.[]')
 
   COMMENT_REF="branch \`$CURRENT_BRANCH\`"
   if [[ -n "$TARGET_PR" ]]; then
