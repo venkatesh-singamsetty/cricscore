@@ -1929,8 +1929,8 @@ const App: React.FC = () => {
                 )}
               </div>
             ) : (
-              <div className="flex-1 min-h-0 overflow-y-auto flex flex-col w-full bg-slate-950 px-3 py-4 sm:py-6">
-                <div className="max-w-5xl mx-auto w-full flex-1 flex flex-col justify-center items-center animate-in fade-in zoom-in-95 duration-500">
+              <div className="flex-1 min-h-0 overflow-hidden sm:overflow-y-auto flex flex-col w-full bg-slate-950 p-0 sm:px-3 sm:py-6">
+                <div className="max-w-5xl mx-auto w-full flex-1 min-h-0 flex flex-col justify-start sm:justify-center items-center animate-in fade-in zoom-in-95 duration-500">
                   <Authenticator
                     signUpAttributes={["given_name", "family_name"]}
                     formFields={authFormFields}

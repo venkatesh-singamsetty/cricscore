@@ -1,4 +1,6 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
 import {
   buildGuestCredentials,
   canAccessScorer,
@@ -117,5 +119,33 @@ describe("buildGuestCredentials", () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe("mobile sign-in viewport layout contract", () => {
+  it("keeps the mobile Authenticator container zero-padded at the top and bounded to 100% height like Chat Bot", () => {
+    const appSource = fs.readFileSync(
+      path.resolve(__dirname, "../App.tsx"),
+      "utf-8",
+    );
+    const indexCss = fs.readFileSync(
+      path.resolve(__dirname, "../index.css"),
+      "utf-8",
+    );
+
+    // Unauthenticated SCORER wrapper should use p-0 on mobile (no wasted top gap)
+    expect(appSource).toContain(
+      "overflow-hidden sm:overflow-y-auto flex flex-col w-full bg-slate-950 p-0 sm:px-3 sm:py-6",
+    );
+
+    // [data-amplify-theme] must fill remaining flex height (height: 100%) instead of 100dvh overflow
+    expect(indexCss).toMatch(
+      /\[data-amplify-theme\]\s*\{[^}]*height:\s*100%;[^}]*flex:\s*1\s+1\s+0%;/s,
+    );
+
+    // Mobile media query keeps Authenticator at height: 100% and inline compact .auth-hero
+    expect(indexCss).toMatch(
+      /@media\s*\(max-width:\s*640px\)\s*\{[\s\S]*?\[data-amplify-authenticator\]\s*\{[\s\S]*?height:\s*100%\s*!important;/,
+    );
   });
 });

@@ -18,9 +18,12 @@ Read the target component and its parent/child callers before modifying props or
 - **WebSocket vs. Polling Recency Guard (`lastWsUpdateRef`)**:
   - `LiveScoreboard.tsx` records `lastWsUpdateRef.current = Date.now()` on every WebSocket message and suppresses background REST polling overwrites for 3 seconds (unless an innings transition occurred) so a slightly lagging DB read never reverts a live boundary or wicket.
 
-## 2. Scorer Cockpit (`MatchView.tsx`) & Innings Lifecycle
+## 2. Scorer Cockpit (`MatchView.tsx`), Mobile Sign-In (`Authenticator`) & Innings Lifecycle
 
-- **Zero-Scroll Viewport (`100dvh`)**:
+- **Zero-Scroll Viewport (`100dvh`) for Scorer, Sign-In & Chat (`VIEWER` Scrolls)**:
+  - `SCORER` (both unauthenticated Cognito `<Authenticator>` Sign-In and live `MatchView.tsx`) and `CHAT` (`ChatComponent.tsx`) must fit 100% inside the remaining `flex-1 min-h-0` viewport below the global header without wasted top padding (`p-0` on mobile) or page-level vertical scrolling.
+  - Keep `[data-amplify-theme]` and mobile `[data-amplify-authenticator]` bounded to `height: 100%` (`flex: 1 1 0%; min-height: 0`) with a compact inline `.auth-hero` (`🏏 CRICSCORE` on a single row) and `white-space: nowrap` tabs so both Sign-In and Create Account fit cleanly on mobile screens.
+  - `VIEWER` (`LiveScoreboard.tsx` / `MatchList.tsx`) intentionally uses `overflow-y-auto` so spectators can scroll through live feeds and historical match records.
   - Keep the scoreboard header, centered Target Pill (`🎯 X OFF Y` directly beneath `Scorecard 📋`), AI Win Probability bar, DLS Par pill, Batter/Bowler cards, `This Over` strip, Action Tabs (`Undo`, `Change Bowler`, `Change Batter`, `Retire`), Extras row, and Run Keypad fitting cleanly inside the viewport on both mobile and desktop (`min-h-0`, balanced padding).
 - **Auto-End 1st Innings & Refresh-Safe Undo**:
   - Automatically trigger `onInningsEnd` on the final legal delivery of the 1st innings (`newOvers >= totalOvers`).

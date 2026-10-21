@@ -1,6 +1,6 @@
 /* index.css */
 
-html, body, #root, [data-amplify-theme] {
+html, body, #root {
     background-color: #020617; /* slate-950 */
     color: #f8fafc; /* slate-50 */
     margin: 0;
@@ -10,6 +10,22 @@ html, body, #root, [data-amplify-theme] {
     max-width: 100%;
     overflow: hidden;
     overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+[data-amplify-theme] {
+    background-color: #020617; /* slate-950 */
+    color: #f8fafc; /* slate-50 */
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    min-height: 0;
+    flex: 1 1 0%;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -576,12 +592,14 @@ html, body, #root, [data-amplify-theme] {
   }
 }
 
-/* ---------- Mobile: fill the screen, no page scroll ---------- */
+/* ---------- Mobile: fill the remaining screen cleanly like Chat Bot, no page scroll ---------- */
 @media (max-width: 640px) {
   [data-amplify-authenticator] {
     min-height: 0 !important;
-    height: calc(100dvh - 2.75rem) !important;
-    padding: 0.75rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom)) !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    flex: 1 1 0% !important;
+    padding: 0.4rem 0.65rem calc(0.45rem + env(safe-area-inset-bottom)) !important;
     justify-content: flex-start !important;
     align-items: stretch !important;
     overflow: hidden !important;
@@ -589,55 +607,108 @@ html, body, #root, [data-amplify-theme] {
   [data-amplify-authenticator] [data-amplify-container] {
     width: 100% !important;
     max-width: none !important;
-    flex: 1 1 auto !important;
+    flex: 1 1 0% !important;
     display: flex !important;
     flex-direction: column !important;
     min-height: 0 !important;
+    overflow: hidden !important;
   }
   [data-amplify-authenticator] [data-amplify-router],
   .amplify-authenticator__router {
-    flex: 1 1 auto !important;
+    flex: 1 1 0% !important;
     max-width: none !important;
-    max-height: none !important;
+    max-height: 100% !important;
     min-height: 0 !important;
     display: flex !important;
     flex-direction: column !important;
-    justify-content: space-between !important;
-    padding: 0.9rem 0.9rem 0.35rem !important;
-    border-radius: 1.5rem !important;
+    justify-content: flex-start !important;
+    padding: 0.75rem 0.85rem 0.5rem !important;
+    border-radius: 1.25rem !important;
+    overflow-y: auto !important;
   }
-  .auth-hero { margin: 0.2rem 0 0.8rem; }
-  .auth-logo { width: 56px; height: 56px; font-size: 1.9rem; }
-  .auth-title { font-size: 1.8rem; }
-  .auth-subtitle { display: block; font-size: 0.5rem; letter-spacing: 0.18em; }
+  .auth-hero {
+    margin: 0.1rem 0 0.45rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.55rem !important;
+    flex-shrink: 0 !important;
+  }
+  .auth-logo {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 1.25rem !important;
+    margin: 0 !important;
+    border-radius: 0.75rem !important;
+  }
+  .auth-title {
+    font-size: 1.45rem !important;
+    line-height: 1 !important;
+  }
+  .auth-subtitle { display: none !important; }
+  [data-amplify-authenticator] [role="tablist"] {
+    margin-bottom: 0.75rem !important;
+    padding: 0.25rem !important;
+  }
+  [data-amplify-authenticator] [role="tab"],
+  [data-amplify-authenticator] .amplify-tabs__item {
+    padding: 0.55rem 0.5rem !important;
+    font-size: 0.875rem !important;
+    white-space: nowrap !important;
+  }
   [data-amplify-authenticator] input,
-  [data-amplify-authenticator] .amplify-input { padding: 0.8rem 0.9rem !important; font-size: 0.95rem !important; }
-  [data-amplify-authenticator] button[type="submit"] { padding: 0.85rem 1rem !important; font-size: 0.95rem !important; }
-  [data-amplify-authenticator] form .amplify-flex:not(.amplify-field-group) { gap: 0.7rem !important; }
-  [data-amplify-authenticator] .amplify-tabs { margin-bottom: 0.9rem !important; }
-  [data-amplify-authenticator] [role="tab"] { padding: 0.7rem 0.7rem !important; font-size: 1rem !important; }
-  .auth-footer { padding: 0.45rem 0 0.15rem; }
-  .auth-guest-btn { padding: 0.8rem 0.9rem; font-size: 0.86rem; }
-  .auth-guest-hint { display: block; }
+  [data-amplify-authenticator] .amplify-input {
+    padding: 0.65rem 0.85rem !important;
+    font-size: 0.92rem !important;
+  }
+  [data-amplify-authenticator] button[type="submit"] {
+    padding: 0.75rem 1rem !important;
+    font-size: 0.92rem !important;
+  }
+  [data-amplify-authenticator] form .amplify-flex:not(.amplify-field-group) {
+    gap: 0.55rem !important;
+  }
+  [data-amplify-authenticator] .amplify-tabs {
+    margin-bottom: 0.4rem !important;
+  }
+  .auth-divider {
+    margin: 0.55rem 0 0.5rem !important;
+  }
+  .auth-footer {
+    padding: 0.35rem 0 0.15rem !important;
+  }
+  .auth-guest-btn {
+    padding: 0.7rem 0.9rem !important;
+    font-size: 0.82rem !important;
+  }
+  .auth-guest-hint {
+    display: block;
+    margin-top: 0.35rem !important;
+    font-size: 0.62rem !important;
+  }
 }
 
-/* Very short screens (small phones / landscape): compact to avoid scroll */
+/* Very short screens (small phones / landscape): compact further to avoid scroll */
 @media (max-height: 700px) {
   [data-amplify-authenticator] {
-    height: calc(100dvh - 1.5rem) !important;
-    padding-top: 0.5rem !important;
+    height: 100% !important;
+    padding-top: 0.25rem !important;
+    padding-bottom: calc(0.25rem + env(safe-area-inset-bottom)) !important;
   }
-  .auth-hero { margin: 0 0 0.5rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
-  .auth-logo { width: 36px; height: 36px; font-size: 1.2rem; margin: 0; border-radius: 0.8rem; }
-  .auth-title { font-size: 1.3rem; line-height: 1; }
-  .auth-subtitle, .auth-guest-hint { display: none !important; }
+  .auth-hero { margin: 0 0 0.35rem !important; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+  .auth-logo { width: 32px !important; height: 32px !important; font-size: 1.1rem !important; margin: 0; border-radius: 0.7rem; }
+  .auth-title { font-size: 1.25rem !important; line-height: 1; }
+  .auth-subtitle { display: none !important; }
+  .auth-guest-hint { display: block !important; margin-top: 0.3rem !important; }
+  [data-amplify-authenticator] [role="tablist"] { margin-bottom: 0.5rem !important; }
+  [data-amplify-authenticator] [role="tab"] { padding: 0.45rem 0.5rem !important; font-size: 0.82rem !important; }
   [data-amplify-authenticator] input,
-  [data-amplify-authenticator] .amplify-input { padding: 0.55rem 0.7rem !important; }
-  [data-amplify-authenticator] button[type="submit"] { padding: 0.7rem 0.9rem !important; }
+  [data-amplify-authenticator] .amplify-input { padding: 0.5rem 0.7rem !important; }
+  [data-amplify-authenticator] button[type="submit"] { padding: 0.65rem 0.9rem !important; }
   [data-amplify-authenticator] form .amplify-flex:not(.amplify-field-group) { gap: 0.35rem !important; }
-  [data-amplify-authenticator] .amplify-tabs { margin-bottom: 0.5rem !important; }
-  .auth-divider { margin: 0.5rem 0 0.4rem; }
-  .auth-guest-btn { padding: 0.6rem 0.8rem; }
+  [data-amplify-authenticator] .amplify-tabs { margin-bottom: 0.25rem !important; }
+  .auth-divider { margin: 0.4rem 0 0.35rem !important; }
+  .auth-guest-btn { padding: 0.55rem 0.8rem !important; }
 }
 
 /* ============================================================
