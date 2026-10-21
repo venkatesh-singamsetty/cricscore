@@ -1,3 +1,52 @@
+## [4.17.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.16.0...v4.17.0) (2026-10-21)
+
+### 🚀 Features
+
+* **architecture:** enhance architecture diagrams and consolidate backend dependency updates ([#306](https://github.com/venkatesh-singamsetty/cricscore/issues/306)) ([ac10834]())
+## Summary of Changes
+
+### 1. Architecture Diagram Enhancements & Codebase Audit
+- **Agentic AI Assistant Diagram (`03_ai_assistant.png`)**:
+- Added explicit architectural layers matching production code:
+`chat-api Lambda Handler`, `Security Guardrails`, `Agent Orchestrator &
+Supervisor`, `MCP Client (Protocol Adapter)`, 4 Individual Specialist
+Agents (`Match Stats`, `Rules`, `Weather`, `Issue Reporter`), `In-Memory
+MCP Server (Tool Schema Registry)`, 4 MCP Tools (`execute_sql`,
+`search_rules`, `get_weather`, `create_issue`), `OpenAI-Compatible LLM`,
+and `Sanitized Output Delivery`.
+- Removed misleading direct dotted bypass line from MCP tools to
+Response Delivery; all response generation flows strictly through the
+Agent Orchestrator to the client.
+- **Platform Overview Diagram (`01_platform_overview.png`)**:
+- Linked `ml-predict Lambda` to `S3` with a dashed `load model` edge and
+updated the bucket label to `S3\nbackups & ML models` to reflect both
+match backups and versioned ML model storage.
+- **MLOps Win Prediction Diagram (`04_mlops_win_prediction.png`)**:
+- Corrected DVC dataset node label to `cricket-data/t20s_json.zip.dvc`
+for exact file-path fidelity.
+- **Live Scoring Flow Diagram (`02_live_scoring_flow.png`)**:
+- Audited against `apps/backend/lambdas/score-update/index.js` (parallel
+SNS/SQS dispatch, FIFO queues, WebSocket fanout); verified 100%
+accurate.
+
+### 2. Consolidated Open Dependabot PRs
+Consolidated and verified all open Dependabot dependency updates in
+accordance with the CricScore Dependabot consolidation standards:
+- **#302**: Bump `pg` to 8.23.1 in `apps/backend/lambdas/storage-worker`
+- **#303**: Bump `pg` to 8.23.1 in `apps/backend/lambdas/score-update`
+- **#304**: Bump dependencies group in `apps/backend/lambdas/match-api`
+- **#305**: Bump dependencies group in `apps/backend/lambdas/chat-api`
+
+### 3. Local Verification & Scans
+- ✅ Frontend Vitest (80/80 passed) & TypeScript compilation
+- ✅ Backend Vitest (93/93 passed across all Lambdas)
+- ✅ Python AI Service (65/65 passed) & ML Engine (25/25 passed) tests
+- ✅ Terraform `fmt` & `validate`
+- ✅ Checkov IaC security scan (0 failed)
+- ✅ GitLeaks secrets scan (no leaks found)
+- ✅ Trivy vulnerability scan (0 vulnerabilities)
+- ✅ Syft SBOM generated
+
 ## [4.16.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.15.0...v4.16.0) (2026-10-21)
 
 ### 🚀 Features
