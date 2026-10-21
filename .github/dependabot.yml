@@ -4,6 +4,7 @@ updates:
     directory: "/apps/frontend"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 1
     groups:
       dependencies:
         patterns:
@@ -13,6 +14,7 @@ updates:
     directory: "/apps/backend"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 1
     groups:
       dependencies:
         patterns:
@@ -22,21 +24,47 @@ updates:
     directory: "/apps/backend/lambdas/match-api"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 1
+    groups:
+      dependencies:
+        patterns:
+          - "*"
 
   - package-ecosystem: "npm"
     directory: "/apps/backend/lambdas/score-update"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 1
+    groups:
+      dependencies:
+        patterns:
+          - "*"
 
   - package-ecosystem: "npm"
     directory: "/apps/backend/lambdas/storage-worker"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 1
+    groups:
+      dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "npm"
+    directory: "/apps/backend/lambdas/chat-api"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 1
+    groups:
+      dependencies:
+        patterns:
+          - "*"
 
   - package-ecosystem: "npm"
     directory: "/apps/e2e"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 1
     groups:
       dependencies:
         patterns:
@@ -46,11 +74,13 @@ updates:
     directory: "/infra/terraform"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 1
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 1
     groups:
       actions:
         patterns:
@@ -60,6 +90,7 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 1
     groups:
       dependencies:
         patterns:
