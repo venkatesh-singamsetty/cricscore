@@ -128,14 +128,11 @@ def platform_overview() -> None:
         users >> edge("REST calls + JWT", ORANGE) >> http
         ws >> edge("live score push", GREEN) >> users
 
-        http >> match_api
-        http >> score
-        http >> chat
-        http >> ml
+        http >> edge("route", ORANGE) >> [match_api, score, chat, ml]
 
-        match_api >> pg
-        match_api >> backups
-        match_api >> mail
+        match_api >> edge("read / write", GREEN) >> pg
+        match_api >> edge("backup", GREEN) >> backups
+        match_api >> edge("send email", ORANGE) >> mail
         score >> edge("fan-out (diagram 2)", GREEN, "dashed") >> ws
         score >> edge("persist", GREEN, "dashed") >> pg
         chat >> edge("read-only SQL + vector", PURPLE) >> pg
@@ -269,12 +266,12 @@ def mlops() -> None:
 
         data >> dvc >> edge("train", PURPLE) >> [sk, xgb]
         [sk, xgb] >> mlflow >> edge("champion model", ORANGE) >> gate
-        gate >> registry
+        gate >> edge("save artifact", ORANGE) >> registry
         gate >> Edge(label="docker push", color=ORANGE, fontcolor=ORANGE) >> ecr
         viewers >> edge("ball update", GREEN) >> http >> ml
         ecr >> edge("container image", GREEN, "dashed") >> ml
         registry >> edge("checksum-verified model", GREEN, "dashed") >> ml
-        ml >> engine
+        ml >> edge("evaluate", GREEN) >> engine
 
 
 if __name__ == "__main__":
