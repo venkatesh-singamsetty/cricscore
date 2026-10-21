@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Pool } from "pg";
 const { chatHandler } = require("../handlers/chatHandler.js");
 const { openai } = require("../config/llm.js");
@@ -21,12 +21,29 @@ vi.mock("../mcp/server", () => ({
 
 describe("chatHandler", () => {
   let querySpy, connectSpy, mockCreate;
+  const originalFetch = global.fetch;
+  const originalEnv = { ...process.env };
 
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.LLM_API_KEY = "test-key";
-    process.env.LLM_BASE_URL = "https://openrouter.ai/api/v1";
-    process.env.DB_SCHEMA = "dev";
+    process.env = {
+      ...originalEnv,
+      LLM_API_KEY: "test-key",
+      LLM_BASE_URL: "https://openrouter.ai/api/v1",
+      DB_SCHEMA: "dev",
+      GITHUB_TOKEN: "mock-gh-token",
+    };
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: async () => ({
+        number: 101,
+        html_url:
+          "https://github.com/venkatesh-singamsetty/cricscore/issues/101",
+        title: "[AI Report] Mock Issue",
+      }),
+    });
 
     querySpy = vi.fn().mockResolvedValue({ rows: [] });
     connectSpy = vi.spyOn(Pool.prototype, "connect").mockResolvedValue({
@@ -55,6 +72,11 @@ describe("chatHandler", () => {
         },
       ],
     });
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env = originalEnv;
   });
 
   const corsHeaders = {
