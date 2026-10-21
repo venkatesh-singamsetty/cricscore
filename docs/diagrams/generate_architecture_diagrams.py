@@ -109,17 +109,19 @@ def platform_overview() -> None:
 
         with Cluster(**cluster("3. Serverless compute (AWS Lambda)", ORANGE, "#fffaf0")):
             match_api = Lambda("match-api\nmatches & admin")
-            score = Lambda("score-update\nlive balls")
             chat = Lambda("chat-api\nAI assistant")
+            score = Lambda("score-update\nlive balls")
             ml = Lambda("ml-predict\nwin probability")
 
-        with Cluster(**cluster("4. Data & services", GREEN, "#ebfbee")):
+        with Cluster(**cluster("4. Data & Persistence", GREEN, "#ebfbee")):
             pg = Custom("Aiven PostgreSQL 16\n+ pgvector", icon("postgresql"))
+            llm = Custom("OpenAI-compatible\nLLM provider", icon("openai"))
             backups = S3("S3\nmatch backups")
             mail = SES("SES\nmatch report emails")
-            llm = Custom("OpenAI-compatible\nLLM provider", icon("openai"))
 
-        logs = Cloudwatch("CloudWatch\nlogs (7 days) + alarms")
+        with Cluster(**cluster("5. Observability & Alarms", GREY, "#f8f9fa")):
+            logs = Cloudwatch("CloudWatch Logs\n(7-day retention)")
+            alarms = Cloudwatch("CloudWatch Alarms\n(error rate triggers)")
 
         users >> edge("open site", BLUE) >> dns >> cdn >> site
         users >> edge("sign in", ORANGE) >> auth
@@ -136,9 +138,14 @@ def platform_overview() -> None:
         match_api >> mail
         score >> edge("fan-out (diagram 2)", GREEN, "dashed") >> ws
         score >> edge("persist", GREEN, "dashed") >> pg
-        chat >> edge("read-only", PURPLE) >> pg
+        chat >> edge("read-only SQL + vector", PURPLE) >> pg
         chat >> edge("tool calling", PURPLE) >> llm
-        ml >> Edge(color=GREY, style="dotted", label="all Lambdas log here", fontcolor=GREY) >> logs
+
+        # All Lambda compute functions stream logs and wire to CloudWatch Alarms
+        for fn in [match_api, score, chat, ml]:
+            fn >> Edge(color=GREY, style="dotted") >> logs
+        match_api >> Edge(color=RED, style="dotted") >> alarms
+        score >> Edge(color=RED, style="dotted") >> alarms
 
 
 # ---------------------------------------------------------------------------
@@ -170,7 +177,7 @@ def live_scoring() -> None:
         with Cluster(**cluster("SAFE PATH: never lose a ball", GREEN, "#ebfbee")):
             sqs = SQS("SQS\npersistence queue")
             worker = Lambda("storage-worker\nLambda")
-            pg = Custom("Aiven PostgreSQL\nmatches / innings / balls", icon("aiven"))
+            pg = Custom("Aiven PostgreSQL 16\nmatches / innings / balls", icon("postgresql"))
 
         scorer >> edge("1", ORANGE) >> http >> edge("2", ORANGE) >> producer
         producer >> edge("3a publish", BLUE) >> sns >> edge("4a", BLUE) >> broadcaster
@@ -181,11 +188,11 @@ def live_scoring() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 3. AI assistant
+# 3. AI assistant: Agentic Multi-Agent AI System
 # ---------------------------------------------------------------------------
 def ai_assistant() -> None:
     with Diagram(
-        "AI Assistant: Read-Only Agent with MCP Tools",
+        "Agentic AI Architecture: Autonomous Specialist Agents & MCP",
         filename=str(OUT / "03_ai_assistant"),
         outformat="png",
         show=False,
@@ -197,30 +204,32 @@ def ai_assistant() -> None:
         fan = Custom("Fan asks a question\n(chat widget)", icon("tb_message-chatbot"))
         http = APIGateway("API Gateway\nPOST /chat")
 
-        with Cluster(**cluster("chat-api Lambda (Node.js)", PURPLE, "#f3f0ff")):
-            guard = Custom("Guardrails\nread-only, clean history,\n1 issue per message", icon("tb_shield-lock"))
-            agent = Custom("Agent loop\n(MCP client)", icon("tb_robot"))
-            with Cluster(**cluster("MCP tools (in-memory server)", PURPLE, "#ffffff")):
-                sql = Custom("execute_sql\nSELECT only", icon("tb_database-search"))
-                rules = Custom("search_tournament_rules\nvector RAG", icon("tb_brain"))
-                weather = Custom("get_match_weather", icon("tb_cloud-rain"))
-                issue = Custom("create_github_issue", icon("github"))
+        with Cluster(**cluster("Autonomous Multi-Agent System (chat-api Lambda)", PURPLE, "#f3f0ff")):
+            guard = Custom("Security Guardrails\nread-only, sanitized history,\n1-issue rate guard", icon("tb_shield-lock"))
+            supervisor = Custom("Agent Supervisor\n& MCP Orchestrator", icon("tb_robot"))
 
-        llm = Custom("OpenAI-compatible LLM\n(decides which tool)", icon("openai"))
+            with Cluster(**cluster("Specialist AI Agents (Domain-Bounded MCP Tools)", PURPLE, "#ffffff")):
+                match_agent = Custom("Match Stats Agent\n(Autonomous Text-to-SQL)", icon("tb_database-search"))
+                rules_agent = Custom("Tournament Rules Agent\n(Vector RAG + pgvector)", icon("tb_brain"))
+                weather_agent = Custom("Weather Specialist Agent\n(Open-Meteo & DLS Impact)", icon("tb_cloud-rain"))
+                issue_agent = Custom("Issue Reporter Agent\n(GitHub Tracker Integration)", icon("github"))
 
-        with Cluster(**cluster("Data sources", GREEN, "#ebfbee")):
-            pg = Custom("Aiven PostgreSQL\nmatches + pgvector rules", icon("postgresql"))
-            meteo = Custom("Open-Meteo\nfree forecast", icon("openmeteo"))
-            gh = Custom("GitHub Issues", icon("github"))
+        llm = Custom("OpenAI-compatible LLM\n(Autonomous tool selection)", icon("openai"))
+
+        with Cluster(**cluster("Knowledge Stores & External APIs", GREEN, "#ebfbee")):
+            pg_rel = Custom("Aiven PostgreSQL 16\n(Live & historical matches)", icon("postgresql"))
+            pg_vec = Custom("pgvector Store\n(PDF rulebook embeddings)", icon("postgresql"))
+            meteo = Custom("Open-Meteo API\n(Free global hourly forecast)", icon("openmeteo"))
+            gh = Custom("GitHub Issues API\n(Bug & feature tracking)", icon("github"))
 
         fan >> Edge(label="1 ask  /  5 answer", color=PURPLE, fontcolor=PURPLE, style="bold", dir="both") >> http
-        http >> edge("2", PURPLE) >> guard >> agent
-        agent >> Edge(label="3 which tool?", color=PURPLE, fontcolor=PURPLE, style="bold", dir="both") >> llm
-        agent >> edge("4 call tool", PURPLE) >> [sql, rules, weather, issue]
-        sql >> edge("read-only", GREEN) >> pg
-        rules >> pg
-        weather >> meteo
-        issue >> gh
+        http >> edge("2 request", PURPLE) >> guard >> supervisor
+        supervisor >> Edge(label="3 autonomous routing", color=PURPLE, fontcolor=PURPLE, style="bold", dir="both") >> llm
+        supervisor >> edge("4 delegate", PURPLE) >> [match_agent, rules_agent, weather_agent, issue_agent]
+        match_agent >> edge("read-only SQL", GREEN) >> pg_rel
+        rules_agent >> edge("cosine search", GREEN) >> pg_vec
+        weather_agent >> edge("hourly forecast", GREEN) >> meteo
+        issue_agent >> edge("create issue", GREEN) >> gh
 
 
 # ---------------------------------------------------------------------------
@@ -228,7 +237,7 @@ def ai_assistant() -> None:
 # ---------------------------------------------------------------------------
 def mlops() -> None:
     with Diagram(
-        "MLOps: From Ball-by-Ball Data to Live Win Probability",
+        "MLOps & Hybrid Win Prediction: From Data to Live Probabilities",
         filename=str(OUT / "04_mlops_win_prediction"),
         outformat="png",
         show=False,
@@ -237,33 +246,33 @@ def mlops() -> None:
         node_attr=NODE,
         edge_attr=EDGE,
     ):
-        with Cluster(**cluster("1. Data (versioned)", BLUE, "#eef4ff")):
-            data = Custom("Cricsheet T20\nball-by-ball", icon("tb_chart-line"))
-            dvc = Custom("DVC\ndataset versioning", icon("dvc"))
+        with Cluster(**cluster("1. Dataset & DVC Versioning", BLUE, "#eef4ff")):
+            data = Custom("Cricsheet T20 Data\n(786K+ ball-by-ball deliveries)", icon("tb_chart-line"))
+            dvc = Custom("DVC Dataset Tracking\n(cricket-data/t20s_json.dvc)", icon("dvc"))
 
-        with Cluster(**cluster("2. Train & compare 8 models", PURPLE, "#f3f0ff")):
-            sk = Custom("scikit-learn\nbaselines", icon("scikitlearn"))
-            xgb = Custom("XGBoost\nchampion", icon("xgboost"))
-            mlflow = Custom("MLflow\nexperiment tracking", icon("mlflow"))
+        with Cluster(**cluster("2. Multi-Model Experimentation & Tracking", PURPLE, "#f3f0ff")):
+            sk = Custom("scikit-learn Baselines\n(Logistic, RF, ExtraTrees, HGB)", icon("scikitlearn"))
+            xgb = Custom("XGBoost Champion\n(v2.2.0, ROC-AUC > 0.65)", icon("xgboost"))
+            mlflow = Custom("MLflow Tracking\n(Log loss, Brier, ROC-AUC)", icon("mlflow"))
 
-        with Cluster(**cluster("3. Gate & publish (GitHub Actions)", ORANGE, "#fff4e6")):
-            gate = Custom("Quality gates\naccuracy + ROC-AUC\n+ SHA-256 manifest", icon("githubactions"))
-            registry = S3("S3\nversioned model registry")
-            ecr = ECR("ECR\ninference image")
+        with Cluster(**cluster("3. CI/CD Governance & Packaging (GitHub Actions)", ORANGE, "#fff4e6")):
+            gate = Custom("Quality Gates\n(Accuracy >= 60%, ROC-AUC >= 65%,\nSHA-256 Manifest)", icon("githubactions"))
+            registry = S3("Amazon S3\n(models/v2.2.0/ registry)")
+            ecr = ECR("Amazon ECR\n(:v2.2.0 container image)")
 
-        with Cluster(**cluster("4. Serve live", GREEN, "#ebfbee")):
-            http = APIGateway("HTTP API\nPOST /match/predict")
-            ml = Lambda("ml-predict Lambda\nPython 3.12 container")
-            engine = Custom("Hybrid engine\nXGBoost + DP\nchase sim + DLS", icon("tb_brain"))
+        with Cluster(**cluster("4. Real-Time Hybrid Inference (AWS Lambda)", GREEN, "#ebfbee")):
+            http = APIGateway("API Gateway\nPOST /match/predict")
+            ml = Lambda("ml-predict Lambda\n(Python 3.12 container)")
+            engine = Custom("Hybrid Probability Engine\n(Par RPO + DP Chase + DLS)", icon("tb_brain"))
 
-        viewers = Custom("Fans see live\nwin probability", icon("tb_users"))
+        viewers = Custom("Fans & Live Scoreboard\n(Real-time win probability %)", icon("tb_users"))
 
         data >> dvc >> edge("train", PURPLE) >> [sk, xgb]
-        [sk, xgb] >> mlflow >> edge("best model", ORANGE) >> gate
+        [sk, xgb] >> mlflow >> edge("champion model", ORANGE) >> gate
         gate >> registry
-        gate >> Edge(label="docker build", color=ORANGE, fontcolor=ORANGE) >> ecr
-        viewers >> edge("request", GREEN) >> http >> ml
-        ecr >> edge("image", GREEN, "dashed") >> ml
+        gate >> Edge(label="docker push", color=ORANGE, fontcolor=ORANGE) >> ecr
+        viewers >> edge("ball update", GREEN) >> http >> ml
+        ecr >> edge("container image", GREEN, "dashed") >> ml
         registry >> edge("checksum-verified model", GREEN, "dashed") >> ml
         ml >> engine
 

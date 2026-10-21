@@ -48,20 +48,20 @@ Four pictures explain the whole platform. Each uses official AWS icons, and the 
 - **Load the app**: Route 53 → CloudFront → S3 serves the React build.
 - **Sign in & call APIs**: Cognito issues JWTs; API Gateway (HTTP + WebSocket) is the only way in.
 - **Compute**: Four Lambda functions handle matches, live balls, AI chat, and win prediction.
-- **Data**: Aiven PostgreSQL 16 + pgvector stores everything; S3 keeps backups; SES emails match reports.
+- **Data & Observability**: Aiven PostgreSQL 16 + pgvector stores everything; CloudWatch aggregates 7-day logs & alarm metrics; S3 keeps backups; SES emails match reports.
 
 ### ⚡ 2. Live Scoring: One Ball, Two Paths
 
 ![Live scoring flow: score-update Lambda publishes each ball to SNS for instant WebSocket broadcast and to SQS for guaranteed persistence in PostgreSQL](./docs/images/architecture/02_live_scoring_flow.png)
 
 - **Fast path (blue)**: SNS → broadcaster Lambda → WebSocket push, so fans see the ball in under a second.
-- **Safe path (green)**: SQS → storage-worker Lambda → PostgreSQL, so no ball is lost if the database is slow.
+- **Safe path (green)**: SQS → storage-worker Lambda → PostgreSQL 16, so no ball is lost if the database is slow.
 
-### 🤖 3. AI Assistant
+### 🤖 3. AI Assistant (Autonomous Multi-Agent System)
 
-![AI assistant: chat-api Lambda applies guardrails, asks an OpenAI-compatible LLM which MCP tool to use, then runs read-only SQL, rulebook vector search, weather or GitHub issue tools](./docs/images/architecture/03_ai_assistant.png)
+![Agentic AI architecture: chat-api Lambda applies security guardrails, orchestrates autonomous specialist agents via MCP tools for read-only SQL, pgvector rule search, weather forecast, and rate-guarded GitHub issue reporting](./docs/images/architecture/03_ai_assistant.png)
 
-- The `chat-api` Lambda runs an in-memory **MCP server**; the LLM only chooses tools, it never touches the database directly.
+- The `chat-api` Lambda runs an **Agent Supervisor & MCP Orchestrator**; the LLM coordinates autonomous tool routing across specialist domain agents (Match Stats, Tournament Rules, Weather, Issue Reporter), never touching the database directly.
 - SQL is **SELECT-only**, rulebook answers come from **pgvector** search, and at most **one GitHub issue** can be filed per message.
 - A Python **LangGraph** supervisor (`apps/ai-service`) is being built as the next-generation agent; see [AI Architecture](./docs/ai_architecture.md).
 
