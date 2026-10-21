@@ -1,3 +1,17 @@
+## [4.15.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.14.0...v4.15.0) (2026-10-21)
+
+### 🚀 Features
+
+* **ai:** weather & github issue agents, visual architecture diagrams, architecture faq & ui polish ([#276](https://github.com/venkatesh-singamsetty/cricscore/issues/276)) ([ef94629]())
+## 🎯 Overview & Purpose
+
+This pull request introduces two major autonomous specialist agents to
+the CricScore AI Assistant via the Model Context Protocol (MCP), adds
+high-resolution architecture diagrams generated as code, provides a
+comprehensive Architecture & AI/MLOps FAQ, enhances chat presentation
+with compact responsive Markdown tables, aligns brand styling, and
+resolves all open CodeQL security alerts.
+
 ## [Unreleased]
 
 ### 📚 Documentation & Architecture Visualizations
