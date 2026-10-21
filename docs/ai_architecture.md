@@ -9,6 +9,8 @@ Our chatbot is a fully autonomous AI Agent capable of two primary RAG methodolog
 3. **Cricket Match Weather Report Agent (`get_match_weather`):** Provides $0-cost live hour-by-hour weather forecasts (for the next few hours while playing) and tomorrow's/upcoming match forecasts with Cricket & DLS rain advisories via Open-Meteo (zero API key required). See the dedicated [**Weather Report Agent Guide**](./weather_report_agent.md).
 4. **GitHub Issue Specialist Agent (`create_github_issue`):** Allows users to report bugs, UI issues, or feature requests directly from the Chat Bot into `venkatesh-singamsetty/cricscore` using the server-side `GITHUB_TOKEN` via MCP with a 2-step confirmation flow and 1-issue-per-message guard. See the dedicated [**GitHub Issue Specialist Agent Guide**](./github_issue_agent.md).
 
+> 💡 **Have architectural questions?** Check out the comprehensive [**Architecture & AI/MLOps FAQ**](./architecture_faq.md) covering the Agent Supervisor vs. LLM decision flow, the Cricket Context & Tactical Agent, S3 model registry vs. ECR, and full agent inventory.
+
 ## 🏗️ Architecture
 
 The AI Chat system runs in the `chat-api` Lambda behind Amazon API Gateway. It uses OpenAI-compatible chat completions and tool calling; the provider and model are configurable.

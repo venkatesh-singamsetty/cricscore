@@ -72,7 +72,7 @@ Four pictures explain the whole platform. Each uses official AWS icons, and the 
   | 🏏 **Cricket Context & Tactical Agent**   | Live match context injection | Real-time scoreboard telemetry (CRR, RRR, partnerships)               |
   | 🎯 **Win Probability & Prediction Agent** | `predict_match_outcome`      | XGBoost + Markov DP + DLS hybrid model integration                    |
 - **Direct Lambda vs. AI Agent for Predictions**: The live scoreboard calls the `ml-predict` Lambda directly on every ball for sub-second, low-latency percentage updates. When a user asks conversational or "what-if" questions in chat, the AI Assistant's Prediction Agent analyzes the match state and explains the probabilities with rich tactical commentary.
-- See [AI Architecture](./docs/ai_architecture.md), [Weather Agent](./docs/weather_report_agent.md), and [GitHub Issue Agent](./docs/github_issue_agent.md) for complete details.
+- See [AI Architecture](./docs/ai_architecture.md), [Architecture & AI/MLOps FAQ](./docs/architecture_faq.md), [Weather Agent](./docs/weather_report_agent.md), and [GitHub Issue Agent](./docs/github_issue_agent.md) for complete details.
 
 ### 🧠 4. MLOps & Live Win Probability
 
