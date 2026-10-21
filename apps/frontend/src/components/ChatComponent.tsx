@@ -28,6 +28,18 @@ interface Message {
   content: string;
 }
 
+function sanitizeSafeHttpUrl(rawUrl: string): string | null {
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return parsed.href;
+    }
+  } catch {
+    // Malformed or invalid URL
+  }
+  return null;
+}
+
 export function FormattedContent({ content }: { content: string }) {
   const lines = content.split("\n");
 
@@ -45,10 +57,12 @@ export function FormattedContent({ content }: { content: string }) {
       }
       const mdLinkMatch = part.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/);
       if (mdLinkMatch) {
+        const safeHref = sanitizeSafeHttpUrl(mdLinkMatch[2]);
+        if (!safeHref) return part;
         return (
           <a
             key={pIdx}
-            href={mdLinkMatch[2]}
+            href={safeHref}
             target="_blank"
             rel="noopener noreferrer"
             className="text-indigo-300 underline hover:text-indigo-200 break-all"
@@ -58,10 +72,12 @@ export function FormattedContent({ content }: { content: string }) {
         );
       }
       if (/^https?:\/\/[^\s)]+$/.test(part)) {
+        const safeHref = sanitizeSafeHttpUrl(part);
+        if (!safeHref) return part;
         return (
           <a
             key={pIdx}
-            href={part}
+            href={safeHref}
             target="_blank"
             rel="noopener noreferrer"
             className="text-indigo-300 underline hover:text-indigo-200 break-all"
