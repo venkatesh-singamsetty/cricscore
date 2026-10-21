@@ -469,6 +469,15 @@ def build_markdown():
     lines.append("- **AI Analysis Cache**: `match_summaries` (Cached LLM post-match breakdowns)")
     lines.append("")
 
+    lines.append("### Multi-Agent AI & MCP Tools")
+    lines.append("- **Model Context Protocol (MCP)**: Server running in-process inside `chat-api` Lambda (`apps/backend/lambdas/chat-api/mcp/server.js`) and standalone Python stdio server (`apps/ai-service/cricscore_ai/mcp_server.py`).")
+    lines.append("- **`execute_sql`**: Read-only Text-to-SQL for live match events, player stats, and historical match summaries.")
+    lines.append("- **`search_tournament_rules`**: Vector RAG search across uploaded cricket rulebooks.")
+    lines.append("- **`get_match_weather`**: Free Open-Meteo weather agent resolving coordinates via Geocoding API and generating hour-by-hour forecast tables with cricket DLS rain advisories.")
+    lines.append("- **`create_github_issue`**: Issue submission agent routing bug reports and feature requests directly to GitHub via server-side token with a 1-issue-per-message rate guard.")
+    lines.append(f"- **Documentation References**: [`docs/weather_report_agent.md`](file://{REPO_ROOT}/docs/weather_report_agent.md), [`docs/github_issue_agent.md`](file://{REPO_ROOT}/docs/github_issue_agent.md), [`docs/ai_architecture.md`](file://{REPO_ROOT}/docs/ai_architecture.md).")
+    lines.append("")
+
     lines.append("### Database Migrations Directory")
     lines.append("- `infra/database/schema.sql`: Core relational schemas and indexes")
     lines.append("- `infra/database/migrations/add_ai_summary.sql`: Post-match AI summary cache")
