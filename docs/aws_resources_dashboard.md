@@ -110,8 +110,8 @@ A central single-pane-of-glass directory providing live references across all la
 - **SNS Match Events Topic**: [`cricscoredev-match-events`](https://us-east-1.console.aws.amazon.com/sns/v3/home?region=us-east-1#/topic/arn:aws:sns:us-east-1:926789386606:cricscoredev-match-events)
 - **SNS Lambda Alerts Topic**: [`cricscoredev-lambda-alerts`](https://us-east-1.console.aws.amazon.com/sns/v3/home?region=us-east-1#/topic/arn:aws:sns:us-east-1:926789386606:cricscoredev-lambda-alerts)
 - **ECR Docker Image Repo**: [`cricscoredev-ml-predict`](https://us-east-1.console.aws.amazon.com/ecr/repositories/private/926789386606/cricscoredev-ml-predict?region=us-east-1)
-  - **Latest Tag Digest**: `sha256:0a3e191a4a531dd9115f9ab40631fbbd7b80c3c47bb6f7ea18d783e7e4157fc9`
-  - **Image Size**: `652.11 MB` | **Last Pushed**: `2026-10-20 01:48:26`
+  - **Latest Tag Digest**: `sha256:a2c42abc5a1d411a5efbe78170db9603ce76847a14f264752b74575bed37f72b`
+  - **Image Size**: `652.11 MB` | **Last Pushed**: `2026-10-21 01:50:10`
 
 ### ⚡ Serverless Compute & Telemetry (AWS Lambda)
 
@@ -208,7 +208,7 @@ A central single-pane-of-glass directory providing live references across all la
 - **Cost & Retention Policy**: Automated ECR lifecycle policy expires untagged images after 1 day and retains only the active version tag (`:v2.2.0` + `:latest`).
 - **Dev ECR Repository**: [`cricscoredev-ml-predict`](https://us-east-1.console.aws.amazon.com/ecr/repositories/private/926789386606/cricscoredev-ml-predict?region=us-east-1)
   - **Versioned Image URI**: `926789386606.dkr.ecr.us-east-1.amazonaws.com/cricscoredev-ml-predict:v2.2.0` (also tagged `:latest`)
-  - **Digest**: `sha256:0a3e191a4a531dd9115f9ab40631fbbd7b80c3c47bb6f7ea18d783e7e4157fc9` | **Size**: `652.11 MB` | **Pushed**: `2026-10-20 01:48:26`
+  - **Digest**: `sha256:a2c42abc5a1d411a5efbe78170db9603ce76847a14f264752b74575bed37f72b` | **Size**: `652.11 MB` | **Pushed**: `2026-10-21 01:50:10`
 - **Prod ECR Repository**: [`cricscore-ml-predict`](https://us-east-1.console.aws.amazon.com/ecr/repositories/private/926789386606/cricscore-ml-predict?region=us-east-1)
   - **Versioned Image URI**: `926789386606.dkr.ecr.us-east-1.amazonaws.com/cricscore-ml-predict:v2.2.0` (also tagged `:latest`)
   - **Digest**: `sha256:a2c42abc5a1d411a5efbe78170db9603ce76847a14f264752b74575bed37f72b` | **Size**: `652.11 MB` | **Pushed**: `2026-10-21 01:46:13`
