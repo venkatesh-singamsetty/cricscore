@@ -192,7 +192,7 @@ def get_match_weather(location: str, target_date: str = "today", hours_ahead: in
     geo_url = (
         "https://geocoding-api.open-meteo.com/v1/search?name="
         + urllib.parse.quote(clean_loc.split(",")[0].strip())
-        + "&count=1&language=en&format=json"
+        + "&count=10&language=en&format=json"
     )
     try:
         with urllib.request.urlopen(geo_url, timeout=8) as resp:  # nosec B310
@@ -203,12 +203,14 @@ def get_match_weather(location: str, target_date: str = "today", hours_ahead: in
     results = geo.get("results") or []
     if not results:
         return {"found": False, "location": clean_loc, "sources": []}
-    place = results[0]
+    sorted_results = sorted(results, key=lambda x: x.get("population") or 0, reverse=True)
+    place = sorted_results[0]
     lat, lon = place["latitude"], place["longitude"]
     label = ", ".join(filter(None, [place.get("name"), place.get("admin1"), place.get("country")]))
 
     fc_url = (
         f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}"
+        "&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code"
         "&hourly=temperature_2m,precipitation_probability,precipitation,wind_speed_10m"
         "&timezone=auto&forecast_days=3"
     )

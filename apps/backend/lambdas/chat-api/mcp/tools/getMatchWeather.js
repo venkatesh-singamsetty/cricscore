@@ -68,7 +68,27 @@ function validateWeatherInput({ location, targetDate, hoursAhead } = {}) {
 }
 
 /**
+ * Formats an ISO time string ("2026-10-21T01:15" or "2026-10-21T02:00") into a user-friendly 12-hour string (e.g., "1:15 AM", "2:00 AM").
+ *
+ * @param {string} isoStr
+ * @returns {string}
+ */
+function formatTime12h(isoStr) {
+  if (!isoStr || typeof isoStr !== "string") return "";
+  const parts = isoStr.split("T");
+  const timePart = parts[1] || parts[0];
+  const [hStr, mStr] = timePart.split(":");
+  let hour = parseInt(hStr, 10);
+  if (isNaN(hour)) return isoStr;
+  const ampm = hour >= 12 ? "PM" : "AM";
+  hour = hour % 12 || 12;
+  const minute = mStr && mStr !== "00" ? `:${mStr}` : ":00";
+  return `${hour}${minute} ${ampm}`;
+}
+
+/**
  * Resolves a location name (e.g., "Chicago, IL" or "Schaumburg") to coordinates using Open-Meteo Geocoding API (free, no key).
+ * Prioritizes higher population results when multiple cities share the same name.
  *
  * @param {string} location
  * @returns {Promise<object | null>}
@@ -83,12 +103,15 @@ async function geocodeLocation(location) {
   }
 
   for (const query of candidates) {
-    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=5&language=en&format=json`;
+    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=10&language=en&format=json`;
     const res = await fetch(url);
     if (!res.ok) continue;
     const data = await res.json();
     if (Array.isArray(data.results) && data.results.length > 0) {
-      return data.results[0];
+      const sorted = [...data.results].sort(
+        (a, b) => (b.population || 0) - (a.population || 0),
+      );
+      return sorted[0];
     }
   }
   return null;
@@ -191,6 +214,7 @@ async function getMatchWeatherTool(args = {}) {
       const code = hourly.weather_code?.[idx] ?? 0;
       return {
         time: t,
+        displayTime: formatTime12h(t),
         condition: WMO_WEATHER_CODES[code] || "Partly cloudy",
         tempC: Math.round(tempC),
         tempF: toF(tempC),
@@ -205,6 +229,7 @@ async function getMatchWeatherTool(args = {}) {
 
     const currentTimeIso = forecast.current?.time || times[0] || "";
     const todayDateStr = currentTimeIso.slice(0, 10);
+    const currentHourPrefix = currentTimeIso.slice(0, 13); // e.g. "2026-10-21T01"
 
     let selectedHours = [];
     let windowDescription = "";
@@ -230,10 +255,16 @@ async function getMatchWeatherTool(args = {}) {
       });
       windowDescription = `Date (${sanitized.targetDate}) Match-Day Hourly Forecast (08:00–21:00 local time)`;
     } else {
-      const startIdx = Math.max(
-        0,
-        allHours.findIndex((h) => h.time >= currentTimeIso),
+      // Find the hourly slot starting from the current hour (e.g. 01:00 if current time is 01:15)
+      let startIdx = allHours.findIndex((h) =>
+        h.time.startsWith(currentHourPrefix),
       );
+      if (startIdx === -1) {
+        startIdx = Math.max(
+          0,
+          allHours.findIndex((h) => h.time >= currentTimeIso),
+        );
+      }
       selectedHours = allHours.slice(startIdx, startIdx + sanitized.hoursAhead);
       windowDescription = `Next ${sanitized.hoursAhead} Hours Live Match Forecast`;
     }
@@ -241,6 +272,7 @@ async function getMatchWeatherTool(args = {}) {
     const currentSummary = forecast.current
       ? {
           time: forecast.current.time,
+          displayTime: formatTime12h(forecast.current.time),
           condition:
             WMO_WEATHER_CODES[forecast.current.weather_code] || "Partly cloudy",
           tempC: Math.round(forecast.current.temperature_2m ?? 0),

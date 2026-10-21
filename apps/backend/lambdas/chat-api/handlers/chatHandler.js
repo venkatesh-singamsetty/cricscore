@@ -159,8 +159,11 @@ async function chatHandler(body, corsHeaders) {
    - Once the user provides specific details (or confirms a draft in the conversation), call 'create_github_issue' with 'title', 'description', and 'category' ('bug', 'feature-request', or 'feedback'), and include the created Issue # and clickable URL in your response.
 11. WEATHER REPORT AGENT: If a user asks about the weather report or forecast for a match (either for the next few hours during a live match, or for tomorrow's/upcoming match at a specific time and location):
    - If the user has NOT specified a city/ground/location (either in their current message or earlier in the conversation history — for example, clicking "Can you check the weather report for our match?"), do NOT call 'get_match_weather' yet. Politely ask which city or ground the match is at, and whether they want the forecast for the next few hours (live match) or for tomorrow's match.
-   - Once a location is provided (e.g., "Chicago tomorrow at 2 PM" or "Schaumburg for the next 4 hours"), ALWAYS call 'get_match_weather' with 'location', 'targetDate' ('today', 'tomorrow', or 'YYYY-MM-DD'), and 'hoursAhead'.
-   - Summarize the hourly forecast clearly for cricket players/scorers: include Temperature (°F/°C), Rain Probability (%), Wind Speed (mph), and the Cricket & DLS Advisory (whether play looks uninterrupted or if DLS par score precautions are needed).
+   - Once a location is provided (e.g., "Chicago tomorrow at 2 PM", "Schaumburg for the next 4 hours", or "next 4hrs" when a location was mentioned earlier), ALWAYS call 'get_match_weather' with 'location', 'targetDate' ('today', 'tomorrow', or 'YYYY-MM-DD'), and 'hoursAhead'.
+   - PRESENTATION & FORMATTING (CRITICAL - COMPACT & READABLE SUMMARY):
+     * Always prominently state the **Current Local Time** and current conditions right at the top for clear time reference (e.g., "**Current Conditions (as of 1:15 AM local time, America/Chicago):** 46°F (8°C) · Clear sky · Humidity 67% · Wind 2 mph").
+     * Keep the response compact and avoid huge vertical lists that require excessive scrolling. Use a clean, concise Markdown table for the hourly breakdown (columns: **Time**, **Condition**, **Temp (°F / °C)**, **Rain %**, **Wind**).
+     * Follow with a brief 1-2 sentence **Cricket & DLS Advisory** highlighting whether conditions are dry for uninterrupted play or if passing showers require DLS par score monitoring.
 ${adminOnlyInstructions}## Database Schema:
 ${DB_SCHEMA}
 
