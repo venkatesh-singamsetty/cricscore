@@ -5,21 +5,23 @@ description: Use when changing CricScore chat, LLM provider configuration, MCP t
 
 # CricScore Agentic RAG, Python AI Service & MCP Architecture
 
-Use `docs/ai_architecture.md`, `apps/ai-service/` (Python LangGraph & MCP), `apps/backend/lambdas/chat-api/` (Node.js Adapter), and `apps/frontend/src/components/ChatComponent.tsx` as the source of truth.
+Use `docs/ai_architecture.md`, `docs/github_issue_agent.md`, `docs/weather_report_agent.md`, `apps/ai-service/` (Python LangGraph & MCP), `apps/backend/lambdas/chat-api/` (Node.js Adapter), and `apps/frontend/src/components/ChatComponent.tsx` as the source of truth.
 
-## 1. Multi-Agent Python AI Service (`apps/ai-service`)
+## 1. Multi-Agent Python AI Service (`apps/ai-service`) & Node.js MCP Server (`chat-api`)
 
-- **LangGraph Supervisor & Specialist Agents (`cricscore_ai/`)**:
-  - `graph.py` / `router.py`: Classifies user intent and routes between specialist nodes:
-    - **Match Info & SQL Agent**: Parameterized and validated read-only SQL queries against PostgreSQL.
-    - **Cricket RAG Agent**: `pgvector` similarity search on official tournament rulebooks (`rule_chunks`).
+- **LangGraph Supervisor & Specialist Agents (`cricscore_ai/` & `chat-api/mcp/`)**:
+  - `graph.py` / `router.py` / `chatHandler.js`: Classifies user intent and routes between specialist nodes and MCP tools:
+    - **Match Info & SQL Agent (`execute_sql`)**: Parameterized and validated read-only SQL queries against PostgreSQL.
+    - **Cricket RAG Agent (`search_tournament_rules`)**: `pgvector` similarity search on official tournament rulebooks (`rule_chunks`).
     - **Cricket Analysis Agent**: Synthesizes live match statistics and game progression analysis.
-    - **Prediction Agent**: Live win probability and par calculation integration.
+    - **Prediction Agent (`predict_match_outcome`)**: Live win probability and par calculation integration.
+    - **Weather Report Agent (`get_match_weather`)**: Zero-cost ($0) live ("next few hours") and upcoming/tomorrow's match weather forecasts + DLS rain advisories via Open-Meteo (`geocoding-api.open-meteo.com` & `api.open-meteo.com`, no API key required). Asks the user for their city/ground first if no location is provided (`docs/weather_report_agent.md`).
+    - **GitHub Issue Specialist Agent (`create_github_issue`)**: Creates labeled GitHub issues (`["via-cricscore-ai", category]`) in `venkatesh-singamsetty/cricscore` via server-side `GITHUB_TOKEN`, enforcing a 2-step confirmation flow (asks for title/description if generic) and a 1-issue-per-message rate limit (`docs/github_issue_agent.md`).
   - State is strictly bounded with recursion caps, tool call limits, and error recovery.
   - Optional LangSmith tracing (`tracing.py`) enabled via `LANGCHAIN_TRACING_V2=true`.
 
 - **Stdio Model Context Protocol (MCP) Server (`cricscore_ai/mcp_server.py`)**:
-  - Exposes approved CricScore tools (`execute_sql`, `search_rules`, `get_match_summary`, `predict_win_probability`) over JSON-RPC stdio.
+  - Exposes approved CricScore tools (`get_match_details`, `get_match_statistics`, `list_recent_matches`, `search_tournament_rules`, `get_model_metadata`, `predict_match_outcome`, `create_github_issue`, `get_match_weather`) over JSON-RPC stdio.
 
 ## 2. In-Process MCP Server & Chat Security Boundaries
 

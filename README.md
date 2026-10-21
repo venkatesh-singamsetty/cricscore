@@ -37,229 +37,56 @@ This repository serves as a practical, production-style reference implementation
 
 ---
 
-## ☁️ 1. Multi-Cloud System Architecture: AWS Serverless & Aiven PostgreSQL
+## 🗺️ Architecture at a Glance
 
-The core application platform leverages a serverless, event-driven multi-cloud design separating high-speed real-time ingestion from relational persistence.
+Four pictures explain the whole platform. Each uses official AWS icons, and the coloured boxes group the steps in order. Prefer text? The editable Mermaid versions and sequence diagrams are in **[docs/architecture.md](./docs/architecture.md)**.
 
-```mermaid
-flowchart TD
-    %% User and CDN Layer
-    Client["Fan / Scorer / Admin (React UI)"] --> Route53["Amazon Route 53 (DNS)"]
-    Route53 -.-> CloudFront["AWS CloudFront (CDN)"]
-    Route53 -.-> APIGW_HTTP["Amazon API Gateway (HTTP API)"]
-    Route53 -.-> APIGW_WS["Amazon API Gateway (WebSocket API)"]
+### ☁️ 1. Platform Overview
 
-    subgraph Edge ["Frontend Delivery"]
-        CloudFront --> S3_App["Amazon S3: Static React Assets"]
-    end
+![CricScore platform overview: users reach a CloudFront-hosted React app, sign in with Cognito, and call API Gateway, which invokes Lambda functions backed by Aiven PostgreSQL, S3, SES and an LLM provider](./docs/images/architecture/01_platform_overview.png)
 
-    %% Security & Ingress
-    subgraph Security ["Identity & Authorization"]
-        Cognito["Amazon Cognito User Pool"]
-        JWT_Auth["API Gateway Cognito JWT Authorizer"]
-        Cognito -->|Token Issuance| Client
-        JWT_Auth -.->|Enforces Bearer JWT| APIGW_HTTP
-    end
+- **Load the app**: Route 53 → CloudFront → S3 serves the React build.
+- **Sign in & call APIs**: Cognito issues JWTs; API Gateway (HTTP + WebSocket) is the only way in.
+- **Compute**: Four Lambda functions handle matches, live balls, AI chat, and win prediction.
+- **Data & Observability**: Aiven PostgreSQL 16 + pgvector stores everything; CloudWatch aggregates 7-day logs & alarm metrics; S3 keeps backups; SES emails match reports.
 
-    %% Backend Compute
-    subgraph Compute ["AWS Lambda Serverless Compute"]
-        MatchAPI["match-api Lambda (Node.js)"]
-        ScoreUpdate["score-update Lambda (Node.js)"]
-        StorageWorker["storage-worker Lambda (Node.js)"]
-        Broadcaster["broadcaster Lambda (Node.js)"]
-        ConnHandlers["onconnect / ondisconnect Lambdas"]
-        ChatAPI["chat-api Lambda (Node.js Adapter)"]
-        MLPredict["ml-predict Lambda (Python 3.12 Docker)"]
-        AIService["apps/ai-service (Python 3.12 LangGraph)"]
-    end
+### ⚡ 2. Live Scoring: One Ball, Two Paths
 
-    %% Asynchronous Fan-Out
-    subgraph Messaging ["Event-Driven Fan-Out Ingestion"]
-        SNS_Score{{"Amazon SNS: live-score-fanout"}}
-        SQS_Queue[["Amazon SQS: persistence-queue"]]
-        DDB[("Amazon DynamoDB: WebSocket Connections")]
-    end
+![Live scoring flow: score-update Lambda publishes each ball to SNS for instant WebSocket broadcast and to SQS for guaranteed persistence in PostgreSQL](./docs/images/architecture/02_live_scoring_flow.png)
 
-    %% Multi-Cloud Persistence
-    subgraph AivenCloud ["Aiven Managed Cloud Database"]
-        AivenPG[("Aiven PostgreSQL 16 + pgvector (dev / prod)")]
-    end
+- **Fast path (blue)**: SNS → broadcaster Lambda → WebSocket push, so fans see the ball in under a second.
+- **Safe path (green)**: SQS → storage-worker Lambda → PostgreSQL 16, so no ball is lost if the database is slow.
 
-    %% External & Auxiliary Services
-    subgraph Operations ["Observability & Auxiliary"]
-        CloudWatch["CloudWatch Logs (7-day retention) & Alarms"]
-        SES["Amazon SES (Match PDF Reports)"]
-        S3_Backups[("Amazon S3: Match State Backups")]
-        OpenAI["OpenAI-Compatible LLM / Embedding Provider"]
-    end
+### 🤖 3. AI Assistant (Autonomous Multi-Agent System)
 
-    %% Wire connections
-    APIGW_HTTP -->|/match routes| MatchAPI
-    APIGW_HTTP -->|POST /update-score| ScoreUpdate
-    APIGW_HTTP -->|POST /chat| ChatAPI
-    APIGW_HTTP -->|POST /match/predict| MLPredict
-    APIGW_WS -->|Connect / Disconnect| ConnHandlers
-    ConnHandlers --> DDB
+![Agentic AI architecture: chat-api Lambda applies security guardrails, orchestrates autonomous specialist agents via MCP tools for read-only SQL, pgvector rule search, weather forecast, and rate-guarded GitHub issue reporting](./docs/images/architecture/03_ai_assistant.png)
 
-    ScoreUpdate -->|Fast Path Broadcast| SNS_Score
-    ScoreUpdate -->|Guaranteed Delivery| SQS_Queue
-    SNS_Score --> Broadcaster
-    Broadcaster -->|Push Updates| APIGW_WS
-    SQS_Queue --> StorageWorker
+- **Agent Supervisor vs. LLM**: The LLM evaluates user intent and determines _which_ specialist tool to invoke. The LLM sends its structured function call back to the **Agent Supervisor (MCP Client)** in the Lambda. The supervisor enforces security guardrails (strict read-only SELECT validation, rate limit of 1 GitHub issue per message, prompt injection sanitization), dispatches execution to the in-memory MCP tool, and returns the factual evidence to the LLM to synthesize the final cited response. The LLM _never_ interacts directly with the database or external APIs.
+- **Specialist AI Agents & Tools**:
+  | Specialist Agent                          | MCP Tool / Capability        | Underlying Source                                                     |
+  | ----------------------------------------- | ---------------------------- | --------------------------------------------------------------------- |
+  | 📊 **Match Stats Agent**                  | `execute_sql`                | Aiven PostgreSQL 16 (strict read-only SELECT)                         |
+  | 📖 **Tournament Rules (RAG) Agent**       | `search_tournament_rules`    | pgvector store (cosine similarity with `[Source: rulebook]` citation) |
+  | 🌦️ **Weather Specialist Agent**           | `get_match_weather`          | Open-Meteo API (live hourly rain % & DLS forecast, $0 cost)           |
+  | 🐛 **GitHub Issue Reporter Agent**        | `create_github_issue`        | GitHub REST API (2-step confirmation, 1-issue rate guard)             |
+  | 🏏 **Cricket Context & Tactical Agent**   | Live match context injection | Real-time scoreboard telemetry (CRR, RRR, partnerships)               |
+  | 🎯 **Win Probability & Prediction Agent** | `predict_match_outcome`      | XGBoost + Markov DP + DLS hybrid model integration                    |
+- **Direct Lambda vs. AI Agent for Predictions**: The live scoreboard calls the `ml-predict` Lambda directly on every ball for sub-second, low-latency percentage updates. When a user asks conversational or "what-if" questions in chat, the AI Assistant's Prediction Agent analyzes the match state and explains the probabilities with rich tactical commentary.
+- See [AI Architecture](./docs/ai_architecture.md), [Architecture & AI/MLOps FAQ](./docs/architecture_faq.md), [Weather Agent](./docs/weather_report_agent.md), and [GitHub Issue Agent](./docs/github_issue_agent.md) for complete details.
 
-    MatchAPI --> AivenPG
-    StorageWorker -->|Batched Ball Events| AivenPG
-    MatchAPI --> SES
-    MatchAPI --> S3_Backups
+### 🧠 4. MLOps & Live Win Probability
 
-    ChatAPI --> AIService
-    AIService -->|Parameterized Read-Only SQL & pgvector| AivenPG
-    AIService -.-> OpenAI
-```
+![MLOps pipeline: DVC-versioned Cricsheet data trains eight models tracked in MLflow; GitHub Actions gates the XGBoost champion into an S3 registry and ECR image served by the ml-predict Lambda](./docs/images/architecture/04_mlops_win_prediction.png)
 
----
+- **Data → Train**: DVC versions 786K+ Cricsheet ball-by-ball deliveries; eight classification models are compared in MLflow.
+- **Gate → Publish**: GitHub Actions promotes the XGBoost champion only if Validation Accuracy $\ge 60\%$ and ROC-AUC $\ge 65\%$, generating an immutable `model_manifest.json` with SHA-256 checksums.
+- **Amazon ECR vs. S3 Model Registry**:
+  - **Amazon ECR** packages the Python 3.12 container runtime and heavy compiled dependencies (XGBoost, Scikit-learn, Pandas, NumPy), tagged with both `:${var.ml_model_version}` and `:latest`.
+  - **Amazon S3** acts as the versioned model registry (`models/${var.ml_model_version}/`), holding the `.joblib` model artifact, manifest, and metadata.
+  - On cold start, the `ml-predict` container Lambda fetches the version-tagged model from S3 into `/tmp`, verifies its SHA-256 checksum against the manifest, and falls back to bundled image artifacts if offline. This allows instant model rollbacks and updates via `./infra/scripts/deploy.sh --model-version <tag>` without rebuilding 500MB+ Docker images.
+- **Serve**: The `ml-predict` container blends XGBoost with a Markov Chain Dynamic Programming (DP) chase simulation and format-scaled Duckworth-Lewis-Stern (DLS) par calculation.
 
-## 🤖 2. Agentic AI, LangGraph Supervisor, RAG & MCP Architecture
-
-CricScore implements a modular Agentic AI platform built on **LangGraph**, **LangChain**, and the **Model Context Protocol (MCP)** with strict read-only security boundaries:
-
-```mermaid
-flowchart TD
-    subgraph UserInterface ["Frontend & External AI Clients"]
-        User["Fan / Viewer (Chat Widget)"]
-        Chips["Context-Aware Prompt Chips"]
-        LiveContext["Live Match Context Injection"]
-        ExtMCP["External AI Clients (Claude Desktop / Cursor)"]
-    end
-
-    subgraph SecurityGate ["Ingress & Security Boundary"]
-        APIGW_Chat["POST /chat (Open Access for Fans)"]
-        NodeAdapter["chat-api Node.js Adapter (Sanitizes History & Enforces Read-Only)"]
-    end
-
-    subgraph LangGraphSupervisor ["Python AI Service (LangGraph Supervisor)"]
-        Classifier{"Deterministic Intent Router (Zero LLM Latency)"}
-
-        subgraph SpecializedAgents ["Bounded Specialist Agents (Max 3 Tool Calls)"]
-            MatchAgent["Match Info Agent (Parameterized SQL, 3s Timeout, Row Limits)"]
-            RAGAgent["Cricket RAG Agent (pgvector Cosine Search)"]
-            AnalysisAgent["Cricket Analysis Agent (Synthesizes Stats + Rules + DLS)"]
-            PredictionAgent["Prediction Agent (Feature Validation & Model Inference)"]
-        end
-
-        Synthesizer["Evidence Synthesizer (Untrusted Evidence Quoted, Fact vs Opinion)"]
-    end
-
-    subgraph DataAndTools ["Tools & Persistence Layer"]
-        PG_Relational[("Aiven PostgreSQL: Matches, Innings, Players")]
-        PG_Vector[("pgvector: Tournament Rulebooks Embeddings")]
-        ML_Model["cricscore-ml-predict Lambda (Inference Engine)"]
-        MCPServer["Python MCP Server (Stdio Transport, 6 Approved Read-Only Tools)"]
-    end
-
-    subgraph Observability ["Opt-in Tracing"]
-        LangSmith["LangSmith Tracing (Opt-in, Redacted Payloads)"]
-    end
-
-    User --> LiveContext
-    Chips --> User
-    LiveContext --> APIGW_Chat
-    APIGW_Chat --> NodeAdapter
-    NodeAdapter --> Classifier
-
-    Classifier -->|match_info| MatchAgent
-    Classifier -->|rules| RAGAgent
-    Classifier -->|analysis| AnalysisAgent
-    Classifier -->|prediction| PredictionAgent
-    Classifier -->|clarify / refuse| Synthesizer
-
-    MatchAgent -->|Predefined Query| PG_Relational
-    RAGAgent -->|Embedding <=> Search| PG_Vector
-    AnalysisAgent --> PG_Relational
-    AnalysisAgent --> PG_Vector
-    PredictionAgent --> ML_Model
-
-    MatchAgent --> Synthesizer
-    RAGAgent --> Synthesizer
-    AnalysisAgent --> Synthesizer
-    PredictionAgent --> Synthesizer
-
-    ExtMCP -.->|Local stdio JSON-RPC| MCPServer
-    MCPServer -.-> MatchAgent
-    MCPServer -.-> RAGAgent
-    MCPServer -.-> PredictionAgent
-
-    Synthesizer -.-> LangSmith
-    Synthesizer --> User
-```
-
----
-
-## 🧠 3. Serverless MLOps & Hybrid Win Prediction Architecture
-
-The prediction platform integrates a reproducible **MLOps lifecycle** (DVC + MLflow + GitHub Actions) with a hybrid **Dynamic Programming (DP) + DLS win probability engine**:
-
-```mermaid
-flowchart TD
-    subgraph DataPipeline ["Phase 1: Dataset Pipeline & DVC Versioning"]
-        Cricsheet["Cricsheet Ball-by-Ball JSON Archives"]
-        Extractor["data_pipeline.py"]
-        RawCSV[("live_data.csv (786K+ Deliveries)")]
-        DVC_Track["DVC Tracking: cricket-data/t20s_json.zip.dvc & dvc.yaml"]
-        Cricsheet --> Extractor --> RawCSV --> DVC_Track
-    end
-
-    subgraph Experimentation ["Phase 2: Multi-Algorithm Experimentation & Leakage-Free Validation"]
-        Splitter["Match-Grouped Split (70% Train, 15% Val, 15% Test: Zero Leakage)"]
-
-        subgraph Candidates ["Candidate Algorithm Benchmark (8 Models)"]
-            LogReg["LogisticRegression (Baseline)"]
-            NB["GaussianNB / DecisionTree / LinearSVC"]
-            HGB["HistGradientBoostingClassifier"]
-            RF["RandomForest / ExtraTrees"]
-            XGB["XGBoost (Champion v2.2.0)"]
-        end
-
-        Metrics["Evaluation Metrics: Log Loss, Brier Score, ROC-AUC, Accuracy, Latency"]
-        MLflowStore[("Local MLflow Store: apps/ml-engine/mlruns/")]
-
-        RawCSV --> Splitter --> Candidates --> Metrics --> MLflowStore
-    end
-
-    subgraph Governance ["Phase 3: Promotion Gates & Manifest Generation"]
-        Gate{"Quality Gates: Accuracy >= 0.60 & ROC-AUC >= 0.65?"}
-        Winner["Promoted Winner: XGBoost (v2.2.0)"]
-        Manifest["model_manifest.json (Semantic Version, Metrics, SHA-256 Checksum)"]
-        Report["comparison_report.md (Markdown Benchmark Table)"]
-
-        Metrics --> Gate
-        Gate -->|Approved| Winner --> Manifest --> Report
-    end
-
-    subgraph Automation ["Phase 4: CI/CD & S3 Model Registry"]
-        WorkflowA["mlops-pipeline.yml (Dataset/Training Changes & Monthly Cron)"]
-        S3Registry[("Amazon S3: Versioned Model Registry (models/v2.2.0/)")]
-        ECR["Amazon ECR Container Registry (:v2.2.0 + Lifecycle Policy)"]
-    end
-
-    subgraph Serving ["Phase 5: Real-Time Hybrid Inference (AWS Lambda)"]
-        LambdaContainer["cricscore-ml-predict Lambda (Python 3.12, 1024MB, Lazy Imports)"]
-        SafeLoader["S3 /tmp Cache + SHA-256 Checksum Loader & MODEL_VERSION Routing"]
-
-        subgraph HybridEngine ["Format-Agnostic Probability Engine (1–20 Overs)"]
-            FirstInn["1st Innings: Par-RPO Projection Logistic Curve"]
-            SecondInn["2nd Innings: Hybrid Markov DP Simulation + DLS Resource Par"]
-            TerminalCheck["Terminal State Evaluator (0% / 100% Certainty Check)"]
-        end
-
-        Manifest --> WorkflowA
-        WorkflowA --> S3Registry
-        S3Registry -->|MODEL_VERSION| SafeLoader
-        ECR --> LambdaContainer
-        LambdaContainer --> SafeLoader --> TerminalCheck --> FirstInn
-        TerminalCheck --> SecondInn
-    end
-```
+> 🔁 **Regenerate the images** after an architecture change: see [`docs/diagrams/README.md`](./docs/diagrams/README.md).
 
 ---
 

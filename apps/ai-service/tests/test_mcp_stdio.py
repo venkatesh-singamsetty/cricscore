@@ -27,6 +27,6 @@ async def _session_calls():
 
 def test_stdio_roundtrip_without_credentials():
     names, res = asyncio.run(asyncio.wait_for(_session_calls(), 30))
-    assert "predict_match_outcome" in names and len(names) == 6
+    assert "predict_match_outcome" in names and "create_github_issue" in names and "get_match_weather" in names and len(names) == 8
     text = json.dumps(res.model_dump(), default=str)
     assert "not configured" in text

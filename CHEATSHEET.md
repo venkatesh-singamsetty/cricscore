@@ -36,6 +36,12 @@ git checkout main && git pull origin main
 # Create a new feature or fix branch
 git checkout -b feature/your-feature-name
 
+# Consolidate any open Dependabot PRs into the current working branch (Collaborator-guarded)
+./infra/scripts/consolidate_dependabot_prs.sh --merge
+
+# After validating and pushing the branch to origin, safely close superseded Dependabot PRs
+./infra/scripts/consolidate_dependabot_prs.sh --close --target-pr <PR_NUMBER>
+
 # Add, sync with origin/main, commit, and push changes
 git add .
 git commit -m "feat: your descriptive commit message"

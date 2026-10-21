@@ -4,6 +4,7 @@
 
 - **Always Load Matching Skills First**: Before modifying code, infrastructure, tests, deploying, or opening/updating a Pull Request—including immediately after conversation context compaction—you **MUST** call `view_file` on the relevant `.agents/skills/*/SKILL.md` file(s) and follow their checklists:
   - PRs, Git & CI/CD: `cricscore-pr-and-workflow`
+  - Dependabot PR Consolidation (Collaborator-Only): `cricscore-dependabot-consolidation`
   - Infrastructure & Local/Prod Deployments: `cricscore-infrastructure-standards`
   - Code Review & Quality: `cricscore-code-review-standards`
   - Testing (Unit, Component, ML, E2E): `cricscore-testing-standards`
@@ -27,7 +28,8 @@
 
 ## 3. Git, Pull Request & CI/CD Workflow
 
-- **Never push directly to `main`**: Always work on a `feat/*` or `fix/*` branch and open a Pull Request.
+- **Always pull `main` & create a fresh branch for every new feature or bug fix**: Before writing any code for a new task, run `git checkout main && git pull origin main && git checkout -b <feat|fix>/<descriptive-name>`. Never push directly to `main` and never reuse an already-merged PR branch.
+- **Consolidate open Dependabot PRs into the new working branch (Collaborator-Only)**: Whenever creating a new working branch, check for open PRs authored strictly by `app/dependabot` (`./infra/scripts/consolidate_dependabot_prs.sh --merge`), validate and fix any issues locally, push the branch to `origin`, and close the superseded Dependabot PRs (`./infra/scripts/consolidate_dependabot_prs.sh --close --target-pr <PR>`) ONLY after verifying collaborator permission (`admin`/`maintain`/`write`) and confirming the commits are on `origin/<branch>`.
 - **Always sync with `origin/main` before pushing**: Run `git fetch origin main && git merge origin/main` before pushing or opening/updating a PR so the branch is never out-of-date with `main`.
 - **Validate locally before pushing**: Run `./infra/scripts/validate_local.sh` (and `./apps/ml-engine/venv/bin/pytest apps/ml-engine/test_predict.py` for ML changes) locally before pushing. Local validation writes a state receipt to `.git/.local_validation_receipt`, so `.husky/pre-push` detects this and skips duplicate execution instantly (<0.1s) on `git push`. Never use GitHub Actions for trial-and-error debugging.
 - **Post-PR Check & CodeQL Resolution**: After pushing or opening a PR, inspect GitHub Actions status (`gh pr checks`) and inline review/CodeQL comments (`gh api repos/venkatesh-singamsetty/cricscore/pulls/<PR>/comments`) and resolve any findings immediately.
@@ -35,7 +37,7 @@
 ## 4. Testing & Documentation Completeness
 
 - **Tests with every change**: Every feature or bug fix must include unit/component tests (`apps/frontend/src/test/`, `apps/backend/lambdas/`, `apps/ml-engine/test_predict.py`). If UI labels, buttons, or flows in `MatchSetup`, `MatchView`, or `App` change, update and run Playwright E2E (`apps/e2e`) against `dev` so CI never hangs or fails.
-- **Documentation with every change**: Always update `docs/changelog.md`, `docs/testing.md`, and relevant architecture tutorials (`docs/mlops_tutorial.md`, `docs/websocket_tutorial.md`, `docs/deployment.md`) in the same PR.
+- **Documentation with every change**: Always update `docs/testing.md` and relevant architecture tutorials (`docs/mlops_tutorial.md`, `docs/websocket_tutorial.md`, `docs/deployment.md`) in the same PR. Do not manually prepend entries to `docs/changelog.md` on feature branches, as `semantic-release` automatically generates `docs/changelog.md` on `main` and manual edits cause merge conflicts.
 
 ## 5. Cloud Cost, Security & Code Hygiene
 

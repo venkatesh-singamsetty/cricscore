@@ -29,6 +29,7 @@ interface LiveScoreboardProps {
   onResumeMatch?: (matchId: string) => void;
   initialMatchId?: string;
   scorecardDismissRequest?: number;
+  sectionTitle?: string;
 }
 
 const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
@@ -37,6 +38,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
   onResumeMatch,
   initialMatchId,
   scorecardDismissRequest = 0,
+  sectionTitle,
 }) => {
   const WS_URL = import.meta.env.VITE_WS_URL || "";
   const API_URL = import.meta.env.VITE_API_URL || "";
@@ -797,7 +799,12 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
   }, [targetMatchId, matchMeta?.status, fetchMatchDetails]);
 
   return (
-    <div className="p-6 bg-slate-900 text-white rounded-[2rem] border border-white/5 shadow-2xl w-full">
+    <div className="p-4 sm:p-6 bg-slate-900/90 text-white rounded-2xl sm:rounded-3xl border border-white/10 shadow-2xl w-full">
+      {sectionTitle && (
+        <h2 className="text-xl font-black text-white uppercase tracking-wider italic mb-4 px-1">
+          {sectionTitle}
+        </h2>
+      )}
       <div className="flex flex-col gap-4 mb-6">
         <div className="flex justify-between items-center px-1">
           <div className="flex items-center gap-2">
@@ -818,7 +825,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                 ? "FOLLOW MATCH ID..."
                 : "SEARCH TEAM OR MATCH ID..."
             }
-            className="w-full bg-slate-800/50 border border-white/5 rounded-xl px-4 py-2.5 text-[10px] font-black text-indigo-400 placeholder:text-slate-400 outline-none focus:border-indigo-500/50 transition-all uppercase tracking-widest tabular-nums"
+            className="w-full bg-slate-800/70 border border-white/10 rounded-xl px-4 py-2.5 text-[10px] font-black text-indigo-400 placeholder:text-slate-400 outline-none focus:border-indigo-500/50 transition-all uppercase tracking-widest tabular-nums"
             value={targetMatchId ? targetMatchId : searchTerm}
             onChange={(e) => {
               const val = e.target.value;

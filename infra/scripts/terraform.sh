@@ -28,6 +28,7 @@ export TF_VAR_zone_domain="${ZONE_DOMAIN}"
 export TF_VAR_subdomain_prefix="${SUBDOMAIN_PREFIX:-cricscore}"
 export TF_VAR_project_name="${PROJECT_NAME:-cricscore}"
 export TF_VAR_aws_region="${AWS_REGION:-us-east-1}"
+if [ -n "${GITHUB_TOKEN:-}" ]; then export TF_VAR_github_token="${GITHUB_TOKEN}"; fi
 export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-${AWS_REGION:-us-east-1}}"
 
 echo "🌍 Running: terraform -chdir=$REPO_ROOT/infra/terraform $*"

@@ -86,6 +86,10 @@ PROJECT_NAME='cricscore'
 
 # OpenAI (chat and embeddings)
 OPENAI_API_KEY='your-openai-api-key'
+
+# Optional: GitHub Personal Access Token for the MCP GitHub Issue Agent in Chat
+# (See docs/github_issue_agent.md; Weather Report Agent via Open-Meteo is $0 and needs no key)
+GITHUB_TOKEN='ghp_your_github_pat_here'
 ```
 
 `LLM_BASE_URL` and `LLM_MODEL` are optional and default to `https://api.openai.com/v1` and `gpt-4o-mini`.

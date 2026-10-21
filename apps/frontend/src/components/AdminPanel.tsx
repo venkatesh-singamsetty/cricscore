@@ -246,26 +246,34 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   return (
     <div className="w-full">
       {/* Tabs */}
-      <div className="flex bg-slate-900/50 p-1.5 rounded-xl border border-white/5 mb-8 w-fit mx-auto">
+      <div className="flex bg-slate-900/90 p-1.5 rounded-2xl border border-white/10 mb-6 sm:mb-8 w-full sm:w-fit mx-auto shadow-lg">
         <button
           onClick={() => setActiveTab("USERS")}
-          className={`px-6 py-2.5 font-bold text-sm tracking-wide rounded-lg transition-colors ${activeTab === "USERS" ? "text-white bg-indigo-600 shadow-sm" : "text-slate-400 hover:text-indigo-400"}`}
+          className={`flex-1 sm:flex-initial px-5 sm:px-6 py-2.5 font-extrabold text-xs sm:text-sm tracking-wide rounded-xl transition-all whitespace-nowrap ${
+            activeTab === "USERS"
+              ? "text-white bg-gradient-to-r from-indigo-600 to-violet-600 shadow-md shadow-indigo-500/25 border border-white/15"
+              : "text-slate-400 hover:text-white hover:bg-white/5"
+          }`}
         >
           User Management
         </button>
         <button
           onClick={() => setActiveTab("MATCHES")}
-          className={`px-6 py-2.5 font-bold text-sm tracking-wide rounded-lg transition-colors ${activeTab === "MATCHES" ? "text-white bg-indigo-600 shadow-sm" : "text-slate-400 hover:text-indigo-400"}`}
+          className={`flex-1 sm:flex-initial px-5 sm:px-6 py-2.5 font-extrabold text-xs sm:text-sm tracking-wide rounded-xl transition-all whitespace-nowrap ${
+            activeTab === "MATCHES"
+              ? "text-white bg-gradient-to-r from-indigo-600 to-violet-600 shadow-md shadow-indigo-500/25 border border-white/15"
+              : "text-slate-400 hover:text-white hover:bg-white/5"
+          }`}
         >
           Database Cleanup
         </button>
       </div>
 
       {activeTab === "USERS" && (
-        <div className="bg-slate-900/50 border border-white/5 p-6 rounded-[2rem] backdrop-blur-3xl shadow-2xl animate-in fade-in duration-300">
+        <div className="bg-slate-900/90 border border-white/10 p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-2xl animate-in fade-in duration-300">
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h2 className="text-2xl font-black text-white uppercase tracking-wider italic">
+              <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-wider italic">
                 System Access
               </h2>
               <p className="text-[10px] text-slate-400 uppercase tracking-widest mt-1">
@@ -275,7 +283,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             <button
               onClick={() => fetchUsers()}
               disabled={loading}
-              className="px-4 py-2 bg-slate-800 border border-slate-700 text-slate-300 font-bold rounded-lg hover:bg-slate-700 hover:text-white transition-colors"
+              className="px-4 py-2 bg-slate-800 border border-white/10 text-slate-300 font-bold text-xs sm:text-sm rounded-xl hover:bg-slate-700 hover:text-white transition-colors"
             >
               {loading ? "Loading..." : "🔄 Refresh"}
             </button>
@@ -289,7 +297,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
           )}
 
-          <div className="overflow-x-auto bg-slate-950/50 rounded-2xl border border-white/5">
+          <div className="overflow-x-auto bg-slate-950/60 rounded-2xl border border-white/10">
             <table className="w-full text-left text-slate-300 text-sm">
               <thead className="text-xs text-slate-500 uppercase bg-slate-900/50">
                 <tr>
@@ -561,8 +569,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
       {activeTab === "MATCHES" && (
         <div className="space-y-6 animate-in fade-in duration-300">
-          <div className="bg-slate-900/50 border border-white/5 p-4 sm:p-6 rounded-[2rem] backdrop-blur-3xl shadow-2xl">
-            <h2 className="text-xl font-black text-white uppercase tracking-wider italic mb-4">
+          <div className="bg-slate-900/90 border border-white/10 p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-2xl">
+            <h2 className="text-xl font-black text-white uppercase tracking-wider italic mb-4 px-1">
               Bulk Actions
             </h2>
 
@@ -624,18 +632,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
           </div>
 
-          <div className="bg-transparent md:bg-slate-900/50 border-0 md:border md:border-white/5 p-0 md:p-6 rounded-[2rem] md:backdrop-blur-3xl md:shadow-2xl">
-            <h2 className="text-xl font-black text-white uppercase tracking-wider italic mb-4 px-1 md:px-0">
-              Individual Match Management
-            </h2>
-            <LiveScoreboard
-              key={`hub-${hubKey}`}
-              isAdmin={isAdmin}
-              showDeleteControls={true}
-              initialMatchId={urlMatchId}
-              onResumeMatch={undefined}
-            />
-          </div>
+          <LiveScoreboard
+            key={`hub-${hubKey}`}
+            isAdmin={isAdmin}
+            showDeleteControls={true}
+            initialMatchId={urlMatchId}
+            onResumeMatch={undefined}
+            sectionTitle="Individual Match Management"
+          />
         </div>
       )}
     </div>

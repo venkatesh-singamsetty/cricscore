@@ -60,3 +60,18 @@ def test_unsupported_prediction_does_not_call_model():
     p = FakePredictor()
     assert tools.predict_match_outcome(p, {**GOOD, "inning": 9})["supported"] is False
     assert p.calls == []
+
+
+def test_create_github_issue_validation(monkeypatch):
+    with pytest.raises(ValueError, match="title"):
+        tools.create_github_issue("abc", "valid description text")
+    with pytest.raises(ValueError, match="description"):
+        tools.create_github_issue("Valid title", "short")
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    with pytest.raises(tools.ProviderError):
+        tools.create_github_issue("Valid title", "Valid detailed description here")
+
+
+def test_get_match_weather_validation():
+    with pytest.raises(ValueError, match="location"):
+        tools.get_match_weather("x")

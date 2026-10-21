@@ -11,6 +11,18 @@ joblib = None
 pd = None
 _xgb = None
 
+__all__ = [
+    'handler',
+    'compute_sha256',
+    'load_artifacts',
+    'model',
+    'metadata',
+    'current_loaded_version',
+    'joblib',
+    'pd',
+    '_xgb',
+]
+
 
 def _load_ml_libraries():
     """Lazily import joblib, pandas, and xgboost inside invoke phase."""

@@ -110,8 +110,8 @@ A central single-pane-of-glass directory providing live references across all la
 - **SNS Match Events Topic**: [`cricscoredev-match-events`](https://us-east-1.console.aws.amazon.com/sns/v3/home?region=us-east-1#/topic/arn:aws:sns:us-east-1:926789386606:cricscoredev-match-events)
 - **SNS Lambda Alerts Topic**: [`cricscoredev-lambda-alerts`](https://us-east-1.console.aws.amazon.com/sns/v3/home?region=us-east-1#/topic/arn:aws:sns:us-east-1:926789386606:cricscoredev-lambda-alerts)
 - **ECR Docker Image Repo**: [`cricscoredev-ml-predict`](https://us-east-1.console.aws.amazon.com/ecr/repositories/private/926789386606/cricscoredev-ml-predict?region=us-east-1)
-  - **Latest Tag Digest**: `sha256:0a3e191a4a531dd9115f9ab40631fbbd7b80c3c47bb6f7ea18d783e7e4157fc9`
-  - **Image Size**: `652.11 MB` | **Last Pushed**: `2026-10-20 01:48:26`
+  - **Latest Tag Digest**: `sha256:a2c42abc5a1d411a5efbe78170db9603ce76847a14f264752b74575bed37f72b`
+  - **Image Size**: `652.11 MB` | **Last Pushed**: `2026-10-21 01:50:10`
 
 ### ⚡ Serverless Compute & Telemetry (AWS Lambda)
 
@@ -157,8 +157,8 @@ A central single-pane-of-glass directory providing live references across all la
 - **SNS Match Events Topic**: [`cricscore-match-events`](https://us-east-1.console.aws.amazon.com/sns/v3/home?region=us-east-1#/topic/arn:aws:sns:us-east-1:926789386606:cricscore-match-events)
 - **SNS Lambda Alerts Topic**: [`cricscore-lambda-alerts`](https://us-east-1.console.aws.amazon.com/sns/v3/home?region=us-east-1#/topic/arn:aws:sns:us-east-1:926789386606:cricscore-lambda-alerts)
 - **ECR Docker Image Repo**: [`cricscore-ml-predict`](https://us-east-1.console.aws.amazon.com/ecr/repositories/private/926789386606/cricscore-ml-predict?region=us-east-1)
-  - **Latest Tag Digest**: `sha256:0a3e191a4a531dd9115f9ab40631fbbd7b80c3c47bb6f7ea18d783e7e4157fc9`
-  - **Image Size**: `652.11 MB` | **Last Pushed**: `2026-10-20 01:46:45`
+  - **Latest Tag Digest**: `sha256:a2c42abc5a1d411a5efbe78170db9603ce76847a14f264752b74575bed37f72b`
+  - **Image Size**: `652.11 MB` | **Last Pushed**: `2026-10-21 01:46:13`
 
 ### ⚡ Serverless Compute & Telemetry (AWS Lambda)
 
@@ -208,10 +208,10 @@ A central single-pane-of-glass directory providing live references across all la
 - **Cost & Retention Policy**: Automated ECR lifecycle policy expires untagged images after 1 day and retains only the active version tag (`:v2.2.0` + `:latest`).
 - **Dev ECR Repository**: [`cricscoredev-ml-predict`](https://us-east-1.console.aws.amazon.com/ecr/repositories/private/926789386606/cricscoredev-ml-predict?region=us-east-1)
   - **Versioned Image URI**: `926789386606.dkr.ecr.us-east-1.amazonaws.com/cricscoredev-ml-predict:v2.2.0` (also tagged `:latest`)
-  - **Digest**: `sha256:0a3e191a4a531dd9115f9ab40631fbbd7b80c3c47bb6f7ea18d783e7e4157fc9` | **Size**: `652.11 MB` | **Pushed**: `2026-10-20 01:48:26`
+  - **Digest**: `sha256:a2c42abc5a1d411a5efbe78170db9603ce76847a14f264752b74575bed37f72b` | **Size**: `652.11 MB` | **Pushed**: `2026-10-21 01:50:10`
 - **Prod ECR Repository**: [`cricscore-ml-predict`](https://us-east-1.console.aws.amazon.com/ecr/repositories/private/926789386606/cricscore-ml-predict?region=us-east-1)
   - **Versioned Image URI**: `926789386606.dkr.ecr.us-east-1.amazonaws.com/cricscore-ml-predict:v2.2.0` (also tagged `:latest`)
-  - **Digest**: `sha256:0a3e191a4a531dd9115f9ab40631fbbd7b80c3c47bb6f7ea18d783e7e4157fc9` | **Size**: `652.11 MB` | **Pushed**: `2026-10-20 01:46:45`
+  - **Digest**: `sha256:a2c42abc5a1d411a5efbe78170db9603ce76847a14f264752b74575bed37f72b` | **Size**: `652.11 MB` | **Pushed**: `2026-10-21 01:46:13`
 
 ---
 
@@ -233,6 +233,15 @@ A central single-pane-of-glass directory providing live references across all la
   - Index: Cosine distance HNSW index (`USING hnsw (embedding vector_cosine_ops)`)
 - **AI Chat Session Memory**: `chat_history` (Parameterized SQL session tracking)
 - **AI Analysis Cache**: `match_summaries` (Cached LLM post-match breakdowns)
+
+### Multi-Agent AI & MCP Tools
+
+- **Model Context Protocol (MCP)**: Server running in-process inside `chat-api` Lambda (`apps/backend/lambdas/chat-api/mcp/server.js`) and standalone Python stdio server (`apps/ai-service/cricscore_ai/mcp_server.py`).
+- **`execute_sql`**: Read-only Text-to-SQL for live match events, player stats, and historical match summaries.
+- **`search_tournament_rules`**: Vector RAG search across uploaded cricket rulebooks.
+- **`get_match_weather`**: Free Open-Meteo weather agent resolving coordinates via Geocoding API and generating hour-by-hour forecast tables with cricket DLS rain advisories.
+- **`create_github_issue`**: Issue submission agent routing bug reports and feature requests directly to GitHub via server-side token with a 1-issue-per-message rate guard.
+- **Documentation References**: [`docs/weather_report_agent.md`](file:///Users/venkat/workspace/gitRepos/cricscore/docs/weather_report_agent.md), [`docs/github_issue_agent.md`](file:///Users/venkat/workspace/gitRepos/cricscore/docs/github_issue_agent.md), [`docs/ai_architecture.md`](file:///Users/venkat/workspace/gitRepos/cricscore/docs/ai_architecture.md).
 
 ### Database Migrations Directory
 

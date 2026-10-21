@@ -433,10 +433,16 @@ const App: React.FC = () => {
 
   const AuthHeader = () => (
     <div className="auth-hero">
-      <div className="auth-logo">🏏</div>
-      <h2 className="auth-title">
-        Cric<span>Score</span>
-      </h2>
+      <div className="auth-hero-brand">
+        <div className="auth-logo">🏏</div>
+        <h2 className="auth-title">
+          Cric<span>Score</span>
+        </h2>
+      </div>
+      <p className="auth-subtitle">
+        LIVE SCORING &middot; DLS PAR &middot; WIN PREDICTION &middot; AI
+        ANALYTICS
+      </p>
     </div>
   );
 
@@ -1640,14 +1646,22 @@ const App: React.FC = () => {
           }
         >
           {view === "VIEWER" && (
-            <div className="flex-1 min-h-0 overflow-y-auto bg-slate-950 flex flex-col p-4 md:p-8">
-              <div className="max-w-5xl mx-auto w-full space-y-8 animate-in fade-in zoom-in-95 duration-500">
-                <div className="text-center space-y-2">
-                  <h1 className="text-4xl font-black text-white uppercase tracking-tighter italic">
-                    MATCH <span className="text-indigo-500">HUB</span>
-                  </h1>
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em]">
-                    LIVE FEEDS &amp; HISTORICAL RECORDS
+            <div className="flex-1 min-h-0 overflow-y-auto bg-slate-950 flex flex-col p-3 sm:p-4 md:p-8">
+              <div className="max-w-5xl mx-auto w-full space-y-6 sm:space-y-8 animate-in fade-in zoom-in-95 duration-500 pb-6">
+                <div className="text-center">
+                  <div className="auth-hero-brand mb-1.5">
+                    <div
+                      className="auth-logo"
+                      style={{ width: 44, height: 44, fontSize: "1.45rem" }}
+                    >
+                      🌏
+                    </div>
+                    <h1 className="auth-title text-3xl sm:text-4xl">
+                      MATCH <span>HUB</span>
+                    </h1>
+                  </div>
+                  <p className="auth-subtitle">
+                    LIVE FEEDS &middot; HISTORICAL RECORDS
                   </p>
                 </div>
                 <LiveScoreboard
@@ -1668,25 +1682,23 @@ const App: React.FC = () => {
               components={authComponents}
             >
               {() => (
-                <div className="absolute inset-0 bg-slate-950 flex flex-col p-3 sm:p-6 md:p-8 overflow-y-auto">
-                  <div className="max-w-5xl mx-auto w-full space-y-8 animate-in fade-in zoom-in-95 duration-500">
-                    <div className="text-center space-y-2">
-                      <h1 className="text-4xl font-black text-white uppercase tracking-tighter italic">
+                <div className="flex-1 min-h-0 overflow-y-auto bg-slate-950 flex flex-col p-3 sm:p-4 md:p-8">
+                  <div className="max-w-5xl mx-auto w-full space-y-6 sm:space-y-8 animate-in fade-in zoom-in-95 duration-500 pb-6">
+                    <div className="text-center space-y-1.5 sm:space-y-2">
+                      <h1 className="text-3xl sm:text-4xl font-black text-white uppercase tracking-tighter italic">
                         MATCH <span className="text-rose-500">OPS</span>
                       </h1>
                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em]">
                         CLOUD MANAGEMENT &amp; DATABASE PRUNING
                       </p>
                     </div>
-                    <div className="bg-slate-900/50 border border-white/5 p-3 sm:p-6 rounded-[2rem] backdrop-blur-3xl shadow-2xl mb-8">
-                      {isAdmin ? (
-                        <AdminPanel hubKey={hubKey} isAdmin={isAdmin} />
-                      ) : (
-                        <div className="text-center text-white p-10 font-bold text-xl">
-                          Access Denied: You must be in the Admin group.
-                        </div>
-                      )}
-                    </div>
+                    {isAdmin ? (
+                      <AdminPanel hubKey={hubKey} isAdmin={isAdmin} />
+                    ) : (
+                      <div className="bg-slate-900/90 border border-white/10 p-10 rounded-2xl sm:rounded-3xl shadow-2xl text-center text-white font-bold text-xl">
+                        Access Denied: You must be in the Admin group.
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1929,8 +1941,8 @@ const App: React.FC = () => {
                 )}
               </div>
             ) : (
-              <div className="flex-1 min-h-0 overflow-y-auto flex flex-col w-full bg-slate-950 px-3 py-4 sm:py-6">
-                <div className="max-w-5xl mx-auto w-full flex-1 flex flex-col justify-center items-center animate-in fade-in zoom-in-95 duration-500">
+              <div className="flex-1 min-h-0 overflow-hidden sm:overflow-y-auto flex flex-col w-full bg-slate-950 p-0 sm:px-3 sm:py-6">
+                <div className="max-w-5xl mx-auto w-full flex-1 min-h-0 flex flex-col justify-start sm:justify-center items-center animate-in fade-in zoom-in-95 duration-500">
                   <Authenticator
                     signUpAttributes={["given_name", "family_name"]}
                     formFields={authFormFields}
@@ -2153,7 +2165,7 @@ const App: React.FC = () => {
               </div>
             ))}
           {view === "CHAT" && (
-            <div className="flex-1 w-full flex flex-col bg-slate-950 p-0 sm:p-4 md:p-8 min-h-0 relative">
+            <div className="flex-1 w-full flex flex-col bg-slate-950 p-2 sm:p-4 md:p-8 min-h-0 relative">
               <ChatComponent
                 matchId={matchId}
                 apiUrl={import.meta.env.VITE_API_URL}

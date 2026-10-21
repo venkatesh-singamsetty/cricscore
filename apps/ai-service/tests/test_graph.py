@@ -98,3 +98,15 @@ def test_admin_flag_does_not_unlock_anything():
     repo = FakeRepo()
     run("latest match score", deps(repo), isAdmin=True)
     assert set(repo.calls) <= {"recent"}
+
+
+def test_github_issue_without_details_asks_for_details():
+    r = run("I want to raise a GitHub issue for a bug or feature request", deps())
+    assert r.intent == "github_issue"
+    assert "share a short title and a brief description" in r.reply
+
+
+def test_weather_without_location_asks_for_city():
+    r = run("Can you check the weather report for our match?", deps())
+    assert r.intent == "weather"
+    assert "Which city or ground is the match at" in r.reply
