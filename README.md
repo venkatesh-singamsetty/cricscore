@@ -90,6 +90,22 @@ Four pictures explain the whole platform. Each uses official AWS icons, and the 
 
 ---
 
+## 🏆 Featured Engineering Milestones & Key Pull Requests
+
+Below is a curated selection of architectural milestones and pull requests authored by [@venkatesh-singamsetty](https://github.com/venkatesh-singamsetty):
+
+> 🔍 **[👉 View all Pull Requests authored by @venkatesh-singamsetty](https://github.com/venkatesh-singamsetty/cricscore/pulls?q=is%3Apr+author%3Avenkatesh-singamsetty)** _(filters out automated bot activity)_
+
+| Milestone & PR                                                                         | Architectural Domain           | Key Innovations & Engineering Impact                                                                                                                 |
+| -------------------------------------------------------------------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **[PR #276](https://github.com/venkatesh-singamsetty/cricscore/pull/276)** (`v4.15.0`) | **Agentic AI & MLOps**         | Integrated autonomous Weather & GitHub Issue specialist agents via MCP, diagrams-as-code, and the Architecture & MLOps FAQ.                          |
+| **[PR #261](https://github.com/venkatesh-singamsetty/cricscore/pull/261)**             | **Dynamic ML Win Prediction**  | Blended XGBoost with Markov Dynamic Programming (DP) and Duckworth-Lewis-Stern (DLS) par calculations for sub-second ball-by-ball win probabilities. |
+| **[PR #248](https://github.com/venkatesh-singamsetty/cricscore/pull/248)**             | **Real-Time Streaming**        | Serverless WebSocket event fan-out with Amazon SNS + SQS dual-path broadcast and storage worker resilience.                                          |
+| **[PR #235](https://github.com/venkatesh-singamsetty/cricscore/pull/235)**             | **Multi-Cloud IaC & Security** | Automated Terraform infrastructure bridging AWS and Aiven PostgreSQL with zero-cost guardrails and Checkov compliance.                               |
+| **[PR #220](https://github.com/venkatesh-singamsetty/cricscore/pull/220)**             | **DevSecOps Pipeline**         | End-to-end GitHub Actions CI/CD with GitLeaks secrets scanning, Trivy vulnerability audits, and CodeQL SAST.                                         |
+
+---
+
 ## 🛠️ Technology Stack
 
 ### Frontend
