@@ -116,7 +116,7 @@ def platform_overview() -> None:
         with Cluster(**cluster("4. Data & Persistence", GREEN, "#ebfbee")):
             pg = Custom("Aiven PostgreSQL 16\n+ pgvector", icon("postgresql"))
             llm = Custom("OpenAI-compatible\nLLM provider", icon("openai"))
-            backups = S3("S3\nmatch backups")
+            backups = S3("S3\nbackups & ML models")
             mail = SES("SES\nmatch report emails")
 
         with Cluster(**cluster("5. Observability & Alarms", GREY, "#f8f9fa")):
@@ -137,6 +137,7 @@ def platform_overview() -> None:
         score >> edge("persist", GREEN, "dashed") >> pg
         chat >> edge("read-only SQL + vector", PURPLE) >> pg
         chat >> edge("tool calling", PURPLE) >> llm
+        ml >> edge("load model", GREEN, "dashed") >> backups
 
         # All Lambda compute functions stream logs and wire to CloudWatch Alarms
         for fn in [match_api, score, chat, ml]:
@@ -270,7 +271,7 @@ def mlops() -> None:
     ):
         with Cluster(**cluster("1. Dataset & DVC Versioning", BLUE, "#eef4ff")):
             data = Custom("Cricsheet T20 Data\n(786K+ ball-by-ball deliveries)", icon("tb_chart-line"))
-            dvc = Custom("DVC Dataset Tracking\n(cricket-data/t20s_json.dvc)", icon("dvc"))
+            dvc = Custom("DVC Dataset Tracking\n(cricket-data/t20s_json.zip.dvc)", icon("dvc"))
 
         with Cluster(**cluster("2. Multi-Model Experimentation & Tracking", PURPLE, "#f3f0ff")):
             sk = Custom("scikit-learn Baselines\n(Logistic, RF, ExtraTrees, HGB)", icon("scikitlearn"))
