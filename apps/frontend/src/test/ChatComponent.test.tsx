@@ -30,6 +30,39 @@ describe("FormattedContent Component", () => {
     expect(screen.getByText("First rule")).toBeInTheDocument();
     expect(screen.getByText("Second rule")).toBeInTheDocument();
   });
+
+  it("renders markdown tables correctly into HTML table elements", () => {
+    const markdownTable = `| Time | Condition | Temp (°F / °C) | Rain % | Wind |
+|---|---|---|---|---|
+| 1:00 AM | Clear sky | 46°F / 8°C | 0% | 2 mph |
+| 2:00 AM | Partly cloudy | 45°F / 7°C | 10% | 3 mph |`;
+
+    const { container } = render(<FormattedContent content={markdownTable} />);
+
+    const table = container.querySelector("table");
+    expect(table).toBeInTheDocument();
+    expect(screen.getByText("Time")).toBeInTheDocument();
+    expect(screen.getByText("Condition")).toBeInTheDocument();
+    expect(screen.getByText("1:00 AM")).toBeInTheDocument();
+    expect(screen.getByText("Clear sky")).toBeInTheDocument();
+    expect(screen.getByText("46°F / 8°C")).toBeInTheDocument();
+    expect(screen.getByText("2:00 AM")).toBeInTheDocument();
+  });
+
+  it("safely sanitizes markdown links and avoids dangerous URL schemes", () => {
+    const content =
+      "[Safe Link](https://github.com/venkatesh-singamsetty/cricscore/issues/100)\n[Malicious Link](javascript:alert(1))";
+    render(<FormattedContent content={content} />);
+
+    const safeLink = screen.getByRole("link", { name: "Safe Link" });
+    expect(safeLink).toHaveAttribute(
+      "href",
+      "https://github.com/venkatesh-singamsetty/cricscore/issues/100",
+    );
+    expect(
+      screen.queryByRole("link", { name: "Malicious Link" }),
+    ).not.toBeInTheDocument();
+  });
 });
 
 describe("ChatComponent", () => {
