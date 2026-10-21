@@ -571,9 +571,9 @@ export function ChatComponent({
             <div className="flex-1 min-h-[1rem] shrink-0"></div>
           )}
 
-          {/* Welcome & Default Questions (One-by-one vertical list) */}
+          {/* Welcome & Default Questions (Responsive: 1-col on mobile, 2-col grid on desktop) */}
           {messages.length <= 1 && (
-            <div className="flex flex-col items-center justify-start pt-2 sm:pt-5 pb-4 px-3 sm:px-4 text-center w-full max-w-md sm:max-w-xl mx-auto animate-in fade-in duration-300">
+            <div className="flex flex-col items-center justify-start pt-2 sm:pt-4 md:pt-5 pb-3 sm:pb-4 px-3 sm:px-4 text-center w-full max-w-md sm:max-w-xl md:max-w-4xl mx-auto animate-in fade-in duration-300">
               <div className="auth-hero-brand mb-1.5">
                 <div
                   className="auth-logo"
@@ -585,7 +585,7 @@ export function ChatComponent({
                   Cric<span>Score AI Assistant</span>
                 </h2>
               </div>
-              <p className="auth-subtitle mb-5 sm:mb-6">
+              <p className="auth-subtitle mb-4 sm:mb-5 md:mb-6">
                 MATCH STATS &middot; TOURNAMENT RULES &middot; WEATHER &middot;
                 BUG REPORT
               </p>
@@ -595,7 +595,7 @@ export function ChatComponent({
                   <Sparkles size={13} className="text-amber-400" />
                   Suggested Questions
                 </span>
-                <div className="flex flex-col gap-2 sm:gap-2.5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-2.5">
                   {QUICK_PROMPTS.map((prompt, i) => (
                     <button
                       key={i}
@@ -603,7 +603,7 @@ export function ChatComponent({
                       onClick={() => submitText(prompt, false)}
                       disabled={loading}
                       aria-label={prompt}
-                      className="w-full text-left py-2.5 px-3.5 sm:py-3 sm:px-4 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-white/5 hover:border-indigo-500/40 text-slate-200 hover:text-white transition-all text-[13px] sm:text-sm font-semibold flex items-center justify-between group active:scale-[0.98] shadow-sm"
+                      className={`w-full text-left py-2.5 px-3.5 sm:py-3 sm:px-4 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-white/5 hover:border-indigo-500/40 text-slate-200 hover:text-white transition-all text-[13px] sm:text-sm font-semibold flex items-center justify-between group active:scale-[0.98] shadow-sm ${i === QUICK_PROMPTS.length - 1 ? "md:col-span-2" : ""}`}
                     >
                       <span className="flex items-center gap-3 min-w-0">
                         <span className="w-6 h-6 sm:w-6.5 sm:h-6.5 rounded-md bg-indigo-500/20 text-indigo-300 flex items-center justify-center text-[11px] sm:text-xs font-bold shrink-0">
