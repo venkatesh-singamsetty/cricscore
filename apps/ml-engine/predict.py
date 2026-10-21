@@ -12,8 +12,9 @@ pd = None
 _xgb = None
 
 __all__ = [
-    'predict',
-    'lambda_handler',
+    'handler',
+    'compute_sha256',
+    'load_artifacts',
     'model',
     'metadata',
     'current_loaded_version',

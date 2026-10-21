@@ -157,8 +157,8 @@ A central single-pane-of-glass directory providing live references across all la
 - **SNS Match Events Topic**: [`cricscore-match-events`](https://us-east-1.console.aws.amazon.com/sns/v3/home?region=us-east-1#/topic/arn:aws:sns:us-east-1:926789386606:cricscore-match-events)
 - **SNS Lambda Alerts Topic**: [`cricscore-lambda-alerts`](https://us-east-1.console.aws.amazon.com/sns/v3/home?region=us-east-1#/topic/arn:aws:sns:us-east-1:926789386606:cricscore-lambda-alerts)
 - **ECR Docker Image Repo**: [`cricscore-ml-predict`](https://us-east-1.console.aws.amazon.com/ecr/repositories/private/926789386606/cricscore-ml-predict?region=us-east-1)
-  - **Latest Tag Digest**: `sha256:0a3e191a4a531dd9115f9ab40631fbbd7b80c3c47bb6f7ea18d783e7e4157fc9`
-  - **Image Size**: `652.11 MB` | **Last Pushed**: `2026-10-20 01:46:45`
+  - **Latest Tag Digest**: `sha256:6d773ae7b4f3c228c546819312b07b099e1607f5bec817aa4271ce258c4ea379`
+  - **Image Size**: `652.11 MB` | **Last Pushed**: `2026-10-21 01:40:26`
 
 ### ⚡ Serverless Compute & Telemetry (AWS Lambda)
 
@@ -211,7 +211,7 @@ A central single-pane-of-glass directory providing live references across all la
   - **Digest**: `sha256:0a3e191a4a531dd9115f9ab40631fbbd7b80c3c47bb6f7ea18d783e7e4157fc9` | **Size**: `652.11 MB` | **Pushed**: `2026-10-20 01:48:26`
 - **Prod ECR Repository**: [`cricscore-ml-predict`](https://us-east-1.console.aws.amazon.com/ecr/repositories/private/926789386606/cricscore-ml-predict?region=us-east-1)
   - **Versioned Image URI**: `926789386606.dkr.ecr.us-east-1.amazonaws.com/cricscore-ml-predict:v2.2.0` (also tagged `:latest`)
-  - **Digest**: `sha256:0a3e191a4a531dd9115f9ab40631fbbd7b80c3c47bb6f7ea18d783e7e4157fc9` | **Size**: `652.11 MB` | **Pushed**: `2026-10-20 01:46:45`
+  - **Digest**: `sha256:6d773ae7b4f3c228c546819312b07b099e1607f5bec817aa4271ce258c4ea379` | **Size**: `652.11 MB` | **Pushed**: `2026-10-21 01:40:26`
 
 ---
 
