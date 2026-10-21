@@ -4,7 +4,8 @@ Welcome to the CricScore documentation directory. This folder contains all archi
 
 ## 🏗️ Architecture & Core Concepts
 
-- [**Architecture Overview**](./architecture.md) — High-level system design, fan-out event flow, and multi-tenant isolation.
+- [**Architecture Overview**](./architecture.md) — High-level system design, editable Mermaid system diagrams, fan-out event flow, and multi-tenant isolation.
+- [**Architecture Diagram Images**](./diagrams/README.md) — How the icon-based README diagrams are generated and kept accurate.
 - [**Authentication & Authorization**](./auth.md) — AWS Cognito User Pools, JWT validation, and Guest/Admin role models.
 - [**API Documentation**](./api.md) — Backend HTTP & WebSocket endpoints, request/response formats.
 - [**Agentic AI Architecture**](./ai_architecture.md) — How the RAG and MCP tools are integrated for the AI Chat Assistant.
