@@ -1,3 +1,16 @@
+## [4.16.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.15.0...v4.16.0) (2026-10-21)
+
+### 🚀 Features
+
+* **deps:** group lambda dependabot updates, bump hono, and feature engineering milestones ([#301](https://github.com/venkatesh-singamsetty/cricscore/issues/301)) ([ebf0b64]())
+## 🎯 Overview & Purpose
+
+This pull request consolidates open Dependabot dependency updates into a
+clean feature branch, enhances `.github/dependabot.yml` to prevent
+automated PR clutter across backend Lambdas, and introduces a dedicated
+**Featured Engineering Milestones & Key Pull Requests** showcase in the
+root `README.md`.
+
 ## [4.15.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.14.0...v4.15.0) (2026-10-21)
 
 ### 🚀 Features
