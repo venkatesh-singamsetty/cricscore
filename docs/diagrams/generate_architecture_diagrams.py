@@ -77,8 +77,8 @@ BLUE, ORANGE, GREEN, PURPLE, GREY, RED = (
 )
 
 
-def edge(label: str, color: str, style: str = "bold") -> Edge:
-    return Edge(label=label, color=color, fontcolor=color, style=style)
+def edge(label: str, color: str, style: str = "bold", constraint: str = "true") -> Edge:
+    return Edge(label=label, color=color, fontcolor=color, style=style, constraint=constraint)
 
 
 # ---------------------------------------------------------------------------
@@ -102,48 +102,61 @@ def platform_overview() -> None:
             cdn = CloudFront("CloudFront\nCDN")
             site = S3("S3\nReact build")
 
-        with Cluster(**cluster("2. Sign in & call APIs", ORANGE, "#fff4e6")):
+        with Cluster(**cluster("2. Sign in & APIs", ORANGE, "#fff4e6")):
             auth = Cognito("Cognito\nJWT tokens")
             http = APIGateway("API Gateway\nHTTP API")
             ws = APIGateway("API Gateway\nWebSocket API")
 
+        # Order Lambdas to vertically align with their downstream targets in Box 4
         with Cluster(**cluster("3. Serverless compute (AWS Lambda)", ORANGE, "#fffaf0")):
             match_api = Lambda("match-api\nmatches & admin")
-            chat = Lambda("chat-api\nAI assistant")
-            score = Lambda("score-update\nlive balls")
             ml = Lambda("ml-predict\nwin probability")
+            score = Lambda("score-update\nlive balls")
+            chat = Lambda("chat-api\nAI assistant")
 
+        # Order Persistence/Services to align with Lambdas, eliminating line crossings
         with Cluster(**cluster("4. Data & Persistence", GREEN, "#ebfbee")):
+            mail = SES("SES\nmatch report emails")
+            backups = S3("S3\nbackups & ML models")
             pg = Custom("Aiven PostgreSQL 16\n+ pgvector", icon("postgresql"))
             llm = Custom("OpenAI-compatible\nLLM provider", icon("openai"))
-            backups = S3("S3\nbackups & ML models")
-            mail = SES("SES\nmatch report emails")
 
         with Cluster(**cluster("5. Observability & Alarms", GREY, "#f8f9fa")):
             logs = Cloudwatch("CloudWatch Logs\n(7-day retention)")
             alarms = Cloudwatch("CloudWatch Alarms\n(error rate triggers)")
 
+        # 1. Load the app
         users >> edge("open site", BLUE) >> dns >> cdn >> site
+
+        # 2. Ingress & Auth
         users >> edge("sign in", ORANGE) >> auth
         users >> edge("REST calls + JWT", ORANGE) >> http
-        ws >> edge("live score push", GREEN) >> users
+        users >> edge("live WebSocket push", GREEN, "dashed") >> ws
 
-        http >> edge("route", ORANGE) >> [match_api, score, chat, ml]
+        # 3. HTTP Ingress to Compute (clean separate routes)
+        http >> edge("match routes", ORANGE) >> match_api
+        http >> edge("prediction", ORANGE) >> ml
+        http >> edge("ball update", ORANGE) >> score
+        http >> edge("chat query", ORANGE) >> chat
 
-        match_api >> edge("read / write", GREEN) >> pg
-        match_api >> edge("backup", GREEN) >> backups
+        # 4. Compute to Storage & External Services (aligned pairs = no crossings)
         match_api >> edge("send email", ORANGE) >> mail
-        score >> edge("fan-out (diagram 2)", GREEN, "dashed") >> ws
-        score >> edge("persist", GREEN, "dashed") >> pg
-        chat >> edge("read-only SQL + vector", PURPLE) >> pg
-        chat >> edge("tool calling", PURPLE) >> llm
+        match_api >> edge("backup", GREEN) >> backups
+        match_api >> edge("read / write", GREEN) >> pg
+
         ml >> edge("load model", GREEN, "dashed") >> backups
 
-        # All Lambda compute functions stream logs and wire to CloudWatch Alarms
-        for fn in [match_api, score, chat, ml]:
-            fn >> Edge(color=GREY, style="dotted") >> logs
-        match_api >> Edge(color=RED, style="dotted") >> alarms
-        score >> Edge(color=RED, style="dotted") >> alarms
+        score >> edge("persist", GREEN, "dashed") >> pg
+        score >> edge("fan-out (diagram 2)", GREEN, "dashed", constraint="false") >> ws
+
+        chat >> edge("read SQL + vector", PURPLE) >> pg
+        chat >> edge("tool calling", PURPLE) >> llm
+
+        # 5. Observability (constraint=false prevents lines from cutting through Postgres/LLM)
+        for fn in [match_api, ml, score, chat]:
+            fn >> Edge(color=GREY, style="dotted", constraint="false") >> logs
+        match_api >> Edge(color=RED, style="dotted", constraint="false") >> alarms
+        score >> Edge(color=RED, style="dotted", constraint="false") >> alarms
 
 
 # ---------------------------------------------------------------------------
