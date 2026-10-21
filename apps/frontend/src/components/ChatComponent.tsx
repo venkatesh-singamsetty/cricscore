@@ -90,55 +90,164 @@ export function FormattedContent({ content }: { content: string }) {
     });
   };
 
+  // Group lines into blocks (handling Markdown tables natively)
+  const renderedBlocks: React.ReactNode[] = [];
+  let lineIdx = 0;
+
+  while (lineIdx < lines.length) {
+    const rawLine = lines[lineIdx];
+    const trimmed = rawLine.trim();
+
+    // Check for Markdown table block
+    if (trimmed.startsWith("|") && trimmed.endsWith("|")) {
+      const tableLines: string[] = [];
+      while (
+        lineIdx < lines.length &&
+        lines[lineIdx].trim().startsWith("|") &&
+        lines[lineIdx].trim().endsWith("|")
+      ) {
+        tableLines.push(lines[lineIdx].trim());
+        lineIdx++;
+      }
+
+      const parseCells = (row: string) =>
+        row
+          .slice(1, -1)
+          .split("|")
+          .map((c) => c.trim());
+
+      const headerCells = parseCells(tableLines[0]);
+      // Skip delimiter line if present (e.g. |---|---|)
+      let dataRows = tableLines.slice(1);
+      if (dataRows.length > 0 && /^\|?\s*[-:]+[-|\s:]*\|?$/.test(dataRows[0])) {
+        dataRows = dataRows.slice(1);
+      }
+
+      renderedBlocks.push(
+        <div
+          key={`table-${lineIdx}`}
+          className="my-3 overflow-x-auto rounded-xl border border-white/10 bg-slate-950/60 shadow-inner"
+        >
+          <table className="w-full text-left text-xs sm:text-sm text-slate-200 border-collapse">
+            <thead className="bg-slate-900/90 text-indigo-300 uppercase tracking-wider text-[11px] sm:text-xs font-bold border-b border-white/10">
+              <tr>
+                {headerCells.map((h, hIdx) => (
+                  <th
+                    key={hIdx}
+                    className="py-2.5 px-3 sm:px-4 font-semibold whitespace-nowrap"
+                  >
+                    {renderInlineText(h)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {dataRows.map((row, rIdx) => {
+                const cells = parseCells(row);
+                return (
+                  <tr
+                    key={rIdx}
+                    className="hover:bg-white/[0.03] transition-colors"
+                  >
+                    {cells.map((cell, cIdx) => (
+                      <td
+                        key={cIdx}
+                        className="py-2 px-3 sm:px-4 whitespace-nowrap text-slate-300 font-medium"
+                      >
+                        {renderInlineText(cell)}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>,
+      );
+      continue;
+    }
+
+    if (!trimmed) {
+      renderedBlocks.push(<div key={`empty-${lineIdx}`} className="h-1" />);
+      lineIdx++;
+      continue;
+    }
+
+    // Source badge chip
+    if (trimmed.startsWith("[Source:") && trimmed.endsWith("]")) {
+      const docName = trimmed
+        .replace(/\[Source:/g, "")
+        .replace(/\]/g, "")
+        .trim();
+      renderedBlocks.push(
+        <div key={`src-${lineIdx}`} className="pt-2">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono">
+            <FileText size={12} className="text-indigo-400" />
+            Source: {docName}
+          </span>
+        </div>,
+      );
+      lineIdx++;
+      continue;
+    }
+
+    // Heading item (### or ##)
+    const headerMatch = trimmed.match(/^(#{1,4})\s+(.*)/);
+    if (headerMatch) {
+      renderedBlocks.push(
+        <h4
+          key={`h-${lineIdx}`}
+          className="font-bold text-white tracking-wide pt-1 pb-0.5 text-sm sm:text-base"
+        >
+          {renderInlineText(headerMatch[2])}
+        </h4>,
+      );
+      lineIdx++;
+      continue;
+    }
+
+    // Numbered list item
+    const numMatch = trimmed.match(/^(\d+)\.\s+(.*)/);
+    if (numMatch) {
+      renderedBlocks.push(
+        <div
+          key={`num-${lineIdx}`}
+          className="flex items-start gap-2 pl-1 my-1"
+        >
+          <span className="font-bold text-indigo-400 shrink-0">
+            {numMatch[1]}.
+          </span>
+          <div>{renderInlineText(numMatch[2])}</div>
+        </div>,
+      );
+      lineIdx++;
+      continue;
+    }
+
+    // Bullet list item
+    if (trimmed.startsWith("- ") || trimmed.startsWith("• ")) {
+      const bulletText = trimmed.replace(/^[-•]\s+/, "");
+      renderedBlocks.push(
+        <div
+          key={`bullet-${lineIdx}`}
+          className="flex items-start gap-2 pl-3 my-0.5"
+        >
+          <span className="text-indigo-400 font-bold shrink-0">•</span>
+          <div>{renderInlineText(bulletText)}</div>
+        </div>,
+      );
+      lineIdx++;
+      continue;
+    }
+
+    renderedBlocks.push(
+      <p key={`p-${lineIdx}`}>{renderInlineText(rawLine)}</p>,
+    );
+    lineIdx++;
+  }
+
   return (
-    <div className="space-y-1.5 text-sm leading-relaxed">
-      {lines.map((line, i) => {
-        const trimmed = line.trim();
-        if (!trimmed) return <div key={i} className="h-1" />;
-
-        // Source badge chip
-        if (trimmed.startsWith("[Source:") && trimmed.endsWith("]")) {
-          const docName = trimmed
-            .replace(/\[Source:/g, "")
-            .replace(/\]/g, "")
-            .trim();
-          return (
-            <div key={i} className="pt-2">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono">
-                <FileText size={12} className="text-indigo-400" />
-                Source: {docName}
-              </span>
-            </div>
-          );
-        }
-
-        // Numbered list item
-        const numMatch = trimmed.match(/^(\d+)\.\s+(.*)/);
-        if (numMatch) {
-          return (
-            <div key={i} className="flex items-start gap-2 pl-1 my-1">
-              <span className="font-bold text-indigo-400 shrink-0">
-                {numMatch[1]}.
-              </span>
-              <div>{renderInlineText(numMatch[2])}</div>
-            </div>
-          );
-        }
-
-        // Bullet list item
-        if (trimmed.startsWith("- ") || trimmed.startsWith("• ")) {
-          const bulletText = trimmed.replace(/^[-•]\s+/, "");
-          return (
-            <div key={i} className="flex items-start gap-2 pl-3 my-0.5">
-              <span className="text-indigo-400 font-bold shrink-0">•</span>
-              <div>{renderInlineText(bulletText)}</div>
-            </div>
-          );
-        }
-
-        return <p key={i}>{renderInlineText(line)}</p>;
-      })}
-    </div>
+    <div className="space-y-1.5 text-sm leading-relaxed">{renderedBlocks}</div>
   );
 }
 
