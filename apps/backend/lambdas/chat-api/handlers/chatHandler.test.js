@@ -240,4 +240,82 @@ describe("chatHandler", () => {
     const body = JSON.parse(res.body);
     expect(body.reply).toContain("experiencing high traffic");
   });
+
+  it("caps create_github_issue tool calls to at most 1 per message", async () => {
+    mockCreate
+      .mockResolvedValueOnce({
+        choices: [
+          {
+            message: {
+              content: null,
+              tool_calls: [
+                {
+                  id: "call_1",
+                  function: {
+                    name: "create_github_issue",
+                    arguments: JSON.stringify({
+                      title: "Bug 1",
+                      description: "Detailed bug report 1",
+                    }),
+                  },
+                },
+                {
+                  id: "call_2",
+                  function: {
+                    name: "create_github_issue",
+                    arguments: JSON.stringify({
+                      title: "Bug 2",
+                      description: "Detailed bug report 2",
+                    }),
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        choices: [
+          {
+            message: {
+              content: "Created Issue #101 (second call skipped).",
+              tool_calls: null,
+            },
+          },
+        ],
+      });
+    mockCallTool.mockResolvedValue({
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            created: true,
+            issueNumber: 101,
+            url: "https://github.com/venkatesh-singamsetty/cricscore/issues/101",
+          }),
+        },
+      ],
+    });
+
+    const res = await chatHandler(
+      { message: "Please raise an issue for mobile scoreboard overlap" },
+      corsHeaders,
+    );
+    expect(res.statusCode).toBe(200);
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+    const secondCallMessages = mockCreate.mock.calls[1][0].messages;
+    const firstToolMessage = secondCallMessages.find(
+      (m) => m.role === "tool" && m.tool_call_id === "call_1",
+    );
+    const secondToolMessage = secondCallMessages.find(
+      (m) => m.role === "tool" && m.tool_call_id === "call_2",
+    );
+    expect(firstToolMessage).toBeDefined();
+    expect(firstToolMessage.content).not.toContain(
+      "Only 1 GitHub issue can be created per message",
+    );
+    expect(secondToolMessage.content).toContain(
+      "Only 1 GitHub issue can be created per message",
+    );
+  });
 });

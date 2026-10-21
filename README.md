@@ -145,6 +145,8 @@ flowchart TD
             RAGAgent["Cricket RAG Agent (pgvector Cosine Search)"]
             AnalysisAgent["Cricket Analysis Agent (Synthesizes Stats + Rules + DLS)"]
             PredictionAgent["Prediction Agent (Feature Validation & Model Inference)"]
+            WeatherAgent["Weather Report Agent (Free Open-Meteo Hourly Forecast + DLS Advisory)"]
+            IssueAgent["GitHub Issue Agent (MCP Issue Creation via Server GITHUB_TOKEN)"]
         end
 
         Synthesizer["Evidence Synthesizer (Untrusted Evidence Quoted, Fact vs Opinion)"]
@@ -171,6 +173,8 @@ flowchart TD
     Classifier -->|rules| RAGAgent
     Classifier -->|analysis| AnalysisAgent
     Classifier -->|prediction| PredictionAgent
+    Classifier -->|weather| WeatherAgent
+    Classifier -->|github_issue| IssueAgent
     Classifier -->|clarify / refuse| Synthesizer
 
     MatchAgent -->|Predefined Query| PG_Relational
@@ -183,6 +187,8 @@ flowchart TD
     RAGAgent --> Synthesizer
     AnalysisAgent --> Synthesizer
     PredictionAgent --> Synthesizer
+    WeatherAgent --> Synthesizer
+    IssueAgent --> Synthesizer
 
     ExtMCP -.->|Local stdio JSON-RPC| MCPServer
     MCPServer -.-> MatchAgent
@@ -411,6 +417,8 @@ Pull requests to `main` run validation jobs; deployed-site E2E tests are not par
 CricScore includes an **AI Chat Assistant** that uses an OpenAI-compatible API; its default inference and embedding model names are `gpt-4o-mini` and `text-embedding-3-small`, and provider/model settings can be configured. MCP tools handle database operations so database credentials are not passed to the model provider. Retrieval uses up to eight pgvector chunks, and responses include cricket rulebook guidance. Model availability, output quality, and request cost depend on the configured provider and settings.
 
 - 📖 **[AI Architecture](./docs/ai_architecture.md)**: RAG design, MCP architecture, provider configuration, quality tuning, and example prompts.
+- 📖 **[GitHub Issue Specialist Agent Guide](./docs/github_issue_agent.md)**: Setup, security guardrails, and MCP workflow (`create_github_issue`) for raising GitHub issues directly from chat.
+- 📖 **[Cricket Match Weather Report Agent Guide](./docs/weather_report_agent.md)**: Zero-cost ($0) live and upcoming match weather forecasts and DLS rain advisories powered by Open-Meteo (`get_match_weather`).
 
 ### 8. 🧠 Serverless MLOps & Live Prediction
 

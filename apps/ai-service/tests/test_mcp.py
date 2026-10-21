@@ -7,7 +7,8 @@ from tests.conftest import FakeEmbedder, FakePredictor, FakeRepo, MID
 from tests.test_tools import GOOD
 
 APPROVED = {"get_match_details", "get_match_statistics", "list_recent_matches",
-            "search_tournament_rules", "get_model_metadata", "predict_match_outcome"}
+            "search_tournament_rules", "get_model_metadata", "predict_match_outcome",
+            "create_github_issue", "get_match_weather"}
 
 
 def call(server, name, args=None):

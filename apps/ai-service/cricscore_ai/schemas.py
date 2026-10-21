@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field, field_validator
 
 UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 
-Intent = Literal["match_info", "rules", "analysis", "prediction", "clarify", "refuse"]
+Intent = Literal["match_info", "rules", "analysis", "prediction", "github_issue", "weather", "clarify", "refuse"]
 
 
 def validate_match_id(value: str) -> str:
@@ -45,7 +45,7 @@ class ChatRequest(BaseModel):
 
 
 class Source(BaseModel):
-    type: Literal["match", "rulebook", "model"]
+    type: Literal["match", "rulebook", "model", "github_issue", "weather"]
     id: str
     label: str = ""
 

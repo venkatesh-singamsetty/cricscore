@@ -1,15 +1,23 @@
 """Specialist tools: validated inputs, structured outputs with source refs."""
 from __future__ import annotations
 
+import json
+import os
 import re
+import urllib.error
+import urllib.parse
+import urllib.request
 from typing import Any
 
-from .providers import Embedder, Predictor
+from .providers import Embedder, Predictor, ProviderError
 from .repository import MAX_ROWS, Repository
 from .schemas import Source, validate_match_id
 
 RULES_TOP_K = 8
 MAX_RULE_CHARS = 1500
+DEFAULT_GITHUB_REPO = "venkatesh-singamsetty/cricscore"
+_REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+_ALLOWED_ISSUE_CATEGORIES = {"bug", "feature-request", "feedback"}
 
 
 def _jsonable(row: dict[str, Any]) -> dict[str, Any]:
@@ -109,4 +117,126 @@ def predict_match_outcome(predictor: Predictor, raw: dict[str, Any] | None) -> d
         "modelVersion": out.get("modelVersion"),
         "limitations": "Estimated probability, not an outcome. Based on current innings state; ignores pitch, weather and player quality.",
         "sources": [Source(type="model", id=str(out.get("modelVersion", "unknown")), label="win probability model")],
+    }
+
+
+def create_github_issue(title: str, description: str, category: str = "bug") -> dict[str, Any]:
+    """Creates a GitHub issue in the configured CricScore repository via server-side GITHUB_TOKEN."""
+    clean_title = (title or "").strip()
+    clean_desc = (description or "").strip()
+    clean_cat = (category or "bug").strip()
+    if clean_cat not in _ALLOWED_ISSUE_CATEGORIES:
+        clean_cat = "bug"
+    if len(clean_title) < 5:
+        raise ValueError("title must be at least 5 characters")
+    if len(clean_desc) < 10:
+        raise ValueError("description must be at least 10 characters")
+
+    token = os.environ.get("GITHUB_TOKEN", "").strip()
+    if not token:
+        raise ProviderError("GitHub token is not configured")
+
+    configured_repo = os.environ.get("GITHUB_REPO", DEFAULT_GITHUB_REPO).strip()
+    repo = configured_repo if _REPO_RE.match(configured_repo) else DEFAULT_GITHUB_REPO
+
+    payload = json.dumps(
+        {
+            "title": f"[AI Report] {clean_title[:120]}",
+            "body": (
+                f"### Reported via CricScore AI Assistant\n"
+                f"- **Category:** `{clean_cat}`\n\n"
+                f"### Description\n{clean_desc[:2000]}"
+            ),
+            "labels": ["via-cricscore-ai", clean_cat],
+        }
+    ).encode("utf-8")
+
+    req = urllib.request.Request(
+        f"https://api.github.com/repos/{repo}/issues",
+        data=payload,
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent": "CricScore-MCP-Issue-Agent",
+            "Content-Type": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:  # nosec B310
+            data = json.loads(resp.read().decode("utf-8"))
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        raise ProviderError("Failed to create GitHub issue") from exc
+
+    issue_num = data.get("number")
+    issue_url = data.get("html_url", "")
+    return {
+        "found": True,
+        "created": True,
+        "issueNumber": issue_num,
+        "url": issue_url,
+        "title": data.get("title", clean_title),
+        "sources": [Source(type="github_issue", id=str(issue_num), label=issue_url)],
+    }
+
+
+def get_match_weather(location: str, target_date: str = "today", hours_ahead: int = 6) -> dict[str, Any]:
+    """Fetches hourly match weather forecast via Open-Meteo (free, no API key required)."""
+    clean_loc = (location or "").strip()
+    if len(clean_loc) < 2:
+        raise ValueError("location must be at least 2 characters")
+    clean_date = (target_date or "today").strip().lower()
+    hours = max(1, min(24, int(hours_ahead or 6)))
+
+    geo_url = (
+        "https://geocoding-api.open-meteo.com/v1/search?name="
+        + urllib.parse.quote(clean_loc.split(",")[0].strip())
+        + "&count=1&language=en&format=json"
+    )
+    try:
+        with urllib.request.urlopen(geo_url, timeout=8) as resp:  # nosec B310
+            geo = json.loads(resp.read().decode("utf-8"))
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        raise ProviderError("Failed to geocode location") from exc
+
+    results = geo.get("results") or []
+    if not results:
+        return {"found": False, "location": clean_loc, "sources": []}
+    place = results[0]
+    lat, lon = place["latitude"], place["longitude"]
+    label = ", ".join(filter(None, [place.get("name"), place.get("admin1"), place.get("country")]))
+
+    fc_url = (
+        f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}"
+        "&hourly=temperature_2m,precipitation_probability,precipitation,wind_speed_10m"
+        "&timezone=auto&forecast_days=3"
+    )
+    try:
+        with urllib.request.urlopen(fc_url, timeout=8) as resp:  # nosec B310
+            fc = json.loads(resp.read().decode("utf-8"))
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        raise ProviderError("Failed to fetch weather forecast") from exc
+
+    hourly = fc.get("hourly") or {}
+    times = hourly.get("time") or []
+    temps = hourly.get("temperature_2m") or []
+    probs = hourly.get("precipitation_probability") or []
+    winds = hourly.get("wind_speed_10m") or []
+
+    rows = [
+        {
+            "time": times[i],
+            "tempC": round(temps[i]) if i < len(temps) else 0,
+            "rainProbabilityPercent": probs[i] if i < len(probs) else 0,
+            "windSpeedKmh": round(winds[i]) if i < len(winds) else 0,
+        }
+        for i in range(min(len(times), hours))
+    ]
+    return {
+        "found": True,
+        "location": label,
+        "targetDate": clean_date,
+        "hourlyForecast": rows,
+        "sources": [Source(type="weather", id=label, label=f"Open-Meteo ({label})")],
     }

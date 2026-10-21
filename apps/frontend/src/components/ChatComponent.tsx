@@ -32,13 +32,42 @@ export function FormattedContent({ content }: { content: string }) {
   const lines = content.split("\n");
 
   const renderInlineText = (str: string) => {
-    const parts = str.split(/(\*\*.*?\*\*)/g);
+    const parts = str.split(
+      /(\*\*.*?\*\*|\[[^\]]+\]\(https?:\/\/[^\s)]+\)|https?:\/\/[^\s)]+)/g,
+    );
     return parts.map((part, pIdx) => {
       if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
         return (
           <strong key={pIdx} className="font-semibold text-white">
             {part.slice(2, -2)}
           </strong>
+        );
+      }
+      const mdLinkMatch = part.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/);
+      if (mdLinkMatch) {
+        return (
+          <a
+            key={pIdx}
+            href={mdLinkMatch[2]}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-indigo-300 underline hover:text-indigo-200 break-all"
+          >
+            {mdLinkMatch[1]}
+          </a>
+        );
+      }
+      if (/^https?:\/\/[^\s)]+$/.test(part)) {
+        return (
+          <a
+            key={pIdx}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-indigo-300 underline hover:text-indigo-200 break-all"
+          >
+            {part}
+          </a>
         );
       }
       return part;
@@ -134,8 +163,10 @@ export function ChatComponent({
     "What are the Powerplay rules?",
     "Wide vs No-Ball: Which takes precedence?",
     "How many fielders are allowed outside the circle?",
-    "How many players are required at toss to avoid forfeit?",
-    "Current run rate?",
+    "Can you analyze the current match details?",
+    "Who won Player of the Match in the last match?",
+    "Can you check the weather report for our match?",
+    "I want to report a bug or request a new feature",
   ];
 
   const [isUploadingRules] = useState(false);
@@ -160,7 +191,11 @@ export function ChatComponent({
   }, [messages]);
 
   React.useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+    if (messages.length > 1 || loading) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+    } else if (messageListRef.current) {
+      messageListRef.current.scrollTop = 0;
+    }
   }, [messages, loading]);
 
   React.useEffect(() => {
@@ -279,12 +314,17 @@ export function ChatComponent({
     ]);
   };
 
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const handleCopy = async (text: string, idx: number) => {
     try {
       await navigator.clipboard.writeText(text);
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
       setCopiedIdx(idx);
       setToastMessage("Copied to clipboard!");
-      setTimeout(() => {
+      copyTimeoutRef.current = setTimeout(() => {
         setCopiedIdx(null);
         setToastMessage(null);
       }, 1800);
@@ -299,7 +339,7 @@ export function ChatComponent({
   };
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col w-full max-w-5xl mx-auto bg-slate-900 rounded-none sm:rounded-xl border-0 sm:border border-white/10 shadow-2xl overflow-hidden relative">
+    <div className="flex-1 min-h-0 flex flex-col w-full max-w-5xl mx-auto bg-slate-900 rounded-2xl sm:rounded-3xl border border-white/10 shadow-2xl overflow-hidden relative">
       <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/5 to-transparent pointer-events-none" />
       <div className="shrink-0 p-3 sm:p-4 bg-slate-800/95 backdrop-blur-sm border-b border-white/10 flex items-center justify-between gap-2 relative z-20 sticky top-0 shadow-md">
         <div className="flex items-center gap-1.5 shrink-0">
@@ -388,40 +428,49 @@ export function ChatComponent({
 
       {/* Floating Copy Toast */}
       {toastMessage && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-emerald-500 text-slate-950 font-black text-xs rounded-full shadow-2xl flex items-center gap-1.5 animate-in fade-in slide-in-from-top-2 duration-150">
-          <Check size={14} />
-          <span>{toastMessage}</span>
+        <div className="absolute top-16 inset-x-0 z-50 flex justify-center pointer-events-none">
+          <div className="px-4 py-2 bg-emerald-500 text-slate-950 font-black text-xs rounded-full shadow-2xl flex items-center gap-1.5 fade-in">
+            <Check size={14} />
+            <span>{toastMessage}</span>
+          </div>
         </div>
       )}
 
       <div className="flex-1 min-h-0 flex flex-col relative">
         <div
           ref={messageListRef}
-          className="flex-1 overflow-y-auto p-3 sm:p-4 overscroll-contain touch-pan-y flex flex-col"
+          className="flex-1 overflow-y-auto p-2.5 sm:p-4 overscroll-contain touch-pan-y flex flex-col"
           style={{ WebkitOverflowScrolling: "touch" }}
         >
-          <div className="flex-1 min-h-[1rem] shrink-0"></div>
+          {messages.length > 1 && (
+            <div className="flex-1 min-h-[1rem] shrink-0"></div>
+          )}
 
           {/* Welcome & Default Questions (One-by-one vertical list) */}
           {messages.length <= 1 && (
-            <div className="flex flex-col items-center justify-center py-6 px-3 text-center my-auto animate-in fade-in duration-300 w-full max-w-md mx-auto">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center text-white shadow-xl shadow-indigo-500/25 border border-indigo-400/30 mb-3">
-                <Bot size={28} />
+            <div className="flex flex-col items-center justify-start pt-2 sm:pt-5 pb-4 px-3 sm:px-4 text-center w-full max-w-md sm:max-w-xl mx-auto animate-in fade-in duration-300">
+              <div className="auth-hero-brand mb-1.5">
+                <div
+                  className="auth-logo"
+                  style={{ width: 44, height: 44, fontSize: "1.45rem" }}
+                >
+                  🤖
+                </div>
+                <h2 className="auth-title text-2xl sm:text-3xl">
+                  Cric<span>Score AI Assistant</span>
+                </h2>
               </div>
-              <h3 className="text-base font-black text-white uppercase tracking-wider italic mb-1">
-                CricScore AI Assistant
-              </h3>
-              <p className="text-xs text-slate-400 max-w-xs leading-relaxed mb-4">
-                Ask questions about the live score, player statistics,
-                tournament rulebooks, or match predictions.
+              <p className="auth-subtitle mb-5 sm:mb-6">
+                MATCH STATS &middot; TOURNAMENT RULES &middot; WEATHER &middot;
+                BUG REPORT
               </p>
 
               <div className="w-full space-y-2 text-left">
-                <span className="text-[10px] font-black uppercase text-indigo-400 tracking-wider flex items-center gap-1.5 px-1 mb-2">
-                  <Sparkles size={12} className="text-amber-400" />
+                <span className="text-[11px] font-black uppercase text-indigo-400 tracking-wider flex items-center gap-1.5 px-1 mb-1.5">
+                  <Sparkles size={13} className="text-amber-400" />
                   Suggested Questions
                 </span>
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 sm:gap-2.5">
                   {QUICK_PROMPTS.map((prompt, i) => (
                     <button
                       key={i}
@@ -429,16 +478,16 @@ export function ChatComponent({
                       onClick={() => submitText(prompt, false)}
                       disabled={loading}
                       aria-label={prompt}
-                      className="w-full text-left p-3 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 border border-white/5 hover:border-indigo-500/40 text-slate-200 hover:text-white transition-all text-xs font-semibold flex items-center justify-between group active:scale-[0.98] shadow-sm"
+                      className="w-full text-left py-2.5 px-3.5 sm:py-3 sm:px-4 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-white/5 hover:border-indigo-500/40 text-slate-200 hover:text-white transition-all text-[13px] sm:text-sm font-semibold flex items-center justify-between group active:scale-[0.98] shadow-sm"
                     >
-                      <span className="flex items-center gap-2.5">
-                        <span className="w-5 h-5 rounded-md bg-indigo-500/20 text-indigo-300 flex items-center justify-center text-[10px] font-bold shrink-0">
+                      <span className="flex items-center gap-3 min-w-0">
+                        <span className="w-6 h-6 sm:w-6.5 sm:h-6.5 rounded-md bg-indigo-500/20 text-indigo-300 flex items-center justify-center text-[11px] sm:text-xs font-bold shrink-0">
                           {i + 1}
                         </span>
                         <span className="leading-snug">{prompt}</span>
                       </span>
                       <Send
-                        size={12}
+                        size={14}
                         className="text-slate-500 group-hover:text-indigo-400 shrink-0 ml-2 transition-colors"
                       />
                     </button>

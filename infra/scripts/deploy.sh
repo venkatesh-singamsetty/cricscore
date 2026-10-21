@@ -148,6 +148,8 @@ if [ -n "${OPENAI_API_KEY:-}" ]; then export TF_VAR_openai_api_key="$OPENAI_API_
 if [ -n "${LLM_BASE_URL:-}" ]; then export TF_VAR_llm_base_url="$LLM_BASE_URL"; fi
 if [ -n "${LLM_MODEL:-}" ]; then export TF_VAR_llm_model="$LLM_MODEL"; fi
 if [ -n "${ML_MODEL_VERSION:-}" ]; then export TF_VAR_ml_model_version="$ML_MODEL_VERSION"; fi
+if [ -n "${GITHUB_TOKEN:-}" ]; then export TF_VAR_github_token="$GITHUB_TOKEN"; fi
+if [ -n "${GITHUB_REPO:-}" ]; then export TF_VAR_github_repo="$GITHUB_REPO"; fi
 
 if [[ "$BOOTSTRAP" == true ]]; then
   echo "🏗️ Bootstrapping the Terraform state bucket and Route 53 zone..."

@@ -99,3 +99,16 @@ variable "ml_model_version" {
   description = "Semantic version tag of the ML win predictor model stored in S3 and ECR (e.g. v2.2.0)"
   default     = "v2.2.0"
 }
+
+variable "github_token" {
+  type        = string
+  description = "GitHub Personal Access Token for the MCP GitHub Issue Agent in chat-api"
+  default     = ""
+  sensitive   = true
+}
+
+variable "github_repo" {
+  type        = string
+  description = "Target GitHub repository (owner/repo) for MCP issue creation"
+  default     = "venkatesh-singamsetty/cricscore"
+}

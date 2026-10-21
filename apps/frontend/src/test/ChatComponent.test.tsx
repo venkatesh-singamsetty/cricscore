@@ -90,16 +90,18 @@ describe("ChatComponent", () => {
       />,
     );
 
-    expect(screen.getByText("CricScore AI Assistant")).toBeInTheDocument();
     expect(
-      screen.getByText(/Ask questions about the live score/i),
+      screen.getByRole("heading", { name: /CricScore AI Assistant/i }),
     ).toBeInTheDocument();
+    expect(screen.getByText(/MATCH STATS/i)).toBeInTheDocument();
   });
 
   it("renders quick prompt chips and populates chat when clicked", async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ reply: "Current run rate is 7.5 per over." }),
+      json: async () => ({
+        reply: "Chicago Spartans are 84/2 in 10 overs.",
+      }),
     });
 
     render(
@@ -110,8 +112,22 @@ describe("ChatComponent", () => {
       />,
     );
 
-    const chip = screen.getByRole("button", { name: "Current run rate?" });
+    const chip = screen.getByRole("button", {
+      name: "Can you analyze the current match details?",
+    });
+    const pomChip = screen.getByRole("button", {
+      name: "Who won Player of the Match in the last match?",
+    });
+    const weatherChip = screen.getByRole("button", {
+      name: "Can you check the weather report for our match?",
+    });
+    const issueChip = screen.getByRole("button", {
+      name: "I want to report a bug or request a new feature",
+    });
     expect(chip).toBeInTheDocument();
+    expect(pomChip).toBeInTheDocument();
+    expect(weatherChip).toBeInTheDocument();
+    expect(issueChip).toBeInTheDocument();
 
     await act(async () => {
       fireEvent.click(chip);
@@ -119,7 +135,7 @@ describe("ChatComponent", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText("Current run rate is 7.5 per over."),
+        screen.getByText("Chicago Spartans are 84/2 in 10 overs."),
       ).toBeInTheDocument();
     });
   });
@@ -196,6 +212,8 @@ describe("ChatComponent", () => {
     });
 
     expect(screen.queryByText("Previous question")).not.toBeInTheDocument();
-    expect(screen.getByText("CricScore AI Assistant")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /CricScore AI Assistant/i }),
+    ).toBeInTheDocument();
   });
 });

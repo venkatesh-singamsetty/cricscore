@@ -35,6 +35,8 @@ MSG_NO_RULES = "I couldn't find anything relevant in the uploaded rulebooks, so 
 MSG_REFUSE = "I can only help with read-only cricket questions about matches, rules and predictions. Admin or destructive actions must be done from the Match Ops admin panel."
 MSG_CLARIFY = "Could you tell me a bit more? For example ask about a match score, a tournament rule, or a win prediction."
 MSG_PREDICT_HELP = "To predict I need: team1 (batting), team2, inning (1 or 2), ballsBowled, ballsLeft, currentScore, wicketsLost, and targetScore for the 2nd innings."
+MSG_ISSUE_HELP = "I can raise a GitHub issue for you! Please share a short title and a brief description of the bug or feature request you'd like me to report."
+MSG_WEATHER_HELP = "Which city or ground is the match at, and would you like the weather forecast for the next few hours (live match) or for tomorrow's match?"
 
 
 class GraphState(TypedDict, total=False):
@@ -129,6 +131,36 @@ def build_graph(deps: Deps):
             return d | {"model_version": pred.get("modelVersion")}
         return d
 
+    def github_issue_node(state: GraphState):
+        d = _delta(state)
+        msg = (state["request"].message or "").strip()
+        if ":" in msg:
+            _, detail = msg.split(":", 1)
+            detail = detail.strip()
+        else:
+            detail = ""
+        if len(detail) < 10:
+            d["evidence"]["github_issue"] = {"needs_details": True}
+            return d
+        parts = [p.strip() for p in re.split(r"\s+-\s+|\n+", detail, maxsplit=1) if p.strip()]
+        title = parts[0][:120]
+        description = parts[1] if len(parts) > 1 else detail
+        category = "feature-request" if re.search(r"\bfeature\b", msg, re.I) else "bug"
+        _safe(lambda: tools.create_github_issue(title, description, category), "github_issue", d)
+        return d
+
+    def weather_node(state: GraphState):
+        d = _delta(state)
+        msg = (state["request"].message or "").strip()
+        m = re.search(r"\b(?:in|at|for)\s+([A-Z][A-Za-z .,-]{2,40})", msg)
+        loc = m.group(1).strip(" ?.,") if m else ""
+        if not loc or re.match(r"^(our|the|this|tomorrow|today|next|match)\b", loc, re.I):
+            d["evidence"]["weather"] = {"needs_location": True}
+            return d
+        target_date = "tomorrow" if re.search(r"\btomorrow\b", msg, re.I) else "today"
+        _safe(lambda: tools.get_match_weather(loc, target_date, 6), "weather", d)
+        return d
+
     def _fallback_text(ev: dict[str, Any]) -> str:
         return json.dumps(ev, default=str)[:3000]
 
@@ -143,6 +175,19 @@ def build_graph(deps: Deps):
             return done(MSG_REFUSE)
         if intent == "clarify":
             return done(MSG_CLARIFY)
+        if intent == "github_issue":
+            issue = ev.get("github_issue")
+            if issue and issue.get("needs_details"):
+                return done(MSG_ISSUE_HELP)
+            if issue and issue.get("created"):
+                return done(f"Created GitHub Issue #{issue.get('issueNumber')}: {issue.get('url')}")
+            return done(MSG_ERROR_DATA if errors else MSG_ISSUE_HELP)
+        if intent == "weather":
+            w = ev.get("weather")
+            if w and w.get("needs_location"):
+                return done(MSG_WEATHER_HELP)
+            if not w or not w.get("found"):
+                return done(MSG_ERROR_DATA if errors else MSG_WEATHER_HELP)
         if intent == "prediction":
             p = ev.get("prediction")
             if p and not p.get("supported", True):
@@ -177,14 +222,17 @@ def build_graph(deps: Deps):
     g.add_node("rag_agent", rag_node)
     g.add_node("analysis_agent", analysis_node)
     g.add_node("prediction_agent", prediction_node)
+    g.add_node("github_issue_agent", github_issue_node)
+    g.add_node("weather_agent", weather_node)
     g.add_node("synthesize", synthesize_node)
     g.add_edge(START, "classify")
     routes = {
         "match_info": "match_agent", "rules": "rag_agent", "analysis": "analysis_agent",
-        "prediction": "prediction_agent", "clarify": "synthesize", "refuse": "synthesize",
+        "prediction": "prediction_agent", "github_issue": "github_issue_agent",
+        "weather": "weather_agent", "clarify": "synthesize", "refuse": "synthesize",
     }
     g.add_conditional_edges("classify", lambda s: s["intent"], routes)
-    for n in ("match_agent", "rag_agent", "analysis_agent", "prediction_agent"):
+    for n in ("match_agent", "rag_agent", "analysis_agent", "prediction_agent", "github_issue_agent", "weather_agent"):
         g.add_edge(n, "synthesize")
     g.add_edge("synthesize", END)
     return g.compile()

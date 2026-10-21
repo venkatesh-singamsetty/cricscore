@@ -99,6 +99,16 @@ def create_server(deps: Deps, metadata_path: Path | None = None) -> MCPServer:
                    currentScore=currentScore, wicketsLost=wicketsLost, targetScore=targetScore)
         return _guard(lambda: tools.predict_match_outcome(deps.predictor, raw), deps.predictor, "prediction model")
 
+    @server.tool()
+    def create_github_issue(title: str, description: str, category: str = "bug") -> dict:
+        """Create a GitHub issue in the official CricScore repository for a user-reported bug or feature request."""
+        return _guard(lambda: tools.create_github_issue(title, description, category), True, "github issue agent")
+
+    @server.tool()
+    def get_match_weather(location: str, target_date: str = "today", hours_ahead: int = 6) -> dict:
+        """Fetch hourly match weather forecast via Open-Meteo (free, no key required)."""
+        return _guard(lambda: tools.get_match_weather(location, target_date, hours_ahead), True, "weather agent")
+
     return server
 
 

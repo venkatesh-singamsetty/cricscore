@@ -4,8 +4,10 @@ CricScore integrates an advanced **Agentic Retrieval-Augmented Generation (RAG)*
 
 Our chatbot is a fully autonomous AI Agent capable of two primary RAG methodologies:
 
-1. **Text-to-SQL:** It answers questions about live matches, historical data, and player stats in real-time by autonomously writing and executing read-only SQL queries directly against the high-performance PostgreSQL event hub.
-2. **Vector Semantic Search:** It answers rule-based questions (e.g. rain delays, tiebreakers) by embedding the query and performing a cosine-similarity search against a custom `pgvector` knowledge base built from uploaded PDF tournament rulebooks.
+1. **Text-to-SQL (`execute_sql`):** It answers questions about live matches, historical data, and player stats in real-time by autonomously writing and executing read-only SQL queries directly against the high-performance PostgreSQL event hub.
+2. **Vector Semantic Search (`search_tournament_rules`):** It answers rule-based questions (e.g. rain delays, tiebreakers) by embedding the query and performing a cosine-similarity search against a custom `pgvector` knowledge base built from uploaded PDF tournament rulebooks.
+3. **Cricket Match Weather Report Agent (`get_match_weather`):** Provides $0-cost live hour-by-hour weather forecasts (for the next few hours while playing) and tomorrow's/upcoming match forecasts with Cricket & DLS rain advisories via Open-Meteo (zero API key required). See the dedicated [**Weather Report Agent Guide**](./weather_report_agent.md).
+4. **GitHub Issue Specialist Agent (`create_github_issue`):** Allows users to report bugs, UI issues, or feature requests directly from the Chat Bot into `venkatesh-singamsetty/cricscore` using the server-side `GITHUB_TOKEN` via MCP with a 2-step confirmation flow and 1-issue-per-message guard. See the dedicated [**GitHub Issue Specialist Agent Guide**](./github_issue_agent.md).
 
 ## 🏗️ Architecture
 
@@ -104,7 +106,7 @@ The LLM does not connect directly to PostgreSQL, and the database connection cre
 
 Instead of tightly coupling database and vector logic directly into the LLM chat router loop, the `chat-api` Lambda operates using an **MCP Client-Server Architecture**:
 
-1. **MCP Server (`mcp/server.js`):** Defines `execute_sql` and `search_tournament_rules`, plus destructive tools when the `isAdmin` argument passed to the chat handler is truthy.
+1. **MCP Server (`mcp/server.js`):** Defines `execute_sql`, `search_tournament_rules`, `get_match_weather` ([Weather Report Agent Guide](./weather_report_agent.md)), and `create_github_issue` ([GitHub Issue Agent Guide](./github_issue_agent.md)), plus destructive tools when the `isAdmin` argument passed to the chat handler is truthy.
 2. **MCP Client (`handlers/chatHandler.js`):** Connects to the in-process server via `InMemoryTransport`, lists its tools, and delegates model-requested tool calls with `client.callTool()`.
 
 _Why use `InMemoryTransport`?_ The MCP client and server communicate inside the Lambda process, so a separate MCP host service is not needed. Lambda, database, and provider usage can still incur costs.
