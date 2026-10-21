@@ -61,17 +61,30 @@ Four pictures explain the whole platform. Each uses official AWS icons, and the 
 
 ![Agentic AI architecture: chat-api Lambda applies security guardrails, orchestrates autonomous specialist agents via MCP tools for read-only SQL, pgvector rule search, weather forecast, and rate-guarded GitHub issue reporting](./docs/images/architecture/03_ai_assistant.png)
 
-- The `chat-api` Lambda runs an **Agent Supervisor & MCP Orchestrator**; the LLM coordinates autonomous tool routing across specialist domain agents (Match Stats, Tournament Rules, Weather, Issue Reporter), never touching the database directly.
-- SQL is **SELECT-only**, rulebook answers come from **pgvector** search, and at most **one GitHub issue** can be filed per message.
-- A Python **LangGraph** supervisor (`apps/ai-service`) is being built as the next-generation agent; see [AI Architecture](./docs/ai_architecture.md).
+- **Agent Supervisor vs. LLM**: The LLM evaluates user intent and determines _which_ specialist tool to invoke. The LLM sends its structured function call back to the **Agent Supervisor (MCP Client)** in the Lambda. The supervisor enforces security guardrails (strict read-only SELECT validation, rate limit of 1 GitHub issue per message, prompt injection sanitization), dispatches execution to the in-memory MCP tool, and returns the factual evidence to the LLM to synthesize the final cited response. The LLM _never_ interacts directly with the database or external APIs.
+- **Specialist AI Agents & Tools**:
+  | Specialist Agent                          | MCP Tool / Capability        | Underlying Source                                                     |
+  | ----------------------------------------- | ---------------------------- | --------------------------------------------------------------------- |
+  | 📊 **Match Stats Agent**                  | `execute_sql`                | Aiven PostgreSQL 16 (strict read-only SELECT)                         |
+  | 📖 **Tournament Rules (RAG) Agent**       | `search_tournament_rules`    | pgvector store (cosine similarity with `[Source: rulebook]` citation) |
+  | 🌦️ **Weather Specialist Agent**           | `get_match_weather`          | Open-Meteo API (live hourly rain % & DLS forecast, $0 cost)           |
+  | 🐛 **GitHub Issue Reporter Agent**        | `create_github_issue`        | GitHub REST API (2-step confirmation, 1-issue rate guard)             |
+  | 🏏 **Cricket Context & Tactical Agent**   | Live match context injection | Real-time scoreboard telemetry (CRR, RRR, partnerships)               |
+  | 🎯 **Win Probability & Prediction Agent** | `predict_match_outcome`      | XGBoost + Markov DP + DLS hybrid model integration                    |
+- **Direct Lambda vs. AI Agent for Predictions**: The live scoreboard calls the `ml-predict` Lambda directly on every ball for sub-second, low-latency percentage updates. When a user asks conversational or "what-if" questions in chat, the AI Assistant's Prediction Agent analyzes the match state and explains the probabilities with rich tactical commentary.
+- See [AI Architecture](./docs/ai_architecture.md), [Weather Agent](./docs/weather_report_agent.md), and [GitHub Issue Agent](./docs/github_issue_agent.md) for complete details.
 
 ### 🧠 4. MLOps & Live Win Probability
 
 ![MLOps pipeline: DVC-versioned Cricsheet data trains eight models tracked in MLflow; GitHub Actions gates the XGBoost champion into an S3 registry and ECR image served by the ml-predict Lambda](./docs/images/architecture/04_mlops_win_prediction.png)
 
-- **Data → Train**: DVC versions Cricsheet ball-by-ball data; eight models are compared in MLflow.
-- **Gate → Publish**: GitHub Actions promotes the XGBoost champion only if accuracy and ROC-AUC pass, with a SHA-256 manifest.
-- **Serve**: The `ml-predict` container Lambda verifies the checksum and blends XGBoost with a DP chase simulation and DLS.
+- **Data → Train**: DVC versions 786K+ Cricsheet ball-by-ball deliveries; eight classification models are compared in MLflow.
+- **Gate → Publish**: GitHub Actions promotes the XGBoost champion only if Validation Accuracy $\ge 60\%$ and ROC-AUC $\ge 65\%$, generating an immutable `model_manifest.json` with SHA-256 checksums.
+- **Amazon ECR vs. S3 Model Registry**:
+  - **Amazon ECR** packages the Python 3.12 container runtime and heavy compiled dependencies (XGBoost, Scikit-learn, Pandas, NumPy), tagged with both `:${var.ml_model_version}` and `:latest`.
+  - **Amazon S3** acts as the versioned model registry (`models/${var.ml_model_version}/`), holding the `.joblib` model artifact, manifest, and metadata.
+  - On cold start, the `ml-predict` container Lambda fetches the version-tagged model from S3 into `/tmp`, verifies its SHA-256 checksum against the manifest, and falls back to bundled image artifacts if offline. This allows instant model rollbacks and updates via `./infra/scripts/deploy.sh --model-version <tag>` without rebuilding 500MB+ Docker images.
+- **Serve**: The `ml-predict` container blends XGBoost with a Markov Chain Dynamic Programming (DP) chase simulation and format-scaled Duckworth-Lewis-Stern (DLS) par calculation.
 
 > 🔁 **Regenerate the images** after an architecture change: see [`docs/diagrams/README.md`](./docs/diagrams/README.md).
 
