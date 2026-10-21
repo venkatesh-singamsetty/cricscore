@@ -189,7 +189,7 @@ def live_scoring() -> None:
 # ---------------------------------------------------------------------------
 def ai_assistant() -> None:
     with Diagram(
-        "Agentic AI Architecture: Autonomous Specialist Agents & MCP",
+        "CricScore Agentic AI Architecture: Lambda, MCP & Multi-Agent System",
         filename=str(OUT / "03_ai_assistant"),
         outformat="png",
         show=False,
@@ -198,35 +198,60 @@ def ai_assistant() -> None:
         node_attr=NODE,
         edge_attr=EDGE,
     ):
-        fan = Custom("Fan asks a question\n(chat widget)", icon("tb_message-chatbot"))
-        http = APIGateway("API Gateway\nPOST /chat")
+        with Cluster(**cluster("1. Client Request", BLUE, "#eef4ff")):
+            fan = Custom("Fan / Scorer\n(chat widget)", icon("tb_message-chatbot"))
+            http = APIGateway("API Gateway\nPOST /chat")
 
-        with Cluster(**cluster("Autonomous Multi-Agent System (chat-api Lambda)", PURPLE, "#f3f0ff")):
-            guard = Custom("Security Guardrails\nread-only, sanitized history,\n1-issue rate guard", icon("tb_shield-lock"))
-            supervisor = Custom("Agent Supervisor\n& MCP Orchestrator", icon("tb_robot"))
+        with Cluster(**cluster("2. AWS Serverless Compute (chat-api Lambda)", ORANGE, "#fffaf0")):
+            chat_lambda = Lambda("chat-api\nLambda Handler")
+            guard = Custom("Security Guardrails\nread-only SQL guard,\n1-issue rate limit", icon("tb_shield-lock"))
+            orchestrator = Custom("Agent Orchestrator\n& Supervisor", icon("tb_robot"))
+            mcp_client = Custom("MCP Client\n(Protocol Adapter)", icon("tb_brain"))
 
-            with Cluster(**cluster("Specialist AI Agents (Domain-Bounded MCP Tools)", PURPLE, "#ffffff")):
-                match_agent = Custom("Match Stats Agent\n(Autonomous Text-to-SQL)", icon("tb_database-search"))
-                rules_agent = Custom("Tournament Rules Agent\n(Vector RAG + pgvector)", icon("tb_brain"))
-                weather_agent = Custom("Weather Specialist Agent\n(Open-Meteo & DLS Impact)", icon("tb_cloud-rain"))
-                issue_agent = Custom("Issue Reporter Agent\n(GitHub Tracker Integration)", icon("github"))
+            with Cluster(**cluster("Individual Specialist Agents", PURPLE, "#ffffff")):
+                match_agent = Custom("Match Stats Agent\n(Text-to-SQL)", icon("tb_database-search"))
+                rules_agent = Custom("Rules Agent\n(Vector RAG)", icon("tb_brain"))
+                weather_agent = Custom("Weather Agent\n(Open-Meteo & DLS)", icon("tb_cloud-rain"))
+                issue_agent = Custom("Issue Agent\n(GitHub Tracker)", icon("github"))
 
-        llm = Custom("OpenAI-compatible LLM\n(Autonomous tool selection)", icon("openai"))
+            with Cluster(**cluster("MCP Server & Tools", PURPLE, "#f3f0ff")):
+                mcp_server = Custom("In-Memory MCP Server\n(Tool Schema Registry)", icon("tb_robot"))
+                tools = Custom("MCP Tools\nexecute_sql • search_rules\nget_weather • create_issue", icon("tb_database-search"))
 
-        with Cluster(**cluster("Knowledge Stores & External APIs", GREEN, "#ebfbee")):
-            pg_rel = Custom("Aiven PostgreSQL 16\n(Live & historical matches)", icon("postgresql"))
-            pg_vec = Custom("pgvector Store\n(PDF rulebook embeddings)", icon("postgresql"))
-            meteo = Custom("Open-Meteo API\n(Free global hourly forecast)", icon("openmeteo"))
-            gh = Custom("GitHub Issues API\n(Bug & feature tracking)", icon("github"))
+        with Cluster(**cluster("3. Reasoning Engine", PURPLE, "#f3f0ff")):
+            llm = Custom("OpenAI-Compatible LLM\n(Autonomous Reasoning\n& Tool Selection)", icon("openai"))
 
-        fan >> Edge(label="1 ask  /  5 answer", color=PURPLE, fontcolor=PURPLE, style="bold", dir="both") >> http
-        http >> edge("2 request", PURPLE) >> guard >> supervisor
-        supervisor >> Edge(label="3 autonomous routing", color=PURPLE, fontcolor=PURPLE, style="bold", dir="both") >> llm
-        supervisor >> edge("4 delegate", PURPLE) >> [match_agent, rules_agent, weather_agent, issue_agent]
-        match_agent >> edge("read-only SQL", GREEN) >> pg_rel
-        rules_agent >> edge("cosine search", GREEN) >> pg_vec
-        weather_agent >> edge("hourly forecast", GREEN) >> meteo
-        issue_agent >> edge("create issue", GREEN) >> gh
+        with Cluster(**cluster("4. Data Stores & External APIs", GREEN, "#ebfbee")):
+            pg_rel = Custom("Aiven PostgreSQL 16\n(Matches & stats)", icon("postgresql"))
+            pg_vec = Custom("pgvector Store\n(Rulebook embeddings)", icon("postgresql"))
+            meteo = Custom("Open-Meteo API\n(Live weather & rain)", icon("openmeteo"))
+            gh = Custom("GitHub Issues API\n(Issue filing)", icon("github"))
+
+        with Cluster(**cluster("5. Response Delivery", BLUE, "#eef4ff")):
+            output = Custom("Sanitized Output\n(Answer, Citations,\n& Tactical Cards)", icon("tb_message-chatbot"))
+
+        # 1. Ingress Flow
+        fan >> edge("ask", BLUE) >> http >> edge("invoke", ORANGE) >> chat_lambda
+        chat_lambda >> edge("sanitize", PURPLE) >> guard >> orchestrator
+
+        # 2. Orchestrator <-> LLM Reasoning Loop
+        orchestrator >> Edge(label="1. prompt & tools / 3. tool results", color=PURPLE, fontcolor=PURPLE, style="bold") >> llm
+        llm >> Edge(label="2. tool decisions / 4. final answer", color=PURPLE, fontcolor=PURPLE, style="bold") >> orchestrator
+
+        # 3. Orchestrator <-> MCP Client <-> Specialist Agents <-> MCP Server & Tools
+        orchestrator >> Edge(label="dispatch tool calls\n(results return)", color=PURPLE, fontcolor=PURPLE, style="bold", dir="both") >> mcp_client
+        mcp_client >> edge("delegate", PURPLE) >> [match_agent, rules_agent, weather_agent, issue_agent]
+        [match_agent, rules_agent, weather_agent, issue_agent] >> edge("invoke", PURPLE) >> mcp_server
+        mcp_server >> Edge(label="executes", color=PURPLE, fontcolor=PURPLE, style="bold", dir="both") >> tools
+
+        # 4. Tools query External Stores & APIs
+        tools >> edge("read-only SQL", GREEN) >> pg_rel
+        tools >> edge("cosine search", GREEN) >> pg_vec
+        tools >> edge("hourly forecast", GREEN) >> meteo
+        tools >> edge("create issue", GREEN) >> gh
+
+        # 5. Final Response Delivery (Orchestrator returns synthesized answer)
+        orchestrator >> Edge(label="5. return synthesized response", color=BLUE, fontcolor=BLUE, style="bold") >> output
 
 
 # ---------------------------------------------------------------------------
