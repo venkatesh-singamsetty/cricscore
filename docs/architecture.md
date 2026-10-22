@@ -55,11 +55,13 @@ flowchart TD
     end
 
     %% External & Auxiliary Services
-    subgraph Operations ["Observability & Auxiliary"]
+    subgraph Operations ["Observability & Auxiliary Services"]
         CloudWatch["CloudWatch Logs (7-day retention) & Alarms"]
         SES["Amazon SES (Match PDF Reports)"]
-        S3_Backups[("Amazon S3: Match State Backups")]
+        S3_Backups[("Amazon S3: Match Backups & ML Model Registry")]
         OpenAI["OpenAI-Compatible LLM / Embedding Provider"]
+        OpenMeteo["Open-Meteo Weather API ($0, No API Key)"]
+        GitHubAPI["GitHub REST API (Issue Creation)"]
     end
 
     %% Wire connections
@@ -81,49 +83,57 @@ flowchart TD
     MatchAPI --> SES
     MatchAPI --> S3_Backups
 
+    MLPredict -->|Load Versioned Model Artifacts| S3_Backups
+
     ChatAPI --> AIService
+    ChatAPI -.-> OpenMeteo
+    ChatAPI -.-> GitHubAPI
     AIService -->|Parameterized Read-Only SQL & pgvector| AivenPG
     AIService -.-> OpenAI
 ```
 
 ---
 
-### 🤖 2. Agentic AI, LangGraph Supervisor, RAG & MCP Architecture
+### 🤖 2. Agentic AI, MCP & Specialist Multi-Agent Architecture
 
-CricScore implements a modular Agentic AI platform built on **LangGraph**, **LangChain**, and the **Model Context Protocol (MCP)** with strict read-only security boundaries:
+CricScore implements a modular Agentic AI platform built on **Model Context Protocol (MCP)**, **LangGraph**, and **LangChain** with strict read-only security boundaries and domain-bounded specialist agents:
 
 ```mermaid
 flowchart TD
     subgraph UserInterface ["Frontend & External AI Clients"]
         User["Fan / Viewer (Chat Widget)"]
         Chips["Context-Aware Prompt Chips"]
-        LiveContext["Live Match Context Injection"]
+        LiveContext["Live Match Context Injection (Telemetry)"]
         ExtMCP["External AI Clients (Claude Desktop / Cursor)"]
     end
 
     subgraph SecurityGate ["Ingress & Security Boundary"]
         APIGW_Chat["POST /chat (Open Access for Fans)"]
-        NodeAdapter["chat-api Node.js Adapter (Sanitizes History & Enforces Read-Only)"]
+        NodeAdapter["chat-api Node.js Lambda (Orchestrator, Sanitizes History & Enforces Read-Only)"]
     end
 
-    subgraph LangGraphSupervisor ["Python AI Service (LangGraph Supervisor)"]
+    subgraph AgentSupervisor ["Agent Supervisor & Specialist Agents (Node.js & Python LangGraph)"]
         Classifier{"Deterministic Intent Router (Zero LLM Latency)"}
 
-        subgraph SpecializedAgents ["Bounded Specialist Agents (Max 3 Tool Calls)"]
-            MatchAgent["Match Info Agent (Parameterized SQL, 3s Timeout, Row Limits)"]
-            RAGAgent["Cricket RAG Agent (pgvector Cosine Search)"]
-            AnalysisAgent["Cricket Analysis Agent (Synthesizes Stats + Rules + DLS)"]
-            PredictionAgent["Prediction Agent (Feature Validation & Model Inference)"]
+        subgraph SpecializedAgents ["6 Bounded Specialist Agents (Max 3 Tool Calls)"]
+            MatchAgent["📊 Match Stats Agent (Parameterized SQL, 3s Timeout, Row Limits)"]
+            RAGAgent["📖 Tournament Rules RAG Agent (pgvector Cosine Search)"]
+            WeatherAgent["🌦️ Match Weather Agent (Open-Meteo API, $0 Cost)"]
+            IssueAgent["🐛 GitHub Issue Agent (GitHub REST API, 2-Step Confirmation)"]
+            AnalysisAgent["🏏 Cricket Context & Tactical Agent (Live Telemetry + DLS + Pacing)"]
+            PredictionAgent["🎯 Win Prediction Agent (Feature Validation & Model Inference)"]
         end
 
         Synthesizer["Evidence Synthesizer (Untrusted Evidence Quoted, Fact vs Opinion)"]
     end
 
-    subgraph DataAndTools ["Tools & Persistence Layer"]
+    subgraph DataAndTools ["Tools, Persistence & External APIs"]
         PG_Relational[("Aiven PostgreSQL: Matches, Innings, Players")]
         PG_Vector[("pgvector: Tournament Rulebooks Embeddings")]
         ML_Model["cricscore-ml-predict Lambda (Inference Engine)"]
-        MCPServer["Python MCP Server (Stdio Transport, 6 Approved Read-Only Tools)"]
+        WeatherAPI["Open-Meteo Weather API ($0, No API Key)"]
+        GitHubAPI_Tool["GitHub REST API (Issue Creation)"]
+        MCPServer["In-Memory MCP Server & Python Stdio (Tool Schema Registry)"]
     end
 
     subgraph Observability ["Opt-in Tracing"]
@@ -138,29 +148,49 @@ flowchart TD
 
     Classifier -->|match_info| MatchAgent
     Classifier -->|rules| RAGAgent
+    Classifier -->|weather| WeatherAgent
+    Classifier -->|bug / feature| IssueAgent
     Classifier -->|analysis| AnalysisAgent
     Classifier -->|prediction| PredictionAgent
     Classifier -->|clarify / refuse| Synthesizer
 
     MatchAgent -->|Predefined Query| PG_Relational
     RAGAgent -->|Embedding <=> Search| PG_Vector
+    WeatherAgent -->|Geocoding + Forecast| WeatherAPI
+    IssueAgent -->|Authenticated Issue Creation| GitHubAPI_Tool
     AnalysisAgent --> PG_Relational
     AnalysisAgent --> PG_Vector
+    AnalysisAgent --> LiveContext
     PredictionAgent --> ML_Model
 
     MatchAgent --> Synthesizer
     RAGAgent --> Synthesizer
+    WeatherAgent --> Synthesizer
+    IssueAgent --> Synthesizer
     AnalysisAgent --> Synthesizer
     PredictionAgent --> Synthesizer
 
     ExtMCP -.->|Local stdio JSON-RPC| MCPServer
     MCPServer -.-> MatchAgent
     MCPServer -.-> RAGAgent
+    MCPServer -.-> WeatherAgent
+    MCPServer -.-> IssueAgent
     MCPServer -.-> PredictionAgent
 
     Synthesizer -.-> LangSmith
     Synthesizer --> User
 ```
+
+#### Complete Specialist Agent & Tool Inventory
+
+| #     | Specialist Agent                          | Capability / MCP Tool                   | Source & Technology         | Key Features & Guardrails                                                                                                                                                                |
+| :---- | :---------------------------------------- | :-------------------------------------- | :-------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1** | 📊 **Match Stats Agent**                  | `execute_sql`                           | Aiven PostgreSQL 16         | • Strict read-only `SELECT` enforcement<br/>• Blocks write/DDL keywords (`DROP`, `DELETE`, `UPDATE`)<br/>• 3-second statement timeout                                                    |
+| **2** | 📖 **Tournament Rules RAG Agent**         | `search_tournament_rules`               | `pgvector` store (Aiven PG) | • Cosine similarity search on PDF chunks<br/>• Proportional powerplay scaling for shortened overs<br/>• Strict citation: `[Source: document_name]`<br/>• Anti-hallucination truthfulness |
+| **3** | 🌦️ **Weather Specialist Agent**           | `get_match_weather`                     | Open-Meteo API              | • Geocoding + hourly forecasts<br/>• Rain probability %, temp, wind speed<br/>• Cricket & DLS rain advisories<br/>• $0 cost (no API key required)                                        |
+| **4** | 🐛 **GitHub Issue Reporter Agent**        | `create_github_issue`                   | GitHub REST API             | • Creates labeled issues (`via-cricscore-ai`, category)<br/>• 2-step confirmation to capture title & description<br/>• Rate-limited: max 1 issue per turn                                |
+| **5** | 🏏 **Cricket Context & Tactical Agent**   | Live match context injection            | Real-time scoreboard state  | • Analyzes CRR vs RRR equations<br/>• Match phase analysis (Powerplay / Middle / Death)<br/>• Evaluates bowler overs and matchup strategy without extra DB queries                       |
+| **6** | 🎯 **Win Probability & Prediction Agent** | `predict_match_outcome` / direct Lambda | XGBoost + Markov DP + DLS   | • Validates 8 situational features<br/>• Blends ML gradient boosting with dynamic programming<br/>• Produces probabilistic percentages and conversational commentary                     |
 
 ---
 
@@ -173,7 +203,7 @@ flowchart TD
     subgraph DataPipeline ["Phase 1: Dataset Pipeline & DVC Versioning"]
         Cricsheet["Cricsheet Ball-by-Ball JSON Archives"]
         Extractor["data_pipeline.py"]
-        RawCSV[("live_data.csv (786K+ Deliveries)")]
+        RawCSV[("live_data.csv (786K+ Raw Deliveries, 100K-120K CI Subsample)")]
         DVC_Track["DVC Tracking: cricket-data/t20s_json.zip.dvc & dvc.yaml"]
         Cricsheet --> Extractor --> RawCSV --> DVC_Track
     end
@@ -366,6 +396,26 @@ Authorization for protected operations is enforced at two layers:
 - **Dynamic Variable Hydration**: `./infra/scripts/deploy.sh --env dev` bridges environment variables into Terraform format.
 - **Non-Destructive Configuration**: Local deployment cleanly appends live API Gateway and WebSocket URLs into `apps/frontend/.env`.
 - **Pipeline Dynamics**: `.github/workflows/ci.yml` validates changes and deploys DEV; `.github/workflows/cd.yml` handles PROD releases. Both use GitHub environment variables and secrets.
+
+### **6. Agentic AI & MCP Specialist Architecture (The Assistant)**
+
+- **Dual-Supervisor Design**:
+  - **Serverless Edge Supervisor (`chat-api` Lambda)**: Direct, low-latency Node.js Lambda running an in-memory MCP Client and Server (`InMemoryTransport`). Validates SQL queries as strictly read-only `SELECT` statements, queries `pgvector` for rulebook citations, fetches zero-cost Open-Meteo weather forecasts, and creates GitHub issues via server-side Octokit tokens.
+  - **Python Multi-Agent Supervisor (`apps/ai-service`)**: Extended LangGraph supervisor with deterministic intent routing and evidence synthesis across 6 domain-bounded specialist agents.
+- **6 Specialist Agents**:
+  1. 📊 **Match Stats Agent**: Read-only parameterized PostgreSQL 16 text-to-SQL with 3-second statement timeouts and row limits.
+  2. 📖 **Tournament Rules RAG Agent**: `pgvector` cosine similarity search across chunked tournament PDFs with mandatory `[Source: document_name]` citation.
+  3. 🌦️ **Weather Specialist Agent**: Open-Meteo API integration ($0 cost, no API keys) providing hourly temperatures, rain probability %, and DLS rain advisories.
+  4. 🐛 **GitHub Issue Reporter Agent**: Creates triaged GitHub issues with `via-cricscore-ai` labeling and strict 2-step confirmation to prevent spam.
+  5. 🏏 **Cricket Context & Tactical Agent**: Evaluates CRR vs RRR, match phases (Powerplay, Middle, Death), and bowler overs from live telemetry.
+  6. 🎯 **Win Probability & Prediction Agent**: Invokes the `ml-predict` inference engine and wraps statistical win likelihood in tactical cricket commentary.
+
+### **7. Serverless MLOps & Hybrid Win Prediction (The Engine)**
+
+- **DVC Dataset Versioning**: Tracks Cricsheet T20 raw ball-by-ball archives (`cricket-data/t20s_json.zip.dvc`, 786K+ raw deliveries) with SHA-256 reproducibility.
+- **Multi-Algorithm Benchmarking**: Evaluates 8 candidate models (Logistic Regression, GaussianNB, Decision Trees, Linear SVM, Random Forest, Extra Trees, HistGradientBoosting, and **XGBoost**) via match-grouped 70/15/15 splits to eliminate target leakage.
+- **S3 Model Registry & Decoupled ECR Runtime**: Decouples the Python 3.12 Docker runtime in Amazon ECR from the versioned `.joblib` model weights in S3 (`models/${var.ml_model_version}/`), enabling instant zero-downtime rollbacks via Terraform without rebuilding 650MB+ container images.
+- **Hybrid Serving Engine (`predict.py`)**: At runtime, `cricscore-ml-predict` dynamically blends XGBoost gradient boosting with a 2nd-innings Markov Chain Dynamic Programming (DP) chase simulation and Duckworth-Lewis-Stern (DLS) resource par tables.
 
 ---
 

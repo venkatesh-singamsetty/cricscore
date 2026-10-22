@@ -1,4 +1,5 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { fetchAuthSession } from "aws-amplify/auth";
 import {
   Send,
   Bot,
@@ -294,19 +295,107 @@ export function ChatComponent({
     "I want to report a bug or request a new feature",
   ];
 
-  const [isUploadingRules] = useState(false);
+  const cleanApiUrl = apiUrl ? apiUrl.replace(/\/$/, "") : "";
+  const [isUploadingRules, setIsUploadingRules] = useState(false);
   const [uploadedDocs, setUploadedDocs] = useState<string[]>([]);
   const [showDocsDropdown, setShowDocsDropdown] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleRulesUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Stub for now, can implement later
-    console.log("Upload rules clicked", e.target.files);
+  const fetchDocs = useCallback(async () => {
+    if (!isAdmin || !apiUrl) return;
+    try {
+      const session = await fetchAuthSession();
+      const token = session.tokens?.idToken?.toString();
+      if (!token) return;
+      const res = await fetch(`${cleanApiUrl}/rules`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.documents)) {
+          setUploadedDocs(data.documents);
+        }
+      }
+    } catch (err) {
+      console.warn("Could not fetch uploaded rulebooks:", err);
+    }
+  }, [isAdmin, apiUrl, cleanApiUrl]);
+
+  useEffect(() => {
+    fetchDocs();
+  }, [fetchDocs]);
+
+  const handleRulesUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !apiUrl) return;
+    if (file.type !== "application/pdf" && !file.name.endsWith(".pdf")) {
+      setAlertMessage("Only PDF files are supported");
+      return;
+    }
+    setIsUploadingRules(true);
+    try {
+      const session = await fetchAuthSession();
+      const token = session.tokens?.idToken?.toString();
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const base64 = reader.result as string;
+          const res = await fetch(`${cleanApiUrl}/rules/upload`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              fileName: file.name,
+              fileBase64: base64,
+            }),
+          });
+          if (res.ok) {
+            await fetchDocs();
+            setAlertMessage(`Uploaded and embedded ${file.name}`);
+          } else {
+            const errData = await res.json().catch(() => ({}));
+            setAlertMessage(
+              `Upload failed: ${errData.error || res.statusText}`,
+            );
+          }
+        } catch (err: any) {
+          setAlertMessage(`Upload failed: ${err.message}`);
+        } finally {
+          setIsUploadingRules(false);
+          if (fileInputRef.current) fileInputRef.current.value = "";
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      setIsUploadingRules(false);
+      setAlertMessage(`Upload failed: ${err.message}`);
+    }
   };
 
-  const handleDeleteDoc = (doc: string) => {
-    // Stub for now
-    setUploadedDocs(uploadedDocs.filter((d) => d !== doc));
+  const handleDeleteDoc = async (doc: string) => {
+    if (!apiUrl) return;
+    try {
+      const session = await fetchAuthSession();
+      const token = session.tokens?.idToken?.toString();
+      const res = await fetch(
+        `${cleanApiUrl}/rules?documentName=${encodeURIComponent(doc)}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      if (res.ok) {
+        setUploadedDocs((prev) => prev.filter((d) => d !== doc));
+        setAlertMessage(`Deleted ${doc}`);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setAlertMessage(`Delete failed: ${errData.error || res.statusText}`);
+      }
+    } catch (err: any) {
+      setAlertMessage(`Delete failed: ${err.message}`);
+    }
   };
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageListRef = useRef<HTMLDivElement>(null);
@@ -564,38 +653,38 @@ export function ChatComponent({
       <div className="flex-1 min-h-0 flex flex-col relative">
         <div
           ref={messageListRef}
-          className="flex-1 overflow-y-auto p-2.5 sm:p-4 overscroll-contain touch-pan-y flex flex-col"
+          className="flex-1 overflow-y-auto p-2.5 sm:p-3 overscroll-contain touch-pan-y flex flex-col"
           style={{ WebkitOverflowScrolling: "touch" }}
         >
           {messages.length > 1 && (
             <div className="flex-1 min-h-[1rem] shrink-0"></div>
           )}
 
-          {/* Welcome & Default Questions (One-by-one vertical list) */}
+          {/* Welcome & Default Questions (One-by-one list fitted cleanly to screen without wasted space) */}
           {messages.length <= 1 && (
-            <div className="flex flex-col items-center justify-start pt-2 sm:pt-5 pb-4 px-3 sm:px-4 text-center w-full max-w-md sm:max-w-xl mx-auto animate-in fade-in duration-300">
-              <div className="auth-hero-brand mb-1.5">
+            <div className="flex flex-col items-center justify-start pt-1 sm:pt-1.5 pb-1 sm:pb-1.5 px-3 sm:px-4 text-center w-full max-w-md sm:max-w-lg md:max-w-xl mx-auto animate-in fade-in duration-300">
+              <div className="auth-hero-brand mb-1 sm:mb-1.5">
                 <div
                   className="auth-logo"
-                  style={{ width: 44, height: 44, fontSize: "1.45rem" }}
+                  style={{ width: 38, height: 38, fontSize: "1.25rem" }}
                 >
                   🤖
                 </div>
-                <h2 className="auth-title text-2xl sm:text-3xl">
+                <h2 className="auth-title text-xl sm:text-2xl font-black">
                   Cric<span>Score AI Assistant</span>
                 </h2>
               </div>
-              <p className="auth-subtitle mb-5 sm:mb-6">
+              <p className="auth-subtitle mb-2 sm:mb-2.5 text-[10px] sm:text-xs font-semibold tracking-wider">
                 MATCH STATS &middot; TOURNAMENT RULES &middot; WEATHER &middot;
                 BUG REPORT
               </p>
 
-              <div className="w-full space-y-2 text-left">
-                <span className="text-[11px] font-black uppercase text-indigo-400 tracking-wider flex items-center gap-1.5 px-1 mb-1.5">
+              <div className="w-full space-y-1.5 sm:space-y-2 text-left">
+                <span className="text-[11px] sm:text-xs font-black uppercase text-indigo-400 tracking-wider flex items-center gap-1.5 px-1 mb-1 sm:mb-1.5">
                   <Sparkles size={13} className="text-amber-400" />
                   Suggested Questions
                 </span>
-                <div className="flex flex-col gap-2 sm:gap-2.5">
+                <div className="flex flex-col gap-1.5 sm:gap-2">
                   {QUICK_PROMPTS.map((prompt, i) => (
                     <button
                       key={i}
@@ -603,10 +692,10 @@ export function ChatComponent({
                       onClick={() => submitText(prompt, false)}
                       disabled={loading}
                       aria-label={prompt}
-                      className="w-full text-left py-2.5 px-3.5 sm:py-3 sm:px-4 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-white/5 hover:border-indigo-500/40 text-slate-200 hover:text-white transition-all text-[13px] sm:text-sm font-semibold flex items-center justify-between group active:scale-[0.98] shadow-sm"
+                      className="w-full text-left py-2 px-3 sm:py-2.5 sm:px-3.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-white/5 hover:border-indigo-500/40 text-slate-200 hover:text-white transition-all text-xs sm:text-sm font-semibold flex items-center justify-between group active:scale-[0.98] shadow-sm"
                     >
-                      <span className="flex items-center gap-3 min-w-0">
-                        <span className="w-6 h-6 sm:w-6.5 sm:h-6.5 rounded-md bg-indigo-500/20 text-indigo-300 flex items-center justify-center text-[11px] sm:text-xs font-bold shrink-0">
+                      <span className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                        <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-indigo-500/20 text-indigo-300 flex items-center justify-center text-[10px] sm:text-xs font-bold shrink-0">
                           {i + 1}
                         </span>
                         <span className="leading-snug">{prompt}</span>
