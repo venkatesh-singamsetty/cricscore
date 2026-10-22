@@ -1,5 +1,11 @@
 import React from "react";
-import { render, screen, waitFor, act } from "@testing-library/react";
+import {
+  render,
+  screen,
+  waitFor,
+  act,
+  fireEvent,
+} from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import LiveScoreboard from "../components/LiveScoreboard";
 import { ExtraType, WicketType } from "../types";
@@ -410,5 +416,118 @@ describe("LiveScoreboard Component", () => {
       batterCard.compareDocumentPosition(thisOver) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+  });
+
+  it("directly opens full Scoreboard when selecting an already completed match and returns to hub on close", async () => {
+    const onActiveMatchChange = vi.fn();
+    const completedResponse = {
+      match: {
+        id: "match_completed_1",
+        status: "COMPLETED",
+        team_a_name: "CHICAGO SPARTANS",
+        team_b_name: "ILLINOIS THUNDERS",
+        total_overs: 1,
+        player_of_the_match: "THUNDER 3",
+      },
+      innings: [
+        {
+          id: "inn_1",
+          inning_number: 1,
+          batting_team_name: "CHICAGO SPARTANS",
+          bowling_team_name: "ILLINOIS THUNDERS",
+          total_runs: 10,
+          total_wickets: 2,
+          overs: 1,
+          balls: 0,
+          players: [
+            {
+              id: "p1",
+              name: "SPARTAN 1",
+              runs: 6,
+              balls_faced: 4,
+              fours: 1,
+              sixes: 0,
+              is_out: false,
+            },
+          ],
+          bowlers: [
+            {
+              id: "b1",
+              name: "THUNDER 3",
+              overs_completed: 1,
+              balls: 0,
+              maidens: 0,
+              runs_conceded: 10,
+              wickets: 2,
+            },
+          ],
+        },
+        {
+          id: "inn_2",
+          inning_number: 2,
+          batting_team_name: "ILLINOIS THUNDERS",
+          bowling_team_name: "CHICAGO SPARTANS",
+          total_runs: 11,
+          total_wickets: 0,
+          overs: 0,
+          balls: 4,
+          players: [
+            {
+              id: "p2",
+              name: "THUNDER 3",
+              runs: 11,
+              balls_faced: 4,
+              fours: 2,
+              sixes: 0,
+              is_out: false,
+            },
+          ],
+          bowlers: [
+            {
+              id: "b2",
+              name: "SPARTAN 1",
+              overs_completed: 0,
+              balls: 4,
+              maidens: 0,
+              runs_conceded: 11,
+              wickets: 0,
+            },
+          ],
+        },
+      ],
+    };
+
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => completedResponse,
+    });
+
+    render(
+      <LiveScoreboard
+        initialMatchId="match_completed_1"
+        onActiveMatchChange={onActiveMatchChange}
+      />,
+    );
+
+    // Full Scorecard opens directly (header has "Match Scorecard")
+    await waitFor(() => {
+      expect(
+        screen.getByRole("heading", { name: /Match Scorecard/i }),
+      ).toBeInTheDocument();
+    });
+
+    // Match Result and POTM are displayed in the unified banner
+    expect(
+      screen.getAllByText(/WON BY 10 WICKETS/i).length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/POTM: THUNDER 3/i)).toBeInTheDocument();
+
+    // Closing the scorecard returns to Match Hub
+    const closeBtn = screen.getByRole("button", { name: /Close scorecard/i });
+    fireEvent.click(closeBtn);
+
+    await waitFor(() => {
+      expect(onActiveMatchChange).toHaveBeenCalledWith("");
+    });
   });
 });

@@ -359,39 +359,74 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
     setActiveTab("current");
   }
 
+  const matchTotalOvers = Number(
+    totalOvers && totalOvers > 0 ? totalOvers : 20,
+  );
+  const matchResult = previousInnings
+    ? (() => {
+        const i1 = previousInnings;
+        const i2 = currentInnings;
+        const i1Runs = Number(i1.totalRuns || 0);
+        const i2Runs = Number(i2.totalRuns || 0);
+        const i2Wickets = Number(i2.totalWickets || 0);
+        const i2Overs = Number(i2.overs || 0);
+
+        if (i2Runs > i1Runs) {
+          return {
+            text: `${i2.battingTeamName} WON BY ${10 - i2Wickets} WICKETS`,
+            team: i2.battingTeamName,
+          };
+        } else if (
+          i1Runs > i2Runs &&
+          (i2Overs >= matchTotalOvers || i2Wickets >= 10 || i2.isCompleted)
+        ) {
+          return {
+            text: `${i1.battingTeamName} WON BY ${i1Runs - i2Runs} RUNS`,
+            team: i1.battingTeamName,
+          };
+        } else if (
+          i1Runs === i2Runs &&
+          (i2Overs >= matchTotalOvers || i2Wickets >= 10 || i2.isCompleted)
+        ) {
+          return { text: "MATCH TIED", team: "TIED" };
+        }
+        return null;
+      })()
+    : null;
+
   return (
     <div className="fixed inset-x-0 top-14 bottom-0 md:top-16 bg-slate-950/80 z-[400] flex items-center justify-center p-2 sm:p-4 backdrop-blur-md animate-in fade-in duration-300">
       <div className="bg-slate-900 border border-white/10 rounded-[1.5rem] sm:rounded-[2.5rem] w-full max-w-5xl max-h-full md:max-h-[calc(100vh-8rem)] min-h-0 overflow-hidden flex flex-col shadow-2xl animate-in zoom-in-95 duration-500">
         {/* Header */}
-        <div className="bg-slate-950 px-4 py-3 sm:px-8 sm:py-6 flex justify-between items-center shrink-0 border-b border-white/5">
-          <div className="flex items-center gap-3">
-            <div className="w-2 h-7 sm:h-8 bg-indigo-600 rounded-full"></div>
-            <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tighter italic text-white flex items-center gap-2">
+        <div className="bg-slate-950 px-4 py-2.5 sm:px-6 sm:py-4 flex justify-between items-center shrink-0 border-b border-white/5">
+          <div className="flex items-center gap-2.5">
+            <div className="w-1.5 h-6 sm:h-7 bg-indigo-600 rounded-full"></div>
+            <h2 className="text-base sm:text-xl font-black uppercase tracking-tighter italic text-white flex items-center gap-2">
               Match <span className="text-indigo-500">Scorecard</span>
             </h2>
           </div>
           <button
             onClick={onClose}
             aria-label="Close scorecard"
-            className="w-11 h-11 shrink-0 bg-white/5 hover:bg-white/10 rounded-full flex items-center justify-center transition-all active:scale-95 text-white font-bold text-2xl"
+            className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 bg-white/5 hover:bg-white/10 rounded-full flex items-center justify-center transition-all active:scale-95 text-white font-bold text-xl sm:text-2xl"
           >
             ×
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex bg-slate-950/50 p-1.5 sm:p-2 shrink-0 border-b border-white/5">
+        <div className="flex bg-slate-950/50 p-1 sm:p-1.5 shrink-0 border-b border-white/5">
           {previousInnings && (
             <button
               onClick={() => setActiveTab("previous")}
-              className={`flex-1 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] italic transition-all ${activeTab === "previous" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/20" : "text-slate-500 hover:text-slate-300 hover:bg-white/5"}`}
+              className={`flex-1 py-2 sm:py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] italic transition-all ${activeTab === "previous" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/20" : "text-slate-500 hover:text-slate-300 hover:bg-white/5"}`}
             >
               {previousInnings.battingTeamName} (Inns 1)
             </button>
           )}
           <button
             onClick={() => setActiveTab("current")}
-            className={`flex-1 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] italic transition-all ${activeTab === "current" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/20" : "text-slate-500 hover:text-slate-300 hover:bg-white/5"}`}
+            className={`flex-1 py-2 sm:py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] italic transition-all ${activeTab === "current" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/20" : "text-slate-500 hover:text-slate-300 hover:bg-white/5"}`}
           >
             {currentInnings.battingTeamName} (Inns {currentInnings.inningNumber}
             )
@@ -399,64 +434,34 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
         </div>
 
         {/* Result Highlight */}
-        {previousInnings &&
-          (() => {
-            const result = (() => {
-              const i1 = previousInnings;
-              const i2 = currentInnings;
-              const i1Runs = Number(i1.totalRuns || 0);
-              const i2Runs = Number(i2.totalRuns || 0);
-              const i2Wickets = Number(i2.totalWickets || 0);
-              const i2Overs = Number(i2.overs || 0);
-
-              if (i2Runs > i1Runs) {
-                return {
-                  text: `${i2.battingTeamName} WON BY ${10 - i2Wickets} WICKETS`,
-                  team: i2.battingTeamName,
-                };
-              } else if (
-                i1Runs > i2Runs &&
-                (i2Overs >= (totalOvers || 0) || i2Wickets >= 10)
-              ) {
-                return {
-                  text: `${i1.battingTeamName} WON BY ${i1Runs - i2Runs} RUNS`,
-                  team: i1.battingTeamName,
-                };
-              } else if (
-                i1Runs === i2Runs &&
-                (i2Overs >= (totalOvers || 0) || i2Wickets >= 10)
-              ) {
-                return { text: "MATCH TIED", team: "TIED" };
-              }
-              return null;
-            })();
-
-            if (!result) return null;
-
-            return (
-              <div className="bg-indigo-600 shrink-0 px-4 py-3 sm:py-4 text-center overflow-hidden relative shadow-2xl">
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer"></div>
-                <div className="relative z-10 flex flex-col items-center justify-center px-4">
-                  <span className="text-[9px] font-black text-indigo-100 uppercase tracking-[0.4em] opacity-80 mb-1 leading-none">
-                    🏆 MATCH RESULT
-                  </span>
-                  <span className="max-w-full text-base sm:text-xl font-black text-white uppercase tracking-tighter italic drop-shadow-lg leading-tight break-words">
-                    <HighlightedResult
-                      text={result.text}
-                      teamClassName="text-yellow-300"
-                    />
-                  </span>
-                </div>
-              </div>
-            );
-          })()}
+        {matchResult && (
+          <div className="bg-indigo-600 shrink-0 px-4 py-2 sm:py-2.5 text-center overflow-hidden relative shadow-2xl">
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer"></div>
+            <div className="relative z-10 flex flex-col items-center justify-center px-2">
+              <span className="text-[8px] sm:text-[9px] font-black text-indigo-100 uppercase tracking-[0.4em] opacity-80 mb-0.5 leading-none">
+                🏆 MATCH RESULT
+              </span>
+              <span className="max-w-full text-sm sm:text-lg font-black text-white uppercase tracking-tighter italic drop-shadow-lg leading-tight break-words">
+                <HighlightedResult
+                  text={matchResult.text}
+                  teamClassName="text-yellow-300"
+                />
+              </span>
+              {playerOfTheMatch && (
+                <span className="mt-1 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-400/20 border border-amber-400/30 text-amber-200 text-[10px] sm:text-xs font-black uppercase tracking-wider">
+                  <span>🏆</span> POTM: {playerOfTheMatch}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Content */}
         {displayInnings ? (
-          <div className="min-h-0 flex-1 p-3 sm:p-6 overflow-y-auto overscroll-contain pb-16 scrollbar-hide space-y-4 sm:space-y-6">
-            {playerOfTheMatch && (
-              <div className="rounded-xl sm:rounded-2xl border border-amber-400/30 bg-amber-500/10 px-3 py-2.5 sm:px-6 sm:py-4 flex items-center gap-3">
-                <span className="text-xl sm:text-3xl">🏆</span>
+          <div className="min-h-0 flex-1 p-3 sm:p-5 overflow-y-auto overscroll-contain pb-12 scrollbar-hide space-y-3 sm:space-y-4">
+            {playerOfTheMatch && !matchResult && (
+              <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 sm:px-5 sm:py-3 flex items-center gap-3">
+                <span className="text-xl sm:text-2xl">🏆</span>
                 <div>
                   <div className="text-[9px] sm:text-xs font-black uppercase tracking-[0.3em] text-amber-300">
                     Player of the Match
@@ -474,12 +479,12 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                 activeTab === "current" &&
                 (Boolean(previousInnings) || displayInnings.inningNumber === 2);
               if (!isChasing) {
-                if (activeTab === "previous") {
+                if (activeTab === "previous" && !matchResult) {
                   const setTarget = Number(displayInnings.totalRuns || 0) + 1;
                   return (
-                    <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/10 p-2.5 sm:p-3.5 flex items-center justify-between">
+                    <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/10 p-2 sm:p-3 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="text-base sm:text-lg">📋</span>
+                        <span className="text-sm sm:text-base">📋</span>
                         <span className="text-[10px] sm:text-[11px] font-bold text-slate-300 uppercase tracking-wider">
                           1st Innings Total:{" "}
                           <span className="font-black text-white">
@@ -488,7 +493,7 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                           </span>
                         </span>
                       </div>
-                      <span className="text-[9px] sm:text-[10px] font-black uppercase text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full">
+                      <span className="text-[9px] sm:text-[10px] font-black uppercase text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-full">
                         Sets Target: {setTarget}
                       </span>
                     </div>
@@ -511,18 +516,19 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                 Number(displayInnings.balls || 0);
               const ballsLeft = Math.max(0, totalBalls - ballsBowled);
 
+              // Suppress Target Equation when match is complete or target already reached (avoids duplicate info with Match Result)
+              if (matchResult || runsNeeded <= 0) return null;
+
               return (
-                <div className="rounded-xl sm:rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-slate-900/60 p-3 sm:p-4 flex items-center justify-between shadow-md">
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <span className="text-xl sm:text-2xl">🎯</span>
+                <div className="rounded-xl sm:rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-slate-900/60 p-2.5 sm:p-3.5 flex items-center justify-between shadow-md">
+                  <div className="flex items-center gap-2 sm:gap-2.5">
+                    <span className="text-lg sm:text-xl">🎯</span>
                     <div>
                       <div className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.25em] text-amber-400/80">
                         Target Equation
                       </div>
-                      <div className="text-xs sm:text-base font-black uppercase tracking-tight text-amber-200 mt-0.5">
-                        {runsNeeded > 0
-                          ? `Need ${runsNeeded} runs off ${ballsLeft} balls`
-                          : "Target Reached"}
+                      <div className="text-xs sm:text-sm font-black uppercase tracking-tight text-amber-200 mt-0.5">
+                        Need {runsNeeded} runs off {ballsLeft} balls
                       </div>
                     </div>
                   </div>
@@ -530,7 +536,7 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                     <div className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.25em] text-amber-400/80">
                       Target
                     </div>
-                    <div className="text-lg sm:text-xl font-black tabular-nums text-amber-300">
+                    <div className="text-base sm:text-lg font-black tabular-nums text-amber-300">
                       {target}
                     </div>
                   </div>

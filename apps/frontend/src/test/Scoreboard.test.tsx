@@ -205,4 +205,37 @@ describe("Scoreboard Component", () => {
     const dnbBadges = screen.getAllByText(/DID NOT BAT/i);
     expect(dnbBadges.length).toBe(2);
   });
+
+  it("merges Player of the Match into the MATCH RESULT banner and suppresses duplicate Target Equation on completed matches", () => {
+    // 2nd innings reached target 150 (scored 151)
+    const wonInnings: InningsState = {
+      ...mockCurrentInnings,
+      totalRuns: 151,
+      totalWickets: 3,
+      isCompleted: true,
+    };
+
+    render(
+      <Scoreboard
+        currentInnings={wonInnings}
+        previousInnings={mockPreviousInnings}
+        onClose={vi.fn()}
+        playerOfTheMatch="THUNDER 1"
+        totalOvers={20}
+      />,
+    );
+
+    // Match Result banner shows winner
+    expect(screen.getByText(/WON BY 7 WICKETS/i)).toBeInTheDocument();
+
+    // POTM is integrated into the result banner
+    expect(screen.getByText(/POTM: THUNDER 1/i)).toBeInTheDocument();
+
+    // Duplicate Target Equation is suppressed on completed match
+    expect(screen.queryByText(/Target Equation/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Target Reached/i)).not.toBeInTheDocument();
+
+    // Batters table is immediately visible
+    expect(screen.getAllByText(/THUNDER 1/i).length).toBeGreaterThanOrEqual(2);
+  });
 });
