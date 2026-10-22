@@ -217,7 +217,7 @@ What happens afterwards:
 | `CI` succeeds (`Release`)   | **Semantic Release** cuts the next `v*` tag, updates `docs/changelog.md`, and publishes GitHub Release notes.   |
 | Release published (`CD`)    | Deploys **Prod**, then runs AI evaluation, Playwright E2E against Prod, and OWASP ZAP scan.                     |
 
-Publishing a release (or pushing a `v*` tag) triggers **CD** for Prod. If you add required reviewers under **GitHub → Settings → Environments → `prod`**, GitHub Actions will pause `prod` jobs (such as `CD` and `Drift Check (prod)`) until you approve them.
+Publishing a release (or pushing a `v*` tag) triggers **CD** for Prod. If you configure required reviewers under **GitHub → Settings → Environments → `prod`**, GitHub Actions will pause `CD` deployments until you review and approve them. Meanwhile, automated nightly drift detection (`drift.yml`) runs autonomously without human gates because it is strictly read-only (`terraform plan -detailed-exitcode`) and does not apply infrastructure changes.
 
 ---
 
