@@ -11,6 +11,17 @@ import { ChatComponent, FormattedContent } from "../components/ChatComponent";
 
 global.fetch = vi.fn();
 
+vi.mock("aws-amplify/auth", () => ({
+  fetchAuthSession: vi.fn().mockResolvedValue({
+    tokens: {
+      idToken: {
+        toString: () => "mock-jwt-token",
+        payload: { "cognito:groups": ["Admin"] },
+      },
+    },
+  }),
+}));
+
 describe("FormattedContent Component", () => {
   it("renders bold text and source badge chips", () => {
     const text =
@@ -247,6 +258,35 @@ describe("ChatComponent", () => {
     expect(screen.queryByText("Previous question")).not.toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /CricScore AI Assistant/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("fetches and displays uploaded docs count and list when isAdmin is true", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        documents: ["CCL2026SpringChampionshipRulebook.pdf"],
+      }),
+    });
+
+    render(
+      <ChatComponent
+        matchId={null}
+        apiUrl="https://api.test.com"
+        isAdmin={true}
+        setAlertMessage={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Docs (1)")).toBeInTheDocument();
+    });
+
+    const docsBtn = screen.getByRole("button", { name: /Docs \(1\)/i });
+    fireEvent.click(docsBtn);
+
+    expect(
+      screen.getByText("CCL2026SpringChampionshipRulebook.pdf"),
     ).toBeInTheDocument();
   });
 });

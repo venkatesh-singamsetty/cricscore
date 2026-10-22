@@ -1,4 +1,5 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { fetchAuthSession } from "aws-amplify/auth";
 import {
   Send,
   Bot,
@@ -294,19 +295,107 @@ export function ChatComponent({
     "I want to report a bug or request a new feature",
   ];
 
-  const [isUploadingRules] = useState(false);
+  const cleanApiUrl = apiUrl ? apiUrl.replace(/\/$/, "") : "";
+  const [isUploadingRules, setIsUploadingRules] = useState(false);
   const [uploadedDocs, setUploadedDocs] = useState<string[]>([]);
   const [showDocsDropdown, setShowDocsDropdown] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleRulesUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Stub for now, can implement later
-    console.log("Upload rules clicked", e.target.files);
+  const fetchDocs = useCallback(async () => {
+    if (!isAdmin || !apiUrl) return;
+    try {
+      const session = await fetchAuthSession();
+      const token = session.tokens?.idToken?.toString();
+      if (!token) return;
+      const res = await fetch(`${cleanApiUrl}/rules`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.documents)) {
+          setUploadedDocs(data.documents);
+        }
+      }
+    } catch (err) {
+      console.warn("Could not fetch uploaded rulebooks:", err);
+    }
+  }, [isAdmin, apiUrl, cleanApiUrl]);
+
+  useEffect(() => {
+    fetchDocs();
+  }, [fetchDocs]);
+
+  const handleRulesUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !apiUrl) return;
+    if (file.type !== "application/pdf" && !file.name.endsWith(".pdf")) {
+      setAlertMessage("Only PDF files are supported");
+      return;
+    }
+    setIsUploadingRules(true);
+    try {
+      const session = await fetchAuthSession();
+      const token = session.tokens?.idToken?.toString();
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const base64 = reader.result as string;
+          const res = await fetch(`${cleanApiUrl}/rules/upload`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              fileName: file.name,
+              fileBase64: base64,
+            }),
+          });
+          if (res.ok) {
+            await fetchDocs();
+            setAlertMessage(`Uploaded and embedded ${file.name}`);
+          } else {
+            const errData = await res.json().catch(() => ({}));
+            setAlertMessage(
+              `Upload failed: ${errData.error || res.statusText}`,
+            );
+          }
+        } catch (err: any) {
+          setAlertMessage(`Upload failed: ${err.message}`);
+        } finally {
+          setIsUploadingRules(false);
+          if (fileInputRef.current) fileInputRef.current.value = "";
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      setIsUploadingRules(false);
+      setAlertMessage(`Upload failed: ${err.message}`);
+    }
   };
 
-  const handleDeleteDoc = (doc: string) => {
-    // Stub for now
-    setUploadedDocs(uploadedDocs.filter((d) => d !== doc));
+  const handleDeleteDoc = async (doc: string) => {
+    if (!apiUrl) return;
+    try {
+      const session = await fetchAuthSession();
+      const token = session.tokens?.idToken?.toString();
+      const res = await fetch(
+        `${cleanApiUrl}/rules?documentName=${encodeURIComponent(doc)}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      if (res.ok) {
+        setUploadedDocs((prev) => prev.filter((d) => d !== doc));
+        setAlertMessage(`Deleted ${doc}`);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setAlertMessage(`Delete failed: ${errData.error || res.statusText}`);
+      }
+    } catch (err: any) {
+      setAlertMessage(`Delete failed: ${err.message}`);
+    }
   };
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageListRef = useRef<HTMLDivElement>(null);
