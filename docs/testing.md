@@ -207,6 +207,7 @@ The CI workflow deploys to and runs Playwright tests against the development env
 
 The production deployment workflow runs AI evaluation and Playwright tests against the production API and site, followed by a ZAP baseline scan. Playwright tests should be reviewed for their production data impact.
 
+- **Automated Drift Detection (`drift.yml`)**: Nightly cron job (`0 0 * * *`) that executes `terraform plan -detailed-exitcode` autonomously across both Dev and Prod matrices without manual approval gates, alerting immediately if AWS resources drift from code.
 - **Database keep-alive**: `keepalive.yml` runs a database query daily; it is not an application uptime monitor and does not ping the `/health` endpoint.
 - **Passive Observability**: Using AWS CloudWatch Logs and Sentry to monitor real-user traffic for unexpected crashes.
 

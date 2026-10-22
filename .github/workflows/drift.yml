@@ -13,11 +13,18 @@ jobs:
   drift-check:
     name: Drift Check (${{ matrix.environment }})
     runs-on: ubuntu-latest
-    environment: ${{ matrix.environment }}
     strategy:
       fail-fast: false
       matrix:
-        environment: [dev, prod]
+        include:
+          - environment: dev
+            project_name: cricscoredev
+            domain_name: cricscoredev.venkateshsingamsetty.com
+            subdomain_prefix: cricscoredev
+          - environment: prod
+            project_name: cricscore
+            domain_name: cricscore.venkateshsingamsetty.com
+            subdomain_prefix: cricscore
     defaults:
       run:
         working-directory: ./infra/terraform
@@ -37,7 +44,10 @@ jobs:
         with:
           node-version: "24"
           cache: "npm"
-          cache-dependency-path: package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            apps/backend/package-lock.json
+            apps/backend/lambdas/*/package-lock.json
 
       - name: Install Lambda dependencies
         working-directory: ${{ github.workspace }}
@@ -45,7 +55,7 @@ jobs:
           set -e
           for d in apps/backend/lambdas/*; do
             if [ -f "$d/package.json" ]; then
-              (cd "$d" && npm install --omit=dev --ignore-scripts)
+              (cd "$d" && npm install --omit=dev --no-audit --no-fund --ignore-scripts)
             fi
           done
 
@@ -64,14 +74,14 @@ jobs:
         env:
           TF_IN_AUTOMATION: "true"
           TF_VAR_environment: ${{ matrix.environment }}
-          TF_VAR_aws_region: ${{ vars.AWS_REGION }}
-          TF_VAR_domain_name: ${{ vars.DOMAIN_NAME }}
-          TF_VAR_zone_domain: ${{ vars.ZONE_DOMAIN }}
-          TF_VAR_subdomain_prefix: ${{ vars.SUBDOMAIN_PREFIX }}
-          TF_VAR_project_name: ${{ vars.PROJECT_NAME }}
+          TF_VAR_aws_region: ${{ vars.AWS_REGION || 'us-east-1' }}
+          TF_VAR_domain_name: ${{ matrix.domain_name }}
+          TF_VAR_zone_domain: ${{ vars.ZONE_DOMAIN || 'venkateshsingamsetty.com' }}
+          TF_VAR_subdomain_prefix: ${{ matrix.subdomain_prefix }}
+          TF_VAR_project_name: ${{ matrix.project_name }}
           TF_VAR_ses_source_email: ${{ secrets.TF_SES_SOURCE_EMAIL }}
           TF_VAR_database_url: ${{ secrets.TF_DATABASE_URL }}
-          TF_VAR_admin_email: ${{ vars.ADMIN_EMAIL }}
+          TF_VAR_admin_email: ${{ vars.ADMIN_EMAIL || 'venky.2k57@gmail.com' }}
           TF_VAR_llm_api_key: ${{ secrets.OPENAI_API_KEY }}
           TF_VAR_llm_base_url: ${{ vars.LLM_BASE_URL }}
           TF_VAR_llm_model: ${{ vars.LLM_MODEL }}

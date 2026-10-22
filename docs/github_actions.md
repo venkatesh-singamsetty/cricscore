@@ -58,6 +58,15 @@ Whether a run pauses for approval depends on the protection rules configured
 for the GitHub `prod` environment; the workflow file alone does not guarantee
 manual approval.
 
+### Infrastructure drift detection
+
+`drift.yml` runs every midnight (and on manual dispatch) across both DEV and PROD
+matrix legs using `terraform plan -detailed-exitcode`. It operates completely
+autonomously without requesting the protected `prod` environment gate, because it
+is strictly read-only and never mutates AWS infrastructure. If out-of-band drift
+is detected, `terraform plan -detailed-exitcode` exits with code `2`, failing the
+job and triggering instant GitHub email alerts.
+
 ## Environment-specific frontend builds
 
 Vite embeds `VITE_*` values in the frontend bundle at build time. The CI
