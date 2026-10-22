@@ -1,3 +1,22 @@
+## [4.17.2](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.17.1...v4.17.2) (2026-10-22)
+
+### 🐛 Bug Fixes
+
+* **frontend:** harmonize responsive chat viewports between mobile and desktop ([#308](https://github.com/venkatesh-singamsetty/cricscore/issues/308)) ([07c58e8]())
+## Summary of Changes
+
+This Pull Request delivers three key improvements:
+1. 💬 **Harmonized Responsive Chat Viewports**: Decouples mobile and
+desktop constraints so mobile retains spacious touch targets while
+desktop achieves a clean, zero-scroll screen-fit layout.
+2. ⚡ **CI Performance & Dependency Caching**: Caches backend/Lambda
+lockfiles and skips blocking network audits during hydration, reducing
+CI validation runtime from **14+ minutes down to ~45 seconds**.
+3. 🛡️ **Autonomous Infrastructure Drift Detection**: Decouples
+`.github/workflows/drift.yml` from GitHub's protected `prod` environment
+so scheduled midnight drift checks run 100% autonomously across Dev and
+Prod without requiring manual human approval.
+
 ## [4.17.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.17.0...v4.17.1) (2026-10-22)
 
 ### 🐛 Bug Fixes
