@@ -91,10 +91,18 @@ const BattingTable: React.FC<BattingTableProps> = React.memo(
                 const isStriker = id === strikerId;
                 const isNonStriker = id === nonStrikerId;
                 const highlight = isCurrentTab && (isStriker || isNonStriker);
-                const sr =
+                const srNum =
                   player.ballsFaced > 0
-                    ? ((player.runs / player.ballsFaced) * 100).toFixed(1)
-                    : "-";
+                    ? (player.runs / player.ballsFaced) * 100
+                    : 0;
+                const sr = player.ballsFaced > 0 ? srNum.toFixed(1) : "-";
+                const srColor = highlight
+                  ? "text-white"
+                  : srNum >= 180
+                    ? "text-amber-300 font-black"
+                    : srNum >= 130
+                      ? "text-emerald-400 font-bold"
+                      : "text-indigo-400";
 
                 return (
                   <tr
@@ -194,22 +202,28 @@ const BattingTable: React.FC<BattingTableProps> = React.memo(
                     </td>
                     <td
                       className={`px-2 py-1.5 text-right font-black text-[11px] tabular-nums whitespace-nowrap ${
-                        highlight ? "text-indigo-200" : "text-slate-400"
+                        highlight
+                          ? "text-white"
+                          : player.fours > 0
+                            ? "text-sky-400 font-bold"
+                            : "text-slate-400"
                       }`}
                     >
                       {player.fours}
                     </td>
                     <td
                       className={`px-2 py-1.5 text-right font-black text-[11px] tabular-nums whitespace-nowrap ${
-                        highlight ? "text-indigo-200" : "text-slate-400"
+                        highlight
+                          ? "text-white"
+                          : player.sixes > 0
+                            ? "text-amber-400 font-extrabold"
+                            : "text-slate-400"
                       }`}
                     >
                       {player.sixes}
                     </td>
                     <td
-                      className={`px-2 py-1.5 last:rounded-r-lg text-right font-black text-[11px] tabular-nums whitespace-nowrap ${
-                        highlight ? "text-white" : "text-indigo-400"
-                      }`}
+                      className={`px-2 py-1.5 last:rounded-r-lg text-right font-black text-[11px] tabular-nums whitespace-nowrap ${srColor}`}
                     >
                       {sr}
                     </td>
@@ -221,13 +235,20 @@ const BattingTable: React.FC<BattingTableProps> = React.memo(
         </div>
 
         {unbattedOrder.length > 0 && (
-          <div className="px-3 py-2 bg-slate-800/40 border border-white/5 rounded-xl flex items-baseline gap-2 flex-wrap">
+          <div className="px-3 py-2 bg-slate-800/40 border border-white/5 rounded-xl flex items-center gap-2 flex-wrap">
             <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 italic shrink-0">
               {isCompleted ? "DID NOT BAT:" : "YET TO BAT:"}
             </span>
-            <span className="text-[11px] sm:text-xs font-bold text-slate-300 tracking-wide">
-              {unbattedOrder.map((id) => players[id]?.name || id).join(", ")}
-            </span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {unbattedOrder.map((id) => (
+                <span
+                  key={id}
+                  className="px-2 py-0.5 rounded-lg bg-white/5 border border-white/5 text-[10px] sm:text-[11px] font-bold text-slate-300 tracking-tight"
+                >
+                  {players[id]?.name || id}
+                </span>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -294,7 +315,16 @@ const BowlingTable: React.FC<BowlingTableProps> = React.memo(
                 totalOvers > 0
                   ? (bowler.runsConceded / totalOvers).toFixed(1)
                   : "-";
+              const econNum =
+                totalOvers > 0 ? bowler.runsConceded / totalOvers : 0;
               const isCurrent = isCurrentTab && id === currentBowlerId;
+              const econColor = isCurrent
+                ? "text-white"
+                : econNum > 0 && econNum <= 6.0
+                  ? "text-emerald-400 font-bold"
+                  : econNum >= 10.0
+                    ? "text-amber-400 font-bold"
+                    : "text-slate-300";
 
               return (
                 <tr
@@ -322,12 +352,12 @@ const BowlingTable: React.FC<BowlingTableProps> = React.memo(
                     {bowler.runsConceded}
                   </td>
                   <td
-                    className={`px-2 py-1.5 text-right font-black text-xs sm:text-sm tabular-nums whitespace-nowrap ${isCurrent ? "text-white" : "text-indigo-400"}`}
+                    className={`px-2 py-1.5 text-right font-black text-xs sm:text-sm tabular-nums whitespace-nowrap ${isCurrent ? "text-white" : bowler.wickets > 0 ? "text-indigo-300 font-black" : "text-slate-400"}`}
                   >
                     {bowler.wickets}
                   </td>
                   <td
-                    className={`px-2 py-1.5 last:rounded-r-lg text-right font-black text-[11px] tabular-nums whitespace-nowrap opacity-60 ${isCurrent ? "text-white" : "text-slate-400"}`}
+                    className={`px-2 py-1.5 last:rounded-r-lg text-right font-black text-[11px] tabular-nums whitespace-nowrap ${econColor}`}
                   >
                     {econ}
                   </td>
@@ -424,41 +454,69 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
         </div>
 
         {/* Tabs */}
-        <div className="flex bg-slate-950/50 p-1 sm:p-1.5 shrink-0 border-b border-white/5">
+        <div className="flex bg-slate-950/70 p-1 sm:p-1.5 shrink-0 border-b border-white/5 gap-1 sm:gap-2">
           {previousInnings && (
             <button
               onClick={() => setActiveTab("previous")}
-              className={`flex-1 py-2 sm:py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] italic transition-all ${activeTab === "previous" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/20" : "text-slate-500 hover:text-slate-300 hover:bg-white/5"}`}
+              className={`flex-1 py-2 sm:py-2.5 px-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider italic transition-all flex items-center justify-center gap-2 ${
+                activeTab === "previous"
+                  ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/25"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
+              }`}
             >
-              {previousInnings.battingTeamName} (Inns 1)
+              <span>{previousInnings.battingTeamName} (Inns 1)</span>
+              <span
+                className={`px-1.5 py-0.5 rounded text-[9px] font-black tabular-nums ${
+                  activeTab === "previous"
+                    ? "bg-black/30 text-indigo-100"
+                    : "bg-white/5 text-slate-400"
+                }`}
+              >
+                {previousInnings.totalRuns}/{previousInnings.totalWickets}
+              </span>
             </button>
           )}
           <button
             onClick={() => setActiveTab("current")}
-            className={`flex-1 py-2 sm:py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] italic transition-all ${activeTab === "current" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/20" : "text-slate-500 hover:text-slate-300 hover:bg-white/5"}`}
+            className={`flex-1 py-2 sm:py-2.5 px-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider italic transition-all flex items-center justify-center gap-2 ${
+              activeTab === "current"
+                ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/25"
+                : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
+            }`}
           >
-            {currentInnings.battingTeamName} (Inns {currentInnings.inningNumber}
-            )
+            <span>
+              {currentInnings.battingTeamName} (Inns{" "}
+              {currentInnings.inningNumber})
+            </span>
+            <span
+              className={`px-1.5 py-0.5 rounded text-[9px] font-black tabular-nums ${
+                activeTab === "current"
+                  ? "bg-black/30 text-indigo-100"
+                  : "bg-white/5 text-slate-400"
+              }`}
+            >
+              {currentInnings.totalRuns}/{currentInnings.totalWickets}
+            </span>
           </button>
         </div>
 
         {/* Result Highlight */}
         {matchResult && (
-          <div className="bg-indigo-600 shrink-0 px-4 py-2 sm:py-2.5 text-center overflow-hidden relative shadow-2xl">
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer"></div>
+          <div className="bg-gradient-to-r from-amber-500/10 via-slate-900 to-indigo-950/80 border-b border-amber-500/30 shrink-0 px-4 py-2.5 sm:py-3 text-center overflow-hidden relative shadow-2xl">
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer"></div>
             <div className="relative z-10 flex flex-col items-center justify-center px-2">
-              <span className="text-[8px] sm:text-[9px] font-black text-indigo-100 uppercase tracking-[0.4em] opacity-80 mb-0.5 leading-none">
-                🏆 MATCH RESULT
+              <span className="text-[8px] sm:text-[9px] font-black text-amber-400 uppercase tracking-[0.4em] opacity-90 mb-0.5 leading-none flex items-center gap-1.5">
+                <span>🏆</span> MATCH RESULT
               </span>
-              <span className="max-w-full text-sm sm:text-lg font-black text-white uppercase tracking-tighter italic drop-shadow-lg leading-tight break-words">
+              <span className="max-w-full text-sm sm:text-lg font-black text-white uppercase tracking-tight italic drop-shadow-md leading-tight break-words">
                 <HighlightedResult
                   text={matchResult.text}
-                  teamClassName="text-yellow-300"
+                  teamClassName="text-amber-300 font-extrabold"
                 />
               </span>
               {playerOfTheMatch && (
-                <span className="mt-1 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-400/20 border border-amber-400/30 text-amber-200 text-[10px] sm:text-xs font-black uppercase tracking-wider">
-                  <span>🏆</span> POTM: {playerOfTheMatch}
+                <span className="mt-1.5 inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-amber-400/15 border border-amber-400/30 text-amber-300 text-[10px] sm:text-xs font-black uppercase tracking-wider shadow-sm">
+                  <span>🎖️</span> POTM: {playerOfTheMatch}
                 </span>
               )}
             </div>
