@@ -1,3 +1,64 @@
+## [4.18.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.17.2...v4.18.0) (2026-10-22)
+
+### 🚀 Features
+
+* test match classification, automated E2E cleanup, and Dependabot governance ([#309](https://github.com/venkatesh-singamsetty/cricscore/issues/309)) ([c0a4076]())
+## 🎯 Summary of Changes
+
+This Pull Request delivers key operational, testing, and UI improvements
+across CricScore:
+
+1. **🧪 Test Match Classification & Database Cleanup**:
+- Added database migration
+`infra/database/migrations/add_is_test_column.sql` introducing `is_test
+BOOLEAN DEFAULT FALSE` and index `idx_matches_is_test`.
+- Updated `MatchSetup.tsx` with a dedicated toggle for Test / Practice
+matches, plus auto-detection for test naming patterns (`test`, `demo`,
+`playwright`, `mock`, `sync`).
+- Extended `MatchList.tsx` with distinct `TEST 🧪` vs `GUEST 👻` badges
+and a filter toggle in the Database Management view.
+- Enhanced `AdminPanel.tsx` with dedicated **Delete Test Matches**
+alongside existing Incomplete, Guest, and All match cleanup handlers,
+re-ordered in an intuitive hierarchical layout with instant UI state
+refresh upon completion.
+
+2. **🏏 Harmonized MatchView 'THIS OVER' Cockpit**:
+- Redesigned the "THIS OVER" live over tracker in `MatchView.tsx` to
+match the high-contrast aesthetic of `LiveScoreboard.tsx`.
+- Added pulsing emerald live indicator, high-contrast ball badges for
+boundaries and wickets, visible future ball slot pills (`1`, `2`, `3`,
+`4`, `5`, `6`), and right-aligned over commentary.
+
+3. **🤖 Automated E2E Cleanup & Root Test Shortcuts**:
+- Updated `apps/e2e/tests/multi-browser-live-sync.spec.ts` with an
+automated `finally` cleanup block that issues an authenticated `DELETE
+/match/{id}` upon test completion, preventing orphan live test fixtures.
+- Hardened all Playwright E2E specs to fall back cleanly to
+`process.env.BASE_URL ||
+"https://cricscoredev.venkateshsingamsetty.com"`.
+- Added root npm shortcuts: `npm run test:e2e:dev`, `npm run
+test:e2e:dev:headed`, `npm run test:e2e:sync:headed`, and `npm run
+test:e2e:journey:headed`.
+
+4. **📦 Dependabot Governance & Pre-Push Check**:
+- Configured `.github/dependabot.yml` to run on a strict weekly schedule
+(**Sundays at 04:00 AM America/Chicago**) across all package ecosystems
+to eliminate unexpected PRs immediately following developer pushes.
+- Added `npm run deps:check` to root `package.json` and `CHEATSHEET.md`
+for instant pre-push dependency audits across workspaces and Lambdas.
+- Upgraded outdated minor/patch dependencies: `vite` (8.3.5),
+`lucide-react` (1.61.0), `@aws-sdk/*` (3.1155.0), and `openai` (7.42.0).
+
+5. **⚡ Local Validation & CI/CD Pipeline Optimizations**:
+- Optimized `infra/scripts/validate_local.sh` so SBOM generation is
+skipped by default locally (available via opt-in `--sbom`), deferring
+official SPDX SBOM attestation to the automated
+`.github/workflows/sbom.yml` pipeline on production merges.
+- Decoupled autonomous drift detection from protected prod environments
+in `.github/workflows/drift-detection.yml`.
+- Cached Lambda dependencies and added `--no-audit` flags to eliminate
+CI dependency timeouts.
+
 ## [4.17.2](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.17.1...v4.17.2) (2026-10-22)
 
 ### 🐛 Bug Fixes
