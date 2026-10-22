@@ -7,6 +7,7 @@ cd "$REPO_ROOT"
 
 SKIP_E2E=false
 SKIP_SBOM=true
+SKIP_DEPS=false
 
 for arg in "$@"; do
   case "$arg" in
@@ -18,6 +19,9 @@ for arg in "$@"; do
       ;;
     --skip-sbom)
       SKIP_SBOM=true
+      ;;
+    --skip-deps)
+      SKIP_DEPS=true
       ;;
     --fast)
       SKIP_E2E=true
@@ -145,6 +149,14 @@ elif command -v syft &> /dev/null; then
   echo "✅ cricscore-sbom.json generated."
 else
   echo "⚠️ syft not installed, skipping. Run ./infra/scripts/setup.sh"
+fi
+
+if [ "$SKIP_DEPS" = false ] && [ -f "$REPO_ROOT/infra/scripts/check_dependencies.sh" ]; then
+  echo ""
+  echo "-----------------------------------"
+  echo "📦 6. Proactive Dependency & Dependabot Check..."
+  echo "-----------------------------------"
+  "$REPO_ROOT/infra/scripts/check_dependencies.sh"
 fi
 
 echo ""

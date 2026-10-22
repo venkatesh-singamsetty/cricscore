@@ -92,6 +92,10 @@ npm run lint
 
 # Format code using prettier via npx
 npx prettier --write "apps/**/*.{ts,tsx,js,jsx,json,md}"
+
+# Proactive dependency & Dependabot audit across all workspaces & Lambdas
+npm run deps:check
+# or: ./infra/scripts/check_dependencies.sh
 ```
 
 ## 4. Testing & Validation

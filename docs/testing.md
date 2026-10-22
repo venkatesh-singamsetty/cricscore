@@ -44,6 +44,7 @@ This executes the entire local test battery:
 3. **Python AI & ML**: Pytest suites for `apps/ai-service` and `apps/ml-engine`.
 4. **Infrastructure**: Terraform format & validation, and platform dashboard generation.
 5. **Security & SBOM**: Checkov IaC scanning (`--download-external-modules false`), GitLeaks secrets detection, Trivy vulnerability scanning, and Syft SBOM generation (package-lock optimized).
+6. **Proactive Dependency & Dependabot Audit**: Scans GitHub for open Dependabot PRs (alerting to consolidate them) and checks npm/pip packages across root, frontend, backend Lambdas, and ML engine (`npm run deps:check` or `./infra/scripts/check_dependencies.sh`).
 
 ### Zero-Waste Pre-Push Git Hook
 
