@@ -1144,9 +1144,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                                 <span>
                                   {runsNeeded > 0
                                     ? `Need ${runsNeeded} off ${ballsLeft}`
-                                    : runsNeeded <= 0
-                                      ? "Target Reached"
-                                      : `Target: ${target}`}
+                                    : "Target Reached"}
                                 </span>
                                 <span className="text-amber-400/70 font-semibold ml-0.5">
                                   (Tgt {target})

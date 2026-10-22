@@ -19,9 +19,12 @@ description: Use when preparing a CricScore branch or pull request, selecting lo
 3. **Verify Git Hygiene**:
    - Run `git status -s` and `git diff --cached --stat`.
    - Ensure no `.env`, `.env.local`, `__pycache__/`, `*.pyc`, `venv/`, or temporary test screenshots (`*.png` in `apps/e2e/`) are tracked or staged.
-4. **Run Full Local Validation Before Pushing**:
-   - Run `./infra/scripts/validate_local.sh --skip-e2e` for fast pre-push verification (Frontend lint, Vitest, `npm audit`, Vite build, Backend Vitest, Backend `npm audit`, Terraform `fmt` & `validate`, Checkov, GitLeaks, Trivy, Syft SBOM).
-   - Validation automatically leaves a cached receipt in `.git/.local_validation_receipt` keyed to current commit and tree status. Git's `.husky/pre-push` checks this receipt and skips duplicate re-runs instantly (<0.1s) when pushing, avoiding redundant test runs.
+4. **Run Full Local Validation Before Pushing (Zero-Duplicate)**:
+   - Always commit your changes first: `git add . && git commit -m "..."`.
+   - Once committed, either:
+     - Run `git push` directly: `.husky/pre-push` will automatically invoke `./infra/scripts/validate_local.sh --fast` once, save the receipt, and push.
+     - OR run `./infra/scripts/validate_local.sh --fast` manually after committing to view test results locally. This records the state receipt in `.git/.local_validation_receipt` keyed to `HEAD`, so your subsequent `git push` skips duplicate runs in `<0.1s`.
+     - If you've already deployed and verified dev/prod locally, push with `SKIP_PRE_PUSH=1 git push` or `git push --no-verify`.
    - When UI flows, selectors, or APIs change, deploy to `dev` first and run Playwright E2E against `dev` (`cd apps/e2e && npx playwright test --reporter=list`) so `CI` on `main` never fails or hangs.
    - When `apps/ml-engine/` changes, run `./apps/ml-engine/venv/bin/pytest apps/ml-engine/test_predict.py`.
 

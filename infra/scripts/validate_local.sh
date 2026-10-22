@@ -163,8 +163,12 @@ if [ -d "$REPO_ROOT/.git" ]; then
 
   if [ -n "$HASH_CMD" ]; then
     TREE_HASH="$(git rev-parse HEAD 2>/dev/null || echo "no-head")"
-    STATUS_HASH="$(git status --porcelain | $HASH_CMD | awk '{print $1}')"
+    STATUS_OUT="$(git status --porcelain 2>/dev/null)"
+    STATUS_HASH="$(echo "$STATUS_OUT" | $HASH_CMD | awk '{print $1}')"
     echo "${TREE_HASH}:${STATUS_HASH}" > "$REPO_ROOT/.git/.local_validation_receipt"
+    if [ -n "$STATUS_OUT" ]; then
+      echo "💡 Tip: You ran validation with uncommitted changes. Remember to commit ('git commit') before pushing!"
+    fi
   fi
 fi
 

@@ -49,11 +49,11 @@ This executes the entire local test battery:
 
 To prevent duplicate test execution and wasted developer time, `validate_local.sh` records a cryptographically signed state receipt (`.git/.local_validation_receipt`) matching the current commit and working tree state.
 
-- When `git push` runs, the `.husky/pre-push` hook verifies if the current tree state already passed validation.
-- If already validated, the hook exits instantly (**< 0.1s**) with:
-  `⚡ Local validation already passed for <commit>. Skipping duplicate tests!`
-- If uncommitted changes exist or validation was not run, `pre-push` automatically runs with `--fast` (~25s) as a safety gate.
-- To bypass manually if needed, push with `git push --no-verify` or set `SKIP_PRE_PUSH=1 git push`.
+- **Zero-Waste Workflow**: Always commit first (`git commit -m "..."`).
+  - **Path 1 (Automatic)**: Run `git push`. The `.husky/pre-push` hook will run `./infra/scripts/validate_local.sh --fast` once automatically, save the receipt, and push.
+  - **Path 2 (Manual Check)**: Run `./infra/scripts/validate_local.sh --fast` after committing. The receipt is stamped for `HEAD:clean`. When you run `git push`, the hook detects the receipt and exits in **< 0.1s** with:
+    `⚡ Local validation already passed for <commit>. Skipping duplicate tests!`
+- To bypass manually if needed (e.g. after verifying on dev/prod deployments), push with `git push --no-verify` or set `SKIP_PRE_PUSH=1 git push`.
 
 ---
 

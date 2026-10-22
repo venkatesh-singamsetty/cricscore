@@ -522,9 +522,7 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                       <div className="text-xs sm:text-base font-black uppercase tracking-tight text-amber-200 mt-0.5">
                         {runsNeeded > 0
                           ? `Need ${runsNeeded} runs off ${ballsLeft} balls`
-                          : runsNeeded <= 0
-                            ? "Target Reached"
-                            : `Target: ${target}`}
+                          : "Target Reached"}
                       </div>
                     </div>
                   </div>

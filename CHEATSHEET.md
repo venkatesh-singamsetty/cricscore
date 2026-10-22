@@ -46,7 +46,15 @@ git checkout -b feature/your-feature-name
 git add .
 git commit -m "feat: your descriptive commit message"
 git fetch origin main && git merge origin/main --no-edit
+
+# Option A (Recommended): git push triggers fast validation automatically once (~25s)
 git push -u origin HEAD
+
+# Option B: Run validation manually AFTER committing, then push (skips hook in <0.1s)
+# ./infra/scripts/validate_local.sh --fast && git push -u origin HEAD
+
+# Option C: Bypass hook if already verified on dev/prod deployment
+# SKIP_PRE_PUSH=1 git push -u origin HEAD
 
 # Create a Pull Request using the GitHub CLI (gh)
 gh pr create --title "feat: added new feature" --body "Detailed description" --base main

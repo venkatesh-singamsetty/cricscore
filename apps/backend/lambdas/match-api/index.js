@@ -548,10 +548,30 @@ const sendMatchReportEmail = async (
   const schemaTag = sanitizeHeader(
     process.env.DB_SCHEMA || "DEV",
   ).toUpperCase();
-  const isValidEmail = (email) =>
-    typeof email === "string" &&
-    !/[\r\n]/.test(email) &&
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const isValidEmail = (email) => {
+    if (
+      typeof email !== "string" ||
+      email.length > 254 ||
+      /[\r\n]/.test(email)
+    ) {
+      return false;
+    }
+    const trimmed = email.trim();
+    const atIdx = trimmed.indexOf("@");
+    if (
+      atIdx < 1 ||
+      atIdx !== trimmed.lastIndexOf("@") ||
+      atIdx >= trimmed.length - 3
+    ) {
+      return false;
+    }
+    const domain = trimmed.slice(atIdx + 1);
+    const dotIdx = domain.lastIndexOf(".");
+    if (dotIdx < 1 || dotIdx >= domain.length - 1) {
+      return false;
+    }
+    return !/\s/.test(trimmed);
+  };
 
   // --- 1. SEND TO ADMIN ---
   if (sendToAdmin && process.env.ADMIN_REPORT_EMAIL) {
