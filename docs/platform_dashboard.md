@@ -104,7 +104,7 @@ A central single-pane-of-glass directory providing live references across all la
 
 - **S3 Static Web Hosting**: [`s3://cricscoredev-app-e8d6bb50c5656dc8a2271c54a0`](https://s3.console.aws.amazon.com/s3/buckets/cricscoredev-app-e8d6bb50c5656dc8a2271c54a0?region=us-east-1)
 - **S3 Match Backups**: [`s3://cricscoredev-match-backups-937fe838a46144fff5facd682f`](https://s3.console.aws.amazon.com/s3/buckets/cricscoredev-match-backups-937fe838a46144fff5facd682f?region=us-east-1)
-- **S3 CloudFront Access Logs**: [`s3://cricscoredev-app-logs-ec6008161838564a0781274d49`](https://s3.console.aws.amazon.com/s3/buckets/cricscoredev-app-logs-ec6008161838564a0781274d49?region=us-east-1)
+- **S3 CloudFront Access Logs**: [`s3://cricscoredev-app-logs-a6dc993b498342c8e5800d409e`](https://s3.console.aws.amazon.com/s3/buckets/cricscoredev-app-logs-a6dc993b498342c8e5800d409e?region=us-east-1)
 - **DynamoDB Connection Table**: [`cricscoredev-connections`](https://us-east-1.console.aws.amazon.com/dynamodbv2/home?region=us-east-1#item-explorer?table=cricscoredev-connections)
 - **SQS FIFO Storage Buffer Queue**: [`cricscoredev-storage-buffer.fifo`](https://us-east-1.console.aws.amazon.com/sqs/v3/home?region=us-east-1#/queues/https%3A%2F%2Fsqs.us-east-1.amazonaws.com%2F926789386606%2Fcricscoredev-storage-buffer.fifo)
 - **SNS Match Events Topic**: [`cricscoredev-match-events`](https://us-east-1.console.aws.amazon.com/sns/v3/home?region=us-east-1#/topic/arn:aws:sns:us-east-1:926789386606:cricscoredev-match-events)
@@ -260,7 +260,7 @@ A central single-pane-of-glass directory providing live references across all la
 | **Static Web Hosting**     | PROD        | `cricscore-app-7e93ca64fca840e1639f6fbd71`              | [Open Bucket](https://s3.console.aws.amazon.com/s3/buckets/cricscore-app-7e93ca64fca840e1639f6fbd71?region=us-east-1)              |
 | **Match Event Backups**    | DEV         | `cricscoredev-match-backups-937fe838a46144fff5facd682f` | [Open Bucket](https://s3.console.aws.amazon.com/s3/buckets/cricscoredev-match-backups-937fe838a46144fff5facd682f?region=us-east-1) |
 | **Match Event Backups**    | PROD        | `cricscore-match-backups-0dd0d65575f13cfa1e7a7f820d`    | [Open Bucket](https://s3.console.aws.amazon.com/s3/buckets/cricscore-match-backups-0dd0d65575f13cfa1e7a7f820d?region=us-east-1)    |
-| **CloudFront CDN Logs**    | DEV         | `cricscoredev-app-logs-ec6008161838564a0781274d49`      | [Open Bucket](https://s3.console.aws.amazon.com/s3/buckets/cricscoredev-app-logs-ec6008161838564a0781274d49?region=us-east-1)      |
+| **CloudFront CDN Logs**    | DEV         | `cricscoredev-app-logs-a6dc993b498342c8e5800d409e`      | [Open Bucket](https://s3.console.aws.amazon.com/s3/buckets/cricscoredev-app-logs-a6dc993b498342c8e5800d409e?region=us-east-1)      |
 | **CloudFront CDN Logs**    | PROD        | `cricscore-app-logs-b123ba8b0aa118a0a9fee8bbc2`         | [Open Bucket](https://s3.console.aws.amazon.com/s3/buckets/cricscore-app-logs-b123ba8b0aa118a0a9fee8bbc2?region=us-east-1)         |
 | **Terraform Remote State** | GLOBAL      | `venky-2026-terraform-state`                            | [Open Bucket](https://s3.console.aws.amazon.com/s3/buckets/venky-2026-terraform-state?region=us-east-1)                            |
 
