@@ -438,18 +438,18 @@ const App: React.FC = () => {
       </button>
       <p className="auth-guest-hint">No account needed · score instantly</p>
 
-      {/* Scorer capabilities footer */}
-      <div className="mt-3.5 pt-3 border-t border-white/5 flex items-center justify-center gap-2 sm:gap-3 text-center text-[10px] text-slate-400 font-bold uppercase tracking-wider flex-wrap">
-        <span className="flex items-center gap-1 text-slate-300">
+      {/* Scorer capabilities footer - Single line on mobile anchored cleanly */}
+      <div className="mt-3 pt-2.5 border-t border-white/5 flex items-center justify-center gap-1.5 sm:gap-2.5 text-center text-[8.5px] sm:text-[9.5px] text-slate-400 font-bold uppercase tracking-wider whitespace-nowrap overflow-hidden">
+        <span className="flex items-center gap-1 text-slate-300 shrink-0">
           <span className="text-emerald-400 text-xs">⚡</span> Instant Setup
         </span>
-        <span className="text-slate-600">·</span>
-        <span className="flex items-center gap-1 text-slate-300">
-          <span className="text-blue-400 text-xs">🌍</span> Public Match Hub
+        <span className="text-slate-600 shrink-0">·</span>
+        <span className="flex items-center gap-1 text-slate-300 shrink-0">
+          <span className="text-blue-400 text-xs">🌍</span> Match Hub
         </span>
-        <span className="text-slate-600">·</span>
-        <span className="flex items-center gap-1 text-slate-300">
-          <span className="text-indigo-400 text-xs">📋</span> Full Scorecards
+        <span className="text-slate-600 shrink-0">·</span>
+        <span className="flex items-center gap-1 text-slate-300 shrink-0">
+          <span className="text-indigo-400 text-xs">📋</span> Scorecards
         </span>
       </div>
     </div>

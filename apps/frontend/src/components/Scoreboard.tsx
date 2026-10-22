@@ -109,19 +109,19 @@ const BattingTable: React.FC<BattingTableProps> = React.memo(
                     key={id}
                     className={`group transition-all duration-300 ${
                       highlight
-                        ? "bg-indigo-600 shadow-md shadow-indigo-600/20"
+                        ? "bg-indigo-600/35 border-y border-indigo-400/50 shadow-lg shadow-indigo-600/20 backdrop-blur-sm"
                         : "bg-white/5 hover:bg-white/10"
                     }`}
                   >
                     <td
-                      className={`px-2.5 py-1.5 first:rounded-l-lg font-black uppercase tracking-tight italic text-xs whitespace-nowrap ${
-                        highlight ? "text-white" : "text-slate-200"
+                      className={`px-2.5 py-2 first:rounded-l-lg font-black uppercase tracking-tight text-xs sm:text-sm whitespace-nowrap ${
+                        highlight ? "text-white" : "text-slate-100"
                       }`}
                     >
-                      <span className="inline-flex items-center gap-1">
+                      <span className="inline-flex items-center gap-1.5 font-extrabold text-white text-xs sm:text-sm tracking-tight">
                         {player.name}
                         {isStriker && (
-                          <span className="text-indigo-300 animate-pulse text-xs">
+                          <span className="text-amber-300 animate-pulse text-xs">
                             🏏
                           </span>
                         )}
@@ -235,7 +235,7 @@ const BattingTable: React.FC<BattingTableProps> = React.memo(
         </div>
 
         {unbattedOrder.length > 0 && (
-          <div className="px-3 py-2 bg-slate-800/40 border border-white/5 rounded-xl flex items-center gap-2 flex-wrap">
+          <div className="px-3 py-2 bg-slate-800/80 border border-white/10 rounded-xl sm:rounded-2xl flex items-center gap-2 flex-wrap shadow-sm">
             <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 italic shrink-0">
               {isCompleted ? "DID NOT BAT:" : "YET TO BAT:"}
             </span>
@@ -243,7 +243,7 @@ const BattingTable: React.FC<BattingTableProps> = React.memo(
               {unbattedOrder.map((id) => (
                 <span
                   key={id}
-                  className="px-2 py-0.5 rounded-lg bg-white/5 border border-white/5 text-[10px] sm:text-[11px] font-bold text-slate-300 tracking-tight"
+                  className="px-2 py-0.5 rounded-lg bg-slate-900/80 border border-white/10 text-[10px] sm:text-[11px] font-bold text-slate-200 tracking-tight shadow-sm"
                 >
                   {players[id]?.name || id}
                 </span>
@@ -329,12 +329,19 @@ const BowlingTable: React.FC<BowlingTableProps> = React.memo(
               return (
                 <tr
                   key={id}
-                  className={`group transition-all duration-300 ${isCurrent ? "bg-indigo-600 shadow-md shadow-indigo-600/20" : "bg-white/5 hover:bg-white/10"}`}
+                  className={`group transition-all duration-300 ${isCurrent ? "bg-indigo-600/35 border-y border-indigo-400/50 shadow-lg shadow-indigo-600/20 backdrop-blur-sm" : "bg-white/5 hover:bg-white/10"}`}
                 >
                   <td
-                    className={`px-2.5 py-1.5 first:rounded-l-lg font-black uppercase tracking-tight italic text-xs whitespace-nowrap ${isCurrent ? "text-white" : "text-slate-200"}`}
+                    className={`px-2.5 py-2 first:rounded-l-lg font-black uppercase tracking-tight text-xs sm:text-sm whitespace-nowrap ${isCurrent ? "text-white" : "text-slate-100"}`}
                   >
-                    {bowler.name}
+                    <span className="inline-flex items-center gap-1.5 font-extrabold text-white text-xs sm:text-sm tracking-tight">
+                      {bowler.name}
+                      {isCurrent && (
+                        <span className="text-amber-300 animate-pulse text-xs">
+                          ⚡
+                        </span>
+                      )}
+                    </span>
                   </td>
                   <td
                     className={`px-2 py-1.5 text-right font-black text-[11px] tabular-nums whitespace-nowrap ${isCurrent ? "text-indigo-200" : "text-slate-400"}`}
@@ -434,42 +441,49 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
     : null;
 
   return (
-    <div className="fixed inset-x-0 top-14 bottom-0 md:top-16 bg-slate-950/80 z-[400] flex items-center justify-center p-2 sm:p-4 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="bg-slate-900 border border-white/10 rounded-[1.5rem] sm:rounded-[2.5rem] w-full max-w-5xl max-h-full md:max-h-[calc(100vh-8rem)] min-h-0 overflow-hidden flex flex-col shadow-2xl animate-in zoom-in-95 duration-500">
+    <div className="fixed inset-x-0 top-14 bottom-0 md:top-16 bg-slate-950/85 z-[400] flex items-center justify-center p-2 sm:p-4 backdrop-blur-xl animate-in fade-in duration-300">
+      <div className="bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[1.5rem] sm:rounded-[2.5rem] w-full max-w-5xl max-h-full md:max-h-[calc(100vh-8rem)] min-h-0 overflow-hidden flex flex-col shadow-2xl relative animate-in zoom-in-95 duration-500">
+        {/* Subtle glossy glow background elements */}
+        <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 blur-3xl pointer-events-none -z-10"></div>
+        <div className="absolute bottom-0 left-0 w-80 h-80 bg-blue-500/10 blur-3xl pointer-events-none -z-10"></div>
+
         {/* Header */}
-        <div className="bg-slate-950 px-4 py-2.5 sm:px-6 sm:py-4 flex justify-between items-center shrink-0 border-b border-white/5">
+        <div className="bg-slate-950/70 backdrop-blur-md px-4 py-2.5 sm:px-6 sm:py-4 flex justify-between items-center shrink-0 border-b border-white/10">
           <div className="flex items-center gap-2.5">
-            <div className="w-1.5 h-6 sm:h-7 bg-indigo-600 rounded-full"></div>
+            <div className="w-1.5 h-6 sm:h-7 bg-gradient-to-b from-indigo-500 to-blue-500 rounded-full shadow-md shadow-indigo-500/50"></div>
             <h2 className="text-base sm:text-xl font-black uppercase tracking-tighter italic text-white flex items-center gap-2">
-              Match <span className="text-indigo-500">Scorecard</span>
+              Match{" "}
+              <span className="bg-gradient-to-r from-indigo-400 to-blue-400 bg-clip-text text-transparent">
+                Scorecard
+              </span>
             </h2>
           </div>
           <button
             onClick={onClose}
             aria-label="Close scorecard"
-            className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 bg-white/5 hover:bg-white/10 rounded-full flex items-center justify-center transition-all active:scale-95 text-white font-bold text-xl sm:text-2xl"
+            className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full flex items-center justify-center transition-all active:scale-95 text-white font-bold text-xl sm:text-2xl shadow-sm"
           >
             ×
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex bg-slate-950/70 p-1 sm:p-1.5 shrink-0 border-b border-white/5 gap-1 sm:gap-2">
+        <div className="flex bg-slate-950/50 backdrop-blur-md p-1.5 sm:p-2 shrink-0 border-b border-white/10 gap-1.5 sm:gap-2.5">
           {previousInnings && (
             <button
               onClick={() => setActiveTab("previous")}
-              className={`flex-1 py-2 sm:py-2.5 px-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider italic transition-all flex items-center justify-center gap-2 ${
+              className={`flex-1 py-2 sm:py-2.5 px-3 rounded-xl sm:rounded-2xl text-[10px] sm:text-xs font-black uppercase tracking-wider italic transition-all flex items-center justify-center gap-2 ${
                 activeTab === "previous"
-                  ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/25"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
+                  ? "bg-gradient-to-r from-indigo-600/90 to-blue-600/90 border border-indigo-400/40 text-white shadow-lg shadow-indigo-600/30 backdrop-blur-md"
+                  : "bg-slate-800/50 border border-white/5 text-slate-400 hover:text-slate-200 hover:bg-slate-800/80"
               }`}
             >
               <span>{previousInnings.battingTeamName} (Inns 1)</span>
               <span
-                className={`px-1.5 py-0.5 rounded text-[9px] font-black tabular-nums ${
+                className={`px-1.5 py-0.5 rounded-md text-[9px] sm:text-[10px] font-black tabular-nums border ${
                   activeTab === "previous"
-                    ? "bg-black/30 text-indigo-100"
-                    : "bg-white/5 text-slate-400"
+                    ? "bg-black/40 border-white/20 text-white"
+                    : "bg-black/20 border-white/5 text-slate-400"
                 }`}
               >
                 {previousInnings.totalRuns}/{previousInnings.totalWickets}
@@ -478,10 +492,10 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
           )}
           <button
             onClick={() => setActiveTab("current")}
-            className={`flex-1 py-2 sm:py-2.5 px-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider italic transition-all flex items-center justify-center gap-2 ${
+            className={`flex-1 py-2 sm:py-2.5 px-3 rounded-xl sm:rounded-2xl text-[10px] sm:text-xs font-black uppercase tracking-wider italic transition-all flex items-center justify-center gap-2 ${
               activeTab === "current"
-                ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/25"
-                : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
+                ? "bg-gradient-to-r from-indigo-600/90 to-blue-600/90 border border-indigo-400/40 text-white shadow-lg shadow-indigo-600/30 backdrop-blur-md"
+                : "bg-slate-800/50 border border-white/5 text-slate-400 hover:text-slate-200 hover:bg-slate-800/80"
             }`}
           >
             <span>
@@ -489,10 +503,10 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
               {currentInnings.inningNumber})
             </span>
             <span
-              className={`px-1.5 py-0.5 rounded text-[9px] font-black tabular-nums ${
+              className={`px-1.5 py-0.5 rounded-md text-[9px] sm:text-[10px] font-black tabular-nums border ${
                 activeTab === "current"
-                  ? "bg-black/30 text-indigo-100"
-                  : "bg-white/5 text-slate-400"
+                  ? "bg-black/40 border-white/20 text-white"
+                  : "bg-black/20 border-white/5 text-slate-400"
               }`}
             >
               {currentInnings.totalRuns}/{currentInnings.totalWickets}
@@ -679,7 +693,7 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                   Partnerships
                 </span>
               </div>
-              <div className="bg-white/5 border border-white/5 rounded-2xl p-4 overflow-x-auto">
+              <div className="bg-slate-800/80 border border-white/10 rounded-2xl p-4 overflow-x-auto shadow-lg backdrop-blur-sm">
                 <table className="w-full text-left border-separate border-spacing-y-2">
                   <thead>
                     <tr className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">
@@ -700,7 +714,10 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                       </tr>
                     )}
                     {getPartnerships(displayInnings.allBalls).map((p, idx) => (
-                      <tr key={idx} className="bg-white/5">
+                      <tr
+                        key={idx}
+                        className="bg-slate-900/60 hover:bg-slate-900/90 transition-colors"
+                      >
                         <td className="px-2 py-2 rounded-l-xl font-black text-xs text-slate-400">
                           {p.wicketNumber}
                         </td>
@@ -742,7 +759,7 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                       return (
                         <div
                           key={overNum}
-                          className="bg-white/5 border border-white/5 rounded-2xl p-4 hover:bg-white/10 transition-colors"
+                          className="bg-slate-800/80 border border-white/10 rounded-2xl p-4 hover:border-white/20 transition-all shadow-md"
                         >
                           <div className="flex justify-between items-center mb-3">
                             <div className="flex items-center gap-2">
@@ -795,7 +812,7 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
             </div>
 
             {/* Extras & Reset Footer */}
-            <div className="bg-white/5 rounded-[2rem] p-8 border border-white/5 backdrop-blur-xl relative overflow-hidden group">
+            <div className="bg-slate-800/80 rounded-[2rem] p-6 sm:p-8 border border-white/10 backdrop-blur-xl relative overflow-hidden group shadow-xl">
               <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl -z-10 group-hover:bg-indigo-500/20 transition-all"></div>
 
               <div className="flex flex-wrap items-center justify-between gap-8">

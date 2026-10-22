@@ -450,7 +450,7 @@ const MatchList: React.FC<MatchListProps> = ({
               <div
                 key={match.id}
                 onClick={() => onSelectMatch(match.id)}
-                className={`w-full bg-slate-900/70 border border-white/5 rounded-2xl p-4 sm:p-5 text-left hover:bg-slate-800/80 ${match.status === "COMPLETED" ? "hover:border-indigo-500/30" : "hover:border-emerald-500/30"} transition-all group relative overflow-hidden flex flex-col gap-4 cursor-pointer`}
+                className={`w-full bg-slate-900/80 border border-white/10 rounded-2xl p-4 sm:p-5 text-left hover:bg-slate-800/90 ${match.status === "COMPLETED" ? "hover:border-indigo-500/40" : "hover:border-emerald-500/40"} transition-all group relative overflow-hidden flex flex-col gap-4 cursor-pointer shadow-lg hover:shadow-2xl backdrop-blur-md`}
               >
                 {/* Header Row: Time Ago, Test / Guest Badge, Status on Left; Actions on Right (Same Row Level) */}
                 <div className="flex justify-between items-center gap-2">
