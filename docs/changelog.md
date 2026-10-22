@@ -1,3 +1,62 @@
+## [4.17.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.17.0...v4.17.1) (2026-10-22)
+
+### 🐛 Bug Fixes
+
+* **frontend:** responsive chat question layout, tournament rulebook sync & diagram cleanup ([#307](https://github.com/venkatesh-singamsetty/cricscore/issues/307)) ([e874b28]())
+## Summary of Changes
+
+### 1. 💬 Desktop Chat Suggested Questions Screen-Fit
+(`ChatComponent.tsx` & `App.tsx`)
+- **Problem**: On desktop screens, the suggested questions extended
+slightly past the bottom input bar (~15-20px) and had excess horizontal
+space.
+- **Solution**:
+- Refined container padding and outer layout wrapper (`p-2 sm:p-3`,
+`p-2.5 sm:p-3`) to reclaim vertical height on desktop displays without
+shrinking text or buttons.
+- Kept the natural, readable 1-by-1 vertical list format clamped to
+`max-w-md sm:max-w-lg md:max-w-xl` to prevent wasted horizontal space
+after question text.
+- **Zero Mobile Impact**: Kept all mobile viewport styles (`< md`)
+completely untouched so the mobile chat interface remains identical.
+
+### 2. 📚 Tournament Rulebooks Integration & Document Count Sync
+(`ChatComponent.tsx`)
+- **Problem**: In the chat header, the admin badge displayed `Docs (0)`
+even though tournament rulebooks (e.g.,
+`CCL2026SpringChampionshipRulebook.pdf`) were uploaded and actively
+queried by pgvector in PostgreSQL.
+- **Solution**:
+- Connected `ChatComponent.tsx` to the backend `GET /rules` endpoint
+using authenticated Cognito JWT tokens (`fetchAuthSession`) to fetch and
+display the live document count (`Docs (1)`).
+- Wired live upload (`POST /rules/upload`) and delete (`DELETE /rules`)
+actions directly in the dropdown with loading states and alert
+notifications.
+- Added Vitest unit test verifying document fetching and admin dropdown
+rendering.
+
+### 3. 📖 Complete Architecture Documentation (`docs/architecture.md`)
+- Expanded **Agentic AI & Specialist Agents** architecture diagram and
+documentation to include all 6 specialist agents:
+  1. 📊 **Match Stats Agent** (`execute_sql`)
+2. 📖 **Tournament Rules RAG Agent** (`search_tournament_rules` with
+pgvector)
+3. 🌦️ **Weather Specialist Agent** (`get_match_weather` with Open-Meteo)
+4. 🐛 **GitHub Issue Reporter Agent** (`create_github_issue` with GitHub
+API)
+5. 🏏 **Cricket Context & Tactical Agent** (Live telemetry, CRR vs RRR,
+death overs)
+6. 🎯 **Win Probability & Prediction Agent** (`predict_match_outcome` /
+ML model inference)
+- Documented DVC dataset tracking (`cricket-data/t20s_json.zip.dvc`) and
+clarified dataset sizes (786K+ raw deliveries vs 100K-120K CI benchmark
+sample).
+- Documented the decoupled S3 Model Registry & ECR container
+architecture for zero-downtime ML model rollbacks.
+- Note: Retained the original clean `01_platform_overview.png` diagram
+from `main`.
+
 ## [4.17.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.16.0...v4.17.0) (2026-10-21)
 
 ### 🚀 Features
