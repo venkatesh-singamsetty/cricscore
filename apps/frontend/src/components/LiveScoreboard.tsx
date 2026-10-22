@@ -30,6 +30,7 @@ interface LiveScoreboardProps {
   initialMatchId?: string;
   scorecardDismissRequest?: number;
   sectionTitle?: string;
+  onActiveMatchChange?: (matchId: string) => void;
 }
 
 const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
@@ -39,6 +40,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
   initialMatchId,
   scorecardDismissRequest = 0,
   sectionTitle,
+  onActiveMatchChange,
 }) => {
   const WS_URL = import.meta.env.VITE_WS_URL || "";
   const API_URL = import.meta.env.VITE_API_URL || "";
@@ -877,7 +879,8 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
     if (targetMatchId) {
       fetchMatchDetails(targetMatchId, false);
     }
-  }, [targetMatchId, fetchMatchDetails]);
+    onActiveMatchChange?.(targetMatchId);
+  }, [targetMatchId, fetchMatchDetails, onActiveMatchChange]);
 
   // Polling fallback: refresh every 5s while watching a live match,
   // in case WebSocket messages are missed or the connection briefly drops.
@@ -896,48 +899,45 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
   }, [targetMatchId, matchMeta?.status, fetchMatchDetails]);
 
   return (
-    <div className="p-4 sm:p-6 bg-slate-900/90 text-white rounded-2xl sm:rounded-3xl border border-white/10 shadow-2xl w-full">
-      {sectionTitle && (
+    <div
+      className={`${targetMatchId ? "p-3 sm:p-5" : "p-4 sm:p-6"} bg-slate-900/90 text-white rounded-2xl sm:rounded-3xl border border-white/10 shadow-2xl w-full`}
+    >
+      {!targetMatchId && sectionTitle && (
         <h2 className="text-xl font-black text-white uppercase tracking-wider italic mb-4 px-1">
           {sectionTitle}
         </h2>
       )}
-      <div className="flex flex-col gap-4 mb-6">
-        <div className="flex justify-between items-center px-1">
-          <div className="flex items-center gap-2">
-            <div
-              className={`w-2 h-2 rounded-full ${isConnected ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`}
-            ></div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 italic">
-              {isConnected ? "LIVE BROADCASTING" : "CONNECTING..."}
-            </span>
+      {!targetMatchId && (
+        <div className="flex flex-col gap-4 mb-6">
+          <div className="flex justify-between items-center px-1">
+            <div className="flex items-center gap-2">
+              <div
+                className={`w-2 h-2 rounded-full ${isConnected ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`}
+              ></div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 italic">
+                {isConnected ? "LIVE BROADCASTING" : "CONNECTING..."}
+              </span>
+            </div>
+          </div>
+
+          <div className="relative group">
+            <input
+              type="text"
+              placeholder="SEARCH TEAM OR MATCH ID..."
+              className="w-full bg-slate-800/70 border border-white/10 rounded-xl px-4 py-2.5 text-[10px] font-black text-indigo-400 placeholder:text-slate-400 outline-none focus:border-indigo-500/50 transition-all uppercase tracking-widest tabular-nums"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
         </div>
-
-        <div className="relative group">
-          <input
-            type="text"
-            placeholder={
-              targetMatchId
-                ? "FOLLOW MATCH ID..."
-                : "SEARCH TEAM OR MATCH ID..."
-            }
-            className="w-full bg-slate-800/70 border border-white/10 rounded-xl px-4 py-2.5 text-[10px] font-black text-indigo-400 placeholder:text-slate-400 outline-none focus:border-indigo-500/50 transition-all uppercase tracking-widest tabular-nums"
-            value={targetMatchId ? targetMatchId : searchTerm}
-            onChange={(e) => {
-              const val = e.target.value;
-              if (targetMatchId) setTargetMatchId(val);
-              else setSearchTerm(val);
-            }}
-          />
-        </div>
-      </div>
+      )}
 
       {!targetMatchId ? (
         <MatchList
           onSelectMatch={(id) => {
             setTargetMatchId(id);
             setSearchTerm(""); // Reset search on select
+            onActiveMatchChange?.(id);
           }}
           isAdmin={isAdmin}
           showDeleteControls={showDeleteControls}
@@ -947,13 +947,16 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
           lastMessage={lastMessage}
         />
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-5">
           <div className="flex justify-between items-center">
             <button
-              onClick={() => setTargetMatchId("")}
-              className="text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-white transition-colors"
+              onClick={() => {
+                setTargetMatchId("");
+                onActiveMatchChange?.("");
+              }}
+              className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-white transition-colors flex items-center gap-1.5 py-1"
             >
-              ← BACK TO HUB
+              <span>←</span> BACK TO HUB
             </button>
             {matchMeta && (
               <div className="flex items-center gap-2">
@@ -1267,6 +1270,73 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                     );
                   })()}
 
+                  {/* Batsmen */}
+                  <div className="bg-white/5 rounded-2xl border border-white/5 p-4 space-y-3">
+                    <div className="grid grid-cols-[1fr_auto_auto] gap-4 text-[9px] font-black text-slate-500 uppercase tracking-widest pb-2 border-b border-white/5">
+                      <div className="flex flex-col">
+                        <span className="text-[7px] text-indigo-400 mb-0.5 tracking-[0.2em]">
+                          {currentInnings.battingTeamName}
+                        </span>
+                        <span>Batter</span>
+                      </div>
+                      <span className="text-right w-10">R</span>
+                      <span className="text-right w-10 text-slate-600">B</span>
+                    </div>
+                    {activeBatters.length === 0 ? (
+                      <div className="text-[10px] font-black text-slate-600 uppercase text-center py-2">
+                        Waiting for first ball...
+                      </div>
+                    ) : (
+                      activeBatters.map((b: any) => (
+                        <div
+                          key={b.id}
+                          className="grid grid-cols-[1fr_auto_auto] gap-4 items-center group"
+                        >
+                          <span
+                            className={`font-black uppercase text-sm italic truncate ${b.id === currentInnings.strikerId ? "text-white" : "text-slate-400"}`}
+                          >
+                            {b.name}{" "}
+                            {b.id === currentInnings.strikerId && (
+                              <span className="text-indigo-400 ml-1 opacity-80">
+                                *
+                              </span>
+                            )}
+                          </span>
+                          <span
+                            className={`font-black tabular-nums text-right w-10 ${b.id === currentInnings.strikerId ? "text-white" : "text-slate-300"}`}
+                          >
+                            {b.runs}
+                          </span>
+                          <span
+                            className={`font-black tabular-nums text-right w-10 text-xs ${b.id === currentInnings.strikerId ? "text-slate-400" : "text-slate-500"}`}
+                          >
+                            {b.ballsFaced}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                    {currentInnings.allBalls &&
+                      currentInnings.allBalls.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-white/5 flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-400">
+                          <span>Partnership</span>
+                          <span className="text-indigo-400">
+                            {
+                              getCurrentPartnership(currentInnings.allBalls)
+                                .runs
+                            }{" "}
+                            <span className="text-slate-500 text-[9px]">
+                              (
+                              {
+                                getCurrentPartnership(currentInnings.allBalls)
+                                  .balls
+                              }
+                              )
+                            </span>
+                          </span>
+                        </div>
+                      )}
+                  </div>
+
                   {/* THIS OVER Live Timeline Bar */}
                   <div className="bg-slate-800/50 rounded-2xl border border-white/5 p-3.5 flex items-center justify-between shadow-lg">
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
@@ -1368,73 +1438,6 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                       />
                     </div>
                   )}
-
-                  {/* Batsmen */}
-                  <div className="bg-white/5 rounded-2xl border border-white/5 p-4 space-y-3">
-                    <div className="grid grid-cols-[1fr_auto_auto] gap-4 text-[9px] font-black text-slate-500 uppercase tracking-widest pb-2 border-b border-white/5">
-                      <div className="flex flex-col">
-                        <span className="text-[7px] text-indigo-400 mb-0.5 tracking-[0.2em]">
-                          {currentInnings.battingTeamName}
-                        </span>
-                        <span>Batter</span>
-                      </div>
-                      <span className="text-right w-10">R</span>
-                      <span className="text-right w-10 text-slate-600">B</span>
-                    </div>
-                    {activeBatters.length === 0 ? (
-                      <div className="text-[10px] font-black text-slate-600 uppercase text-center py-2">
-                        Waiting for first ball...
-                      </div>
-                    ) : (
-                      activeBatters.map((b: any) => (
-                        <div
-                          key={b.id}
-                          className="grid grid-cols-[1fr_auto_auto] gap-4 items-center group"
-                        >
-                          <span
-                            className={`font-black uppercase text-sm italic truncate ${b.id === currentInnings.strikerId ? "text-white" : "text-slate-400"}`}
-                          >
-                            {b.name}{" "}
-                            {b.id === currentInnings.strikerId && (
-                              <span className="text-indigo-400 ml-1 opacity-80">
-                                *
-                              </span>
-                            )}
-                          </span>
-                          <span
-                            className={`font-black tabular-nums text-right w-10 ${b.id === currentInnings.strikerId ? "text-white" : "text-slate-300"}`}
-                          >
-                            {b.runs}
-                          </span>
-                          <span
-                            className={`font-black tabular-nums text-right w-10 text-xs ${b.id === currentInnings.strikerId ? "text-slate-400" : "text-slate-500"}`}
-                          >
-                            {b.ballsFaced}
-                          </span>
-                        </div>
-                      ))
-                    )}
-                    {currentInnings.allBalls &&
-                      currentInnings.allBalls.length > 0 && (
-                        <div className="mt-3 pt-3 border-t border-white/5 flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-400">
-                          <span>Partnership</span>
-                          <span className="text-indigo-400">
-                            {
-                              getCurrentPartnership(currentInnings.allBalls)
-                                .runs
-                            }{" "}
-                            <span className="text-slate-500 text-[9px]">
-                              (
-                              {
-                                getCurrentPartnership(currentInnings.allBalls)
-                                  .balls
-                              }
-                              )
-                            </span>
-                          </span>
-                        </div>
-                      )}
-                  </div>
 
                   {/* Bowler */}
                   <div className="bg-white/5 rounded-2xl border border-white/5 p-4 space-y-3">

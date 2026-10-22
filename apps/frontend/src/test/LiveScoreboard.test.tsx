@@ -374,4 +374,41 @@ describe("LiveScoreboard Component", () => {
     expect(screen.getByText(/\(Tgt 12\)/i)).toBeInTheDocument();
     expect(screen.getByText(/1st Inn: CHICAGO SPARTANS/i)).toBeInTheDocument();
   });
+
+  it("hides search bar and notifies onActiveMatchChange when viewing a match, placing Batters above THIS OVER", async () => {
+    const onActiveMatchChange = vi.fn();
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => buildInitialDetailsResponse(),
+    });
+
+    render(
+      <LiveScoreboard
+        initialMatchId="match_5b80826d"
+        onActiveMatchChange={onActiveMatchChange}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("heading", { name: /ILLINOIS THUNDERS/i }),
+      ).toBeInTheDocument();
+    });
+
+    // Search bar is hidden when viewing a match
+    expect(
+      screen.queryByPlaceholderText(/SEARCH TEAM OR MATCH ID.../i),
+    ).not.toBeInTheDocument();
+
+    // Verify onActiveMatchChange was called with the match ID
+    expect(onActiveMatchChange).toHaveBeenCalledWith("match_5b80826d");
+
+    // Verify Batters card appears before THIS OVER in DOM order
+    const batterCard = screen.getByText("Batter");
+    const thisOver = screen.getByText("THIS OVER");
+    expect(
+      batterCard.compareDocumentPosition(thisOver) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
 });

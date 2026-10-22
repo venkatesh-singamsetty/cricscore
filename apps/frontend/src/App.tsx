@@ -314,6 +314,15 @@ const App: React.FC = () => {
   const [hubKey, setHubKey] = useState(0); // For forcing reset to list
   const [scorecardDismissRequest, setScorecardDismissRequest] = useState(0);
   const [urlMatchId, setUrlMatchId] = useState<string | null>(null);
+  const [activeViewerMatchId, setActiveViewerMatchId] = useState<string | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (urlMatchId) {
+      setActiveViewerMatchId(urlMatchId);
+    }
+  }, [urlMatchId]);
   const [matchStatus, setMatchStatus] = useState<MatchStatus>(
     MatchStatus.SETUP,
   );
@@ -1647,29 +1656,34 @@ const App: React.FC = () => {
         >
           {view === "VIEWER" && (
             <div className="flex-1 min-h-0 overflow-y-auto bg-slate-950 flex flex-col p-3 sm:p-4 md:p-8">
-              <div className="max-w-5xl mx-auto w-full space-y-6 sm:space-y-8 animate-in fade-in zoom-in-95 duration-500 pb-6">
-                <div className="text-center">
-                  <div className="auth-hero-brand mb-1.5">
-                    <div
-                      className="auth-logo"
-                      style={{ width: 44, height: 44, fontSize: "1.45rem" }}
-                    >
-                      🌏
+              <div
+                className={`max-w-5xl mx-auto w-full ${activeViewerMatchId ? "space-y-4" : "space-y-6 sm:space-y-8"} animate-in fade-in zoom-in-95 duration-500 pb-6`}
+              >
+                {!activeViewerMatchId && (
+                  <div className="text-center">
+                    <div className="auth-hero-brand mb-1.5">
+                      <div
+                        className="auth-logo"
+                        style={{ width: 44, height: 44, fontSize: "1.45rem" }}
+                      >
+                        🌏
+                      </div>
+                      <h1 className="auth-title text-3xl sm:text-4xl">
+                        MATCH <span>HUB</span>
+                      </h1>
                     </div>
-                    <h1 className="auth-title text-3xl sm:text-4xl">
-                      MATCH <span>HUB</span>
-                    </h1>
+                    <p className="auth-subtitle">
+                      LIVE FEEDS &middot; HISTORICAL RECORDS
+                    </p>
                   </div>
-                  <p className="auth-subtitle">
-                    LIVE FEEDS &middot; HISTORICAL RECORDS
-                  </p>
-                </div>
+                )}
                 <LiveScoreboard
                   key={`hub-${hubKey}`}
                   isAdmin={isAdmin}
                   initialMatchId={urlMatchId || undefined}
                   onResumeMatch={undefined}
                   scorecardDismissRequest={scorecardDismissRequest}
+                  onActiveMatchChange={setActiveViewerMatchId}
                 />
               </div>
             </div>
