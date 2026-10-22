@@ -1071,23 +1071,23 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                   : "0.0";
 
               return (
-                <div className="space-y-2.5 sm:space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                <div className="space-y-3 sm:space-y-3.5 animate-in fade-in slide-in-from-bottom-4 duration-700">
                   {/* Score header */}
-                  <div className="bg-slate-800/80 p-3 sm:p-3.5 rounded-2xl border border-white/5 relative overflow-hidden shadow-xl space-y-2">
+                  <div className="bg-slate-800/80 p-3.5 sm:p-4 rounded-2xl border border-white/5 relative overflow-hidden shadow-xl space-y-2.5">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl -z-10"></div>
 
                     {/* Top Row: Matchup vs Overs */}
                     <div className="flex justify-between items-center gap-2">
                       <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
-                        <span className="bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 font-black px-2 sm:px-2.5 py-0.5 rounded-full text-[8px] sm:text-[9px] uppercase tracking-wider shrink-0">
+                        <span className="bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 font-black px-2.5 py-0.5 rounded-full text-[9px] sm:text-[10px] uppercase tracking-wider shrink-0">
                           {currentInnings.inningNumber === 1
                             ? "1ST INN"
                             : "2ND INN"}
                         </span>
-                        <span className="text-[9px] text-slate-500 italic">
+                        <span className="text-[10px] text-slate-500 italic">
                           vs
                         </span>
-                        <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">
+                        <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest truncate">
                           {currentInnings.bowlingTeamName}
                         </span>
                       </div>
@@ -1098,13 +1098,13 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                             {matchMeta.status}
                           </span>
                         )}
-                        <span className="text-xs sm:text-sm font-black text-slate-300 flex items-baseline gap-1 tabular-nums">
+                        <span className="text-sm md:text-base font-black text-slate-300 flex items-baseline gap-1 tabular-nums">
                           <span>
                             {currentInnings.overs}.{currentInnings.balls}
                           </span>
                           <span className="text-[10px] text-slate-600">/</span>
                           <span>{matchMeta?.totalOvers}</span>
-                          <span className="text-[8px] sm:text-[9px] text-slate-600 tracking-tight ml-0.5">
+                          <span className="text-[9px] text-slate-600 tracking-tight ml-0.5">
                             OVS
                           </span>
                         </span>
@@ -1112,15 +1112,15 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                     </div>
 
                     {/* Main Row: Prominent Batting Team on Left, Huge Score on Right */}
-                    <div className="flex justify-between items-center gap-3 pt-0.5 pb-0.5 min-w-0">
-                      <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
-                        <span className="text-lg sm:text-xl shrink-0">🏏</span>
-                        <h2 className="text-base sm:text-xl font-black text-emerald-400 uppercase tracking-tight truncate whitespace-nowrap">
+                    <div className="flex justify-between items-center gap-3 pt-1 pb-0.5 min-w-0">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <span className="text-xl sm:text-2xl shrink-0">🏏</span>
+                        <h2 className="text-lg sm:text-2xl font-black text-emerald-400 uppercase tracking-tight truncate whitespace-nowrap">
                           {currentInnings.battingTeamName}
                         </h2>
                       </div>
                       <div className="text-right shrink-0">
-                        <span className="text-2xl sm:text-3xl md:text-4xl font-black text-white tabular-nums tracking-tighter italic leading-none">
+                        <span className="text-3xl sm:text-4xl md:text-5xl font-black text-white tabular-nums tracking-tighter italic leading-none">
                           {currentInnings.totalRuns}
                           <span className="text-slate-600 mx-0.5 sm:mx-1">
                             /
@@ -1221,38 +1221,38 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
 
                     return (
                       <div
-                        className={`grid ${dls ? "grid-cols-3" : "grid-cols-2"} gap-1.5 sm:gap-2`}
+                        className={`grid ${dls ? "grid-cols-3" : "grid-cols-2"} gap-2 sm:gap-2.5`}
                       >
-                        <div className="bg-slate-800/80 rounded-xl py-1.5 px-2 text-center border border-white/5 shadow-md">
-                          <div className="text-[8px] sm:text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                        <div className="bg-slate-800/80 rounded-2xl py-2 px-2.5 text-center border border-white/5 shadow-md">
+                          <div className="text-[9px] sm:text-xs font-black text-slate-400 uppercase tracking-wider">
                             CRR
                           </div>
-                          <div className="text-sm sm:text-base font-black text-white tabular-nums leading-tight mt-0.5">
+                          <div className="text-base sm:text-lg font-black text-white tabular-nums leading-tight mt-0.5">
                             {crr}
                           </div>
                         </div>
                         {rrr !== null ? (
-                          <div className="bg-amber-500/10 rounded-xl py-1.5 px-2 text-center border border-amber-500/30 shadow-md">
-                            <div className="text-[8px] sm:text-[10px] font-black text-amber-500 uppercase tracking-wider">
+                          <div className="bg-amber-500/10 rounded-2xl py-2 px-2.5 text-center border border-amber-500/30 shadow-md">
+                            <div className="text-[9px] sm:text-xs font-black text-amber-500 uppercase tracking-wider">
                               RRR
                             </div>
-                            <div className="text-sm sm:text-base font-black text-amber-400 tabular-nums leading-tight mt-0.5">
+                            <div className="text-base sm:text-lg font-black text-amber-400 tabular-nums leading-tight mt-0.5">
                               {rrr}
                             </div>
                           </div>
                         ) : (
-                          <div className="bg-slate-800/80 rounded-xl py-1.5 px-2 text-center border border-white/5 shadow-md">
-                            <div className="text-[8px] sm:text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                          <div className="bg-slate-800/80 rounded-2xl py-2 px-2.5 text-center border border-white/5 shadow-md">
+                            <div className="text-[9px] sm:text-xs font-black text-slate-400 uppercase tracking-wider">
                               BALLS LEFT
                             </div>
-                            <div className="text-sm sm:text-base font-black text-white tabular-nums leading-tight mt-0.5">
+                            <div className="text-base sm:text-lg font-black text-white tabular-nums leading-tight mt-0.5">
                               {ballsLeft}
                             </div>
                           </div>
                         )}
                         {dls && (
                           <div
-                            className={`rounded-xl py-1.5 px-2 text-center border transition-all shadow-md ${
+                            className={`rounded-2xl py-2 px-2.5 text-center border transition-all shadow-md ${
                               dls.isAhead
                                 ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
                                 : dls.isTied
@@ -1260,10 +1260,10 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                                   : "bg-red-500/10 border-red-500/30 text-red-400"
                             }`}
                           >
-                            <div className="text-[8px] sm:text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-0.5">
+                            <div className="text-[9px] sm:text-xs font-black uppercase tracking-wider flex items-center justify-center gap-0.5">
                               <span>🌧️</span> DLS PAR
                             </div>
-                            <div className="text-sm sm:text-base font-black tabular-nums leading-tight mt-0.5">
+                            <div className="text-base sm:text-lg font-black tabular-nums leading-tight mt-0.5">
                               {dls.parScore}
                             </div>
                             <div className="text-[8px] sm:text-[9px] font-bold truncate opacity-90 leading-none mt-0.5">
@@ -1276,31 +1276,29 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                   })()}
 
                   {/* Batsmen */}
-                  <div className="bg-white/5 rounded-xl border border-white/5 p-2.5 sm:p-3 space-y-2">
-                    <div className="grid grid-cols-[1fr_auto_auto] gap-3 text-[9px] font-black text-slate-500 uppercase tracking-widest pb-1.5 border-b border-white/5">
+                  <div className="bg-white/5 rounded-2xl border border-white/5 p-3.5 sm:p-4 space-y-2.5">
+                    <div className="grid grid-cols-[1fr_auto_auto] gap-4 text-[10px] font-black text-slate-500 uppercase tracking-widest pb-1.5 border-b border-white/5">
                       <div className="flex flex-col">
-                        <span className="text-[7px] text-indigo-400 mb-0.5 tracking-[0.2em]">
+                        <span className="text-[8px] text-indigo-400 mb-0.5 tracking-[0.2em]">
                           {currentInnings.battingTeamName}
                         </span>
                         <span>Batter</span>
                       </div>
-                      <span className="text-right w-8 sm:w-10">R</span>
-                      <span className="text-right w-8 sm:w-10 text-slate-600">
-                        B
-                      </span>
+                      <span className="text-right w-10">R</span>
+                      <span className="text-right w-10 text-slate-600">B</span>
                     </div>
                     {activeBatters.length === 0 ? (
-                      <div className="text-[10px] font-black text-slate-600 uppercase text-center py-2">
+                      <div className="text-xs font-black text-slate-600 uppercase text-center py-2">
                         Waiting for first ball...
                       </div>
                     ) : (
                       activeBatters.map((b: any) => (
                         <div
                           key={b.id}
-                          className="grid grid-cols-[1fr_auto_auto] gap-3 items-center group"
+                          className="grid grid-cols-[1fr_auto_auto] gap-4 items-center group"
                         >
                           <span
-                            className={`font-black uppercase text-xs sm:text-sm italic truncate ${b.id === currentInnings.strikerId ? "text-white" : "text-slate-400"}`}
+                            className={`font-black uppercase text-sm sm:text-base italic truncate ${b.id === currentInnings.strikerId ? "text-white" : "text-slate-400"}`}
                           >
                             {b.name}{" "}
                             {b.id === currentInnings.strikerId && (
@@ -1310,12 +1308,12 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                             )}
                           </span>
                           <span
-                            className={`font-black tabular-nums text-right w-8 sm:w-10 text-xs sm:text-sm ${b.id === currentInnings.strikerId ? "text-white" : "text-slate-300"}`}
+                            className={`font-black tabular-nums text-right w-10 text-sm sm:text-base ${b.id === currentInnings.strikerId ? "text-white" : "text-slate-300"}`}
                           >
                             {b.runs}
                           </span>
                           <span
-                            className={`font-black tabular-nums text-right w-8 sm:w-10 text-[11px] sm:text-xs ${b.id === currentInnings.strikerId ? "text-slate-400" : "text-slate-500"}`}
+                            className={`font-black tabular-nums text-right w-10 text-xs sm:text-sm ${b.id === currentInnings.strikerId ? "text-slate-400" : "text-slate-500"}`}
                           >
                             {b.ballsFaced}
                           </span>
@@ -1324,14 +1322,14 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                     )}
                     {currentInnings.allBalls &&
                       currentInnings.allBalls.length > 0 && (
-                        <div className="mt-1.5 pt-1.5 border-t border-white/5 flex justify-between items-center text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        <div className="mt-2 pt-2 border-t border-white/5 flex justify-between items-center text-[10px] sm:text-xs font-black uppercase tracking-widest text-slate-400">
                           <span>Partnership</span>
                           <span className="text-indigo-400">
                             {
                               getCurrentPartnership(currentInnings.allBalls)
                                 .runs
                             }{" "}
-                            <span className="text-slate-500 text-[8px] sm:text-[9px]">
+                            <span className="text-slate-500 text-[9px] sm:text-[10px]">
                               (
                               {
                                 getCurrentPartnership(currentInnings.allBalls)
@@ -1447,47 +1445,37 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                   )}
 
                   {/* Bowler */}
-                  <div className="bg-white/5 rounded-xl border border-white/5 p-2.5 sm:p-3 space-y-2">
-                    <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 text-[9px] font-black text-slate-500 uppercase tracking-widest pb-1.5 border-b border-white/5">
+                  <div className="bg-white/5 rounded-2xl border border-white/5 p-3.5 sm:p-4 space-y-2.5">
+                    <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 text-[10px] font-black text-slate-500 uppercase tracking-widest pb-1.5 border-b border-white/5">
                       <div className="flex flex-col">
-                        <span className="text-[7px] text-indigo-400 mb-0.5 tracking-[0.2em]">
+                        <span className="text-[8px] text-indigo-400 mb-0.5 tracking-[0.2em]">
                           {currentInnings.bowlingTeamName}
                         </span>
                         <span>Bowler</span>
                       </div>
-                      <span className="text-right w-8">O</span>
-                      <span className="text-right w-8">R</span>
-                      <span className="text-right w-8 text-indigo-400">W</span>
+                      <span className="text-right w-9">O</span>
+                      <span className="text-right w-9">R</span>
+                      <span className="text-right w-9 text-indigo-400">W</span>
                     </div>
-                    <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 items-center">
-                      <span className="font-black text-white uppercase text-xs sm:text-sm italic truncate">
+                    <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 items-center">
+                      <span className="font-black text-white uppercase text-sm sm:text-base italic truncate">
                         {currentBowler.name}
                       </span>
-                      <span className="text-slate-400 font-black tabular-nums text-right w-8 text-xs">
+                      <span className="text-slate-400 font-black tabular-nums text-right w-9 text-xs sm:text-sm">
                         {currentBowler.overs}.{currentBowler.balls}
                       </span>
-                      <span className="text-slate-300 font-black tabular-nums text-right w-8 text-xs sm:text-sm">
+                      <span className="text-slate-300 font-black tabular-nums text-right w-9 text-sm sm:text-base">
                         {currentBowler.runsConceded}
                       </span>
-                      <span className="text-indigo-400 font-black tabular-nums text-right w-8 text-xs sm:text-sm">
+                      <span className="text-indigo-400 font-black tabular-nums text-right w-9 text-sm sm:text-base">
                         {currentBowler.wickets}
                       </span>
-                    </div>
-                    <div className="mt-2 pt-2 border-t border-white/5 text-center">
-                      <span className="px-1.5 py-0.5 bg-white/5 rounded text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-1 w-max mx-auto">
-                        LIVE COMMENTARY
-                      </span>
-                      <p className="text-slate-300 text-xs font-medium italic leading-snug">
-                        {liveData
-                          ? `"${liveData.commentary}"`
-                          : "Waiting for the next ball..."}
-                      </p>
                     </div>
                   </div>
 
                   <button
                     onClick={() => setShowFullScorecard(true)}
-                    className="w-full py-2.5 sm:py-3 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/20 rounded-xl text-[10px] font-black text-indigo-300 uppercase tracking-[0.2em] transition-all"
+                    className="w-full py-3 sm:py-3.5 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/20 rounded-2xl text-[11px] font-black text-indigo-300 uppercase tracking-[0.2em] transition-all"
                   >
                     View Full Analysis 📋
                   </button>

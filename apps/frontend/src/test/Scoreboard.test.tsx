@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import Scoreboard from "../components/Scoreboard";
 import { InningsState, WicketType } from "../types";
 
@@ -237,5 +237,34 @@ describe("Scoreboard Component", () => {
 
     // Batters table is immediately visible
     expect(screen.getAllByText(/THUNDER 1/i).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("resets scorecard scroll position to top when switching innings tabs", () => {
+    const { container } = render(
+      <Scoreboard
+        currentInnings={mockCurrentInnings}
+        previousInnings={mockPreviousInnings}
+        onClose={vi.fn()}
+      />,
+    );
+
+    // Find the scrollable container
+    const scrollContainer = container.querySelector(".overflow-y-auto");
+    expect(scrollContainer).toBeTruthy();
+
+    if (scrollContainer) {
+      // Simulate scrolling down
+      scrollContainer.scrollTop = 350;
+      expect(scrollContainer.scrollTop).toBe(350);
+
+      // Switch tab to previous innings
+      const prevTabBtn = screen.getByRole("button", {
+        name: new RegExp(mockPreviousInnings.battingTeamName, "i"),
+      });
+      fireEvent.click(prevTabBtn);
+
+      // Scroll position should reset to 0
+      expect(scrollContainer.scrollTop).toBe(0);
+    }
   });
 });

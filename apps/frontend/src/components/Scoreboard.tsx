@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import HighlightedResult from "./HighlightedResult";
 import { InningsState, Player, Bowler, ExtraType } from "../types";
 import { getPartnerships } from "../utils/partnershipUtils";
@@ -351,6 +351,13 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
   playerOfTheMatch,
 }) => {
   const [activeTab, setActiveTab] = useState<"current" | "previous">("current");
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (contentRef.current) {
+      contentRef.current.scrollTop = 0;
+    }
+  }, [activeTab]);
 
   const displayInnings =
     activeTab === "current" ? currentInnings : previousInnings;
@@ -458,7 +465,10 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
 
         {/* Content */}
         {displayInnings ? (
-          <div className="min-h-0 flex-1 p-3 sm:p-5 overflow-y-auto overscroll-contain pb-12 scrollbar-hide space-y-3 sm:space-y-4">
+          <div
+            ref={contentRef}
+            className="min-h-0 flex-1 p-3 sm:p-5 overflow-y-auto overscroll-contain pb-12 scrollbar-hide space-y-3 sm:space-y-4"
+          >
             {playerOfTheMatch && !matchResult && (
               <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 sm:px-5 sm:py-3 flex items-center gap-3">
                 <span className="text-xl sm:text-2xl">🏆</span>
