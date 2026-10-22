@@ -5,10 +5,10 @@
   "main": "index.js",
   "type": "commonjs",
   "dependencies": {
-    "@aws-sdk/client-ses": "^3.1152.0",
+    "@aws-sdk/client-ses": "^3.1155.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "dotenv": "^18.0.8",
-    "openai": "^7.38.0",
+    "openai": "^7.42.0",
     "pdf-parse": "^2.4.5",
     "pg": "^8.23.1"
   }

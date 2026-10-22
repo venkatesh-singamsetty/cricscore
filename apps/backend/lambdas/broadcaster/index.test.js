@@ -1,6 +1,10 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { mockClient } from "aws-sdk-client-mock";
-import { DynamoDBClient, ScanCommand } from "@aws-sdk/client-dynamodb";
+import {
+  DynamoDBClient,
+  ScanCommand,
+  DeleteItemCommand,
+} from "@aws-sdk/client-dynamodb";
 import {
   ApiGatewayManagementApiClient,
   PostToConnectionCommand,
@@ -58,10 +62,11 @@ describe("Broadcaster Lambda", () => {
     expect(apiMock.calls().length).toBe(2); // Sent to both connections
   });
 
-  it("should gracefully handle GoneException for disconnected users", async () => {
+  it("should gracefully handle GoneException for disconnected users and prune connection from DB", async () => {
     dynamoMock.on(ScanCommand).resolves({
       Items: [{ connectionId: { S: "conn-stale" } }],
     });
+    dynamoMock.on(DeleteItemCommand).resolves({});
 
     const goneError = new Error("Gone");
     goneError.name = "GoneException";
@@ -75,5 +80,29 @@ describe("Broadcaster Lambda", () => {
 
     expect(res.statusCode).toBe(200); // Should not crash
     expect(apiMock.calls().length).toBe(1);
+    expect(dynamoMock.commandCalls(DeleteItemCommand).length).toBe(1);
+  });
+
+  it("should broadcast direct invocation events with event.body to active connections", async () => {
+    dynamoMock.on(ScanCommand).resolves({
+      Items: [{ connectionId: { S: "conn123" } }],
+    });
+    apiMock.on(PostToConnectionCommand).resolves({});
+
+    const event = {
+      body: JSON.stringify({
+        matchId: "match-abc",
+        type: "HUB_UPDATE",
+        syncOnly: true,
+      }),
+    };
+
+    const res = await handler(event);
+
+    expect(res.statusCode).toBe(200);
+    expect(apiMock.calls().length).toBe(1);
+    const sentData = JSON.parse(apiMock.calls()[0].args[0].input.Data);
+    expect(sentData.type).toBe("HUB_UPDATE");
+    expect(sentData.data.matchId).toBe("match-abc");
   });
 });

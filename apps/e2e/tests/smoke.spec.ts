@@ -1,13 +1,16 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("CricScore Smoke Tests", () => {
+  const baseURL =
+    process.env.BASE_URL || "https://cricscoredev.venkateshsingamsetty.com";
+
   test("should load homepage and have correct title", async ({ page }) => {
-    await page.goto("/");
+    await page.goto(baseURL);
     await expect(page).toHaveTitle(/CricScore/i);
   });
 
   test("should allow navigating to create match modal", async ({ page }) => {
-    await page.goto("/");
+    await page.goto(baseURL);
 
     // Find the "Create Match" button
     const createMatchBtn = page.getByRole("button", {

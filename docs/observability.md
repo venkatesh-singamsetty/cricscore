@@ -9,22 +9,22 @@ CricScore combines zero-cost AWS telemetry (CloudWatch Logs, CloudWatch Metric A
 ```mermaid
 flowchart LR
     subgraph ClientAndEdge ["1. Browser & Edge"]
-        SPA["React SPA\n(Scorer / Viewer / Admin)"]
-        Sentry["Sentry SDK\n(Optional Browser Crash Reporting)"]
-        Uptime["External Uptime Monitor\n(HTTPS Ping Every 3–5m)"]
+        SPA["React SPA (Scorer / Viewer / Admin)"]
+        Sentry["Sentry SDK (Optional Browser Crash Reporting)"]
+        Uptime["External Uptime Monitor (HTTPS Ping Every 3-5m)"]
     end
 
     subgraph Serverless ["2. AWS Serverless Compute (9 Lambdas)"]
-        Critical["Critical Path Lambdas\n(match-api, score-upd)"]
-        Workers["Fan-Out & AI/ML Lambdas\n(broadcaster, storage-worker,\nchat-api, ml-predict, WS/Auth)"]
+        Critical["Critical Path Lambdas (match-api, score-upd)"]
+        Workers["Fan-Out & AI/ML Lambdas (broadcaster, storage-worker, chat-api, ml-predict, WS/Auth)"]
     end
 
     subgraph AWSObservability ["3. AWS Telemetry & Alerting"]
-        CWLogs["CloudWatch Log Groups\n(7-Day Retention)"]
-        XRay["AWS X-Ray Tracer\n(1 req/s reservoir + 5% rate)"]
-        Alarms["CloudWatch Metric Alarms\n(match-api-errors, score-update-errors)"]
-        SNSAlert{{"AWS SNS Topic\n(lambda-alerts)"}}
-        Email(["📧 Admin Email Alert\n(var.admin_email)"])
+        CWLogs["CloudWatch Log Groups (7-Day Retention)"]
+        XRay["AWS X-Ray Tracer (1 req/s reservoir + 5% rate)"]
+        Alarms["CloudWatch Metric Alarms (match-api-errors, score-update-errors)"]
+        SNSAlert{{"AWS SNS Topic (lambda-alerts)"}}
+        Email(["Admin Email Alert (var.admin_email)"])
     end
 
     SPA -.->|"Unhandled JS exceptions"| Sentry

@@ -160,7 +160,7 @@ CricScore features **6 Specialist AI Agents** and **8 Tools / Data Capabilities*
 
 ```mermaid
 graph TD
-    User["Fan / User Query"] --> Supervisor["Agent Supervisor & MCP Orchestrator<br/>(chat-api Lambda / LangGraph)"]
+    User["Fan / User Query"] --> Supervisor["Agent Supervisor & MCP Orchestrator (chat-api Lambda / LangGraph)"]
 
     Supervisor --> Agent1["📊 Match Stats Agent"]
     Supervisor --> Agent2["📖 Tournament Rules RAG Agent"]
@@ -169,12 +169,12 @@ graph TD
     Supervisor --> Agent5["🏏 Cricket Context & Tactical Agent"]
     Supervisor --> Agent6["🎯 Win Probability & Prediction Agent"]
 
-    Agent1 --> Tool1["execute_sql<br/>(Aiven PostgreSQL 16)"]
-    Agent2 --> Tool2["search_tournament_rules<br/>(pgvector Cosine Search)"]
-    Agent3 --> Tool3["get_match_weather<br/>(Open-Meteo API)"]
-    Agent4 --> Tool4["create_github_issue<br/>(GitHub REST API)"]
-    Agent5 --> Tool5["Live Match Context Injection<br/>(Scoreboard Telemetry)"]
-    Agent6 --> Tool6["predict_match_outcome<br/>(ml-predict XGBoost + DP + DLS)"]
+    Agent1 --> Tool1["execute_sql (Aiven PostgreSQL 16)"]
+    Agent2 --> Tool2["search_tournament_rules (pgvector Cosine Search)"]
+    Agent3 --> Tool3["get_match_weather (Open-Meteo API)"]
+    Agent4 --> Tool4["create_github_issue (GitHub REST API)"]
+    Agent5 --> Tool5["Live Match Context Injection (Scoreboard Telemetry)"]
+    Agent6 --> Tool6["predict_match_outcome (ml-predict XGBoost + DP + DLS)"]
 ```
 
 ### Detailed Agent & Tool Specification

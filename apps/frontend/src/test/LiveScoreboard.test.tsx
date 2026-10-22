@@ -278,4 +278,100 @@ describe("LiveScoreboard Component", () => {
 
     expect(container.textContent).toContain("0.2");
   });
+
+  it("renders 2nd innings prominent header with single-line team name, target equation, and Scorecard button", async () => {
+    const secondInningsResponse = {
+      match: {
+        id: "match_5b80826d",
+        status: "LIVE",
+        team_a_name: "CHICAGO SPARTANS",
+        team_b_name: "ILLINOIS THUNDERS",
+        total_overs: 1,
+      },
+      innings: [
+        {
+          id: "inn_1",
+          inning_number: 1,
+          batting_team_name: "CHICAGO SPARTANS",
+          bowling_team_name: "ILLINOIS THUNDERS",
+          total_runs: 11,
+          total_wickets: 1,
+          overs: 1,
+          balls: 0,
+          players: [],
+          bowlers: [],
+          allBalls: [],
+        },
+        {
+          id: "inn_2",
+          inning_number: 2,
+          target: 12,
+          batting_team_name: "ILLINOIS THUNDERS",
+          bowling_team_name: "CHICAGO SPARTANS",
+          total_runs: 10,
+          total_wickets: 1,
+          overs: 0,
+          balls: 5,
+          striker_name: "THUNDER 1",
+          non_striker_name: "THUNDER 7",
+          current_bowler_name: "SPARTAN 2",
+          players: [
+            {
+              id: "p_t1",
+              name: "THUNDER 1",
+              runs: 7,
+              balls_faced: 3,
+              fours: 1,
+              sixes: 0,
+              is_out: false,
+            },
+            {
+              id: "p_t7",
+              name: "THUNDER 7",
+              runs: 3,
+              balls_faced: 2,
+              fours: 0,
+              sixes: 0,
+              is_out: false,
+            },
+          ],
+          bowlers: [
+            {
+              id: "b_s2",
+              name: "SPARTAN 2",
+              overs_completed: 0,
+              balls: 5,
+              maidens: 0,
+              runs_conceded: 10,
+              wickets: 1,
+            },
+          ],
+          allBalls: [],
+        },
+      ],
+    };
+
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => secondInningsResponse,
+    });
+
+    render(<LiveScoreboard initialMatchId="match_5b80826d" />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("heading", { name: /ILLINOIS THUNDERS/i }),
+      ).toBeInTheDocument();
+    });
+
+    // Scorecard button is present
+    expect(
+      screen.getByRole("button", { name: /Scorecard 📋/i }),
+    ).toBeInTheDocument();
+
+    // Target equation
+    expect(screen.getByText(/Need 2 off 1/i)).toBeInTheDocument();
+    expect(screen.getByText(/\(Tgt 12\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/1st Inn: CHICAGO SPARTANS/i)).toBeInTheDocument();
+  });
 });

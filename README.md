@@ -1,10 +1,12 @@
 # 🏏 CricScore: Real-Time Cricket Match Engine
 
-[![CI/CD Pipeline](https://github.com/venkatesh-singamsetty/cric-score/actions/workflows/ci.yml/badge.svg)](https://github.com/venkatesh-singamsetty/cric-score/actions/workflows/ci.yml)
-[![Production Release](https://img.shields.io/github/v/release/venkatesh-singamsetty/cric-score?label=production&color=success)](https://github.com/venkatesh-singamsetty/cric-score/releases)
+[![CI/CD Pipeline](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/ci.yml/badge.svg)](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/ci.yml)
+[![Production Release](https://img.shields.io/github/v/release/venkatesh-singamsetty/cricscore?label=production&color=success)](https://github.com/venkatesh-singamsetty/cricscore/releases)
+[![Automated Tests](https://img.shields.io/badge/Tests-328%20Passing-brightgreen?logo=vitest)](./docs/testing.md)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue?logo=typescript)](https://www.typescriptlang.org/)
 [![Python ML](https://img.shields.io/badge/Python-ML_Engine-blue?logo=python)](https://www.python.org/)
 [![Terraform](https://img.shields.io/badge/Terraform-Managed-purple?logo=terraform)](https://www.terraform.io/)
+[![Zero-Cost AWS](https://img.shields.io/badge/AWS%20Cost-%240%2Fmo%20Target-blue?logo=amazon-aws)](./docs/cost_management.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 🚀 **Production Environment:** **https://cricscore.venkateshsingamsetty.com**
@@ -96,13 +98,14 @@ Below is a curated selection of architectural milestones and pull requests autho
 
 > 🔍 **[👉 View all Pull Requests authored by @venkatesh-singamsetty](https://github.com/venkatesh-singamsetty/cricscore/pulls?q=is%3Apr+author%3Avenkatesh-singamsetty)** _(filters out automated bot activity)_
 
-| Milestone & PR                                                                         | Architectural Domain           | Key Innovations & Engineering Impact                                                                                                                 |
-| -------------------------------------------------------------------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **[PR #276](https://github.com/venkatesh-singamsetty/cricscore/pull/276)** (`v4.15.0`) | **Agentic AI & MLOps**         | Integrated autonomous Weather & GitHub Issue specialist agents via MCP, diagrams-as-code, and the Architecture & MLOps FAQ.                          |
-| **[PR #261](https://github.com/venkatesh-singamsetty/cricscore/pull/261)**             | **Dynamic ML Win Prediction**  | Blended XGBoost with Markov Dynamic Programming (DP) and Duckworth-Lewis-Stern (DLS) par calculations for sub-second ball-by-ball win probabilities. |
-| **[PR #248](https://github.com/venkatesh-singamsetty/cricscore/pull/248)**             | **Real-Time Streaming**        | Serverless WebSocket event fan-out with Amazon SNS + SQS dual-path broadcast and storage worker resilience.                                          |
-| **[PR #235](https://github.com/venkatesh-singamsetty/cricscore/pull/235)**             | **Multi-Cloud IaC & Security** | Automated Terraform infrastructure bridging AWS and Aiven PostgreSQL with zero-cost guardrails and Checkov compliance.                               |
-| **[PR #220](https://github.com/venkatesh-singamsetty/cricscore/pull/220)**             | **DevSecOps Pipeline**         | End-to-end GitHub Actions CI/CD with GitLeaks secrets scanning, Trivy vulnerability audits, and CodeQL SAST.                                         |
+| Milestone & PR                                                                         | Architectural Domain             | Key Innovations & Engineering Impact                                                                                                                 |
+| -------------------------------------------------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **[PR #307](https://github.com/venkatesh-singamsetty/cricscore/pull/307)** (`v4.17.1`) | **UI & Responsive Architecture** | Responsive chat question layout, tournament rulebook sync, and comprehensive architecture diagram refresh.                                           |
+| **[PR #276](https://github.com/venkatesh-singamsetty/cricscore/pull/276)** (`v4.15.0`) | **Agentic AI & MLOps**           | Integrated autonomous Weather & GitHub Issue specialist agents via MCP, diagrams-as-code, and the Architecture & MLOps FAQ.                          |
+| **[PR #261](https://github.com/venkatesh-singamsetty/cricscore/pull/261)**             | **Dynamic ML Win Prediction**    | Blended XGBoost with Markov Dynamic Programming (DP) and Duckworth-Lewis-Stern (DLS) par calculations for sub-second ball-by-ball win probabilities. |
+| **[PR #248](https://github.com/venkatesh-singamsetty/cricscore/pull/248)**             | **Real-Time Streaming**          | Serverless WebSocket event fan-out with Amazon SNS + SQS dual-path broadcast and storage worker resilience.                                          |
+| **[PR #235](https://github.com/venkatesh-singamsetty/cricscore/pull/235)**             | **Multi-Cloud IaC & Security**   | Automated Terraform infrastructure bridging AWS and Aiven PostgreSQL with zero-cost guardrails and Checkov compliance.                               |
+| **[PR #220](https://github.com/venkatesh-singamsetty/cricscore/pull/220)**             | **DevSecOps Pipeline**           | End-to-end GitHub Actions CI/CD with GitLeaks secrets scanning, Trivy vulnerability audits, and CodeQL SAST.                                         |
 
 ---
 
@@ -181,12 +184,12 @@ Below is a curated selection of architectural milestones and pull requests autho
 
 ### Testing
 
-| Tool                  | Purpose                           |
-| --------------------- | --------------------------------- |
-| Vitest                | JavaScript/TypeScript test runner |
-| Pytest                | Python ML Engine testing          |
-| React Testing Library | Frontend component testing        |
-| Playwright            | End-to-end browser automation     |
+| Tool                  | Purpose                                                        |
+| --------------------- | -------------------------------------------------------------- |
+| Vitest                | Fast JS/TS test runner (124 Frontend + 110 Backend tests)      |
+| Pytest                | Python test runner (65 AI Service + 29 ML Engine tests)        |
+| React Testing Library | Frontend component rendering and user interaction testing      |
+| Playwright            | Cross-browser end-to-end user journey & smoke suite automation |
 
 ---
 
@@ -196,8 +199,11 @@ CricScore is structured to demonstrate production-oriented engineering practices
 
 ### 1. 🛡️ DevSecOps & Security
 
-**Identity & Automated Scanning**
-Authenticated HTTP API routes use **AWS Cognito JWT authorization**. CI runs GitLeaks, Checkov, Trivy filesystem scans, and application and infrastructure validation; a separate CodeQL workflow analyzes code. CI does not run `npm audit`. OWASP ZAP scans deployed environments, but its configured action does not fail the workflow on findings.
+**Identity, Guardrails & Automated Scanning**
+
+- **Authentication & Exact-Match Authorization**: Authenticated HTTP API routes use **AWS Cognito JWT authorization** with strict, exact-match role parsing (`isAdminClaims`) safeguarding administrative user management, match ops, and database purge endpoints against substring privilege escalation.
+- **AI Chat Defense-in-Depth**: The AI assistant runs on an unauthenticated fan-facing endpoint but enforces server-side read-only guarantees: write tools (`delete_guest_data`, `delete_incomplete_matches`) are permanently disabled, natural language SQL queries are restricted to single-statement `SELECT`/`WITH` with 3-second statement timeouts, and scorer email addresses (PII) are rejected at the query parser and stripped from result rows.
+- **Multi-Scanner Shift-Left Security**: Local validation (`./infra/scripts/validate_local.sh`) and CI/CD pipelines run **GitLeaks** secret detection, **Checkov** IaC security scans, **Trivy** vulnerability audits, **CodeQL** static analysis, **NPM Security Audits**, and automated **Syft** SPDX SBOM generation. Pre-push hooks verify validation state receipts in `<0.1s`.
 
 - 📖 **[Authentication & Authorization](./docs/auth.md)**: Cognito SSO flows, guest mode, admin user management, JWT validation, and cross-session identity guard.
 - 📖 **[Security Posture & Tradeoffs](./docs/security_posture.md)**: Defense in depth strategy, multi-tenant isolation, and encryption layers.
@@ -215,8 +221,14 @@ Lambda logs are sent to CloudWatch Logs. AWS X-Ray sampling is configured with a
 
 ### 3. ✅ Rigorous Testing
 
-**Multi-Layer Testing**
-Vitest tests cover frontend and backend code, and the ML engine has Pytest coverage. Playwright end-to-end tests run against the deployed development environment on main-branch deployments and against Production during production deployment; pull requests do not run the deployed-site E2E suite.
+**Multi-Layer Testing (328 Automated Tests + Playwright E2E)**
+Comprehensive testing across all architectural layers ensures zero regressions:
+
+- **Frontend (124 tests / 20 suites)**: Vitest + React Testing Library cover scoreboard state, crease synchronization, responsive viewports, DLS calculations, and WebSocket message handling.
+- **Backend (110 tests / 16 suites)**: Vitest covers REST endpoints (`match-api`), decoupled fan-out (`score-update`), SQS FIFO persistence (`storage-worker`), and MCP agent tools (`chat-api`).
+- **AI Service (65 tests)**: Pytest covers vector similarity retrieval, rule ingestion, and chat orchestration.
+- **ML Engine (29 tests)**: Pytest covers XGBoost model loading, SHA-256 manifest integrity verification, and format-agnostic Markov DP simulation.
+- **Playwright E2E**: End-to-end browser automation validates complete user journeys (match setup, scoring, wicket modals, DLS equations) against deployed environments.
 
 - 📖 **[Testing Guide](./docs/testing.md)**: Vitest and Playwright test commands, Availability Testing (Chaos/DR), and E2E structures.
 - 📖 **[Toolchain & Security Stack](./docs/tools.md)**: Master list of all CI/CD, IaC, and AppSec tools used in the pipeline.

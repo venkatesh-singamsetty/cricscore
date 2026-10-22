@@ -157,6 +157,10 @@ def handler(event, context):
     AWS Lambda handler for live win predictions.
     Invoked via API Gateway (POST /match/predict).
     """
+    cors_headers = {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+    }
     try:
         _load_ml_libraries()
         body = json.loads(event.get('body', '{}'))
@@ -173,6 +177,7 @@ def handler(event, context):
         if not batting_team or not bowling_team:
             return {
                 'statusCode': 400,
+                'headers': cors_headers,
                 'body': json.dumps({'error': 'team1 and team2 are required'})
             }
 
@@ -253,6 +258,10 @@ def handler(event, context):
         print(f"Error predicting: {e}")
         return {
             'statusCode': 500,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            },
             'body': json.dumps({'error': str(e)})
         }
 

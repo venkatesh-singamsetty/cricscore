@@ -46,7 +46,15 @@ git checkout -b feature/your-feature-name
 git add .
 git commit -m "feat: your descriptive commit message"
 git fetch origin main && git merge origin/main --no-edit
+
+# Option A (Recommended): git push triggers fast validation automatically once (~25s)
 git push -u origin HEAD
+
+# Option B: Run validation manually AFTER committing, then push (skips hook in <0.1s)
+# ./infra/scripts/validate_local.sh --fast && git push -u origin HEAD
+
+# Option C: Bypass hook if already verified on dev/prod deployment
+# SKIP_PRE_PUSH=1 git push -u origin HEAD
 
 # Create a Pull Request using the GitHub CLI (gh)
 gh pr create --title "feat: added new feature" --body "Detailed description" --base main
@@ -84,6 +92,10 @@ npm run lint
 
 # Format code using prettier via npx
 npx prettier --write "apps/**/*.{ts,tsx,js,jsx,json,md}"
+
+# Proactive dependency & Dependabot audit across all workspaces & Lambdas
+npm run deps:check
+# or: ./infra/scripts/check_dependencies.sh
 ```
 
 ## 4. Testing & Validation
@@ -101,8 +113,23 @@ npx playwright install --with-deps
 # Run End-to-End (E2E) UI Tests
 npm run test:e2e
 
+# Run Live E2E Tests on Dev (Headless)
+npm run test:e2e:dev
+
+# Run Live E2E Tests on Dev (Headed - opens browser so you can watch live)
+npm run test:e2e:dev:headed
+
+# Run Multi-Browser Real-Time Live Sync on Dev (Headed Scorer + Spectator side-by-side)
+npm run test:e2e:sync:headed
+
+# Run 2-Over User Journey Full Match Scoring on Dev (Headed)
+npm run test:e2e:journey:headed
+
 # Run AI Chatbot Evaluation Tests (Validates LLM tool-calling logic)
 npm run test:ai
+
+# Check outdated dependencies across workspaces and lambdas before pushing
+npm run deps:check
 
 # Run Backend tests in Watch mode (Must run from backend folder)
 npm run test:watch --prefix apps/backend

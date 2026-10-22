@@ -16,7 +16,12 @@
     "test": "npm run test --prefix apps/frontend",
     "test:all": "npm run test --prefix apps/frontend && npm run test --prefix apps/backend && npm run test:ai",
     "test:e2e": "npm test --prefix apps/e2e",
+    "test:e2e:dev": "BASE_URL=https://cricscoredev.venkateshsingamsetty.com API_URL=https://api.cricscoredev.venkateshsingamsetty.com npm test --prefix apps/e2e",
+    "test:e2e:dev:headed": "BASE_URL=https://cricscoredev.venkateshsingamsetty.com API_URL=https://api.cricscoredev.venkateshsingamsetty.com npm test --prefix apps/e2e -- --headed",
+    "test:e2e:sync:headed": "BASE_URL=https://cricscoredev.venkateshsingamsetty.com API_URL=https://api.cricscoredev.venkateshsingamsetty.com npm test --prefix apps/e2e -- tests/multi-browser-live-sync.spec.ts --headed",
+    "test:e2e:journey:headed": "BASE_URL=https://cricscoredev.venkateshsingamsetty.com API_URL=https://api.cricscoredev.venkateshsingamsetty.com npm test --prefix apps/e2e -- tests/user-journey.spec.ts --headed",
     "test:ai": "node evals/run_ai_chat_eval.js",
+    "deps:check": "./infra/scripts/check_dependencies.sh",
     "prepare": "husky"
   },
   "devDependencies": {

@@ -68,6 +68,7 @@ export interface InningsState {
   id: string; // Dynamic ID from Aiven
   inningNumber: 1 | 2;
   target?: number;
+  isCompleted?: boolean;
   battingTeamName: string;
   bowlingTeamName: string;
   totalRuns: number;

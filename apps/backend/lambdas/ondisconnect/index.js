@@ -7,7 +7,13 @@ const TABLE_NAME = process.env.TABLE_NAME;
 exports.handler = async (event) => {
   console.log("WebSocket Disconnection:", JSON.stringify(event));
 
-  const connectionId = event.requestContext.connectionId;
+  const connectionId = event?.requestContext?.connectionId;
+  if (!connectionId) {
+    return {
+      statusCode: 400,
+      body: "Missing connectionId in requestContext",
+    };
+  }
 
   try {
     const command = new DeleteItemCommand({

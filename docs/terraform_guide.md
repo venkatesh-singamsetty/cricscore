@@ -34,6 +34,7 @@ graph TD
         L_BROAD[broadcaster Lambda]
         L_SESS[onconnect / ondisconnect Lambdas]
         L_CHAT[chat-api Agentic AI Lambda]
+        L_ML[cricscore-ml-predict Container Lambda]
     end
 
     subgraph MSG ["Event-Driven Messaging & State"]
@@ -45,10 +46,12 @@ graph TD
     HTTP_GW --> L_MATCH
     HTTP_GW --> L_SCORE
     HTTP_GW --> L_CHAT
+    HTTP_GW --> L_ML
     WS_GW --> L_SESS
     L_SESS --> DDB
     L_SCORE --> SNS
     L_SCORE --> SQS
+    L_MATCH -->|Direct Invoke: HUB_UPDATE| L_BROAD
     SQS --> L_WORKER
     SNS --> L_BROAD
     L_BROAD --> DDB

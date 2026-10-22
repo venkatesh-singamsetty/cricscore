@@ -14,6 +14,8 @@ describe("execute_sql read-only guard", () => {
     "WITH x AS (DELETE FROM matches RETURNING *) SELECT * FROM x",
     "SELECT pg_sleep(10)",
     "UPDATE matches SET status='X'",
+    "SELECT scorer_email FROM matches",
+    "SELECT id, scorer_email FROM matches",
     "",
   ])("rejects %s", (q) => {
     expect(validateReadOnlySql(q)).not.toBeNull();
@@ -60,6 +62,28 @@ describe("MCP Tool: execute_sql", () => {
 
     const result = await executeSqlTool({ query: "SELECT * FROM matches" });
     expect(result.content[0].text).toContain("match-1");
+  });
+
+  it("redacts scorer_email from result rows to prevent PII leakage", async () => {
+    querySpy
+      .mockResolvedValueOnce({}) // SET search_path
+      .mockResolvedValueOnce({}) // BEGIN
+      .mockResolvedValueOnce({}) // SET statement_timeout
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "match-1",
+            status: "LIVE",
+            scorer_email: "secret-scorer@example.com",
+          },
+        ],
+      })
+      .mockResolvedValueOnce({}); // COMMIT
+
+    const result = await executeSqlTool({ query: "SELECT * FROM matches" });
+    expect(result.content[0].text).toContain("match-1");
+    expect(result.content[0].text).not.toContain("secret-scorer@example.com");
+    expect(result.content[0].text).not.toContain("scorer_email");
   });
 
   it("rolls back and returns error message on SQL failure", async () => {

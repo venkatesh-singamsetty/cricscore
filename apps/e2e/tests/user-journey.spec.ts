@@ -10,8 +10,11 @@ test.describe("User Journey - Full Match Scoring", () => {
   }) => {
     test.setTimeout(300000); // 5 minutes for a 2-over match
 
+    const baseURL =
+      process.env.BASE_URL || "https://cricscoredev.venkateshsingamsetty.com";
+
     // 1. Visit the home page
-    await page.goto("/");
+    await page.goto(baseURL);
 
     // 2. Click Scorer mode
     await page.getByRole("button", { name: /SCORER/i }).click({ force: true });

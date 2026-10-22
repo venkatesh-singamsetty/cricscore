@@ -17,6 +17,7 @@ sequenceDiagram
     participant REST as API Gateway (HTTP REST)
     participant WS_GW as API Gateway (WebSockets)
     participant ScoreLambda as score-update Lambda
+    participant MatchLambda as match-api Lambda
     participant SNS as AWS SNS Topic
     participant SQS as AWS SQS Queue (Storage Buffer)
     participant StorageLambda as storage-worker Lambda
@@ -47,6 +48,15 @@ sequenceDiagram
         SQS->>StorageLambda: Trigger storage-worker Lambda
         StorageLambda->>PG: ACID Commit to PostgreSQL
     end
+
+    %% Lifecycle Hub Update
+    Note over Scorer,PG: Match Lifecycle Event (Create, Switch Innings, End Match, Reset)
+    Scorer->>REST: POST /match / switch-innings / reset
+    REST->>MatchLambda: Trigger match-api Lambda
+    MatchLambda->>PG: Commit match / innings state to PostgreSQL
+    MatchLambda->>BroadcasterLambda: Direct Invoke { type: "HUB_UPDATE" }
+    BroadcasterLambda->>WS_GW: Push HUB_UPDATE to all connected viewers
+    WS_GW-->>Spectator: Real-time Match List & Viewer Sync without manual refresh
 ```
 
 ---
@@ -137,8 +147,16 @@ import {
 } from "@aws-sdk/client-dynamodb";
 
 export const handler = async (event) => {
-  // Extract SNS payload
-  const snsMessage = event.Records[0].Sns.Message;
+  // Extract payload from SNS Fan-Out OR Direct Lambda Invocation (e.g. HUB_UPDATE from match-api)
+  let payloadStr = "";
+  if (event.Records?.[0]?.Sns?.Message) {
+    payloadStr = event.Records[0].Sns.Message;
+  } else if (event.body) {
+    payloadStr =
+      typeof event.body === "string" ? event.body : JSON.stringify(event.body);
+  } else {
+    payloadStr = JSON.stringify(event);
+  }
 
   // Fetch active WebSocket connection IDs from DynamoDB
   const connections = await ddbClient.send(
@@ -153,7 +171,7 @@ export const handler = async (event) => {
         await wsApiClient.send(
           new PostToConnectionCommand({
             ConnectionId: connectionId,
-            Data: Buffer.from(snsMessage),
+            Data: Buffer.from(payloadStr),
           }),
         );
       } catch (err) {

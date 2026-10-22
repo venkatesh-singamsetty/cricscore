@@ -4,15 +4,16 @@ All backend business logic runs as individual AWS Lambda functions. Each Lambda 
 
 ## Lambda Inventory
 
-| Lambda           | Trigger               | Purpose                                                        |
-| ---------------- | --------------------- | -------------------------------------------------------------- |
-| `match-api`      | API Gateway REST      | CRUD for matches, innings, players; health check endpoint      |
-| `score-update`   | API Gateway REST      | Validates and publishes ball events to SNS fan-out             |
-| `storage-worker` | SQS Queue             | Reliably writes ball events to PostgreSQL with ACID guarantees |
-| `broadcaster`    | SNS Topic             | Pushes live score updates to all connected WebSocket clients   |
-| `onconnect`      | WebSocket $connect    | Registers fan connection ID in DynamoDB                        |
-| `ondisconnect`   | WebSocket $disconnect | Removes stale connection from DynamoDB                         |
-| `chat-api`       | API Gateway REST      | Agentic AI Chat — MCP + RAG pipeline (see below)               |
+| Lambda              | Trigger                          | Purpose                                                        |
+| ------------------- | -------------------------------- | -------------------------------------------------------------- |
+| `match-api`         | API Gateway REST                 | CRUD for matches, innings, players; health check endpoint      |
+| `score-update`      | API Gateway REST                 | Validates and publishes ball events to SNS fan-out & SQS queue |
+| `storage-worker`    | SQS Queue                        | Reliably writes ball events to PostgreSQL with ACID guarantees |
+| `broadcaster`       | SNS Topic & Direct Lambda Invoke | Pushes live score updates & hub refreshes to WebSocket clients |
+| `onconnect`         | WebSocket $connect               | Registers fan connection ID in DynamoDB                        |
+| `ondisconnect`      | WebSocket $disconnect            | Removes stale connection from DynamoDB                         |
+| `cognito-presignup` | Cognito Pre-SignUp               | Auto-confirms guest users and verifies email attributes        |
+| `chat-api`          | API Gateway REST                 | Agentic AI Chat — MCP + RAG pipeline (see below)               |
 
 ## 🤖 chat-api — Agentic AI Lambda
 
@@ -29,12 +30,16 @@ chat-api/
 ├── handlers/
 │   ├── chatHandler.js            ← Main agentic chat loop (MCP client)
 │   ├── summaryHandler.js         ← AI post-match summary generation
-│   └── uploadRulesHandler.js     ← PDF ingestion + batch vector embedding
+│   ├── uploadRulesHandler.js     ← PDF ingestion + batch vector embedding
+│   ├── listRulesHandler.js       ← List ingested rulebooks
+│   └── deleteRulesHandler.js     ← Delete rulebook documents & embeddings
 └── mcp/
     ├── server.js                 ← MCP Server — registers all tools
     └── tools/
         ├── executeSql.js         ← Text-to-SQL RAG (READ ONLY, 3s timeout)
-        └── searchRules.js        ← Vector cosine-similarity RAG
+        ├── searchRules.js        ← Vector cosine-similarity RAG
+        ├── createGithubIssue.js  ← GitHub REST API issue creator
+        └── getMatchWeather.js    ← Open-Meteo Weather & DLS advisory
 ```
 
 ### Routes
@@ -44,6 +49,8 @@ chat-api/
 | POST   | `/chat`         | `chatHandler.js`        | Agentic AI conversation                |
 | POST   | `/chat/summary` | `summaryHandler.js`     | Generate AI match summary              |
 | POST   | `/rules/upload` | `uploadRulesHandler.js` | Upload + embed tournament PDF rulebook |
+| GET    | `/rules`        | `listRulesHandler.js`   | List tournament PDF rulebooks          |
+| DELETE | `/rules`        | `deleteRulesHandler.js` | Delete tournament PDF rulebook vectors |
 
 ### MCP Security Model
 

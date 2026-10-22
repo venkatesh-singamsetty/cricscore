@@ -27,6 +27,26 @@ const getClaims = (event) => {
   return claims;
 };
 
+const isAdminClaims = (claims) => {
+  if (!claims || typeof claims !== "object") return false;
+  const userEmail = claims.email;
+  const isSuperAdmin = Boolean(
+    userEmail &&
+    process.env.ADMIN_REPORT_EMAIL &&
+    userEmail.toLowerCase() === process.env.ADMIN_REPORT_EMAIL.toLowerCase(),
+  );
+  const groups = claims["cognito:groups"] || [];
+  const groupList = Array.isArray(groups)
+    ? groups
+    : String(groups)
+        .replace(/[[\]"]/g, "")
+        .split(/[\s,]+/)
+        .map((g) => g.trim())
+        .filter(Boolean);
+  const hasAdminGroup = groupList.includes("Admin");
+  return isSuperAdmin || hasAdminGroup;
+};
+
 exports.handler = async (event, context) => {
   const { httpMethod } = event || {};
   if (httpMethod === "OPTIONS") {
@@ -42,20 +62,63 @@ exports.handler = async (event, context) => {
   }
 
   if (context) context.callbackWaitsForEmptyEventLoop = false;
+
+  let body;
+  try {
+    body =
+      typeof event?.body === "string" ? JSON.parse(event.body) : event?.body;
+  } catch (parseErr) {
+    return {
+      statusCode: 400,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      },
+      body: JSON.stringify({ error: "Invalid JSON in request body" }),
+    };
+  }
+
+  if (!body || typeof body !== "object") {
+    return {
+      statusCode: 400,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      },
+      body: JSON.stringify({ error: "Missing or invalid payload" }),
+    };
+  }
+
+  const { matchId, inningId, syncOnly, undo } = body;
+  if (!matchId || !inningId) {
+    return {
+      statusCode: 400,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      },
+      body: JSON.stringify({
+        error: "Missing required fields: matchId and inningId",
+      }),
+    };
+  }
+
   let client;
   try {
-    const body = JSON.parse(event.body);
-    const { matchId, inningId, syncOnly, undo } = body;
-
     client = await pool.connect();
     if (process.env.DB_SCHEMA) {
-      await client.query(`SET search_path TO ${process.env.DB_SCHEMA}, public`);
+      const cleanSchema = String(process.env.DB_SCHEMA).replace(
+        /[^a-zA-Z0-9_]/g,
+        "",
+      );
+      if (cleanSchema) {
+        await client.query(`SET search_path TO ${cleanSchema}, public`);
+      }
     }
 
     // Auth Check
     const claims = getClaims(event);
-    const isAdmin =
-      claims.email && claims.email === process.env.ADMIN_REPORT_EMAIL;
+    const isAdmin = isAdminClaims(claims);
 
     if (!isAdmin) {
       const matchRes = await client.query(
@@ -64,9 +127,17 @@ exports.handler = async (event, context) => {
       );
       if (
         matchRes.rows.length === 0 ||
+        !claims.email ||
         claims.email !== matchRes.rows[0].scorer_email
       ) {
-        return { statusCode: 403, body: "Forbidden" };
+        return {
+          statusCode: 403,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+          body: JSON.stringify({ error: "Forbidden" }),
+        };
       }
     }
 

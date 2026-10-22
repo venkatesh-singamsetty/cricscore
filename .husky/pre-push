@@ -21,6 +21,16 @@ if [ "$CURRENT_BRANCH" != "main" ] && [ -n "$CURRENT_BRANCH" ]; then
   fi
 fi
 
+# Proactive Dependabot Check: Alert if open Dependabot PRs exist
+if command -v gh >/dev/null 2>&1; then
+  BOT_PRS="$(gh pr list --author "app/dependabot" --state open --json number,title --jq '.[] | "#\(.number): \(.title)"' 2>/dev/null || true)"
+  if [ -n "$BOT_PRS" ]; then
+    echo "📦 [Dependabot Alert] Open Dependabot PRs detected on GitHub:"
+    echo "$BOT_PRS" | while read -r line; do echo "   👉 $line"; done
+    echo "💡 Tip: Run ./infra/scripts/consolidate_dependabot_prs.sh --merge to consolidate them before pushing."
+  fi
+fi
+
 HASH_CMD=""
 if command -v sha256sum >/dev/null 2>&1; then
   HASH_CMD="sha256sum"
@@ -41,5 +51,5 @@ if [ -f "$RECEIPT_FILE" ] && [ -n "$HASH_CMD" ]; then
   fi
 fi
 
-echo "🚀 Running local validation before pushing (Skipping Playwright E2E)..."
-"$REPO_ROOT/infra/scripts/validate_local.sh" --skip-e2e
+echo "🚀 Running local validation before pushing (Skipping Playwright E2E & SBOM)..."
+"$REPO_ROOT/infra/scripts/validate_local.sh" --fast

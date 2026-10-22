@@ -28,6 +28,7 @@ graph TD
 
     %% Define Deployment
     subgraph AWS Deployment [Serverless AWS]
+        S3REG[Amazon S3 Model Registry]
         ECR[Amazon ECR Container Registry]
         LAMBDA[AWS Lambda Inference API]
         APIGW[Amazon API Gateway]
@@ -44,12 +45,14 @@ graph TD
     DP -- "live_data.csv" --> LT
     LT -- "live_win_predictor_model.joblib" --> TEST
     TEST -- Pass --> GATE
-    GATE -- "Yes (Upload artifact)" --> ART[GitHub Actions artifact]
+    GATE -- "Yes (Promote & Hash)" --> S3REG
     GATE -- "No (Fail Build)" --> STOP((Stop))
 
-    ECR -- "Terraform-built container image" --> LAMBDA
-    LAMBDA -- "POST /match/predict" --> APIGW
+    ECR -- "Lambda Container Runtime" --> LAMBDA
+    S3REG -- "Versioned Model (SHA-256 Verified)" --> LAMBDA
     UI -- "Every ball bowled" --> APIGW
+    APIGW -- "POST /match/predict" --> LAMBDA
+    LAMBDA -- "Win Probability %" --> APIGW
     APIGW -- "Win Probability %" --> UI
 ```
 
@@ -165,7 +168,7 @@ The live prediction engine calculates real-time win probabilities after every ba
 
 1. **Format-Agnostic Ball-by-Ball Dynamic Programming (`win_probability.py`)**: Exact recursion over every remaining legal delivery (`1` to `120` balls) and wickets lost (`0` to `9`), adapting ball outcome profiles (`DEFENSIVE`, `NORMAL`, `AGGRESSIVE`) to required run rate, lower-order tail quality (`TAIL_FACTOR`), and match length.
 2. **DLS Resource Parity Alignment (2nd Innings)**: When the required run rate is physically achievable (`<= 2.3` runs/ball full weight, tapering smoothly to `0` by `3.0` runs/ball), the engine blends the ball-by-ball DP probability with a logistic DLS Par differential so teams ahead of DLS Par (`currentScore > dlsPar`) with wickets in hand are properly favored (`> 50%`).
-3. **T20 Logistic Regression Model Blend (`10–20` Overs)**: For matches longer than 10 overs, the T20-trained model (`live_win_predictor_model.joblib`) is blended in with weight rising linearly from `0.0` at `10` overs to `0.5` at `20` overs.
+3. **T20 Trained ML Model Blend (`10–20` Overs)**: For matches longer than 10 overs, the T20-trained champion model (`live_win_predictor_model.joblib`, XGBoost `v2.2.0`) is blended in with weight rising linearly from `0.0` at `10` overs to `0.5` at `20` overs.
 
 ```mermaid
 graph TD
@@ -177,10 +180,10 @@ graph TD
     C --> D{"2nd Innings & RPB < 3.0?"}
     D -- "Yes" --> E["Blend DP with DLS Par Advantage"]
     D -- "No" --> F["Pure DP Probability"]
+    H -- "Yes" --> M["Blend with T20 Trained ML Model (up to 50%)"]
+    H -- "No" --> N["Clamp Live Probability to [1%, 99%]"]
     E --> H{"Total Overs > 10?"}
     F --> H
-    H -- "Yes" --> M["Blend with T20 Logistic Model (up to 50%)"]
-    H -- "No" --> N["Clamp Live Probability to [1%, 99%]"]
     M --> N
     G --> K["Return Response Payload"]
     I --> K

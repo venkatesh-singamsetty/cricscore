@@ -57,7 +57,7 @@ Once the new version number is calculated, the bot automatically:
 1. Parses your commit messages into a beautifully formatted, human-readable markdown **Changelog**.
 2. Creates an official **Git Tag** (e.g., `v2.9.0`) on the `main` branch.
 3. Publishes an official **GitHub Release** on the repository's Releases page, attaching the changelog.
-4. Uses the `@semantic-release/changelog` plugin to generate a physical `CHANGELOG.md` file in the repository.
+4. Uses the `@semantic-release/changelog` plugin to update the physical `docs/changelog.md` file in the repository.
 
 ### Step 6: Bypassing Branch Protection for Changelog Sync
 

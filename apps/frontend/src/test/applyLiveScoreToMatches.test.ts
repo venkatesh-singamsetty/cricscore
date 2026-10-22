@@ -49,6 +49,21 @@ describe("unwrapLiveScoreMessage", () => {
     expect(unwrapped?.payload.explicitTotalRuns).toBe(3);
   });
 
+  it("unwraps a direct lambda invocation payload with event.body", () => {
+    const unwrapped = unwrapLiveScoreMessage({
+      type: "LIVE_SCORE_UPDATE",
+      data: {
+        body: JSON.stringify({
+          matchId: "hub-match-123",
+          type: "HUB_UPDATE",
+          syncOnly: true,
+        }),
+      },
+    });
+    expect(unwrapped?.type).toBe("HUB_UPDATE");
+    expect(unwrapped?.payload.matchId).toBe("hub-match-123");
+  });
+
   it("unwraps a double-nested data payload", () => {
     const unwrapped = unwrapLiveScoreMessage({
       type: "LIVE_SCORE_UPDATE",

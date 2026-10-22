@@ -86,4 +86,129 @@ describe("score-update Lambda handler", () => {
     expect(responseBody.messageId).toBe("mock-sns-id-123");
     expect(mockRelease).toHaveBeenCalled();
   });
+
+  it("should reject payload missing matchId or inningId without connecting to DB", async () => {
+    const event = {
+      requestContext: {
+        authorizer: { jwt: { claims: { email: "scorer@test.com" } } },
+      },
+      body: JSON.stringify({ matchId: "match_123" }), // Missing inningId
+    };
+
+    const response = await handler(event);
+    expect(response.statusCode).toBe(400);
+    expect(JSON.parse(response.body).error).toContain(
+      "Missing required fields",
+    );
+    expect(mockConnect).not.toHaveBeenCalled();
+  });
+
+  it("should reject invalid JSON body with 400 Bad Request", async () => {
+    const event = {
+      requestContext: {
+        authorizer: { jwt: { claims: { email: "scorer@test.com" } } },
+      },
+      body: "invalid-json{",
+    };
+
+    const response = await handler(event);
+    expect(response.statusCode).toBe(400);
+    expect(JSON.parse(response.body).error).toContain("Invalid JSON");
+  });
+
+  it("should reject unauthorized user who is not scorer or admin with 403", async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ scorer_email: "different-scorer@test.com" }],
+    });
+
+    const event = {
+      requestContext: {
+        authorizer: { jwt: { claims: { email: "attacker@test.com" } } },
+      },
+      body: JSON.stringify({
+        matchId: "match_123",
+        inningId: "inning_123",
+        runs: 1,
+      }),
+    };
+
+    const response = await handler(event);
+    expect(response.statusCode).toBe(403);
+    expect(mockRelease).toHaveBeenCalled();
+  });
+
+  it("should reject user with group 'NotAdmin' or 'OrgAdmin' if not the scorer", async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ scorer_email: "scorer@test.com" }],
+    });
+
+    const event = {
+      requestContext: {
+        authorizer: {
+          jwt: {
+            claims: {
+              email: "imposter@test.com",
+              "cognito:groups": "[NotAdmin, OrgAdmin]",
+            },
+          },
+        },
+      },
+      body: JSON.stringify({
+        matchId: "match_123",
+        inningId: "inning_123",
+        runs: 1,
+      }),
+    };
+
+    const response = await handler(event);
+    expect(response.statusCode).toBe(403);
+  });
+
+  it("should permit user in exact 'Admin' cognito group even if not the scorer", async () => {
+    const event = {
+      requestContext: {
+        authorizer: {
+          jwt: {
+            claims: {
+              email: "admin@test.com",
+              "cognito:groups": "[Admin]",
+            },
+          },
+        },
+      },
+      body: JSON.stringify({
+        matchId: "match_123",
+        inningId: "inning_123",
+        runs: 1,
+      }),
+    };
+
+    const response = await handler(event);
+    expect(response.statusCode).toBe(200);
+    expect(JSON.parse(response.body).success).toBe(true);
+  });
+
+  it("should permit superadmin matching ADMIN_REPORT_EMAIL even if not the scorer", async () => {
+    process.env.ADMIN_REPORT_EMAIL = "superadmin@cricscore.test";
+    const event = {
+      requestContext: {
+        authorizer: {
+          jwt: {
+            claims: {
+              email: "superadmin@cricscore.test",
+            },
+          },
+        },
+      },
+      body: JSON.stringify({
+        matchId: "match_123",
+        inningId: "inning_123",
+        runs: 1,
+      }),
+    };
+
+    const response = await handler(event);
+    expect(response.statusCode).toBe(200);
+    expect(JSON.parse(response.body).success).toBe(true);
+  });
 });
