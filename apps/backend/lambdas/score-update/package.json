@@ -8,8 +8,8 @@
     "node": ">=24"
   },
   "dependencies": {
-    "@aws-sdk/client-sns": "^3.1152.0",
-    "@aws-sdk/client-sqs": "^3.1149.0",
+    "@aws-sdk/client-sns": "^3.1155.0",
+    "@aws-sdk/client-sqs": "^3.1155.0",
     "pg": "^8.23.1"
   }
 }

@@ -101,8 +101,23 @@ npx playwright install --with-deps
 # Run End-to-End (E2E) UI Tests
 npm run test:e2e
 
+# Run Live E2E Tests on Dev (Headless)
+npm run test:e2e:dev
+
+# Run Live E2E Tests on Dev (Headed - opens browser so you can watch live)
+npm run test:e2e:dev:headed
+
+# Run Multi-Browser Real-Time Live Sync on Dev (Headed Scorer + Spectator side-by-side)
+npm run test:e2e:sync:headed
+
+# Run 2-Over User Journey Full Match Scoring on Dev (Headed)
+npm run test:e2e:journey:headed
+
 # Run AI Chatbot Evaluation Tests (Validates LLM tool-calling logic)
 npm run test:ai
+
+# Check outdated dependencies across workspaces and lambdas before pushing
+npm run deps:check
 
 # Run Backend tests in Watch mode (Must run from backend folder)
 npm run test:watch --prefix apps/backend

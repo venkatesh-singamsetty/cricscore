@@ -40,6 +40,14 @@ Handles RESTful initialization, metadata updates, match reports, and lookup of m
 
 Manages the lifecycle of live spectators by updating the **DynamoDB** connection registry.
 
+### 6. **Chat API (`chat-api/`)**
+
+Node.js Agent Supervisor orchestrating autonomous specialist tools (PostgreSQL read-only queries, pgvector tournament rules RAG, Open-Meteo weather forecasts, and rate-guarded GitHub issue reporting).
+
+### 7. **Cognito Pre-Signup (`cognito-presignup/`)**
+
+AWS Cognito Pre-Signup trigger Lambda that enforces auto-confirmation and email verification for seamless user onboarding.
+
 ---
 
 ## 🌩️ Deployment Notes

@@ -9,6 +9,7 @@ CricScore keeps focused, project-specific agent guidance under `.agents/skills/<
 | `cricscore-code-review-standards`    | Reviewing diffs and reporting actionable findings                   |
 | `cricscore-security-standards`       | Secrets, trust boundaries, secure coding, and security checks       |
 | `cricscore-pr-and-workflow`          | Branches, pull requests, CI/CD, and developer commands              |
+| `cricscore-dependabot-consolidation` | Consolidating open Dependabot PRs into feature branches             |
 | `cricscore-cost-governance`          | AWS cost implications and cost-sensitive proposals                  |
 | `cricscore-infrastructure-standards` | Terraform, state, AWS infrastructure, and deployments               |
 | `cricscore-frontend-architecture`    | React UI, live state, and responsive behavior                       |

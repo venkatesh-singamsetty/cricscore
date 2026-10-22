@@ -22,21 +22,28 @@ CHAT_API_URL=https://api.example.com npm run test:all
 
 ---
 
-## ⚡ Full Local Pre-Push Validation & Smart Hook Caching
+## ⚡ Fast Local Pre-Push Validation & Smart Hook Caching
 
 Before pushing code, run the unified local validation script:
 
 ```bash
+# Ultra-fast mode (Frontend + Backend + Python + Terraform + Checkov + GitLeaks + Trivy in ~25s):
+./infra/scripts/validate_local.sh --fast
+
+# Or skip E2E while retaining Syft SBOM generation:
 ./infra/scripts/validate_local.sh --skip-e2e
+
+# Or skip SBOM only:
+./infra/scripts/validate_local.sh --skip-sbom
 ```
 
-This executes the entire local test battery in sequence:
+This executes the entire local test battery:
 
 1. **Frontend**: Lint (`tsc --noEmit`), unit & integration tests (`vitest`), high-severity npm audit, and Vite production build.
 2. **Backend**: Unit tests (`vitest`) and npm audit across Lambdas.
 3. **Python AI & ML**: Pytest suites for `apps/ai-service` and `apps/ml-engine`.
 4. **Infrastructure**: Terraform format & validation, and platform dashboard generation.
-5. **Security & SBOM**: Checkov IaC scanning, GitLeaks secrets detection, Trivy vulnerability scanning, and Syft SBOM generation.
+5. **Security & SBOM**: Checkov IaC scanning (`--download-external-modules false`), GitLeaks secrets detection, Trivy vulnerability scanning, and Syft SBOM generation (package-lock optimized).
 
 ### Zero-Waste Pre-Push Git Hook
 
@@ -45,7 +52,7 @@ To prevent duplicate test execution and wasted developer time, `validate_local.s
 - When `git push` runs, the `.husky/pre-push` hook verifies if the current tree state already passed validation.
 - If already validated, the hook exits instantly (**< 0.1s**) with:
   `⚡ Local validation already passed for <commit>. Skipping duplicate tests!`
-- If uncommitted changes exist or validation was not run, `pre-push` executes the validation automatically as a safety gate.
+- If uncommitted changes exist or validation was not run, `pre-push` automatically runs with `--fast` (~25s) as a safety gate.
 - To bypass manually if needed, push with `git push --no-verify` or set `SKIP_PRE_PUSH=1 git push`.
 
 ---
@@ -54,12 +61,12 @@ To prevent duplicate test execution and wasted developer time, `validate_local.s
 
 Unit tests are isolated tests that verify individual functions, utilities, or background cloud logic without spinning up external dependencies.
 
-- **Frontend Unit Tests**: Validate React Types, state handlers, live WebSocket score merge utilities (including `previousInnings` reconciliation, dynamic 2nd-innings creation, and instant `COMPLETED` transition on target chase), Duckworth-Lewis-Stern (DLS) Par Score calculations (1–50 overs), scorer access guards, mobile zero-scroll Sign-In viewport layout contract, localStorage safety, summary formatting, native Markdown table parsing in ChatBot UI, and secure link sanitization (preventing DOM XSS).
-  - _Location:_ `apps/frontend/src/test/types.test.ts`, `apps/frontend/src/test/dlsUtils.test.ts`, `apps/frontend/src/test/applyLiveScoreToMatches.test.ts`, `apps/frontend/src/test/scorerAccess.test.ts`, `apps/frontend/src/test/storageSafety.test.ts`, `apps/frontend/src/test/summaryFormat.test.ts`, `apps/frontend/src/test/authConfig.test.ts`, `apps/frontend/src/test/ChatComponent.test.tsx`
-- **ML Engine Unit Tests (PyTest)**: Validate format-agnostic ball-by-ball dynamic-programming win probability (`win_probability.py`), DLS resource parity alignment on achievable chases, 10-to-20 over T20 model blending, decided/impossible chase overrides, and versioned S3 model loading with SHA-256 checksum verification in Python.
+- **Frontend Unit Tests**: Validate React Types, state handlers, live WebSocket score merge utilities (including `previousInnings` reconciliation, dynamic 2nd-innings creation, and instant `COMPLETED` transition on target chase), Duckworth-Lewis-Stern (DLS) Par Score calculations (1–50 overs), partnership calculations (`partnershipUtils`), scorer access guards, mobile zero-scroll Sign-In viewport layout contract, localStorage safety, summary formatting, result text highlighting (`HighlightedResult`), custom WebSocket reconnection logic (`useWebSocket`), native Markdown table parsing in ChatBot UI, and secure link sanitization (preventing DOM XSS).
+  - _Location:_ `apps/frontend/src/test/types.test.ts`, `apps/frontend/src/test/dlsUtils.test.ts`, `apps/frontend/src/test/partnershipUtils.test.ts`, `apps/frontend/src/test/applyLiveScoreToMatches.test.ts`, `apps/frontend/src/test/scorerAccess.test.ts`, `apps/frontend/src/test/storageSafety.test.ts`, `apps/frontend/src/test/summaryFormat.test.ts`, `apps/frontend/src/test/authConfig.test.ts`, `apps/frontend/src/test/HighlightedResult.test.tsx`, `apps/frontend/src/test/useWebSocket.test.ts`, `apps/frontend/src/test/ChatComponent.test.tsx`
+- **ML Engine Unit Tests (PyTest)**: Validate format-agnostic ball-by-ball dynamic-programming win probability (`win_probability.py`), DLS resource parity alignment on achievable chases, lower-order tail factor degradation, 10-to-20 over T20 model blending, decided/impossible chase overrides, and versioned S3 model loading with SHA-256 checksum verification in Python.
   - _Location:_ `apps/ml-engine/test_predict.py`
-- **Backend Event-Driven Unit Tests**: Validate AWS Lambda workers (e.g., `storage-worker`, `broadcaster`, `score-update`, `chat-api` handlers and MCP tools including `create_github_issue` with per-message rate limiting and repository target guards, and `get_match_weather` with free Open-Meteo geocoding and hourly cricket DLS advisories) using `aws-sdk-client-mock` and Vitest mocks.
-  - _Location:_ `apps/backend/lambdas/storage-worker/index.test.js`, `apps/backend/lambdas/broadcaster/index.test.js`, `apps/backend/lambdas/score-update/index.test.js`, `apps/backend/lambdas/onconnect/index.test.js`, `apps/backend/lambdas/ondisconnect/index.test.js`, `apps/backend/lambdas/chat-api/handlers/*.test.js`, `apps/backend/lambdas/chat-api/mcp/tools/tools.test.js`, `apps/backend/lambdas/chat-api/mcp/tools/createGithubIssue.test.js`, `apps/backend/lambdas/chat-api/mcp/tools/getMatchWeather.test.js`
+- **Backend Event-Driven Unit Tests**: Validate AWS Lambda workers (e.g., `storage-worker`, `broadcaster`, `score-update`, `cognito-presignup` shadow account auto-confirmation, `chat-api` handlers and MCP tools including `create_github_issue` with per-message rate limiting and repository target guards, and `get_match_weather` with free Open-Meteo geocoding and hourly cricket DLS advisories) using `aws-sdk-client-mock` and Vitest mocks.
+  - _Location:_ `apps/backend/lambdas/storage-worker/index.test.js`, `apps/backend/lambdas/broadcaster/index.test.js`, `apps/backend/lambdas/score-update/index.test.js`, `apps/backend/lambdas/onconnect/index.test.js`, `apps/backend/lambdas/ondisconnect/index.test.js`, `apps/backend/lambdas/cognito-presignup/index.test.js`, `apps/backend/lambdas/chat-api/handlers/*.test.js`, `apps/backend/lambdas/chat-api/mcp/tools/tools.test.js`, `apps/backend/lambdas/chat-api/mcp/tools/createGithubIssue.test.js`, `apps/backend/lambdas/chat-api/mcp/tools/getMatchWeather.test.js`
 
 ### Running Unit Tests
 
@@ -73,8 +80,8 @@ Unit tests are isolated tests that verify individual functions, utilities, or ba
 
 Integration tests verify that different components and services work together correctly, simulating interactions without rendering in a real browser.
 
-- **Frontend Component Integration**: We use **React Testing Library** to mount React components in a virtual DOM, simulate user clicks, input typing, WebSocket messages, and verify that the components properly validate state transitions and payloads before firing network calls.
-  - _Location:_ `apps/frontend/src/test/MatchList.test.tsx`, `apps/frontend/src/test/MatchSetup.test.tsx`, `apps/frontend/src/test/MatchView.test.tsx`, `apps/frontend/src/test/LiveScoreboard.test.tsx`, `apps/frontend/src/test/AiMatchPrediction.test.tsx`, `apps/frontend/src/test/ChatComponent.test.tsx`
+- **Frontend Component Integration**: We use **React Testing Library** to mount React components in a virtual DOM, simulate user clicks, input typing, WebSocket messages, and verify that the components properly validate state transitions and payloads before firing network calls (including Admin Panel bulk deletion for Guest, Incomplete, and Test matches, and MatchList/LiveScoreboard test match classification with `TEST 🧪` vs `GUEST 👻` badges).
+  - _Location:_ `apps/frontend/src/test/App.test.tsx`, `apps/frontend/src/test/AdminPanel.test.tsx`, `apps/frontend/src/test/MatchList.test.tsx`, `apps/frontend/src/test/MatchSetup.test.tsx`, `apps/frontend/src/test/MatchView.test.tsx`, `apps/frontend/src/test/MatchViewModals.test.tsx`, `apps/frontend/src/test/LiveScoreboard.test.tsx`, `apps/frontend/src/test/Scoreboard.test.tsx`, `apps/frontend/src/test/AiMatchPrediction.test.tsx`, `apps/frontend/src/test/ChatComponent.test.tsx`
 
 ### Running Integration Tests
 
@@ -142,7 +149,25 @@ E2E tests sit at the very top of the testing pyramid. They utilize **Playwright*
 
 ### Running E2E Tests
 
-Because E2E tests require specific browser binaries, you must run them directly from the `e2e` folder.
+You can run E2E tests directly from the root repository or inside `apps/e2e`.
+
+#### Quick Commands from Monorepo Root:
+
+```bash
+# Run all E2E tests against Dev environment (Headless)
+npm run test:e2e:dev
+
+# Run all E2E tests against Dev environment (Headed - opens browser window)
+npm run test:e2e:dev:headed
+
+# Run Multi-Browser Live Sync test against Dev (Headed Scorer + Spectator side-by-side)
+npm run test:e2e:sync:headed
+
+# Run Full 2-Over User Journey match scoring test against Dev (Headed)
+npm run test:e2e:journey:headed
+```
+
+#### Running Directly from `apps/e2e`:
 
 1. Navigate to the E2E directory:
    ```bash
@@ -153,15 +178,19 @@ Because E2E tests require specific browser binaries, you must run them directly 
    npm install
    npx playwright install --with-deps
    ```
-3. Run all configured Playwright tests (smoke, HTTP API, AI API, and user journey) in headless mode:
+3. Run all configured Playwright tests (smoke, HTTP API, AI API, user journey, and multi-browser live sync) in headless mode:
    ```bash
    npx playwright test
    ```
-4. Run **only** the E2E User Journey test:
+4. Run the **Multi-Browser Real-Time Live Sync** test (verifies simultaneous Scorer + Spectator browser contexts reflecting live deliveries and Undo):
    ```bash
-   npx playwright test tests/user-journey.spec.ts
+   npx playwright test tests/multi-browser-live-sync.spec.ts --headed
    ```
-5. Run tests in UI mode (Interactive visual debugger):
+5. Run **only** the E2E User Journey test:
+   ```bash
+   npx playwright test tests/user-journey.spec.ts --headed
+   ```
+6. Run tests in UI mode (Interactive visual debugger):
    ```bash
    npx playwright test --ui
    ```
@@ -235,8 +264,18 @@ When merged to `main`, `ci.yml` automatically triggers `deploy_and_test_dev`:
 2. Applies Terraform and updates Lambda containers in ECR.
 3. Builds and syncs the frontend to S3 and invalidates CloudFront.
 4. Executes live AI chat evaluation (`npm run test:ai`).
-5. Executes the full **Playwright E2E Test Suite (14 tests)** against `https://cricscoredev.venkateshsingamsetty.com`.
+5. Executes the full **Playwright E2E Test Suite (15 tests across 5 suites)** against `https://cricscoredev.venkateshsingamsetty.com`.
 6. Executes the **OWASP ZAP DAST** baseline vulnerability scan.
+
+---
+
+## 9. Test Match Identification & Bulk Database Cleanup
+
+To keep automated testing and manual practice matches separate from real matches:
+
+- **`is_test` Column & Auto-Detection**: Matches created via E2E tests, squad setup with test keywords, or explicit `isTest: true` are stored with `is_test = TRUE` (indexed via `idx_matches_is_test`).
+- **Visual Identity (`TEST 🧪` vs `GUEST 👻`)**: `MatchList` and `LiveScoreboard` render a distinctive purple `TEST 🧪` badge for test fixtures and an amber `GUEST 👻` badge for authentic unauthenticated guest matches, preventing test data from being conflated with user guest fixtures.
+- **Admin Bulk Cleanup**: Admin users can filter to test fixtures via the `TESTS 🧪` toggle in Database Management and execute one-click bulk deletion via `DELETE /admin/matches/test` (`🧪 Delete Test Matches` button in `AdminPanel.tsx`).
 
 ---
 

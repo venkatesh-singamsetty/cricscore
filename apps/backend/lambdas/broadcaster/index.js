@@ -1,4 +1,8 @@
-const { DynamoDBClient, ScanCommand } = require("@aws-sdk/client-dynamodb");
+const {
+  DynamoDBClient,
+  ScanCommand,
+  DeleteItemCommand,
+} = require("@aws-sdk/client-dynamodb");
 const {
   ApiGatewayManagementApiClient,
   PostToConnectionCommand,
@@ -36,10 +40,29 @@ exports.handler = async (event) => {
   let matchEvents = [];
 
   // CASE A: SNS Event (v2.0 Fast-Path)
-  if (event.Records && event.Records[0].EventSource === "aws:sns") {
+  if (
+    Array.isArray(event.Records) &&
+    event.Records.length > 0 &&
+    (event.Records[0]?.EventSource === "aws:sns" ||
+      event.Records[0]?.eventSource === "aws:sns")
+  ) {
     console.log("Source: AWS SNS (Fast-Path)");
     for (const record of event.Records) {
-      matchEvents.push(JSON.parse(record.Sns.Message));
+      if (record?.Sns?.Message) {
+        try {
+          matchEvents.push(JSON.parse(record.Sns.Message));
+        } catch (parseErr) {
+          matchEvents.push(record.Sns.Message);
+        }
+      }
+    }
+  } else if (event.body) {
+    try {
+      const parsed =
+        typeof event.body === "string" ? JSON.parse(event.body) : event.body;
+      matchEvents.push(parsed);
+    } catch {
+      matchEvents.push(event);
     }
   } else {
     console.warn(
@@ -63,8 +86,21 @@ exports.handler = async (event) => {
           }),
         );
       } catch (e) {
-        if (e.name === "GoneException") {
-          console.log(`Connection ${connectionId} is gone.`);
+        if (e.name === "GoneException" || e.$metadata?.httpStatusCode === 410) {
+          console.log(`Connection ${connectionId} is gone. Pruning from DB.`);
+          try {
+            await dynamoClient.send(
+              new DeleteItemCommand({
+                TableName: TABLE_NAME,
+                Key: { connectionId: { S: connectionId } },
+              }),
+            );
+          } catch (pruneErr) {
+            console.error(
+              `Failed to prune stale connection ${connectionId}:`,
+              pruneErr,
+            );
+          }
         } else {
           console.error(`Error sending to ${connectionId}:`, e);
         }

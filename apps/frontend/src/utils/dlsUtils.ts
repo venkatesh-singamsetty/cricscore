@@ -42,8 +42,13 @@ const F_BY_WICKETS: number[] = (() => {
 })();
 
 const zResource = (oversRemaining: number, wicketsLost: number): number => {
-  if (wicketsLost >= 10) return 0;
-  const w = Math.max(0, Math.floor(wicketsLost));
+  if (
+    !Number.isFinite(wicketsLost) ||
+    !Number.isFinite(oversRemaining) ||
+    wicketsLost >= 10
+  )
+    return 0;
+  const w = Math.min(9, Math.max(0, Math.floor(wicketsLost)));
   return rawZ(oversRemaining, F_BY_WICKETS[w]);
 };
 

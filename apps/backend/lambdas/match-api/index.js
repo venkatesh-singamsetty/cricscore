@@ -166,21 +166,30 @@ const getClaims = (event) => {
   return claims;
 };
 
-const isAuthorized = (event, matchRecord) => {
-  const claims = getClaims(event);
+const isAdminClaims = (claims) => {
+  if (!claims || typeof claims !== "object") return false;
   const userEmail = claims.email;
-  const isSuperAdmin =
-    userEmail && userEmail === process.env.ADMIN_REPORT_EMAIL;
+  const isSuperAdmin = Boolean(
+    userEmail &&
+    process.env.ADMIN_REPORT_EMAIL &&
+    userEmail.toLowerCase() === process.env.ADMIN_REPORT_EMAIL.toLowerCase(),
+  );
   const groups = claims["cognito:groups"] || [];
-  // Exact group-name match (API Gateway may serialize arrays as "[Admin Other]").
   const groupList = Array.isArray(groups)
     ? groups
     : String(groups)
         .replace(/[[\]"]/g, "")
-        .split(/[\s,]+/);
+        .split(/[\s,]+/)
+        .map((g) => g.trim())
+        .filter(Boolean);
   const hasAdminGroup = groupList.includes("Admin");
+  return isSuperAdmin || hasAdminGroup;
+};
 
-  if (isSuperAdmin || hasAdminGroup) return true;
+const isAuthorized = (event, matchRecord) => {
+  const claims = getClaims(event);
+  if (isAdminClaims(claims)) return true;
+  const userEmail = claims.email;
   if (matchRecord && userEmail && userEmail === matchRecord.scorer_email)
     return true;
 
@@ -428,11 +437,16 @@ const sendMatchReportEmail = async (
               </thead>
               <tbody>`;
         partnerships.forEach((p, idx) => {
+          const wicketLabel = escapeHtml(
+            p.unbroken ? "Unbroken" : `Wicket ${idx + 1}`,
+          );
+          const safeRuns = escapeHtml(p.runs);
+          const safeBalls = escapeHtml(p.balls);
           htmlBody += `
                 <tr style="border-bottom: 1px solid #1e293b;">
-                    <td style="color: #f1f5f9; padding: 12px; font-weight: bold;">${p.unbroken ? "Unbroken" : `Wicket ${idx + 1}`}</td>
-                    <td style="color: #f1f5f9; padding: 12px;">${p.runs}</td>
-                    <td style="padding: 12px; color: #64748b;">${p.balls}</td>
+                    <td style="color: #f1f5f9; padding: 12px; font-weight: bold;">${wicketLabel}</td>
+                    <td style="color: #f1f5f9; padding: 12px;">${safeRuns}</td>
+                    <td style="padding: 12px; color: #64748b;">${safeBalls}</td>
                 </tr>`;
         });
         htmlBody += `</tbody></table></div>`;
@@ -456,13 +470,18 @@ const sendMatchReportEmail = async (
         const ov = b.overs_completed || b.overs || 0;
         const balls = b.balls || 0;
         const runs = b.runs_conceded || b.runsConceded || 0;
+        const safeBowlerName = escapeHtml(b.name || "Unknown Bowler");
+        const safeBowlerOvers = escapeHtml(`${ov}.${balls}`);
+        const safeBowlerMaidens = escapeHtml(b.maidens || 0);
+        const safeBowlerRuns = escapeHtml(runs);
+        const safeBowlerWickets = escapeHtml(b.wickets || 0);
         htmlBody += `
                 <tr style="border-bottom: 1px solid #1e293b;">
-                    <td style="color: #f1f5f9; padding: 12px; font-weight: bold;">${b.name}</td>
-                    <td style="color: #f1f5f9; padding: 12px;">${ov}.${balls}</td>
-                    <td style="padding: 12px; color: #64748b;">${b.maidens || 0}</td>
-                    <td style="color: #f1f5f9; padding: 12px;">${runs}</td>
-                    <td style="padding: 12px; color: #fb7185; font-weight: 800;">${b.wickets}</td>
+                    <td style="color: #f1f5f9; padding: 12px; font-weight: bold;">${safeBowlerName}</td>
+                    <td style="color: #f1f5f9; padding: 12px;">${safeBowlerOvers}</td>
+                    <td style="padding: 12px; color: #64748b;">${safeBowlerMaidens}</td>
+                    <td style="color: #f1f5f9; padding: 12px;">${safeBowlerRuns}</td>
+                    <td style="padding: 12px; color: #fb7185; font-weight: 800;">${safeBowlerWickets}</td>
                 </tr>`;
       });
 
@@ -520,6 +539,20 @@ const sendMatchReportEmail = async (
   let adminEmailSent = false;
   let scorerEmailSent = false;
 
+  const sanitizeHeader = (val) =>
+    String(val ?? "")
+      .replace(/[\r\n]/g, " ")
+      .trim();
+  const cleanTeamA = sanitizeHeader(matchRecord.team_a_name || "Team A");
+  const cleanTeamB = sanitizeHeader(matchRecord.team_b_name || "Team B");
+  const schemaTag = sanitizeHeader(
+    process.env.DB_SCHEMA || "DEV",
+  ).toUpperCase();
+  const isValidEmail = (email) =>
+    typeof email === "string" &&
+    !/[\r\n]/.test(email) &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+
   // --- 1. SEND TO ADMIN ---
   if (sendToAdmin && process.env.ADMIN_REPORT_EMAIL) {
     try {
@@ -530,7 +563,7 @@ const sendMatchReportEmail = async (
             Body: { Html: { Charset: "UTF-8", Data: htmlBody } },
             Subject: {
               Charset: "UTF-8",
-              Data: `[${(process.env.DB_SCHEMA || "DEV").toUpperCase()}] 🏏 ADMIN REPORT: ${matchRecord.team_a_name} vs ${matchRecord.team_b_name}`,
+              Data: `[${schemaTag}] 🏏 ADMIN REPORT: ${cleanTeamA} vs ${cleanTeamB}`,
             },
           },
           Source: process.env.SES_SOURCE || "noreply@example.com",
@@ -544,16 +577,20 @@ const sendMatchReportEmail = async (
   }
 
   // --- 2. SEND TO SCORER ---
-  if (emailTo && emailTo !== process.env.ADMIN_REPORT_EMAIL) {
+  if (
+    emailTo &&
+    isValidEmail(emailTo) &&
+    emailTo !== process.env.ADMIN_REPORT_EMAIL
+  ) {
     try {
       await ses.send(
         new SendEmailCommand({
-          Destination: { ToAddresses: [emailTo] },
+          Destination: { ToAddresses: [emailTo.trim()] },
           Message: {
             Body: { Html: { Charset: "UTF-8", Data: htmlBody } },
             Subject: {
               Charset: "UTF-8",
-              Data: `[${(process.env.DB_SCHEMA || "DEV").toUpperCase()}] 🏏 FINAL SCORECARD: ${matchRecord.team_a_name} vs ${matchRecord.team_b_name}`,
+              Data: `[${schemaTag}] 🏏 FINAL SCORECARD: ${cleanTeamA} vs ${cleanTeamB}`,
             },
           },
           Source: process.env.SES_SOURCE || "noreply@example.com",
@@ -655,7 +692,7 @@ exports.handler = async (event, context) => {
     // DELETE /matches (All - Admin Only)
     if (httpMethod === "DELETE" && path === "/matches") {
       const claims = getClaims(event);
-      const isAdmin = (claims["cognito:groups"] || "").includes("Admin");
+      const isAdmin = isAdminClaims(claims);
       if (!isAdmin) {
         return { statusCode: 403, body: "Forbidden - Admins only" };
       }
@@ -766,19 +803,35 @@ exports.handler = async (event, context) => {
         teamASquad,
         teamBSquad,
         scorerEmail,
+        isTest,
       } = JSON.parse(body);
 
       // Force scorerEmail to be the logged-in user unless they are an Admin specifying otherwise
-      const isAdmin = (claims["cognito:groups"] || "").includes("Admin");
+      const isAdmin = isAdminClaims(claims);
       if (!isAdmin || !scorerEmail) {
         scorerEmail = claims.email;
       }
+
+      const isTestMatch = Boolean(
+        isTest ||
+        (teamA &&
+          (teamA.toLowerCase().includes("test") ||
+            teamA.toLowerCase().includes("sync") ||
+            teamA.toUpperCase().startsWith("TEAM A"))) ||
+        (teamB &&
+          (teamB.toLowerCase().includes("test") ||
+            teamB.toLowerCase().includes("sync") ||
+            teamB.toUpperCase().startsWith("TEAM B"))) ||
+        (scorerEmail &&
+          (scorerEmail.toLowerCase().startsWith("test-") ||
+            scorerEmail.toLowerCase().includes("@test."))),
+      );
 
       await client.query("BEGIN");
       try {
         // 1. Create the Match
         const res = await client.query(
-          "INSERT INTO matches (team_a_name, team_b_name, total_overs, bat_first_team, toss_winner, toss_decision, status, scorer_email) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+          "INSERT INTO matches (team_a_name, team_b_name, total_overs, bat_first_team, toss_winner, toss_decision, status, scorer_email, is_test) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
           [
             teamA,
             teamB,
@@ -788,6 +841,7 @@ exports.handler = async (event, context) => {
             tossDecision,
             "LIVE",
             scorerEmail,
+            isTestMatch,
           ],
         );
         const matchId = res.rows[0].id;
@@ -1245,11 +1299,7 @@ exports.handler = async (event, context) => {
     // GET /admin/users (List all users and their roles)
     if (httpMethod === "GET" && path === "/admin/users") {
       const claims = getClaims(event);
-      const isSuperAdmin =
-        claims.email && claims.email === process.env.ADMIN_REPORT_EMAIL;
-      const hasAdminGroup =
-        claims["cognito:groups"] && claims["cognito:groups"].includes("Admin");
-      const isAdmin = isSuperAdmin || hasAdminGroup;
+      const isAdmin = isAdminClaims(claims);
 
       const headers = {
         "Content-Type": "application/json",
@@ -1342,12 +1392,7 @@ exports.handler = async (event, context) => {
     // POST /admin/users/roles (Add user to Admin or Scorer group)
     if (httpMethod === "POST" && path === "/admin/users/roles") {
       const claims = getClaims(event);
-
-      const isSuperAdmin =
-        claims.email && claims.email === process.env.ADMIN_REPORT_EMAIL;
-      const hasAdminGroup =
-        claims["cognito:groups"] && claims["cognito:groups"].includes("Admin");
-      const isAdmin = isSuperAdmin || hasAdminGroup;
+      const isAdmin = isAdminClaims(claims);
 
       const headers = {
         "Content-Type": "application/json",
@@ -1403,12 +1448,7 @@ exports.handler = async (event, context) => {
     // DELETE /admin/users/roles (Remove user from Admin or Scorer group)
     if (httpMethod === "DELETE" && path === "/admin/users/roles") {
       const claims = getClaims(event);
-
-      const isSuperAdmin =
-        claims.email && claims.email === process.env.ADMIN_REPORT_EMAIL;
-      const hasAdminGroup =
-        claims["cognito:groups"] && claims["cognito:groups"].includes("Admin");
-      const isAdmin = isSuperAdmin || hasAdminGroup;
+      const isAdmin = isAdminClaims(claims);
 
       const headers = {
         "Content-Type": "application/json",
@@ -1474,11 +1514,7 @@ exports.handler = async (event, context) => {
     // DELETE /admin/users/guests (Delete all guest users)
     if (httpMethod === "DELETE" && path === "/admin/users/guests") {
       const claims = getClaims(event);
-      const isSuperAdmin =
-        claims.email && claims.email === process.env.ADMIN_REPORT_EMAIL;
-      const hasAdminGroup =
-        claims["cognito:groups"] && claims["cognito:groups"].includes("Admin");
-      const isAdmin = isSuperAdmin || hasAdminGroup;
+      const isAdmin = isAdminClaims(claims);
 
       const headers = {
         "Content-Type": "application/json",
@@ -1562,11 +1598,7 @@ exports.handler = async (event, context) => {
     // DELETE /admin/matches/guests (Delete all guest matches)
     if (httpMethod === "DELETE" && path === "/admin/matches/guests") {
       const claims = getClaims(event);
-      const isSuperAdmin =
-        claims.email && claims.email === process.env.ADMIN_REPORT_EMAIL;
-      const hasAdminGroup =
-        claims["cognito:groups"] && claims["cognito:groups"].includes("Admin");
-      const isAdmin = isSuperAdmin || hasAdminGroup;
+      const isAdmin = isAdminClaims(claims);
 
       const headers = {
         "Content-Type": "application/json",
@@ -1609,11 +1641,7 @@ exports.handler = async (event, context) => {
     // DELETE /admin/matches/incomplete (Delete all incomplete matches)
     if (httpMethod === "DELETE" && path === "/admin/matches/incomplete") {
       const claims = getClaims(event);
-      const isSuperAdmin =
-        claims.email && claims.email === process.env.ADMIN_REPORT_EMAIL;
-      const hasAdminGroup =
-        claims["cognito:groups"] && claims["cognito:groups"].includes("Admin");
-      const isAdmin = isSuperAdmin || hasAdminGroup;
+      const isAdmin = isAdminClaims(claims);
 
       const headers = {
         "Content-Type": "application/json",
@@ -1653,15 +1681,56 @@ exports.handler = async (event, context) => {
       }
     }
 
+    // DELETE /admin/matches/test (Delete all test matches)
+    if (
+      httpMethod === "DELETE" &&
+      (path === "/admin/matches/test" || path === "/admin/matches/tests")
+    ) {
+      const claims = getClaims(event);
+      const isAdmin = isAdminClaims(claims);
+
+      const headers = {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      };
+
+      if (!isAdmin) {
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({ error: "Forbidden - Admins only" }),
+        };
+      }
+
+      try {
+        const res = await client.query(
+          "DELETE FROM matches WHERE is_test = TRUE OR team_a_name ILIKE '%test%' OR team_b_name ILIKE '%test%' OR team_a_name ILIKE '%sync%' OR team_b_name ILIKE '%sync%' OR team_a_name ILIKE 'TEAM A%' OR team_b_name ILIKE 'TEAM B%' OR scorer_email LIKE 'test-%' RETURNING id",
+        );
+        const deletedCount = res.rowCount || 0;
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            deletedMatchesCount: deletedCount,
+            message: `Deleted ${deletedCount} test matches.`,
+          }),
+        };
+      } catch (err) {
+        console.error("Failed to delete test matches:", err);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ error: err.message }),
+        };
+      }
+    }
+
     // DELETE /admin/users (Delete user permanently from Cognito)
     if (httpMethod === "DELETE" && path === "/admin/users") {
       const claims = getClaims(event);
-
-      const isSuperAdmin =
-        claims.email && claims.email === process.env.ADMIN_REPORT_EMAIL;
-      const hasAdminGroup =
-        claims["cognito:groups"] && claims["cognito:groups"].includes("Admin");
-      const isAdmin = isSuperAdmin || hasAdminGroup;
+      const isAdmin = isAdminClaims(claims);
 
       const headers = {
         "Content-Type": "application/json",

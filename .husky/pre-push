@@ -41,5 +41,5 @@ if [ -f "$RECEIPT_FILE" ] && [ -n "$HASH_CMD" ]; then
   fi
 fi
 
-echo "🚀 Running local validation before pushing (Skipping Playwright E2E)..."
-"$REPO_ROOT/infra/scripts/validate_local.sh" --skip-e2e
+echo "🚀 Running local validation before pushing (Skipping Playwright E2E & SBOM)..."
+"$REPO_ROOT/infra/scripts/validate_local.sh" --fast

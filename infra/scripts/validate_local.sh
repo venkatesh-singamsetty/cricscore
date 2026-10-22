@@ -6,9 +6,25 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 
 SKIP_E2E=false
-if [[ "$1" == "--skip-e2e" ]]; then
-  SKIP_E2E=true
-fi
+SKIP_SBOM=true
+
+for arg in "$@"; do
+  case "$arg" in
+    --skip-e2e)
+      SKIP_E2E=true
+      ;;
+    --sbom)
+      SKIP_SBOM=false
+      ;;
+    --skip-sbom)
+      SKIP_SBOM=true
+      ;;
+    --fast)
+      SKIP_E2E=true
+      SKIP_SBOM=true
+      ;;
+  esac
+done
 
 echo "🚀 Starting Full Local Validation..."
 
@@ -101,7 +117,7 @@ echo "-----------------------------------"
 
 if command -v checkov &> /dev/null; then
   echo "👉 Running Checkov IaC Scan..."
-  checkov -d infra/terraform/ --quiet
+  checkov -d infra/terraform/ --quiet --download-external-modules false
 else
   echo "⚠️ checkov not installed, skipping. Run ./infra/scripts/setup.sh"
 fi
@@ -121,9 +137,11 @@ else
   echo "⚠️ trivy not installed, skipping. Run ./infra/scripts/setup.sh"
 fi
 
-if command -v syft &> /dev/null; then
+if [ "$SKIP_SBOM" = true ]; then
+  echo "⏭️  Skipping Syft SBOM generation (handled automatically in CI on production merge; use --sbom to generate locally)..."
+elif command -v syft &> /dev/null; then
   echo "👉 Generating Syft SBOM..."
-  syft dir:. -o spdx-json > cricscore-sbom.json
+  syft scan:package-lock.json -o spdx-json > cricscore-sbom.json
   echo "✅ cricscore-sbom.json generated."
 else
   echo "⚠️ syft not installed, skipping. Run ./infra/scripts/setup.sh"

@@ -13,7 +13,7 @@ graph TD
     B -- Yes --> D{User Role?}
     C --> E[Sign Up / Sign In]
     C --> F[Continue as Guest]
-    F --> G[Guest Cognito Account Created<br/>guest-timestamp@cricscore.local]
+    F --> G["Guest Cognito Account Created (guest-timestamp@cricscore.local)"]
     E --> H[Cognito JWT Token Issued]
     G --> H
     H --> D

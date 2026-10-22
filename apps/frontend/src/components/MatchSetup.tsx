@@ -145,6 +145,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
   const [overs, setOvers] = useState<number | string>(1);
   const [tossWinner, setTossWinner] = useState("Team A");
   const [tossDecision, setTossDecision] = useState("BAT");
+  const [isTestMatch, setIsTestMatch] = useState(false);
   const [mobileStep, setMobileStep] = useState<1 | 2 | 3>(1);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -207,6 +208,21 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
     fetchRecentMatches();
   }, []);
 
+  useEffect(() => {
+    const isTestCandidate =
+      /test|demo|playwright|mock|sync/i.test(teamAName) ||
+      /test|demo|playwright|mock|sync/i.test(teamBName) ||
+      Boolean(
+        initialEmail &&
+        (initialEmail.startsWith("test-") ||
+          initialEmail.includes("@test.") ||
+          initialEmail.includes("playwright")),
+      );
+    if (isTestCandidate) {
+      setIsTestMatch(true);
+    }
+  }, [teamAName, teamBName, initialEmail]);
+
   const getTimeAgo = (dateStr: string) => {
     const diff = Date.now() - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60000);
@@ -260,6 +276,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
               teamASquad: teamA.players,
               teamBSquad: teamB.players,
               scorerEmail: initialEmail,
+              isTest: isTestMatch,
             }),
           });
           if (response.ok) {
@@ -511,6 +528,27 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                 />
               </div>
             </div>
+            {/* Test Match Toggle */}
+            <div className="bg-slate-900/50 border border-purple-500/20 p-3.5 rounded-2xl flex items-center justify-between shrink-0">
+              <div>
+                <div className="text-[8px] font-black uppercase tracking-[0.3em] text-purple-400 mb-0.5">
+                  Identity
+                </div>
+                <div className="text-xs font-black text-white flex items-center gap-1.5">
+                  <span>Test / Practice Match</span>
+                  <span className="text-purple-400">🧪</span>
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  data-testid="test-match-toggle-mobile"
+                  checked={isTestMatch}
+                  onChange={(e) => setIsTestMatch(e.target.checked)}
+                  className="w-5 h-5 rounded accent-purple-500 cursor-pointer"
+                />
+              </label>
+            </div>
             {/* Toss Winner */}
             <div className="bg-slate-900/50 border border-white/5 p-4 rounded-2xl space-y-2.5 shrink-0">
               <div className="text-[8px] font-black uppercase tracking-[0.3em] text-slate-500">
@@ -720,6 +758,18 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                     Overs
                   </span>
                 </div>
+                <label className="flex items-center gap-2 cursor-pointer select-none ml-2 px-3 py-1.5 rounded-xl bg-purple-950/40 border border-purple-500/30 hover:border-purple-500/50 transition-colors">
+                  <input
+                    type="checkbox"
+                    data-testid="test-match-toggle"
+                    checked={isTestMatch}
+                    onChange={(e) => setIsTestMatch(e.target.checked)}
+                    className="w-4 h-4 rounded accent-purple-500 cursor-pointer"
+                  />
+                  <span className="text-[10px] font-black uppercase tracking-wider text-purple-300 whitespace-nowrap">
+                    Test Match 🧪
+                  </span>
+                </label>
               </div>
               <div className="flex flex-col gap-2.5">
                 <div className="space-y-1">

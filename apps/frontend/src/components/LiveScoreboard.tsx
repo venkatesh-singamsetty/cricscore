@@ -55,6 +55,8 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
     totalOvers: number;
     aiSummary?: string | null;
     playerOfTheMatch?: string | null;
+    isTest?: boolean;
+    isGuest?: boolean;
   } | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [showFullScorecard, setShowFullScorecard] = useState(false);
@@ -119,6 +121,27 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
         const response = await fetch(`${API_URL}/match/${matchId}/details`);
         const data = await response.json();
 
+        const isTest = Boolean(
+          data.match.is_test === true ||
+          String(data.match.is_test) === "true" ||
+          (data.match.scorer_email &&
+            (data.match.scorer_email.startsWith("test-") ||
+              data.match.scorer_email.includes("@test.") ||
+              data.match.scorer_email.includes("playwright"))) ||
+          /test|demo|playwright|mock|sync/i.test(
+            data.match.team_a_name || "",
+          ) ||
+          /test|demo|playwright|mock|sync/i.test(data.match.team_b_name || ""),
+        );
+        const isGuest =
+          !isTest &&
+          Boolean(
+            data.match.scorer_email &&
+            (data.match.scorer_email.includes("@cricscore.local") ||
+              data.match.scorer_email.startsWith("guest-") ||
+              data.match.scorer_email.startsWith("guest_")),
+          );
+
         setMatchMeta({
           status: data.match.status,
           teamA: data.match.team_a_name,
@@ -126,6 +149,8 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
           totalOvers: data.match.total_overs,
           aiSummary: data.match.ai_summary,
           playerOfTheMatch: data.match.player_of_the_match,
+          isTest,
+          isGuest,
         });
 
         // If completed match has missing or stale summary, auto-trigger generation
@@ -318,7 +343,27 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
               (newBalls < oldBalls ||
                 (inn.allBalls?.length || 0) < (old.allBalls?.length || 0))
             ) {
-              return old;
+              const mergedPlayers = { ...inn.players, ...old.players };
+              const mergedBattingOrder = [
+                ...(inn.battingOrder || []),
+                ...(old.battingOrder || []).filter(
+                  (id: string) => !(inn.battingOrder || []).includes(id),
+                ),
+              ];
+              const mergedBowlers = { ...inn.bowlers, ...old.bowlers };
+              const mergedBowlingOrder = [
+                ...(inn.bowlingOrder || []),
+                ...(old.bowlingOrder || []).filter(
+                  (id: string) => !(inn.bowlingOrder || []).includes(id),
+                ),
+              ];
+              return {
+                ...old,
+                players: mergedPlayers,
+                battingOrder: mergedBattingOrder,
+                bowlers: mergedBowlers,
+                bowlingOrder: mergedBowlingOrder,
+              };
             }
             return inn;
           });
@@ -505,6 +550,38 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
               payload.ballData?.batter_name ||
               strikerName;
 
+            // Populate full squad in battingOrder and players if sent by scorer
+            if (
+              payload.battingOrderNames &&
+              Array.isArray(payload.battingOrderNames)
+            ) {
+              if (!inn.battingOrder) inn.battingOrder = [];
+              if (!inn.players) inn.players = {};
+              for (const name of payload.battingOrderNames) {
+                if (!name) continue;
+                let existingPlayer = Object.values(inn.players).find(
+                  (p: any) =>
+                    p.name?.trim().toLowerCase() === name.trim().toLowerCase(),
+                ) as any;
+                if (!existingPlayer) {
+                  const pid = `p_${String(name).trim().replace(/\s+/g, "_")}`;
+                  inn.players[pid] = {
+                    id: pid,
+                    name: name,
+                    runs: 0,
+                    ballsFaced: 0,
+                    fours: 0,
+                    sixes: 0,
+                    isOut: false,
+                  };
+                  existingPlayer = inn.players[pid];
+                }
+                if (!inn.battingOrder.includes(existingPlayer.id)) {
+                  inn.battingOrder.push(existingPlayer.id);
+                }
+              }
+            }
+
             if (scoredBatterName && runs !== undefined) {
               const batterObj = Object.values(inn.players || {}).find(
                 (p: any) =>
@@ -531,6 +608,10 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                     payload.ballData.fielderName ||
                     payload.ballData.fielder_name;
                 }
+                if (!inn.battingOrder) inn.battingOrder = [];
+                if (!inn.battingOrder.includes(batterObj.id)) {
+                  inn.battingOrder.push(batterObj.id);
+                }
               } else if (inn.players) {
                 const id = "p_" + Date.now();
                 inn.players[id] = {
@@ -541,6 +622,10 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                   fours: payload.fours || 0,
                   sixes: payload.sixes || 0,
                 };
+                if (!inn.battingOrder) inn.battingOrder = [];
+                if (!inn.battingOrder.includes(id)) {
+                  inn.battingOrder.push(id);
+                }
               }
             }
 
@@ -561,6 +646,10 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                   sixes: 0,
                 };
                 s = inn.players[id];
+                if (!inn.battingOrder) inn.battingOrder = [];
+                if (!inn.battingOrder.includes(id)) {
+                  inn.battingOrder.push(id);
+                }
               }
               inn.strikerId = s.id;
             }
@@ -581,6 +670,10 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                   sixes: 0,
                 };
                 ns = inn.players[id];
+                if (!inn.battingOrder) inn.battingOrder = [];
+                if (!inn.battingOrder.includes(id)) {
+                  inn.battingOrder.push(id);
+                }
               }
               inn.nonStrikerId = ns.id;
             }
@@ -602,6 +695,10 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                   wickets: 0,
                 };
                 b = inn.bowlers[id];
+                if (!inn.bowlingOrder) inn.bowlingOrder = [];
+                if (!inn.bowlingOrder.includes(id)) {
+                  inn.bowlingOrder.push(id);
+                }
               }
               if (payload.bowlerOvers !== undefined)
                 b.overs = Number(payload.bowlerOvers);
@@ -859,7 +956,22 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
               ← BACK TO HUB
             </button>
             {matchMeta && (
-              <div className="text-right">
+              <div className="flex items-center gap-2">
+                {matchMeta.isTest ? (
+                  <span
+                    data-testid="test-match-badge"
+                    className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full border text-purple-300 border-purple-500/30 bg-purple-500/15 tracking-widest flex items-center gap-1"
+                  >
+                    TEST 🧪
+                  </span>
+                ) : matchMeta.isGuest ? (
+                  <span
+                    data-testid="guest-match-badge"
+                    className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full border text-amber-300 border-amber-500/30 bg-amber-500/15 tracking-widest flex items-center gap-1"
+                  >
+                    GUEST 👻
+                  </span>
+                ) : null}
                 <span
                   className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${matchMeta.status === "LIVE" ? "text-emerald-500 border-emerald-500/20 bg-emerald-500/10" : "text-slate-500 border-white/10 bg-white/5"}`}
                 >
@@ -953,73 +1065,116 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
               return (
                 <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-700">
                   {/* Score header */}
-                  <div className="bg-slate-800/80 p-5 rounded-3xl border border-white/5 flex justify-between items-center relative overflow-hidden shadow-xl">
+                  <div className="bg-slate-800/80 p-4 sm:p-5 rounded-3xl border border-white/5 relative overflow-hidden shadow-xl space-y-3">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl -z-10"></div>
-                    <div className="flex flex-col flex-1">
-                      <div className="flex flex-col mb-1.5 gap-1">
-                        <div className="flex items-center gap-2">
-                          <span className="bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/40 text-emerald-300 font-black px-2.5 py-0.5 rounded-full text-[9px] uppercase tracking-wider flex items-center gap-1 shadow-sm shadow-emerald-500/10">
-                            🏏 BATTING: {currentInnings.battingTeamName}
-                          </span>
-                          <span className="text-[9px] text-slate-500 italic">
-                            vs
-                          </span>
-                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                            {currentInnings.bowlingTeamName}
-                          </span>
-                        </div>
-                        <span className="text-xs font-black text-indigo-400 uppercase tracking-widest">
-                          {currentInnings.battingTeamName} INNINGS
+
+                    {/* Top Row: Matchup vs Overs */}
+                    <div className="flex justify-between items-center gap-2">
+                      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
+                        <span className="bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 font-black px-2 sm:px-2.5 py-0.5 rounded-full text-[8px] sm:text-[9px] uppercase tracking-wider shrink-0">
+                          {currentInnings.inningNumber === 1
+                            ? "1ST INN"
+                            : "2ND INN"}
+                        </span>
+                        <span className="text-[9px] text-slate-500 italic">
+                          vs
+                        </span>
+                        <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">
+                          {currentInnings.bowlingTeamName}
                         </span>
                       </div>
 
-                      <div className="flex flex-col gap-1">
-                        {/* Previous Innings Summary (Tight) */}
-                        {matchDetails.innings.length > 1 && (
-                          <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            <div className="flex items-center gap-1 opacity-60">
-                              <span className="text-[8px] font-black bg-slate-700 px-1.5 py-0.5 rounded uppercase tracking-tighter">
-                                INN 1
-                              </span>
-                              <span className="text-xs font-bold text-slate-300">
-                                {matchDetails.innings[0].battingTeamName}:{" "}
-                                {matchDetails.innings[0].totalRuns}/
-                                {matchDetails.innings[0].totalWickets}
-                              </span>
-                            </div>
-                          </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {matchMeta?.status && matchMeta.status !== "LIVE" && (
+                          <span className="px-2 py-0.5 border rounded text-[9px] font-black uppercase tracking-widest bg-slate-700 border-white/10 text-slate-400">
+                            {matchMeta.status}
+                          </span>
                         )}
-
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-xl font-black text-emerald-400 uppercase tracking-tighter mr-2 flex items-center gap-1">
-                            <span>🏏</span> {currentInnings.battingTeamName}:
+                        <span className="text-sm md:text-base font-black text-slate-300 flex items-baseline gap-1 tabular-nums">
+                          <span>
+                            {currentInnings.overs}.{currentInnings.balls}
                           </span>
-                          <span className="text-4xl font-black text-white tabular-nums tracking-tighter italic">
-                            {currentInnings.totalRuns}
-                            <span className="text-slate-600 mx-1">/</span>
-                            {currentInnings.totalWickets}
+                          <span className="text-[10px] text-slate-600">/</span>
+                          <span>{matchMeta?.totalOvers}</span>
+                          <span className="text-[9px] text-slate-600 tracking-tight ml-0.5">
+                            OVS
                           </span>
-                        </div>
+                        </span>
                       </div>
                     </div>
-                    <div className="text-right flex flex-col items-end">
-                      <span
-                        className={`px-2 py-0.5 border rounded text-[9px] font-black uppercase tracking-widest mb-2 ${matchMeta?.status === "LIVE" || matchMeta?.status === "INNINGS_BREAK" ? "bg-indigo-500/10 border-indigo-500/20 text-indigo-400" : "bg-slate-700 border-white/10 text-slate-400"}`}
+
+                    {/* Main Row: Prominent Batting Team on Left, Huge Score on Right */}
+                    <div className="flex justify-between items-center gap-3 pt-1 pb-0.5 min-w-0">
+                      <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+                        <span className="text-xl sm:text-2xl shrink-0">🏏</span>
+                        <h2 className="text-lg sm:text-2xl font-black text-emerald-400 uppercase tracking-tight truncate whitespace-nowrap">
+                          {currentInnings.battingTeamName}
+                        </h2>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="text-3xl sm:text-4xl md:text-5xl font-black text-white tabular-nums tracking-tighter italic leading-none">
+                          {currentInnings.totalRuns}
+                          <span className="text-slate-600 mx-0.5 sm:mx-1">
+                            /
+                          </span>
+                          {currentInnings.totalWickets}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Chase / Target & Scorecard Sub-row */}
+                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-white/5 flex-wrap">
+                      {matchDetails.innings.length > 1 ? (
+                        (() => {
+                          const target =
+                            currentInnings.target ||
+                            matchDetails.innings[0].totalRuns + 1;
+                          const runsNeeded = target - currentInnings.totalRuns;
+                          const totalBalls = (matchMeta?.totalOvers || 20) * 6;
+                          const ballsBowled =
+                            currentInnings.overs * 6 + currentInnings.balls;
+                          const ballsLeft = Math.max(
+                            0,
+                            totalBalls - ballsBowled,
+                          );
+                          return (
+                            <div className="flex items-center gap-2 flex-wrap min-w-0">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-black text-[10px] sm:text-xs uppercase tracking-tight whitespace-nowrap shadow-sm">
+                                <span>🎯</span>
+                                <span>
+                                  {runsNeeded > 0
+                                    ? `Need ${runsNeeded} off ${ballsLeft}`
+                                    : runsNeeded <= 0
+                                      ? "Target Reached"
+                                      : `Target: ${target}`}
+                                </span>
+                                <span className="text-amber-400/70 font-semibold ml-0.5">
+                                  (Tgt {target})
+                                </span>
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-bold tracking-tight whitespace-nowrap opacity-80">
+                                1st Inn:{" "}
+                                {matchDetails.innings[0].battingTeamName}{" "}
+                                <span className="text-slate-200 font-black">
+                                  {matchDetails.innings[0].totalRuns}/
+                                  {matchDetails.innings[0].totalWickets}
+                                </span>
+                              </span>
+                            </div>
+                          );
+                        })()
+                      ) : (
+                        <div className="text-[10px] font-bold text-slate-400">
+                          1st Innings in progress
+                        </div>
+                      )}
+
+                      <button
+                        onClick={() => setShowFullScorecard(true)}
+                        className="px-2.5 py-1 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm ml-auto shrink-0"
                       >
-                        {matchMeta?.status === "LIVE"
-                          ? `CRR ${crr}`
-                          : matchMeta?.status}
-                      </span>
-                      <span className="text-sm font-black text-slate-300 flex items-baseline gap-1">
-                        <span>
-                          {currentInnings.overs}.{currentInnings.balls}
-                        </span>
-                        <span className="text-[10px] text-slate-600">/</span>
-                        <span>{matchMeta?.totalOvers}</span>
-                        <span className="text-[9px] text-slate-600 tracking-tight ml-0.5">
-                          OVS
-                        </span>
-                      </span>
+                        Scorecard 📋
+                      </button>
                     </div>
                   </div>
 
@@ -1029,11 +1184,15 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                       currentInnings.overs * 6 + currentInnings.balls;
                     const totalBalls = (matchMeta?.totalOvers || 20) * 6;
                     const ballsLeft = Math.max(0, totalBalls - ballsBowled);
-                    const target =
-                      currentInnings.target ||
-                      (matchDetails.innings.length > 1
-                        ? matchDetails.innings[0].totalRuns + 1
-                        : null);
+                    const isSecondInnings =
+                      currentInnings.inningNumber === 2 ||
+                      matchDetails.innings.length > 1;
+                    const target = isSecondInnings
+                      ? currentInnings.target ||
+                        (matchDetails.innings.length > 1
+                          ? matchDetails.innings[0].totalRuns + 1
+                          : null)
+                      : null;
                     const runsNeeded = target
                       ? target - currentInnings.totalRuns
                       : null;

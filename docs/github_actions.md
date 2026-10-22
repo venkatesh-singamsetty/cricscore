@@ -29,9 +29,9 @@ Dependabot configuration is separate from workflows and belongs at
 `ci.yml` executes four parallel validation gates on every Pull Request:
 
 1. **`validate_security`**: GitLeaks secrets scan and Checkov Terraform IaC scan.
-2. **`validate_frontend`**: TypeScript typecheck (`tsc --noEmit`), Vitest unit/component tests (75 tests), Trivy vulnerability scan, and dry-run production build.
-3. **`validate_backend`**: Node.js Lambda unit tests (85 tests), Trivy vulnerability scan across all Lambda lockfiles, and Terraform format check & validation.
-4. **`validate_python`**: Python 3.12 AI Service tests (57 tests), Python ML Engine tests with XGBoost artifact verification (24 tests), and Trivy vulnerability scan on Python dependencies.
+2. **`validate_frontend`**: TypeScript typecheck (`tsc --noEmit`), Vitest unit/component tests (124 tests across 20 suites), Trivy vulnerability scan, and dry-run production build.
+3. **`validate_backend`**: Node.js Lambda unit tests (97 tests across 16 suites), Trivy vulnerability scan across all Lambda lockfiles, and Terraform format check & validation.
+4. **`validate_python`**: Python 3.12 AI Service tests (65 tests), Python ML Engine tests with XGBoost artifact verification (29 tests), and Trivy vulnerability scan on Python dependencies.
 
 Pull requests stop after these four validation jobs complete; they do not deploy or run Playwright E2E tests against live cloud environments.
 

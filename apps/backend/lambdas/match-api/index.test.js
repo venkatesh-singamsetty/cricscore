@@ -119,7 +119,7 @@ describe("match-api Lambda handler", () => {
     expect(response.statusCode).toBe(201);
     expect(JSON.parse(response.body).matchId).toBe("match_123");
 
-    // Verify that toss fields and scorer_email were passed to the INSERT query
+    // Verify that toss fields, scorer_email, and is_test were passed to the INSERT query
     expect(mockQuery).toHaveBeenCalledWith(
       expect.stringContaining("INSERT INTO matches"),
       [
@@ -131,6 +131,7 @@ describe("match-api Lambda handler", () => {
         "BAT",
         "LIVE",
         "test@example.com",
+        false,
       ],
     );
     expect(mockQuery).toHaveBeenCalledWith("COMMIT");
@@ -308,6 +309,51 @@ describe("match-api Lambda handler", () => {
     expect(response.statusCode).toBe(403);
   });
 
+  it("should return 403 if user with substring group 'NotAdmin' tries to purge DELETE /matches", async () => {
+    const event = {
+      httpMethod: "DELETE",
+      path: "/matches",
+      requestContext: {
+        authorizer: {
+          jwt: {
+            claims: {
+              email: "attacker@example.com",
+              "cognito:groups": "[NotAdmin, OrgAdmin]",
+            },
+          },
+        },
+      },
+    };
+
+    const response = await handler(event);
+    expect(response.statusCode).toBe(403);
+    expect(response.body).toContain("Admins only");
+  });
+
+  it("should allow admin with serialized '[Admin]' cognito:groups to call DELETE /matches", async () => {
+    mockQuery.mockResolvedValueOnce({ rowCount: 1 }); // TRUNCATE query
+    const event = {
+      httpMethod: "DELETE",
+      path: "/matches",
+      requestContext: {
+        authorizer: {
+          jwt: {
+            claims: {
+              email: "admin@example.com",
+              "cognito:groups": "[Admin]",
+            },
+          },
+        },
+      },
+    };
+
+    const response = await handler(event);
+    expect(response.statusCode).toBe(200);
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.stringContaining("TRUNCATE table ball_events"),
+    );
+  });
+
   it("should return 403 if non-admin calls GET /admin/users", async () => {
     const event = {
       httpMethod: "GET",
@@ -419,5 +465,51 @@ describe("match-api Lambda handler", () => {
       "UPDATE innings SET total_runs = $1, total_wickets = $2, overs = $3, balls = $4 WHERE match_id = $5 AND inning_number = 2",
       [16, 1, 0, 5, "match_123"],
     );
+  });
+
+  it("should allow admin to delete all test matches", async () => {
+    mockQuery.mockResolvedValueOnce({ rowCount: 4 });
+
+    const event = {
+      httpMethod: "DELETE",
+      path: "/admin/matches/test",
+      requestContext: {
+        authorizer: {
+          jwt: {
+            claims: {
+              email: "admin@example.com",
+              "cognito:groups": ["Admin"],
+            },
+          },
+        },
+      },
+    };
+
+    const response = await handler(event);
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body.success).toBe(true);
+    expect(body.deletedMatchesCount).toBe(4);
+    expect(body.message).toContain("Deleted 4 test matches");
+  });
+
+  it("should forbid non-admin from deleting test matches", async () => {
+    const event = {
+      httpMethod: "DELETE",
+      path: "/admin/matches/test",
+      requestContext: {
+        authorizer: {
+          jwt: {
+            claims: {
+              email: "regular@example.com",
+            },
+          },
+        },
+      },
+    };
+
+    const response = await handler(event);
+    expect(response.statusCode).toBe(403);
+    expect(JSON.parse(response.body).error).toContain("Forbidden");
   });
 });

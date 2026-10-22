@@ -58,6 +58,7 @@ export interface LiveScorePayload {
   striker_name?: string;
   nonStrikerName?: string;
   non_striker_name?: string;
+  battingOrderNames?: string[];
   bowlerName?: string;
   bowler_name?: string;
   runs?: number;
@@ -74,6 +75,7 @@ export interface LiveScorePayload {
   previousInnings?: PreviousInningsSnapshot;
   ballData?: any;
   data?: LiveScorePayload;
+  body?: unknown;
 }
 
 export interface WebSocketEnvelope {
@@ -118,8 +120,20 @@ export function unwrapLiveScoreMessage(
     }
   }
 
+  // Handle lambda direct invocation event.body wrapping: { body: "..." }
+  if (
+    !payload.matchId &&
+    !payload.match_id &&
+    (payload as Record<string, unknown>).body
+  ) {
+    const bodyObj = asObject((payload as Record<string, unknown>).body);
+    if (bodyObj) {
+      payload = bodyObj;
+    }
+  }
+
   const type = String(
-    message.type || payload.type || (payload.data && payload.data.type) || "",
+    payload.type || (payload.data && payload.data.type) || message.type || "",
   );
   return { type, payload };
 }
@@ -168,7 +182,11 @@ export function applyLiveScoreToMatches<T extends MatchListItem>(
   matches: T[],
   payload: LiveScorePayload,
 ): { matches: T[]; applied: boolean } {
-  const matchId = payload.matchId || payload.match_id;
+  const matchId =
+    payload.matchId ||
+    payload.match_id ||
+    payload.ballData?.matchId ||
+    payload.ballData?.match_id;
   if (!matchId) {
     return { matches, applied: false };
   }

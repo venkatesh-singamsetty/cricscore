@@ -28,6 +28,7 @@ interface MatchMetadata {
   updated_at: string;
   innings?: MatchInningSummary[];
   scorer_email?: string;
+  is_test?: boolean;
   [key: string]: unknown;
 }
 
@@ -62,6 +63,7 @@ const MatchList: React.FC<MatchListProps> = ({
   const [matches, setMatches] = useState<MatchMetadata[]>([]);
   const [loading, setLoading] = useState(true);
   const [showGuestMatches, setShowGuestMatches] = useState(false);
+  const [showTestMatches, setShowTestMatches] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{
     type: "DELETE_MATCH";
     matchId?: string;
@@ -227,7 +229,21 @@ const MatchList: React.FC<MatchListProps> = ({
     return null;
   };
 
+  const isTestMatch = (m: MatchMetadata) =>
+    Boolean(
+      m.is_test === true ||
+      String(m.is_test) === "true" ||
+      (m.scorer_email &&
+        (m.scorer_email.startsWith("test-") ||
+          m.scorer_email.includes("@test.") ||
+          m.scorer_email.includes("playwright"))) ||
+      (m.team_a_name &&
+        /test|demo|playwright|mock|sync/i.test(m.team_a_name)) ||
+      (m.team_b_name && /test|demo|playwright|mock|sync/i.test(m.team_b_name)),
+    );
+
   const isGuestMatch = (m: MatchMetadata) =>
+    !isTestMatch(m) &&
     Boolean(
       m.scorer_email &&
       (m.scorer_email.includes("@cricscore.local") ||
@@ -237,9 +253,13 @@ const MatchList: React.FC<MatchListProps> = ({
 
   const filteredMatches = matches.filter((m) => {
     const isGuest = isGuestMatch(m);
+    const isTest = isTestMatch(m);
 
-    // In Admin Database Management view, show all matches by default and filter to guest-only when toggled
+    // In Admin Database Management view, filter to guest-only or test-only when toggled
     if (showDeleteControls && showGuestMatches && !isGuest) {
+      return false;
+    }
+    if (showDeleteControls && showTestMatches && !isTest) {
       return false;
     }
 
@@ -255,7 +275,9 @@ const MatchList: React.FC<MatchListProps> = ({
   const baseMatches =
     showDeleteControls && showGuestMatches
       ? matches.filter(isGuestMatch)
-      : matches;
+      : showDeleteControls && showTestMatches
+        ? matches.filter(isTestMatch)
+        : matches;
 
   const stats = {
     total: baseMatches.length,
@@ -298,23 +320,31 @@ const MatchList: React.FC<MatchListProps> = ({
           <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">
             {searchTerm
               ? `SEARCHING: ${searchTerm}`
-              : showGuestMatches
-                ? "GUEST FIXTURES"
-                : "LATEST FIXTURES"}
+              : showTestMatches
+                ? "TEST FIXTURES"
+                : showGuestMatches
+                  ? "GUEST FIXTURES"
+                  : "LATEST FIXTURES"}
           </h3>
           <p className="text-[9px] font-black text-indigo-500/50 uppercase tracking-widest mt-1">
             {searchTerm
               ? `Filtering ${filteredMatches.length} Matches`
-              : showGuestMatches
-                ? `Filtering ${filteredMatches.length} Guest Matches`
-                : "Showing Active Database"}
+              : showTestMatches
+                ? `Filtering ${filteredMatches.length} Test Matches`
+                : showGuestMatches
+                  ? `Filtering ${filteredMatches.length} Guest Matches`
+                  : "Showing Active Database"}
           </p>
         </div>
         {showDeleteControls && (
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => setShowGuestMatches(!showGuestMatches)}
+              onClick={() => {
+                const next = !showGuestMatches;
+                setShowGuestMatches(next);
+                if (next) setShowTestMatches(false);
+              }}
               title={
                 showGuestMatches
                   ? "Showing guest matches only — click to show all matches"
@@ -337,6 +367,38 @@ const MatchList: React.FC<MatchListProps> = ({
                 }`}
               >
                 👻
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                const next = !showTestMatches;
+                setShowTestMatches(next);
+                if (next) setShowGuestMatches(false);
+              }}
+              title={
+                showTestMatches
+                  ? "Showing test matches only — click to show all matches"
+                  : "Filter to test matches only"
+              }
+              className={`flex flex-col items-center gap-1 px-2.5 py-1 rounded-xl border transition-all group ${
+                showTestMatches
+                  ? "bg-purple-500/20 border-purple-500/50 text-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.25)]"
+                  : "border-transparent text-slate-500 hover:text-purple-400"
+              }`}
+            >
+              <span className="text-[9px] font-black uppercase tracking-tighter">
+                TESTS
+              </span>
+              <span
+                className={`text-lg transition-all ${
+                  showTestMatches
+                    ? "grayscale-0"
+                    : "grayscale group-hover:grayscale-0"
+                }`}
+              >
+                🧪
               </span>
             </button>
 
@@ -367,9 +429,11 @@ const MatchList: React.FC<MatchListProps> = ({
           <p className="text-slate-500 font-black uppercase tracking-widest text-[10px] italic">
             {searchTerm
               ? `No matches found for "${searchTerm}"`
-              : showGuestMatches
-                ? "No guest matches found"
-                : "No matches found"}
+              : showTestMatches
+                ? "No test matches found"
+                : showGuestMatches
+                  ? "No guest matches found"
+                  : "No matches found"}
           </p>
         </div>
       ) : (
@@ -377,6 +441,7 @@ const MatchList: React.FC<MatchListProps> = ({
           {filteredMatches.map((match) => {
             const diff = Date.now() - new Date(match.updated_at).getTime();
             const isStale = match.status === "LIVE" && diff > 86400000;
+            const isTest = isTestMatch(match);
             const isGuest = isGuestMatch(match);
             const result =
               match.status === "COMPLETED" ? calculateResult(match) : null;
@@ -384,78 +449,82 @@ const MatchList: React.FC<MatchListProps> = ({
             return (
               <div
                 key={match.id}
-                className={`w-full bg-slate-900/70 border border-white/5 rounded-2xl p-4 sm:p-5 text-left hover:bg-slate-800/80 ${match.status === "COMPLETED" ? "hover:border-indigo-500/30" : "hover:border-emerald-500/30"} transition-all group relative overflow-hidden`}
+                onClick={() => onSelectMatch(match.id)}
+                className={`w-full bg-slate-900/70 border border-white/5 rounded-2xl p-4 sm:p-5 text-left hover:bg-slate-800/80 ${match.status === "COMPLETED" ? "hover:border-indigo-500/30" : "hover:border-emerald-500/30"} transition-all group relative overflow-hidden flex flex-col gap-4 cursor-pointer`}
               >
-                {/* Role Actions */}
-                <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
-                  {match.status === "LIVE" && onResumeMatch && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onResumeMatch(match.id);
-                      }}
-                      className="px-3 py-1.5 bg-indigo-600/20 text-indigo-400 rounded-lg font-black text-[9px] hover:bg-indigo-600 hover:text-white transition-all uppercase border border-indigo-500/20 active:scale-95"
-                    >
-                      RESUME
-                    </button>
-                  )}
-                  {showDeleteControls && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setConfirmAction({
-                          type: "DELETE_MATCH",
-                          matchId: match.id,
-                          matchName: `${match.team_a_name} VS ${match.team_b_name}`,
-                        });
-                      }}
-                      title={`Delete match ${match.id.substring(0, 8)}`}
-                      className="p-2 min-w-[34px] min-h-[34px] flex items-center justify-center bg-red-950/40 text-red-400 rounded-xl hover:bg-red-600 hover:text-white transition-all text-xs border border-red-500/30 shadow-sm active:scale-95"
-                    >
-                      🗑️
-                    </button>
-                  )}
-                </div>
-
-                <div
-                  className="flex flex-col gap-4 cursor-pointer"
-                  onClick={() => onSelectMatch(match.id)}
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[9px] font-black uppercase tracking-widest text-indigo-400/80 italic">
-                        {getTimeAgo(match.updated_at)}
+                {/* Header Row: Time Ago, Test / Guest Badge, Status on Left; Actions on Right (Same Row Level) */}
+                <div className="flex justify-between items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap min-w-0">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-indigo-400/80 italic whitespace-nowrap">
+                      {getTimeAgo(match.updated_at)}
+                    </span>
+                    {isTest ? (
+                      <span
+                        data-testid="test-match-badge"
+                        className="px-2 py-0.5 rounded-md bg-purple-500/15 text-purple-300 border border-purple-500/30 font-black text-[8px] uppercase tracking-widest flex items-center gap-1 whitespace-nowrap"
+                      >
+                        TEST 🧪
                       </span>
-                      {isGuest && (
-                        <span
-                          data-testid="guest-match-badge"
-                          className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 font-black text-[8px] uppercase tracking-widest flex items-center gap-1"
-                        >
-                          GUEST 👻
-                        </span>
-                      )}
-                    </div>
-                    <div className="mr-24 md:mr-32">
-                      {match.status === "COMPLETED" ? (
-                        <span className="px-2 py-1 rounded-md bg-indigo-900/40 text-indigo-400 border border-indigo-500/20 font-black text-[9px] uppercase tracking-widest">
-                          COMPLETED
-                        </span>
-                      ) : isStale ? (
-                        <span className="px-2 py-1 rounded-md bg-rose-900/40 text-rose-500 border border-rose-500/20 font-black text-[9px] uppercase tracking-widest italic flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                          STALED
-                        </span>
-                      ) : (
-                        <span className="px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-black text-[9px] uppercase tracking-widest flex items-center gap-1.5 shadow-[0_0_10px_rgba(16,185,129,0.25)]">
-                          <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse"></span>
-                          LIVE
-                        </span>
-                      )}
-                    </div>
+                    ) : isGuest ? (
+                      <span
+                        data-testid="guest-match-badge"
+                        className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 font-black text-[8px] uppercase tracking-widest flex items-center gap-1 whitespace-nowrap"
+                      >
+                        GUEST 👻
+                      </span>
+                    ) : null}
+                    {match.status === "COMPLETED" ? (
+                      <span className="px-2 py-0.5 rounded-md bg-indigo-900/40 text-indigo-400 border border-indigo-500/20 font-black text-[8px] uppercase tracking-widest whitespace-nowrap">
+                        COMPLETED
+                      </span>
+                    ) : isStale ? (
+                      <span className="px-2 py-0.5 rounded-md bg-rose-900/40 text-rose-500 border border-rose-500/20 font-black text-[8px] uppercase tracking-widest italic flex items-center gap-1.5 whitespace-nowrap">
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                        STALED
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-black text-[8px] uppercase tracking-widest flex items-center gap-1.5 shadow-[0_0_10px_rgba(16,185,129,0.25)] whitespace-nowrap">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse"></span>
+                        LIVE
+                      </span>
+                    )}
                   </div>
 
+                  {/* Actions (Resume, Delete) on the right in the same line */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {match.status === "LIVE" && onResumeMatch && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onResumeMatch(match.id);
+                        }}
+                        className="px-3 py-1 bg-indigo-600/20 text-indigo-400 rounded-lg font-black text-[9px] hover:bg-indigo-600 hover:text-white transition-all uppercase border border-indigo-500/20 active:scale-95"
+                      >
+                        RESUME
+                      </button>
+                    )}
+                    {showDeleteControls && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setConfirmAction({
+                            type: "DELETE_MATCH",
+                            matchId: match.id,
+                            matchName: `${match.team_a_name} VS ${match.team_b_name}`,
+                          });
+                        }}
+                        title={`Delete match ${match.id.substring(0, 8)}`}
+                        className="p-1.5 min-w-[30px] min-h-[30px] flex items-center justify-center bg-red-950/40 text-red-400 rounded-lg hover:bg-red-600 hover:text-white transition-all text-xs border border-red-500/30 shadow-sm active:scale-95"
+                      >
+                        🗑️
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-4">
                   <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-center">
                     {(() => {
                       // Match each team's innings by batting_team_name (not by index position)
@@ -463,19 +532,20 @@ const MatchList: React.FC<MatchListProps> = ({
                         match.innings?.[0]?.batting_team_name ||
                         match.team_a_name;
                       const rightTeamName =
-                        leftTeamName === match.team_a_name
+                        leftTeamName.trim().toUpperCase() ===
+                        match.team_a_name.trim().toUpperCase()
                           ? match.team_b_name
                           : match.team_a_name;
 
                       const leftTeamInnings = match.innings?.find(
                         (i) =>
-                          i.batting_team_name?.toLowerCase() ===
-                          leftTeamName.toLowerCase(),
+                          i.batting_team_name?.trim().toLowerCase() ===
+                          leftTeamName.trim().toLowerCase(),
                       );
                       const rightTeamInnings = match.innings?.find(
                         (i) =>
-                          i.batting_team_name?.toLowerCase() ===
-                          rightTeamName.toLowerCase(),
+                          i.batting_team_name?.trim().toLowerCase() ===
+                          rightTeamName.trim().toLowerCase(),
                       );
                       return (
                         <>
@@ -484,7 +554,8 @@ const MatchList: React.FC<MatchListProps> = ({
                               {leftTeamName}
                             </h4>
                             {leftTeamInnings &&
-                            (Number(leftTeamInnings.overs) > 0 ||
+                            (match.status === "LIVE" ||
+                              Number(leftTeamInnings.overs) > 0 ||
                               Number(leftTeamInnings.balls) > 0 ||
                               Number(leftTeamInnings.total_runs) > 0 ||
                               Number(leftTeamInnings.total_wickets) > 0) ? (
@@ -512,7 +583,10 @@ const MatchList: React.FC<MatchListProps> = ({
                               {rightTeamName}
                             </h4>
                             {rightTeamInnings &&
-                            (Number(rightTeamInnings.overs) > 0 ||
+                            ((match.status === "LIVE" &&
+                              match.innings &&
+                              match.innings.length > 1) ||
+                              Number(rightTeamInnings.overs) > 0 ||
                               Number(rightTeamInnings.balls) > 0 ||
                               Number(rightTeamInnings.total_runs) > 0 ||
                               Number(rightTeamInnings.total_wickets) > 0) ? (
@@ -534,6 +608,36 @@ const MatchList: React.FC<MatchListProps> = ({
                       );
                     })()}
                   </div>
+
+                  {match.status === "LIVE" &&
+                    match.innings &&
+                    match.innings.length > 1 &&
+                    !result &&
+                    (() => {
+                      const i1 = match.innings[0];
+                      const i2 = match.innings[1];
+                      const target = Number(i1.total_runs || 0) + 1;
+                      const runsNeeded = target - Number(i2.total_runs || 0);
+                      const totalBalls = Number(match.total_overs || 20) * 6;
+                      const ballsBowled =
+                        Number(i2.overs || 0) * 6 + Number(i2.balls || 0);
+                      const ballsLeft = Math.max(0, totalBalls - ballsBowled);
+                      return (
+                        <div className="mt-2 py-1 px-3 bg-amber-500/10 border border-amber-500/25 rounded-xl flex items-center justify-between text-[10px] font-black text-amber-300 uppercase tracking-tight">
+                          <span className="flex items-center gap-1.5">
+                            <span>🎯</span>
+                            <span>
+                              {runsNeeded > 0
+                                ? `NEED ${runsNeeded} RUNS OFF ${ballsLeft} BALLS`
+                                : "TARGET REACHED"}
+                            </span>
+                          </span>
+                          <span className="text-amber-400/80 font-bold tabular-nums">
+                            TGT: {target}
+                          </span>
+                        </div>
+                      );
+                    })()}
 
                   {result && (
                     <div className="mt-1 py-3 px-4 bg-indigo-500/10 border-y border-indigo-500/20 text-center rounded-xl">

@@ -42,7 +42,7 @@ We chose Aiven for its managed PostgreSQL service and operational features. Avai
    - **Environment Isolation Note**: The Lambda functions use the environment-specific `DB_SCHEMA` (`dev` or `prod`). If both environments use the same database instance, these schemas separate their application data; configure the connection string separately for each environment as needed.
 
 5. **Deploy**:
-   - The database is ready to configure. The local deploy script applies Terraform and configures Lambda connectivity, but does not run database migrations. Run the required migrations separately; see the [deployment guide](./deployment.md).
+   - The database is ready to configure. The local deploy script applies Terraform and configures Lambda connectivity. Pass the `--migrate` flag to `deploy.sh` (e.g. `./infra/scripts/deploy.sh --env dev --use-local-env --migrate`) to apply SQL migrations automatically, or run them manually; see the [deployment guide](./deployment.md).
 
 ---
 

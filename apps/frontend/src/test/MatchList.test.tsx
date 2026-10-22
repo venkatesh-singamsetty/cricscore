@@ -135,4 +135,81 @@ describe("MatchList", () => {
       screen.getAllByText("CHICAGO SPARTANS").length,
     ).toBeGreaterThanOrEqual(1);
   });
+
+  it("renders timeAgo, GUEST badge, and status in the same row level", async () => {
+    render(<MatchList onSelectMatch={vi.fn()} showDeleteControls={false} />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText("TEAM B").length).toBeGreaterThanOrEqual(1);
+    });
+
+    const guestBadge = screen.getByTestId("guest-match-badge");
+    expect(guestBadge).toBeInTheDocument();
+
+    const completedBadges = screen.getAllByText("COMPLETED");
+    expect(completedBadges.length).toBeGreaterThanOrEqual(1);
+
+    // Verify they share the same flex parent row
+    const guestParent = guestBadge.parentElement;
+    expect(guestParent?.className).toContain("flex items-center gap-2");
+    expect(guestParent).toContainElement(guestBadge);
+    expect(guestParent).toContainElement(completedBadges[0]);
+  });
+
+  it("identifies test matches, renders TEST 🧪 badge, and filters via TESTS toggle", async () => {
+    const testMatchData = [
+      ...mockMatches,
+      {
+        id: "test-match-uuid-9999",
+        team_a_name: "TEST WARRIORS",
+        team_b_name: "DEMO KINGS",
+        total_overs: 1,
+        status: "LIVE",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        scorer_email: "test-scorer@test.local",
+        is_test: true,
+      },
+    ];
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => testMatchData,
+      }),
+    );
+
+    render(
+      <MatchList
+        onSelectMatch={vi.fn()}
+        isAdmin={true}
+        showDeleteControls={true}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("TEST WARRIORS")).toBeInTheDocument();
+    });
+
+    const testBadge = screen.getByTestId("test-match-badge");
+    expect(testBadge).toBeInTheDocument();
+    expect(testBadge).toHaveTextContent("TEST 🧪");
+
+    // Toggle TESTS 🧪 filter
+    const testsBtn = screen.getByRole("button", { name: /TESTS/i });
+    fireEvent.click(testsBtn);
+
+    expect(screen.getByText("TEST FIXTURES")).toBeInTheDocument();
+    expect(screen.getByText("TEST WARRIORS")).toBeInTheDocument();
+    expect(screen.queryByText("CHICAGO SPARTANS")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("guest-match-badge")).not.toBeInTheDocument();
+
+    // Toggle off
+    fireEvent.click(testsBtn);
+    expect(screen.getByText("LATEST FIXTURES")).toBeInTheDocument();
+    expect(
+      screen.getAllByText("CHICAGO SPARTANS").length,
+    ).toBeGreaterThanOrEqual(1);
+  });
 });

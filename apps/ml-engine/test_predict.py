@@ -235,3 +235,49 @@ def test_s3_versioned_model_loading(tmp_path, monkeypatch):
     assert predict.current_loaded_version == "v2.2.0"
     assert ("cricscore-test-models-bucket", "models/v2.2.0/model_manifest.json") in downloaded_keys
     assert ("cricscore-test-models-bucket", "models/v2.2.0/live_win_predictor_model.joblib") in downloaded_keys
+
+
+def test_win_probability_tail_factor_degrades_lower_order():
+    """Verify that having 9 wickets down gives significantly lower win probability than 1 wicket down for same runs needed."""
+    prob_top_order = predict.win_probability(
+        inning=2, current_score=100, wickets_lost=1, balls_left=24, balls_bowled=96, target_score=130
+    )
+    prob_tail_ender = predict.win_probability(
+        inning=2, current_score=100, wickets_lost=9, balls_left=24, balls_bowled=96, target_score=130
+    )
+    assert prob_top_order > prob_tail_ender
+    assert prob_top_order > 0.60
+    assert prob_tail_ender < 0.35
+
+
+def test_dls_resource_remaining_monotonicity():
+    """Verify that DLS resources remaining strictly increases with balls remaining and wickets in hand."""
+    from win_probability import _dls_resource_remaining
+
+    res_10_wickets_in_hand = _dls_resource_remaining(balls_left=60, wickets_lost=0, total_balls=120)
+    res_5_wickets_in_hand = _dls_resource_remaining(balls_left=60, wickets_lost=5, total_balls=120)
+    res_0_wickets_in_hand = _dls_resource_remaining(balls_left=60, wickets_lost=10, total_balls=120)
+
+    assert res_10_wickets_in_hand > res_5_wickets_in_hand > res_0_wickets_in_hand
+    assert res_0_wickets_in_hand == 0.0
+
+    res_more_balls = _dls_resource_remaining(balls_left=90, wickets_lost=2, total_balls=120)
+    res_fewer_balls = _dls_resource_remaining(balls_left=30, wickets_lost=2, total_balls=120)
+    assert res_more_balls > res_fewer_balls
+
+
+def test_target_already_reached_yields_one():
+    """If target is already surpassed in 2nd innings, win probability must be exactly 1.0 (100%)."""
+    prob = predict.win_probability(
+        inning=2, current_score=185, wickets_lost=3, balls_left=10, balls_bowled=110, target_score=180
+    )
+    assert prob == 1.0
+
+
+def test_impossible_target_yields_zero():
+    """If runs needed exceeds maximum possible runs from remaining balls, win probability must be 0.0."""
+    # 40 runs needed from 1 ball (max 6 runs possible per legal delivery)
+    prob = predict.win_probability(
+        inning=2, current_score=100, wickets_lost=2, balls_left=1, balls_bowled=119, target_score=141
+    )
+    assert prob == 0.0

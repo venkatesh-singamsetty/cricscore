@@ -28,12 +28,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [message, setMessage] = useState("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [pendingDeleteUser, setPendingDeleteUser] = useState<User | null>(null);
+  const [refreshCounter, setRefreshCounter] = useState(0);
 
   // Custom Modals for Bulk Actions
   const [pendingBulkAction, setPendingBulkAction] = useState<
     | "delete-all-guest-data"
     | "delete-all-matches"
     | "delete-all-incomplete-matches"
+    | "delete-all-test-matches"
     | null
   >(null);
   const [purgeConfirmText, setPurgeConfirmText] = useState("");
@@ -179,6 +181,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         `✅ Deleted ${mCount} guest matches and ${uCount} guest users.`,
       );
       fetchUsers(true);
+      setRefreshCounter((c) => c + 1);
     } catch (err: any) {
       setMessage(`❌ Error: ${err.message}`);
     } finally {
@@ -206,6 +209,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to delete matches");
       setMessage(`✅ ${data.message || "All matches deleted successfully!"}`);
+      setRefreshCounter((c) => c + 1);
     } catch (err: any) {
       setMessage(`❌ Error: ${err.message}`);
     } finally {
@@ -236,6 +240,38 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       const mCount = data.deletedMatchesCount ?? data.count ?? 0;
       const msg = data.message || `Deleted ${mCount} incomplete matches.`;
       setMessage(`✅ ${msg}`);
+      setRefreshCounter((c) => c + 1);
+    } catch (err: any) {
+      setMessage(`❌ Error: ${err.message}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const executeDeleteAllTestMatches = async () => {
+    setActionLoading("delete-all-test-matches");
+    setPendingBulkAction(null);
+    setMessage("");
+    try {
+      const session = await fetchAuthSession();
+      const token = session.tokens?.idToken?.toString();
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/admin/matches/test`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      const data = await res.json();
+      if (!res.ok)
+        throw new Error(data.error || "Failed to delete test matches");
+      const mCount = data.deletedMatchesCount ?? data.count ?? 0;
+      const msg = data.message || `Deleted ${mCount} test matches.`;
+      setMessage(`✅ ${msg}`);
+      setRefreshCounter((c) => c + 1);
     } catch (err: any) {
       setMessage(`❌ Error: ${err.message}`);
     } finally {
@@ -516,6 +552,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 </p>
               )}
 
+              {pendingBulkAction === "delete-all-test-matches" && (
+                <p className="text-slate-400 text-sm font-medium mb-8 leading-relaxed">
+                  Are you sure you want to permanently delete ALL test/practice
+                  matches from the database? This cannot be undone.
+                </p>
+              )}
+
               {pendingBulkAction === "delete-all-matches" && (
                 <div className="mb-6">
                   <p className="text-red-400 text-sm font-bold mb-4 leading-relaxed">
@@ -550,6 +593,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       pendingBulkAction === "delete-all-incomplete-matches"
                     )
                       executeDeleteAllIncompleteMatches();
+                    else if (pendingBulkAction === "delete-all-test-matches")
+                      executeDeleteAllTestMatches();
                     else if (pendingBulkAction === "delete-all-matches")
                       executeDeleteAllMatches();
                   }}
@@ -582,19 +627,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <button
-                onClick={() => setPendingBulkAction("delete-all-guest-data")}
+                onClick={() => setPendingBulkAction("delete-all-test-matches")}
                 disabled={!!actionLoading}
-                className="p-4 bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all group disabled:opacity-50"
+                className="p-4 bg-purple-900/20 hover:bg-purple-900/40 border border-purple-500/30 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all group disabled:opacity-50"
               >
                 <span className="text-2xl group-hover:scale-110 transition-transform">
-                  🧹
+                  🧪
                 </span>
-                <span className="text-xs font-black text-slate-300 uppercase tracking-widest text-center">
-                  {actionLoading === "delete-all-guest-data"
+                <span className="text-xs font-black text-purple-400 uppercase tracking-widest text-center">
+                  {actionLoading === "delete-all-test-matches"
                     ? "Deleting..."
-                    : "Delete Guest Data"}
+                    : "Delete Test Matches"}
                 </span>
               </button>
 
@@ -616,6 +661,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               </button>
 
               <button
+                onClick={() => setPendingBulkAction("delete-all-guest-data")}
+                disabled={!!actionLoading}
+                className="p-4 bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all group disabled:opacity-50"
+              >
+                <span className="text-2xl group-hover:scale-110 transition-transform">
+                  🧹
+                </span>
+                <span className="text-xs font-black text-slate-300 uppercase tracking-widest text-center">
+                  {actionLoading === "delete-all-guest-data"
+                    ? "Deleting..."
+                    : "Delete Guest Data"}
+                </span>
+              </button>
+
+              <button
                 onClick={() => setPendingBulkAction("delete-all-matches")}
                 disabled={!!actionLoading}
                 className="p-4 bg-red-900/20 hover:bg-red-900/40 border border-red-500/30 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all group disabled:opacity-50"
@@ -633,7 +693,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
 
           <LiveScoreboard
-            key={`hub-${hubKey}`}
+            key={`hub-${hubKey}-${refreshCounter}`}
             isAdmin={isAdmin}
             showDeleteControls={true}
             initialMatchId={urlMatchId}

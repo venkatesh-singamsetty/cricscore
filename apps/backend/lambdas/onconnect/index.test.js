@@ -54,4 +54,11 @@ describe("onconnect Lambda", () => {
     expect(response.statusCode).toBe(500);
     expect(response.body).toContain("Failed to connect");
   });
+
+  it("should return 400 if connectionId is missing from requestContext", async () => {
+    const event = { requestContext: {} };
+    const response = await handler(event);
+    expect(response.statusCode).toBe(400);
+    expect(response.body).toContain("Missing connectionId");
+  });
 });

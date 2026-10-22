@@ -15,7 +15,7 @@ const { pool, setSearchPath } = require("../../config/db");
  * @returns {object} MCP content response
  */
 const FORBIDDEN_SQL =
-  /\b(insert|update|delete|drop|alter|truncate|create|grant|revoke|copy|call|do|set|reset|pg_sleep|pg_read_file|pg_ls_dir|lo_import|lo_export|dblink)\b/i;
+  /\b(insert|update|delete|drop|alter|truncate|create|grant|revoke|copy|call|do|set|reset|pg_sleep|pg_read_file|pg_ls_dir|lo_import|lo_export|dblink|scorer_email)\b/i;
 
 /**
  * Defense in depth on top of BEGIN READ ONLY: single SELECT/WITH statement only.
@@ -47,7 +47,16 @@ async function executeSqlTool({ query }) {
       await client.query("BEGIN READ ONLY;");
       await client.query("SET statement_timeout = 3000;"); // 3s hard limit
       const res = await client.query(query);
-      queryResult = JSON.stringify(res.rows).slice(0, 25000); // Truncate for LLM context, increased from 2000 to handle more matches
+      const safeRows = Array.isArray(res.rows)
+        ? res.rows.map((row) => {
+            if (row && typeof row === "object" && "scorer_email" in row) {
+              const { scorer_email, ...rest } = row;
+              return rest;
+            }
+            return row;
+          })
+        : res.rows;
+      queryResult = JSON.stringify(safeRows).slice(0, 25000); // Truncate for LLM context, increased from 2000 to handle more matches
       await client.query("COMMIT;");
     } catch (err) {
       await client.query("ROLLBACK;");

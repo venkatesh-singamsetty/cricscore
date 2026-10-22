@@ -2,6 +2,21 @@
 
 This engineering trace documents the real-world resolutions for the CricScore backend integration.
 
+### 54. **Viewer and Match List Not Refreshing on Innings Switch or New Match without Manual Reload**
+
+- **Symptom**: In viewer mode or match list, when a new match was started, innings switched, or reset, the viewer page did not reflect the new state until the user performed a hard page refresh. Additionally, unbatted squad members were missing from the viewer scorecard.
+- **Cause**:
+  1. In `infra/terraform/lambda.tf`, `BROADCASTER_LAMBDA` was set to the Terraform module resource name rather than `module.broadcaster.function_name`.
+  2. `broadcaster/index.js` only parsed payloads wrapped in SNS records (`event.Records[0].Sns.Message`), failing to handle direct Lambda invocations (`event.body` or direct object) sent from `match-api` for `HUB_UPDATE`.
+  3. `Scoreboard.tsx` was filtering out squad members who had not faced a delivery (`ballsFaced === 0 && !isOut`), hiding upcoming batters from the batting scorecard.
+- **Fix**:
+  1. Updated `infra/terraform/lambda.tf` to supply `module.broadcaster.function_name` as `BROADCASTER_LAMBDA` to `match-api`.
+  2. Updated `broadcaster/index.js` to extract payloads from SNS records, `event.body`, or direct event objects, forwarding `HUB_UPDATE` frames to all connected WebSockets.
+  3. Updated `broadcaster/index.js` to prune dead connections (`410 GoneException`) to keep the DynamoDB connection pool clean.
+  4. Updated `Scoreboard.tsx` to map over the full effective batting squad in a compact 1-row-per-batter layout with clear statuses (`🏏 BATTING`, `NOT OUT`, `YET TO BAT`, `DID NOT BAT`), dismissal details, and 2nd-innings chase equation banner.
+
+---
+
 ### 53. **AI Summary Stuck on "0/0" / "0 Balls" and Fixture Cards Displaying "0/0 (0.0)" Before Ball 1**
 
 - **Symptom**: AI match summaries stayed cached showing `0/0` or `0 balls` even after balls were scored, and match cards in "Latest Fixtures" displayed `0/0 (0.0)` for Team A before any balls had been bowled.

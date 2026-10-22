@@ -85,9 +85,10 @@ jobs:
           set -e
           for d in apps/backend/lambdas/*; do
             if [ -f "$d/package.json" ]; then
-              (cd "$d" && npm install --omit=dev --no-audit --no-fund --ignore-scripts)
+              (cd "$d" && npm install --omit=dev --no-audit --no-fund --ignore-scripts) &
             fi
           done
+          wait
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v4
@@ -153,7 +154,15 @@ jobs:
         working-directory: ./apps/e2e
         run: npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
 
+      - name: Cache Playwright Browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('apps/e2e/package-lock.json') }}
+
       - name: Install Playwright Browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         working-directory: ./apps/e2e
         run: npx playwright install --with-deps
 

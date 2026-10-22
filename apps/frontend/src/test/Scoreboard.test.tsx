@@ -1,0 +1,208 @@
+import { describe, it, expect, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import Scoreboard from "../components/Scoreboard";
+import { InningsState, WicketType } from "../types";
+
+describe("Scoreboard Component", () => {
+  const mockCurrentInnings: InningsState = {
+    id: "inn-2",
+    inningNumber: 2,
+    target: 150,
+    battingTeamName: "ILLINOIS THUNDERS",
+    bowlingTeamName: "CHICAGO CHIEFS",
+    totalRuns: 20,
+    totalWickets: 1,
+    overs: 2,
+    balls: 4,
+    currentOver: [],
+    allBalls: [],
+    strikerId: "p1",
+    nonStrikerId: "p2",
+    currentBowlerId: "b1",
+    battingOrder: ["p1", "p2", "p3", "p4", "p5"],
+    bowlingOrder: ["b1"],
+    players: {
+      p1: {
+        id: "p1",
+        name: "THUNDER 1",
+        runs: 10,
+        ballsFaced: 8,
+        fours: 1,
+        sixes: 0,
+        isOut: false,
+      },
+      p2: {
+        id: "p2",
+        name: "THUNDER 2",
+        runs: 5,
+        ballsFaced: 4,
+        fours: 1,
+        sixes: 0,
+        isOut: false,
+      },
+      p3: {
+        id: "p3",
+        name: "THUNDER 3",
+        runs: 4,
+        ballsFaced: 3,
+        fours: 0,
+        sixes: 0,
+        isOut: true,
+        wicketType: WicketType.BOWLED,
+        wicketBy: "Bowler 1",
+      },
+      p4: {
+        id: "p4",
+        name: "THUNDER 4",
+        runs: 0,
+        ballsFaced: 0,
+        fours: 0,
+        sixes: 0,
+        isOut: false,
+      },
+      p5: {
+        id: "p5",
+        name: "THUNDER 5",
+        runs: 0,
+        ballsFaced: 0,
+        fours: 0,
+        sixes: 0,
+        isOut: false,
+      },
+    },
+    bowlers: {
+      b1: {
+        id: "b1",
+        name: "Bowler 1",
+        overs: 2,
+        balls: 4,
+        maidens: 0,
+        runsConceded: 18,
+        wickets: 1,
+      },
+    },
+  };
+
+  const mockPreviousInnings: InningsState = {
+    id: "inn-1",
+    inningNumber: 1,
+    battingTeamName: "CHICAGO CHIEFS",
+    bowlingTeamName: "ILLINOIS THUNDERS",
+    totalRuns: 149,
+    totalWickets: 6,
+    overs: 20,
+    balls: 0,
+    currentOver: [],
+    allBalls: [],
+    strikerId: "cp1",
+    nonStrikerId: "cp2",
+    currentBowlerId: "b1",
+    battingOrder: ["cp1", "cp2"],
+    bowlingOrder: ["b1"],
+    players: {
+      cp1: {
+        id: "cp1",
+        name: "CHIEF 1",
+        runs: 80,
+        ballsFaced: 50,
+        fours: 8,
+        sixes: 3,
+        isOut: false,
+      },
+      cp2: {
+        id: "cp2",
+        name: "CHIEF 2",
+        runs: 60,
+        ballsFaced: 45,
+        fours: 5,
+        sixes: 2,
+        isOut: true,
+        wicketType: WicketType.CAUGHT,
+        wicketBy: "Bowler A",
+        fielderName: "Fielder B",
+      },
+    },
+    bowlers: {
+      b1: {
+        id: "b1",
+        name: "Bowler A",
+        overs: 4,
+        balls: 0,
+        maidens: 0,
+        runsConceded: 30,
+        wickets: 1,
+      },
+    },
+  };
+
+  it("renders all batsmen in second innings including active, dismissed, and unbatted squad members", () => {
+    render(
+      <Scoreboard
+        currentInnings={mockCurrentInnings}
+        previousInnings={mockPreviousInnings}
+        onClose={vi.fn()}
+      />,
+    );
+
+    // Active striker & non-striker
+    expect(screen.getByText(/THUNDER 1/i)).toBeInTheDocument();
+    expect(screen.getByText(/THUNDER 2/i)).toBeInTheDocument();
+
+    // Dismissed batter
+    expect(screen.getByText(/THUNDER 3/i)).toBeInTheDocument();
+    expect(screen.getByText(/b Bowler 1/i)).toBeInTheDocument();
+
+    // Unbatted squad members are present in the table as 1 row with YET TO BAT status
+    const thunder4Elements = screen.getAllByText(/THUNDER 4/i);
+    expect(thunder4Elements.length).toBeGreaterThanOrEqual(1);
+
+    const thunder5Elements = screen.getAllByText(/THUNDER 5/i);
+    expect(thunder5Elements.length).toBeGreaterThanOrEqual(1);
+
+    const yetToBatBadges = screen.getAllByText(/YET TO BAT/i);
+    expect(yetToBatBadges.length).toBe(2);
+
+    // Target equation & banner
+    expect(screen.getByText(/Target Equation/i)).toBeInTheDocument();
+    expect(screen.getByText(/150/i)).toBeInTheDocument();
+    expect(screen.getByText(/Need 130 runs/i)).toBeInTheDocument();
+
+    // Bowler table
+    expect(screen.getAllByText(/Bowler 1/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/2.4/i).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("switches tabs to 1st innings and displays 1st innings batsmen and bowlers", async () => {
+    const { fireEvent } = await import("@testing-library/react");
+    render(
+      <Scoreboard
+        currentInnings={mockCurrentInnings}
+        previousInnings={mockPreviousInnings}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const inns1Tab = screen.getByText(/CHICAGO CHIEFS \(Inns 1\)/i);
+    fireEvent.click(inns1Tab);
+
+    // CHIEF 1 and CHIEF 2 appear
+    expect(screen.getByText(/CHIEF 1/i)).toBeInTheDocument();
+    expect(screen.getByText(/CHIEF 2/i)).toBeInTheDocument();
+    expect(screen.getByText(/c Fielder B b Bowler A/i)).toBeInTheDocument();
+
+    // Bowler A appears
+    expect(screen.getAllByText(/Bowler A/i).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("shows DID NOT BAT status for unbatted players when innings is completed", () => {
+    const completedInnings: InningsState = {
+      ...mockCurrentInnings,
+      isCompleted: true,
+    };
+
+    render(<Scoreboard currentInnings={completedInnings} onClose={vi.fn()} />);
+
+    const dnbBadges = screen.getAllByText(/DID NOT BAT/i);
+    expect(dnbBadges.length).toBe(2);
+  });
+});

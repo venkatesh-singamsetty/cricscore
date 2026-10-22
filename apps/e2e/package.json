@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "playwright test"
+    "test": "playwright test",
+    "test:dev": "BASE_URL=https://cricscoredev.venkateshsingamsetty.com API_URL=https://api.cricscoredev.venkateshsingamsetty.com playwright test",
+    "test:dev:headed": "BASE_URL=https://cricscoredev.venkateshsingamsetty.com API_URL=https://api.cricscoredev.venkateshsingamsetty.com playwright test --headed"
   },
   "keywords": [],
   "author": "",

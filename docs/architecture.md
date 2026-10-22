@@ -75,6 +75,7 @@ flowchart TD
     ScoreUpdate -->|Fast Path Broadcast| SNS_Score
     ScoreUpdate -->|Guaranteed Delivery| SQS_Queue
     SNS_Score --> Broadcaster
+    MatchAPI -->|Direct Invoke: HUB_UPDATE| Broadcaster
     Broadcaster -->|Push Updates| APIGW_WS
     SQS_Queue --> StorageWorker
 
