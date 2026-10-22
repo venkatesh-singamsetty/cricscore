@@ -31,203 +31,205 @@ const BattingTable: React.FC<BattingTableProps> = React.memo(
       ...allPlayerIds.filter((id) => !(order || []).includes(id)),
     ];
 
+    const isPlayerBatted = (id: string) => {
+      const player = players?.[id];
+      if (!player) return false;
+      return (
+        player.ballsFaced > 0 ||
+        player.isOut ||
+        player.wicketType === "RETIRED_HURT" ||
+        player.wicketType === "RETIRED_OUT" ||
+        id === strikerId ||
+        id === nonStrikerId
+      );
+    };
+
+    const initialBatted = effectiveOrder.filter(isPlayerBatted);
+    // If nobody has batted yet, default to first 2 in order as openers
+    const displayBattedOrder =
+      initialBatted.length > 0
+        ? initialBatted
+        : effectiveOrder.slice(0, Math.min(2, effectiveOrder.length));
+
+    const unbattedOrder = effectiveOrder.filter(
+      (id) => !displayBattedOrder.includes(id),
+    );
+
     return (
-      <div className="overflow-x-auto -mx-1 sm:mx-0">
-        <table className="w-full text-left border-separate border-spacing-y-0.5 sm:border-spacing-y-1">
-          <thead>
-            <tr className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-slate-500">
-              <th className="px-2.5 py-1 sm:py-1.5 whitespace-nowrap">
-                Batter
-              </th>
-              <th className="px-2 py-1 sm:py-1.5 whitespace-nowrap">Status</th>
-              <th className="px-2 py-1 sm:py-1.5 text-right whitespace-nowrap">
-                R
-              </th>
-              <th className="px-2 py-1 sm:py-1.5 text-right whitespace-nowrap">
-                B
-              </th>
-              <th className="px-2 py-1 sm:py-1.5 text-right whitespace-nowrap">
-                4s
-              </th>
-              <th className="px-2 py-1 sm:py-1.5 text-right whitespace-nowrap">
-                6s
-              </th>
-              <th className="px-2 py-1 sm:py-1.5 text-right text-indigo-400 whitespace-nowrap">
-                SR
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {effectiveOrder.map((id) => {
-              const player = players?.[id];
-              if (!player) return null;
-              const isStriker = id === strikerId;
-              const isNonStriker = id === nonStrikerId;
-              const isUnbatted =
-                player.ballsFaced === 0 &&
-                !player.isOut &&
-                player.wicketType !== "RETIRED_HURT" &&
-                !isStriker &&
-                !isNonStriker;
+      <div className="space-y-2">
+        <div className="overflow-x-auto -mx-1 sm:mx-0">
+          <table className="w-full text-left border-separate border-spacing-y-0.5 sm:border-spacing-y-1">
+            <thead>
+              <tr className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-slate-500">
+                <th className="px-2.5 py-1 sm:py-1.5 whitespace-nowrap">
+                  Batter
+                </th>
+                <th className="px-2 py-1 sm:py-1.5 whitespace-nowrap">
+                  Status
+                </th>
+                <th className="px-2 py-1 sm:py-1.5 text-right whitespace-nowrap">
+                  R
+                </th>
+                <th className="px-2 py-1 sm:py-1.5 text-right whitespace-nowrap">
+                  B
+                </th>
+                <th className="px-2 py-1 sm:py-1.5 text-right whitespace-nowrap">
+                  4s
+                </th>
+                <th className="px-2 py-1 sm:py-1.5 text-right whitespace-nowrap">
+                  6s
+                </th>
+                <th className="px-2 py-1 sm:py-1.5 text-right text-indigo-400 whitespace-nowrap">
+                  SR
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {displayBattedOrder.map((id) => {
+                const player = players?.[id];
+                if (!player) return null;
+                const isStriker = id === strikerId;
+                const isNonStriker = id === nonStrikerId;
+                const highlight = isCurrentTab && (isStriker || isNonStriker);
+                const sr =
+                  player.ballsFaced > 0
+                    ? ((player.runs / player.ballsFaced) * 100).toFixed(1)
+                    : "-";
 
-              const highlight = isCurrentTab && (isStriker || isNonStriker);
-              const sr =
-                player.ballsFaced > 0
-                  ? ((player.runs / player.ballsFaced) * 100).toFixed(1)
-                  : "-";
-
-              return (
-                <tr
-                  key={id}
-                  className={`group transition-all duration-300 ${
-                    highlight
-                      ? "bg-indigo-600 shadow-md shadow-indigo-600/20"
-                      : isUnbatted
-                        ? "bg-white/[0.02] hover:bg-white/[0.05] opacity-75"
-                        : "bg-white/5 hover:bg-white/10"
-                  }`}
-                >
-                  <td
-                    className={`px-2.5 py-1.5 first:rounded-l-lg font-black uppercase tracking-tight italic text-xs whitespace-nowrap ${
+                return (
+                  <tr
+                    key={id}
+                    className={`group transition-all duration-300 ${
                       highlight
-                        ? "text-white"
-                        : isUnbatted
-                          ? "text-slate-400 font-bold"
-                          : "text-slate-200"
+                        ? "bg-indigo-600 shadow-md shadow-indigo-600/20"
+                        : "bg-white/5 hover:bg-white/10"
                     }`}
                   >
-                    <span className="inline-flex items-center gap-1">
-                      {player.name}
-                      {isStriker && (
-                        <span className="text-indigo-300 animate-pulse text-xs">
-                          🏏
+                    <td
+                      className={`px-2.5 py-1.5 first:rounded-l-lg font-black uppercase tracking-tight italic text-xs whitespace-nowrap ${
+                        highlight ? "text-white" : "text-slate-200"
+                      }`}
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        {player.name}
+                        {isStriker && (
+                          <span className="text-indigo-300 animate-pulse text-xs">
+                            🏏
+                          </span>
+                        )}
+                      </span>
+                    </td>
+                    <td
+                      className={`px-2 py-1.5 text-[9px] sm:text-[10px] font-black uppercase tracking-tight whitespace-nowrap ${
+                        highlight ? "text-indigo-100" : "text-slate-500"
+                      }`}
+                    >
+                      {player.isOut || player.wicketType === "RETIRED_HURT" ? (
+                        (() => {
+                          const type = player.wicketType;
+                          const bowler = player.wicketBy;
+                          const fielder = player.fielderName;
+
+                          let text = "";
+                          if (type === "CAUGHT") {
+                            if (fielder === bowler) text = `c & b ${bowler}`;
+                            else text = `c ${fielder || "---"} b ${bowler}`;
+                          } else if (type === "STUMPED") {
+                            text = `st ${fielder || "---"} b ${bowler}`;
+                          } else if (type === "RUN_OUT") {
+                            text = `run out (${fielder || "---"})`;
+                          } else if (type === "LBW") {
+                            text = `lbw b ${bowler}`;
+                          } else if (type === "BOWLED") {
+                            text = `b ${bowler}`;
+                          } else if (type === "HIT_WICKET") {
+                            text = `hit wicket b ${bowler}`;
+                          } else if (type === "RETIRED_HURT") {
+                            text = "ret. hurt";
+                          } else if (type === "RETIRED_OUT") {
+                            text = "ret. out";
+                          } else {
+                            text = `${type?.toLowerCase().replace(/_/g, " ")}`;
+                          }
+
+                          if (type === "RETIRED_HURT") {
+                            return (
+                              <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-black tracking-wide inline-flex items-center gap-1 shadow-sm whitespace-nowrap">
+                                🚑 {text}
+                              </span>
+                            );
+                          }
+                          if (type === "RETIRED_OUT") {
+                            return (
+                              <span className="bg-purple-500/20 text-purple-300 border border-purple-500/40 px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-black tracking-wide inline-flex items-center gap-1 shadow-sm whitespace-nowrap">
+                                🚪 {text}
+                              </span>
+                            );
+                          }
+                          return (
+                            <span className="text-red-400 opacity-90 font-medium whitespace-nowrap">
+                              {text}
+                            </span>
+                          );
+                        })()
+                      ) : (
+                        <span className="text-emerald-400 font-bold opacity-90 inline-flex items-center gap-1 whitespace-nowrap">
+                          {highlight ? "🏏 BATTING" : "NOT OUT"}
                         </span>
                       )}
-                    </span>
-                  </td>
-                  <td
-                    className={`px-2 py-1.5 text-[9px] sm:text-[10px] font-black uppercase tracking-tight whitespace-nowrap ${
-                      highlight ? "text-indigo-100" : "text-slate-500"
-                    }`}
-                  >
-                    {isUnbatted ? (
-                      <span className="text-slate-500 font-bold tracking-wider">
-                        {isCompleted ? "DID NOT BAT" : "YET TO BAT"}
-                      </span>
-                    ) : player.isOut || player.wicketType === "RETIRED_HURT" ? (
-                      (() => {
-                        const type = player.wicketType;
-                        const bowler = player.wicketBy;
-                        const fielder = player.fielderName;
+                    </td>
+                    <td
+                      className={`px-2 py-1.5 text-right font-black text-xs sm:text-sm tabular-nums whitespace-nowrap ${
+                        highlight ? "text-white" : "text-slate-100"
+                      }`}
+                    >
+                      {player.runs}
+                    </td>
+                    <td
+                      className={`px-2 py-1.5 text-right font-black text-[11px] tabular-nums whitespace-nowrap ${
+                        highlight ? "text-indigo-200" : "text-slate-400"
+                      }`}
+                    >
+                      {player.ballsFaced}
+                    </td>
+                    <td
+                      className={`px-2 py-1.5 text-right font-black text-[11px] tabular-nums whitespace-nowrap ${
+                        highlight ? "text-indigo-200" : "text-slate-400"
+                      }`}
+                    >
+                      {player.fours}
+                    </td>
+                    <td
+                      className={`px-2 py-1.5 text-right font-black text-[11px] tabular-nums whitespace-nowrap ${
+                        highlight ? "text-indigo-200" : "text-slate-400"
+                      }`}
+                    >
+                      {player.sixes}
+                    </td>
+                    <td
+                      className={`px-2 py-1.5 last:rounded-r-lg text-right font-black text-[11px] tabular-nums whitespace-nowrap ${
+                        highlight ? "text-white" : "text-indigo-400"
+                      }`}
+                    >
+                      {sr}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
 
-                        let text = "";
-                        if (type === "CAUGHT") {
-                          if (fielder === bowler) text = `c & b ${bowler}`;
-                          else text = `c ${fielder || "---"} b ${bowler}`;
-                        } else if (type === "STUMPED") {
-                          text = `st ${fielder || "---"} b ${bowler}`;
-                        } else if (type === "RUN_OUT") {
-                          text = `run out (${fielder || "---"})`;
-                        } else if (type === "LBW") {
-                          text = `lbw b ${bowler}`;
-                        } else if (type === "BOWLED") {
-                          text = `b ${bowler}`;
-                        } else if (type === "HIT_WICKET") {
-                          text = `hit wicket b ${bowler}`;
-                        } else if (type === "RETIRED_HURT") {
-                          text = "ret. hurt";
-                        } else if (type === "RETIRED_OUT") {
-                          text = "ret. out";
-                        } else {
-                          text = `${type?.toLowerCase().replace(/_/g, " ")}`;
-                        }
-
-                        if (type === "RETIRED_HURT") {
-                          return (
-                            <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-black tracking-wide inline-flex items-center gap-1 shadow-sm whitespace-nowrap">
-                              🚑 {text}
-                            </span>
-                          );
-                        }
-                        if (type === "RETIRED_OUT") {
-                          return (
-                            <span className="bg-purple-500/20 text-purple-300 border border-purple-500/40 px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-black tracking-wide inline-flex items-center gap-1 shadow-sm whitespace-nowrap">
-                              🚪 {text}
-                            </span>
-                          );
-                        }
-                        return (
-                          <span className="text-red-400 opacity-90 font-medium whitespace-nowrap">
-                            {text}
-                          </span>
-                        );
-                      })()
-                    ) : (
-                      <span className="text-emerald-400 font-bold opacity-90 inline-flex items-center gap-1 whitespace-nowrap">
-                        {highlight ? "🏏 BATTING" : "NOT OUT"}
-                      </span>
-                    )}
-                  </td>
-                  <td
-                    className={`px-2 py-1.5 text-right font-black text-xs sm:text-sm tabular-nums whitespace-nowrap ${
-                      highlight
-                        ? "text-white"
-                        : isUnbatted
-                          ? "text-slate-600"
-                          : "text-slate-100"
-                    }`}
-                  >
-                    {isUnbatted ? "-" : player.runs}
-                  </td>
-                  <td
-                    className={`px-2 py-1.5 text-right font-black text-[11px] tabular-nums whitespace-nowrap ${
-                      highlight
-                        ? "text-indigo-200"
-                        : isUnbatted
-                          ? "text-slate-600"
-                          : "text-slate-400"
-                    }`}
-                  >
-                    {isUnbatted ? "-" : player.ballsFaced}
-                  </td>
-                  <td
-                    className={`px-2 py-1.5 text-right font-black text-[11px] tabular-nums whitespace-nowrap ${
-                      highlight
-                        ? "text-indigo-200"
-                        : isUnbatted
-                          ? "text-slate-600"
-                          : "text-slate-400"
-                    }`}
-                  >
-                    {isUnbatted ? "-" : player.fours}
-                  </td>
-                  <td
-                    className={`px-2 py-1.5 text-right font-black text-[11px] tabular-nums whitespace-nowrap ${
-                      highlight
-                        ? "text-indigo-200"
-                        : isUnbatted
-                          ? "text-slate-600"
-                          : "text-slate-400"
-                    }`}
-                  >
-                    {isUnbatted ? "-" : player.sixes}
-                  </td>
-                  <td
-                    className={`px-2 py-1.5 last:rounded-r-lg text-right font-black text-[11px] tabular-nums whitespace-nowrap ${
-                      highlight
-                        ? "text-white"
-                        : isUnbatted
-                          ? "text-slate-600"
-                          : "text-indigo-400"
-                    }`}
-                  >
-                    {sr}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        {unbattedOrder.length > 0 && (
+          <div className="px-3 py-2 bg-slate-800/40 border border-white/5 rounded-xl flex items-baseline gap-2 flex-wrap">
+            <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 italic shrink-0">
+              {isCompleted ? "DID NOT BAT:" : "YET TO BAT:"}
+            </span>
+            <span className="text-[11px] sm:text-xs font-bold text-slate-300 tracking-wide">
+              {unbattedOrder.map((id) => players[id]?.name || id).join(", ")}
+            </span>
+          </div>
+        )}
       </div>
     );
   },

@@ -437,6 +437,19 @@ const App: React.FC = () => {
         {isStartingGuest ? "Starting…" : "Continue as Guest"}
       </button>
       <p className="auth-guest-hint">No account needed · score instantly</p>
+
+      {/* Modern platform feature showcase */}
+      <div className="mt-3.5 pt-3 border-t border-white/5 flex items-center justify-center gap-1.5 sm:gap-2 flex-wrap">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[8px] sm:text-[9px] font-black uppercase tracking-wider">
+          <span>⚡</span> Live Sync
+        </span>
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[8px] sm:text-[9px] font-black uppercase tracking-wider">
+          <span>📊</span> DLS Par
+        </span>
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-[8px] sm:text-[9px] font-black uppercase tracking-wider">
+          <span>🤖</span> AI Insights
+        </span>
+      </div>
     </div>
   );
 
@@ -1121,8 +1134,11 @@ const App: React.FC = () => {
   };
 
   const handleViewClick = (target: "VIEWER" | "SCORER" | "ADMIN" | "CHAT") => {
-    if (target === "VIEWER" && view === "VIEWER") {
+    if (target === "VIEWER") {
       setScorecardDismissRequest((request) => request + 1);
+      setActiveViewerMatchId(null);
+      setUrlMatchId(null);
+      setHubKey((prev) => prev + 1);
     }
 
     if (target === "ADMIN") {
@@ -1955,7 +1971,10 @@ const App: React.FC = () => {
                 )}
               </div>
             ) : (
-              <div className="flex-1 min-h-0 overflow-hidden sm:overflow-y-auto flex flex-col w-full bg-slate-950 p-0 sm:px-3 sm:py-6">
+              <div className="flex-1 min-h-0 overflow-hidden sm:overflow-y-auto flex flex-col w-full bg-slate-950 p-0 sm:px-3 sm:py-6 relative">
+                {/* Background ambient decorative glow */}
+                <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none -z-10"></div>
+                <div className="absolute bottom-1/4 left-1/2 -translate-x-1/2 translate-y-1/2 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl pointer-events-none -z-10"></div>
                 <div className="max-w-5xl mx-auto w-full flex-1 min-h-0 flex flex-col justify-start sm:justify-center items-center animate-in fade-in zoom-in-95 duration-500">
                   <Authenticator
                     signUpAttributes={["given_name", "family_name"]}

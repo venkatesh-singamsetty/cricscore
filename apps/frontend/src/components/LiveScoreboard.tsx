@@ -905,7 +905,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
 
   return (
     <div
-      className={`${targetMatchId ? "p-3 sm:p-5" : "p-4 sm:p-6"} bg-slate-900/90 text-white rounded-2xl sm:rounded-3xl border border-white/10 shadow-2xl w-full`}
+      className={`${targetMatchId ? "p-3 sm:p-5 mb-6 sm:mb-8" : "p-4 sm:p-6"} bg-slate-900/90 text-white rounded-2xl sm:rounded-3xl border border-white/10 shadow-2xl w-full`}
     >
       {!targetMatchId && sectionTitle && (
         <h2 className="text-xl font-black text-white uppercase tracking-wider italic mb-4 px-1">
@@ -952,7 +952,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
           lastMessage={lastMessage}
         />
       ) : (
-        <div className="space-y-4 sm:space-y-5">
+        <div className="space-y-3 sm:space-y-4">
           <div className="flex justify-between items-center">
             <button
               onClick={() => {
@@ -1071,9 +1071,9 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                   : "0.0";
 
               return (
-                <div className="space-y-3 sm:space-y-3.5 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                <div className="space-y-2.5 sm:space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-700">
                   {/* Score header */}
-                  <div className="bg-slate-800/80 p-3.5 sm:p-4 rounded-2xl border border-white/5 relative overflow-hidden shadow-xl space-y-2.5">
+                  <div className="bg-slate-800/80 p-3 sm:p-3.5 rounded-2xl border border-white/5 relative overflow-hidden shadow-xl space-y-2">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl -z-10"></div>
 
                     {/* Top Row: Matchup vs Overs */}
@@ -1223,7 +1223,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                       <div
                         className={`grid ${dls ? "grid-cols-3" : "grid-cols-2"} gap-2 sm:gap-2.5`}
                       >
-                        <div className="bg-slate-800/80 rounded-2xl py-2 px-2.5 text-center border border-white/5 shadow-md">
+                        <div className="bg-slate-800/80 rounded-xl sm:rounded-2xl py-1.5 px-2.5 text-center border border-white/5 shadow-md">
                           <div className="text-[9px] sm:text-xs font-black text-slate-400 uppercase tracking-wider">
                             CRR
                           </div>
@@ -1232,7 +1232,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                           </div>
                         </div>
                         {rrr !== null ? (
-                          <div className="bg-amber-500/10 rounded-2xl py-2 px-2.5 text-center border border-amber-500/30 shadow-md">
+                          <div className="bg-amber-500/10 rounded-xl sm:rounded-2xl py-1.5 px-2.5 text-center border border-amber-500/30 shadow-md">
                             <div className="text-[9px] sm:text-xs font-black text-amber-500 uppercase tracking-wider">
                               RRR
                             </div>
@@ -1241,7 +1241,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                             </div>
                           </div>
                         ) : (
-                          <div className="bg-slate-800/80 rounded-2xl py-2 px-2.5 text-center border border-white/5 shadow-md">
+                          <div className="bg-slate-800/80 rounded-xl sm:rounded-2xl py-1.5 px-2.5 text-center border border-white/5 shadow-md">
                             <div className="text-[9px] sm:text-xs font-black text-slate-400 uppercase tracking-wider">
                               BALLS LEFT
                             </div>
@@ -1252,7 +1252,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                         )}
                         {dls && (
                           <div
-                            className={`rounded-2xl py-2 px-2.5 text-center border transition-all shadow-md ${
+                            className={`rounded-xl sm:rounded-2xl py-1.5 px-2.5 text-center border transition-all shadow-md ${
                               dls.isAhead
                                 ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
                                 : dls.isTied
@@ -1276,8 +1276,8 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                   })()}
 
                   {/* Batsmen */}
-                  <div className="bg-white/5 rounded-2xl border border-white/5 p-3.5 sm:p-4 space-y-2.5">
-                    <div className="grid grid-cols-[1fr_auto_auto] gap-4 text-[10px] font-black text-slate-500 uppercase tracking-widest pb-1.5 border-b border-white/5">
+                  <div className="bg-white/5 rounded-xl sm:rounded-2xl border border-white/5 p-3 sm:p-3.5 space-y-2">
+                    <div className="grid grid-cols-[1fr_auto_auto] gap-4 text-[9px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest pb-1 border-b border-white/5">
                       <div className="flex flex-col">
                         <span className="text-[8px] text-indigo-400 mb-0.5 tracking-[0.2em]">
                           {currentInnings.battingTeamName}
@@ -1298,7 +1298,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                           className="grid grid-cols-[1fr_auto_auto] gap-4 items-center group"
                         >
                           <span
-                            className={`font-black uppercase text-sm sm:text-base italic truncate ${b.id === currentInnings.strikerId ? "text-white" : "text-slate-400"}`}
+                            className={`font-black uppercase text-xs sm:text-sm italic truncate ${b.id === currentInnings.strikerId ? "text-white" : "text-slate-400"}`}
                           >
                             {b.name}{" "}
                             {b.id === currentInnings.strikerId && (
@@ -1308,12 +1308,12 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                             )}
                           </span>
                           <span
-                            className={`font-black tabular-nums text-right w-10 text-sm sm:text-base ${b.id === currentInnings.strikerId ? "text-white" : "text-slate-300"}`}
+                            className={`font-black tabular-nums text-right w-10 text-xs sm:text-sm ${b.id === currentInnings.strikerId ? "text-white" : "text-slate-300"}`}
                           >
                             {b.runs}
                           </span>
                           <span
-                            className={`font-black tabular-nums text-right w-10 text-xs sm:text-sm ${b.id === currentInnings.strikerId ? "text-slate-400" : "text-slate-500"}`}
+                            className={`font-black tabular-nums text-right w-10 text-xs ${b.id === currentInnings.strikerId ? "text-slate-400" : "text-slate-500"}`}
                           >
                             {b.ballsFaced}
                           </span>
@@ -1322,14 +1322,14 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                     )}
                     {currentInnings.allBalls &&
                       currentInnings.allBalls.length > 0 && (
-                        <div className="mt-2 pt-2 border-t border-white/5 flex justify-between items-center text-[10px] sm:text-xs font-black uppercase tracking-widest text-slate-400">
+                        <div className="mt-1.5 pt-1.5 border-t border-white/5 flex justify-between items-center text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400">
                           <span>Partnership</span>
                           <span className="text-indigo-400">
                             {
                               getCurrentPartnership(currentInnings.allBalls)
                                 .runs
                             }{" "}
-                            <span className="text-slate-500 text-[9px] sm:text-[10px]">
+                            <span className="text-slate-500 text-[8px] sm:text-[9px]">
                               (
                               {
                                 getCurrentPartnership(currentInnings.allBalls)
@@ -1445,8 +1445,8 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                   )}
 
                   {/* Bowler */}
-                  <div className="bg-white/5 rounded-2xl border border-white/5 p-3.5 sm:p-4 space-y-2.5">
-                    <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 text-[10px] font-black text-slate-500 uppercase tracking-widest pb-1.5 border-b border-white/5">
+                  <div className="bg-white/5 rounded-xl sm:rounded-2xl border border-white/5 p-3 sm:p-3.5 space-y-2">
+                    <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 text-[9px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest pb-1 border-b border-white/5">
                       <div className="flex flex-col">
                         <span className="text-[8px] text-indigo-400 mb-0.5 tracking-[0.2em]">
                           {currentInnings.bowlingTeamName}
@@ -1458,16 +1458,16 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                       <span className="text-right w-9 text-indigo-400">W</span>
                     </div>
                     <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 items-center">
-                      <span className="font-black text-white uppercase text-sm sm:text-base italic truncate">
+                      <span className="font-black text-white uppercase text-xs sm:text-sm italic truncate">
                         {currentBowler.name}
                       </span>
-                      <span className="text-slate-400 font-black tabular-nums text-right w-9 text-xs sm:text-sm">
+                      <span className="text-slate-400 font-black tabular-nums text-right w-9 text-xs">
                         {currentBowler.overs}.{currentBowler.balls}
                       </span>
-                      <span className="text-slate-300 font-black tabular-nums text-right w-9 text-sm sm:text-base">
+                      <span className="text-slate-300 font-black tabular-nums text-right w-9 text-xs sm:text-sm">
                         {currentBowler.runsConceded}
                       </span>
-                      <span className="text-indigo-400 font-black tabular-nums text-right w-9 text-sm sm:text-base">
+                      <span className="text-indigo-400 font-black tabular-nums text-right w-9 text-xs sm:text-sm">
                         {currentBowler.wickets}
                       </span>
                     </div>
@@ -1475,7 +1475,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
 
                   <button
                     onClick={() => setShowFullScorecard(true)}
-                    className="w-full py-3 sm:py-3.5 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/20 rounded-2xl text-[11px] font-black text-indigo-300 uppercase tracking-[0.2em] transition-all"
+                    className="w-full py-2.5 sm:py-3 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/20 rounded-xl sm:rounded-2xl text-[10px] sm:text-[11px] font-black text-indigo-300 uppercase tracking-[0.2em] transition-all"
                   >
                     View Full Analysis 📋
                   </button>

@@ -152,7 +152,7 @@ describe("Scoreboard Component", () => {
     expect(screen.getByText(/THUNDER 3/i)).toBeInTheDocument();
     expect(screen.getByText(/b Bowler 1/i)).toBeInTheDocument();
 
-    // Unbatted squad members are present in the table as 1 row with YET TO BAT status
+    // Unbatted squad members are grouped together in a compact YET TO BAT strip
     const thunder4Elements = screen.getAllByText(/THUNDER 4/i);
     expect(thunder4Elements.length).toBeGreaterThanOrEqual(1);
 
@@ -160,7 +160,7 @@ describe("Scoreboard Component", () => {
     expect(thunder5Elements.length).toBeGreaterThanOrEqual(1);
 
     const yetToBatBadges = screen.getAllByText(/YET TO BAT/i);
-    expect(yetToBatBadges.length).toBe(2);
+    expect(yetToBatBadges.length).toBe(1);
 
     // Target equation & banner
     expect(screen.getByText(/Target Equation/i)).toBeInTheDocument();
@@ -203,7 +203,7 @@ describe("Scoreboard Component", () => {
     render(<Scoreboard currentInnings={completedInnings} onClose={vi.fn()} />);
 
     const dnbBadges = screen.getAllByText(/DID NOT BAT/i);
-    expect(dnbBadges.length).toBe(2);
+    expect(dnbBadges.length).toBe(1);
   });
 
   it("merges Player of the Match into the MATCH RESULT banner and suppresses duplicate Target Equation on completed matches", () => {
