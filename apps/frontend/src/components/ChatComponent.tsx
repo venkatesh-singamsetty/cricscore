@@ -564,38 +564,38 @@ export function ChatComponent({
       <div className="flex-1 min-h-0 flex flex-col relative">
         <div
           ref={messageListRef}
-          className="flex-1 overflow-y-auto p-2.5 sm:p-4 overscroll-contain touch-pan-y flex flex-col"
+          className="flex-1 overflow-y-auto p-2.5 sm:p-3 overscroll-contain touch-pan-y flex flex-col"
           style={{ WebkitOverflowScrolling: "touch" }}
         >
           {messages.length > 1 && (
             <div className="flex-1 min-h-[1rem] shrink-0"></div>
           )}
 
-          {/* Welcome & Default Questions (Responsive: 1-col on mobile, 2-col grid on desktop) */}
+          {/* Welcome & Default Questions (One-by-one list fitted cleanly to screen without wasted space) */}
           {messages.length <= 1 && (
-            <div className="flex flex-col items-center justify-start pt-2 sm:pt-4 md:pt-5 pb-3 sm:pb-4 px-3 sm:px-4 text-center w-full max-w-md sm:max-w-xl md:max-w-4xl mx-auto animate-in fade-in duration-300">
-              <div className="auth-hero-brand mb-1.5">
+            <div className="flex flex-col items-center justify-start pt-1 sm:pt-1.5 pb-1 sm:pb-1.5 px-3 sm:px-4 text-center w-full max-w-md sm:max-w-lg md:max-w-xl mx-auto animate-in fade-in duration-300">
+              <div className="auth-hero-brand mb-1 sm:mb-1.5">
                 <div
                   className="auth-logo"
-                  style={{ width: 44, height: 44, fontSize: "1.45rem" }}
+                  style={{ width: 38, height: 38, fontSize: "1.25rem" }}
                 >
                   🤖
                 </div>
-                <h2 className="auth-title text-2xl sm:text-3xl">
+                <h2 className="auth-title text-xl sm:text-2xl font-black">
                   Cric<span>Score AI Assistant</span>
                 </h2>
               </div>
-              <p className="auth-subtitle mb-4 sm:mb-5 md:mb-6">
+              <p className="auth-subtitle mb-2 sm:mb-2.5 text-[10px] sm:text-xs font-semibold tracking-wider">
                 MATCH STATS &middot; TOURNAMENT RULES &middot; WEATHER &middot;
                 BUG REPORT
               </p>
 
-              <div className="w-full space-y-2 text-left">
-                <span className="text-[11px] font-black uppercase text-indigo-400 tracking-wider flex items-center gap-1.5 px-1 mb-1.5">
+              <div className="w-full space-y-1.5 sm:space-y-2 text-left">
+                <span className="text-[11px] sm:text-xs font-black uppercase text-indigo-400 tracking-wider flex items-center gap-1.5 px-1 mb-1 sm:mb-1.5">
                   <Sparkles size={13} className="text-amber-400" />
                   Suggested Questions
                 </span>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-2.5">
+                <div className="flex flex-col gap-1.5 sm:gap-2">
                   {QUICK_PROMPTS.map((prompt, i) => (
                     <button
                       key={i}
@@ -603,10 +603,10 @@ export function ChatComponent({
                       onClick={() => submitText(prompt, false)}
                       disabled={loading}
                       aria-label={prompt}
-                      className={`w-full text-left py-2.5 px-3.5 sm:py-3 sm:px-4 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-white/5 hover:border-indigo-500/40 text-slate-200 hover:text-white transition-all text-[13px] sm:text-sm font-semibold flex items-center justify-between group active:scale-[0.98] shadow-sm ${i === QUICK_PROMPTS.length - 1 ? "md:col-span-2" : ""}`}
+                      className="w-full text-left py-2 px-3 sm:py-2.5 sm:px-3.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-white/5 hover:border-indigo-500/40 text-slate-200 hover:text-white transition-all text-xs sm:text-sm font-semibold flex items-center justify-between group active:scale-[0.98] shadow-sm"
                     >
-                      <span className="flex items-center gap-3 min-w-0">
-                        <span className="w-6 h-6 sm:w-6.5 sm:h-6.5 rounded-md bg-indigo-500/20 text-indigo-300 flex items-center justify-center text-[11px] sm:text-xs font-bold shrink-0">
+                      <span className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                        <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-indigo-500/20 text-indigo-300 flex items-center justify-center text-[10px] sm:text-xs font-bold shrink-0">
                           {i + 1}
                         </span>
                         <span className="leading-snug">{prompt}</span>

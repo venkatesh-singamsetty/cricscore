@@ -2165,7 +2165,7 @@ const App: React.FC = () => {
               </div>
             ))}
           {view === "CHAT" && (
-            <div className="flex-1 w-full flex flex-col bg-slate-950 p-2 sm:p-4 md:p-8 min-h-0 relative">
+            <div className="flex-1 w-full flex flex-col bg-slate-950 p-2 sm:p-3 min-h-0 relative">
               <ChatComponent
                 matchId={matchId}
                 apiUrl={import.meta.env.VITE_API_URL}
