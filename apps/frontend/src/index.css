@@ -784,6 +784,48 @@ html, body, #root {
   }
 }
 
+@media (max-height: 720px) {
+  .auth-hero {
+    margin: 0.1rem auto 0.35rem !important;
+  }
+  .auth-logo {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 1.15rem !important;
+  }
+  .auth-title {
+    font-size: 1.5rem !important;
+  }
+  [data-amplify-authenticator] [data-amplify-router]:has(.auth-footer) {
+    padding: 0.75rem 0.9rem 0.6rem !important;
+  }
+  [data-amplify-authenticator] [data-amplify-router]:has(.auth-footer) [role="tablist"] {
+    margin-bottom: 0.5rem !important;
+  }
+  [data-amplify-authenticator] [data-amplify-router]:has(.auth-footer) form .amplify-flex:not(.amplify-field-group) {
+    gap: 0.55rem !important;
+  }
+  [data-amplify-authenticator] [data-amplify-router]:has(.auth-footer) input,
+  [data-amplify-authenticator] [data-amplify-router]:has(.auth-footer) .amplify-input {
+    padding: 0.6rem 0.85rem !important;
+    font-size: 0.9rem !important;
+  }
+  [data-amplify-authenticator] [data-amplify-router]:has(.auth-footer) button[type="submit"] {
+    padding: 0.7rem 0.9rem !important;
+    font-size: 0.9rem !important;
+  }
+  [data-amplify-authenticator] [data-amplify-router]:has(.auth-footer) .auth-divider {
+    margin: 0.5rem 0 0.45rem !important;
+  }
+  [data-amplify-authenticator] [data-amplify-router]:has(.auth-footer) .auth-guest-btn {
+    padding: 0.65rem 0.9rem !important;
+    font-size: 0.82rem !important;
+  }
+  [data-amplify-authenticator] [data-amplify-router]:has(.auth-footer) .auth-guest-hint {
+    margin-top: 0.25rem !important;
+  }
+}
+
 /* Very short screens (small phones / landscape): compact 5-field Create Account tab to avoid scroll */
 @media (max-height: 700px) {
   [data-amplify-authenticator]:not(:has(.auth-footer)) {
