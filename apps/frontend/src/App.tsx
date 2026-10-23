@@ -1455,7 +1455,8 @@ const App: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <div ref={matchMenuRef}>
+            {/* Standalone Match Options Button on desktop/tablet */}
+            <div ref={matchMenuRef} className="hidden sm:block">
               {matchStatus !== MatchStatus.SETUP && view !== "VIEWER" && (
                 <div className="relative">
                   <button
@@ -1563,6 +1564,45 @@ const App: React.FC = () => {
                         </div>
                       </div>
                     </div>
+                    {/* Active Match options in slide-out menu on mobile */}
+                    {matchStatus !== MatchStatus.SETUP && view !== "VIEWER" && (
+                      <>
+                        <button
+                          onClick={() => {
+                            setShowProfileMenu(false);
+                            handleQuitMatch();
+                          }}
+                          className="w-full px-4 py-3 text-left flex items-center gap-3 hover:bg-slate-800 transition-colors border-b border-white/5 text-rose-400 sm:hidden"
+                        >
+                          <span className="text-base">🚪</span>
+                          <div>
+                            <div className="text-xs font-black uppercase tracking-wider">
+                              Quit Match
+                            </div>
+                            <div className="text-[10px] text-slate-400 font-medium">
+                              Go back to Viewer
+                            </div>
+                          </div>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowProfileMenu(false);
+                            setShowResetConfirm(true);
+                          }}
+                          className="w-full px-4 py-3 text-left flex items-center gap-3 hover:bg-slate-800 transition-colors border-b border-white/5 text-amber-400 sm:hidden"
+                        >
+                          <span className="text-base">🏏</span>
+                          <div>
+                            <div className="text-xs font-black uppercase tracking-wider">
+                              New Match
+                            </div>
+                            <div className="text-[10px] text-slate-400 font-medium">
+                              Reset &amp; start fresh
+                            </div>
+                          </div>
+                        </button>
+                      </>
+                    )}
                     {/* Settings — admin only */}
                     {isAdmin && (
                       <button
@@ -1577,7 +1617,7 @@ const App: React.FC = () => {
                           <div className="text-xs font-black uppercase tracking-wider">
                             Settings
                           </div>
-                          <div className="text-[10px] text-slate-500 font-medium">
+                          <div className="text-[10px] text-slate-400 font-medium">
                             Match Ops
                           </div>
                         </div>

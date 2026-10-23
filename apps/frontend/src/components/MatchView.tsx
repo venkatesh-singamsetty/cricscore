@@ -1582,43 +1582,47 @@ const MatchView: React.FC<MatchViewProps> = ({
           {/* Active Player Cards */}
           <div className="grid grid-cols-2 gap-2">
             {/* Batters */}
-            <div className="space-y-1.5 relative">
+            <div className="space-y-1.5">
               {[striker, nonStriker].map((b, idx) => (
                 <div
                   key={b.id || idx}
-                  className={`flex justify-between items-center px-3 py-2.5 rounded-xl transition-all ${idx === 0 ? "bg-indigo-600 border-2 border-indigo-300 shadow-xl z-10 font-black" : "bg-slate-800 border-2 border-transparent opacity-80"}`}
+                  className={`flex justify-between items-center px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-xl transition-all ${idx === 0 ? "bg-indigo-600 border-2 border-indigo-300 shadow-xl font-black" : "bg-slate-800 border-2 border-transparent opacity-85"}`}
                 >
-                  <div className="flex items-center gap-2 overflow-hidden">
+                  <div className="flex items-center gap-1.5 sm:gap-2 overflow-hidden flex-1 min-w-0 pr-1">
                     <span
-                      className={`text-xs md:text-sm font-black truncate uppercase tracking-widest cursor-pointer hover:opacity-80 transition-opacity ${idx === 0 ? "text-white" : "text-slate-200"}`}
+                      className={`text-xs md:text-sm font-black truncate uppercase tracking-tight cursor-pointer hover:opacity-80 transition-opacity ${idx === 0 ? "text-white" : "text-slate-200"}`}
                       onClick={() => handleRenamePlayer(b.id)}
                     >
                       {b.name || "---"} {idx === 0 && "🏏"}
                     </span>
                   </div>
-                  <div className="flex items-baseline gap-1">
-                    <span
-                      className={`text-lg md:text-xl font-black ${idx === 0 ? "text-white" : "text-slate-200"}`}
-                    >
-                      {b.runs}
-                    </span>
-                    <span
-                      className={`text-[10px] md:text-xs font-black ${idx === 0 ? "text-indigo-100" : "text-slate-500"}`}
-                    >
-                      ({b.ballsFaced})
-                    </span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <div className="flex items-baseline gap-1">
+                      <span
+                        className={`text-base md:text-xl font-black ${idx === 0 ? "text-white" : "text-slate-200"}`}
+                      >
+                        {b.runs}
+                      </span>
+                      <span
+                        className={`text-[10px] md:text-xs font-black ${idx === 0 ? "text-indigo-100" : "text-slate-400"}`}
+                      >
+                        ({b.ballsFaced})
+                      </span>
+                    </div>
+                    {idx === 0 && (
+                      <button
+                        type="button"
+                        onClick={handleSwapEnds}
+                        aria-label="Swap Strike Ends"
+                        title="Swap Strike Ends"
+                        className="ml-1 w-8 h-8 min-w-[32px] min-h-[32px] flex items-center justify-center bg-white/20 hover:bg-white text-white hover:text-indigo-950 rounded-lg text-xs border border-white/30 active:scale-90 transition-all shadow-md cursor-pointer"
+                      >
+                        🔄
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
-              <button
-                type="button"
-                onClick={handleSwapEnds}
-                aria-label="Swap Strike Ends"
-                title="Swap Strike Ends"
-                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center bg-white text-indigo-950 rounded-full text-sm border-2 border-slate-900 active:scale-90 hover:scale-105 transition-all shadow-xl z-20 cursor-pointer"
-              >
-                🔄
-              </button>
             </div>
 
             {/* Bowlers */}

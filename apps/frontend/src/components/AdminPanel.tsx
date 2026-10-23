@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { fetchAuthSession } from "aws-amplify/auth";
+import {
+  FlaskConical,
+  Trash2,
+  Eraser,
+  AlertOctagon,
+  AlertTriangle,
+  ShieldAlert,
+} from "lucide-react";
 import LiveScoreboard from "./LiveScoreboard";
 
 interface User {
@@ -333,33 +341,41 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
           )}
 
-          <div className="overflow-x-auto bg-slate-950/60 rounded-2xl border border-white/10">
+          <div className="overflow-x-auto bg-slate-950/60 rounded-2xl border border-white/10 shadow-lg">
             <table className="w-full text-left text-slate-300 text-sm">
-              <thead className="text-xs text-slate-500 uppercase bg-slate-900/50">
+              <thead className="text-xs text-slate-400 uppercase bg-slate-900/50">
                 <tr>
-                  <th className="px-6 py-4">User Email</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4">Roles</th>
-                  <th className="px-6 py-4 text-right">Actions</th>
+                  <th className="px-4 sm:px-6 py-3.5 sm:py-4 whitespace-nowrap">
+                    User Email
+                  </th>
+                  <th className="px-4 sm:px-6 py-3.5 sm:py-4 whitespace-nowrap">
+                    Status
+                  </th>
+                  <th className="px-4 sm:px-6 py-3.5 sm:py-4 whitespace-nowrap">
+                    Roles
+                  </th>
+                  <th className="px-4 sm:px-6 py-3.5 sm:py-4 text-right whitespace-nowrap">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {users.map((user) => (
                   <tr
                     key={user.username}
-                    className="border-b border-white/5 last:border-0 hover:bg-slate-800/30"
+                    className="border-b border-white/5 last:border-0 hover:bg-slate-800/30 transition-colors"
                   >
-                    <td className="px-6 py-4 font-medium text-white">
+                    <td className="px-4 sm:px-6 py-3.5 sm:py-4 font-medium text-white whitespace-nowrap">
                       {user.email}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 sm:px-6 py-3.5 sm:py-4 whitespace-nowrap">
                       <span
                         className={`px-2 py-1 text-[10px] font-black uppercase tracking-wider rounded-md ${user.status === "CONFIRMED" ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"}`}
                       >
                         {user.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 sm:px-6 py-3.5 sm:py-4 whitespace-nowrap">
                       {(() => {
                         const isGuest =
                           user.email.startsWith("guest-") ||
@@ -389,7 +405,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         );
                       })()}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 sm:px-6 py-3.5 sm:py-4 whitespace-nowrap">
                       <div className="flex justify-end gap-2">
                         {/* SCORER ACTIONS */}
                         {!user.isAdmin &&
@@ -460,11 +476,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                               onClick={() => setPendingDeleteUser(user)}
                               disabled={!!actionLoading}
                               title="Delete User from Cognito"
-                              className="px-3 py-1.5 bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white border border-red-500/30 rounded text-xs font-bold transition-colors disabled:opacity-50"
+                              className="px-3 py-1.5 bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white border border-red-500/30 rounded text-xs font-bold transition-colors disabled:opacity-50 flex items-center gap-1.5"
                             >
+                              <Trash2 className="w-3.5 h-3.5" />
                               {actionLoading === `${user.username}-delete`
                                 ? "..."
-                                : "🗑️ Delete"}
+                                : "Delete"}
                             </button>
                           )}
                       </div>
@@ -475,7 +492,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <tr>
                     <td
                       colSpan={4}
-                      className="px-6 py-8 text-center text-slate-500 italic"
+                      className="px-6 py-8 text-center text-slate-400 italic"
                     >
                       No users found.
                     </td>
@@ -490,14 +507,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       {pendingDeleteUser &&
         createPortal(
           <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[300] p-4 backdrop-blur-md">
-            <div className="bg-slate-900 border border-indigo-500/30 rounded-3xl w-full max-w-sm shadow-2xl shadow-indigo-500/20 overflow-hidden p-6 text-center text-slate-100 animate-in zoom-in-95 duration-200">
+            <div className="bg-slate-900 border-2 border-red-500/40 rounded-3xl w-full max-w-sm shadow-2xl shadow-red-500/20 overflow-hidden p-6 text-center text-slate-100 animate-in zoom-in-95 duration-200">
               <div className="w-16 h-16 bg-rose-500/15 rounded-full flex items-center justify-center mx-auto mb-4 border border-rose-400/30">
-                <span className="text-3xl">🚨</span>
+                <AlertTriangle className="w-8 h-8 text-rose-400" />
               </div>
               <h3 className="text-xl font-black uppercase tracking-widest text-white mb-2 italic">
                 Delete User?
               </h3>
-              <p className="text-slate-400 text-sm font-medium mb-8 leading-relaxed">
+              <p className="text-slate-300 text-sm font-medium mb-8 leading-relaxed">
                 Permanently remove{" "}
                 <span className="text-indigo-300 font-bold">
                   {pendingDeleteUser.email}
@@ -530,30 +547,30 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       {pendingBulkAction &&
         createPortal(
           <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[300] p-4 backdrop-blur-md">
-            <div className="bg-slate-900 border border-rose-500/30 rounded-3xl w-full max-w-sm shadow-2xl shadow-rose-500/20 overflow-hidden p-6 text-center text-slate-100 animate-in zoom-in-95 duration-200">
+            <div className="bg-slate-900 border-2 border-rose-500/40 rounded-3xl w-full max-w-sm shadow-2xl shadow-rose-500/20 overflow-hidden p-6 text-center text-slate-100 animate-in zoom-in-95 duration-200">
               <div className="w-16 h-16 bg-rose-500/15 rounded-full flex items-center justify-center mx-auto mb-4 border border-rose-400/30">
-                <span className="text-3xl">⚠️</span>
+                <ShieldAlert className="w-8 h-8 text-rose-400" />
               </div>
               <h3 className="text-xl font-black uppercase tracking-widest text-white mb-2 italic">
                 Confirm Action
               </h3>
 
               {pendingBulkAction === "delete-all-guest-data" && (
-                <p className="text-slate-400 text-sm font-medium mb-8 leading-relaxed">
+                <p className="text-slate-300 text-sm font-medium mb-8 leading-relaxed">
                   Are you sure you want to permanently delete ALL guest matches
                   AND guest users? This cannot be undone.
                 </p>
               )}
 
               {pendingBulkAction === "delete-all-incomplete-matches" && (
-                <p className="text-slate-400 text-sm font-medium mb-8 leading-relaxed">
+                <p className="text-slate-300 text-sm font-medium mb-8 leading-relaxed">
                   Are you sure you want to permanently delete ALL incomplete
                   matches from the database? This cannot be undone.
                 </p>
               )}
 
               {pendingBulkAction === "delete-all-test-matches" && (
-                <p className="text-slate-400 text-sm font-medium mb-8 leading-relaxed">
+                <p className="text-slate-300 text-sm font-medium mb-8 leading-relaxed">
                   Are you sure you want to permanently delete ALL test/practice
                   matches from the database? This cannot be undone.
                 </p>
@@ -631,11 +648,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               <button
                 onClick={() => setPendingBulkAction("delete-all-test-matches")}
                 disabled={!!actionLoading}
-                className="p-4 bg-purple-900/20 hover:bg-purple-900/40 border border-purple-500/30 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all group disabled:opacity-50"
+                className="p-4 bg-purple-900/20 hover:bg-purple-900/40 border border-purple-500/30 rounded-2xl flex flex-col items-center justify-center gap-2.5 transition-all group disabled:opacity-50"
               >
-                <span className="text-2xl group-hover:scale-110 transition-transform">
-                  🧪
-                </span>
+                <FlaskConical className="w-7 h-7 text-purple-400 group-hover:scale-110 transition-transform" />
                 <span className="text-xs font-black text-purple-400 uppercase tracking-widest text-center">
                   {actionLoading === "delete-all-test-matches"
                     ? "Deleting..."
@@ -648,11 +663,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   setPendingBulkAction("delete-all-incomplete-matches")
                 }
                 disabled={!!actionLoading}
-                className="p-4 bg-orange-900/20 hover:bg-orange-900/40 border border-orange-500/30 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all group disabled:opacity-50"
+                className="p-4 bg-orange-900/20 hover:bg-orange-900/40 border border-orange-500/30 rounded-2xl flex flex-col items-center justify-center gap-2.5 transition-all group disabled:opacity-50"
               >
-                <span className="text-2xl group-hover:scale-110 transition-transform">
-                  🗑️
-                </span>
+                <Trash2 className="w-7 h-7 text-orange-400 group-hover:scale-110 transition-transform" />
                 <span className="text-xs font-black text-orange-400 uppercase tracking-widest text-center">
                   {actionLoading === "delete-all-incomplete-matches"
                     ? "Deleting..."
@@ -663,11 +676,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               <button
                 onClick={() => setPendingBulkAction("delete-all-guest-data")}
                 disabled={!!actionLoading}
-                className="p-4 bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all group disabled:opacity-50"
+                className="p-4 bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-2xl flex flex-col items-center justify-center gap-2.5 transition-all group disabled:opacity-50"
               >
-                <span className="text-2xl group-hover:scale-110 transition-transform">
-                  🧹
-                </span>
+                <Eraser className="w-7 h-7 text-slate-300 group-hover:scale-110 transition-transform" />
                 <span className="text-xs font-black text-slate-300 uppercase tracking-widest text-center">
                   {actionLoading === "delete-all-guest-data"
                     ? "Deleting..."
@@ -678,11 +689,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               <button
                 onClick={() => setPendingBulkAction("delete-all-matches")}
                 disabled={!!actionLoading}
-                className="p-4 bg-red-900/20 hover:bg-red-900/40 border border-red-500/30 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all group disabled:opacity-50"
+                className="p-4 bg-red-950/40 hover:bg-red-900/60 border-2 border-red-500/60 shadow-lg shadow-red-500/20 rounded-2xl flex flex-col items-center justify-center gap-2.5 transition-all group disabled:opacity-50"
               >
-                <span className="text-2xl group-hover:scale-110 transition-transform">
-                  🔥
-                </span>
+                <AlertOctagon className="w-7 h-7 text-red-400 group-hover:scale-110 transition-transform animate-pulse" />
                 <span className="text-xs font-black text-red-400 uppercase tracking-widest text-center">
                   {actionLoading === "delete-all-matches"
                     ? "Deleting..."
