@@ -311,4 +311,20 @@ describe("Scoreboard Component", () => {
       expect(scrollContainer.scrollTop).toBe(0);
     }
   });
+
+  it("applies whitespace-nowrap and mobile padding to innings tab button titles", () => {
+    render(
+      <Scoreboard
+        currentInnings={mockCurrentInnings}
+        previousInnings={mockPreviousInnings}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const prevTabText = screen.getByText(/CHICAGO CHIEFS \(Inns 1\)/i);
+    const currTabText = screen.getByText(/MIDWEST GLADIATORS \(Inns 2\)/i);
+
+    expect(prevTabText).toHaveClass("whitespace-nowrap");
+    expect(currTabText).toHaveClass("whitespace-nowrap");
+  });
 });
