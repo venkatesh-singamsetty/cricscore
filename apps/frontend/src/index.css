@@ -931,3 +931,22 @@ body {
 @media (min-width: 640px) and (max-height: 580px) {
   [data-amplify-authenticator] { zoom: 0.6; max-height: none !important; }
 }
+
+/* ============================================================
+   🏏 Match Hub & Fixture Cards
+   ============================================================ */
+/* Apply to the team name element in your fixture / match hub cards */
+.match-card-team-name {
+  font-size: 0.8rem; /* Scale down slightly on mobile (e.g., from 0.95rem/1rem) */
+  font-weight: 700;
+  white-space: nowrap; /* Prevents words from breaking onto the next line */
+  overflow: hidden;
+  text-overflow: ellipsis; /* Adds ellipsis if the name is excessively long */
+}
+
+@media (min-width: 640px) {
+  .match-card-team-name {
+    font-size: 1rem;
+    font-weight: 900;
+  }
+}

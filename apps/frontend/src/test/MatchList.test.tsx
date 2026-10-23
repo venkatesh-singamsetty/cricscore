@@ -268,4 +268,50 @@ describe("MatchList", () => {
     expect(screen.getByText(/25\/4/)).toBeInTheDocument();
     expect(screen.getByText(/WON BY 7 WICKETS/)).toBeInTheDocument();
   });
+
+  it("applies match-card-team-name styling class to fixture team name headers", async () => {
+    const mockMatches = [
+      {
+        id: "fixture-match-1",
+        team_a_name: "MIDWEST GLADIATORS",
+        team_b_name: "CHICAGO SPARTANS",
+        total_overs: 2,
+        status: "COMPLETED",
+        match_winner: "CHICAGO SPARTANS WON BY 1 RUN",
+        team_a_score: 13,
+        team_a_wickets: 0,
+        team_a_overs: "1.0",
+        team_b_score: 14,
+        team_b_wickets: 0,
+        team_b_overs: "1.0",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        innings: [],
+      },
+    ];
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => mockMatches,
+      }),
+    );
+
+    render(<MatchList onSelectMatch={vi.fn()} showDeleteControls={false} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("MIDWEST GLADIATORS")).toBeInTheDocument();
+    });
+
+    const teamAHeading = screen.getByRole("heading", {
+      name: "MIDWEST GLADIATORS",
+    });
+    const teamBHeading = screen.getByRole("heading", {
+      name: "CHICAGO SPARTANS",
+    });
+
+    expect(teamAHeading).toHaveClass("match-card-team-name");
+    expect(teamBHeading).toHaveClass("match-card-team-name");
+  });
 });

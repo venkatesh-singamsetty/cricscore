@@ -226,10 +226,12 @@ const MatchList: React.FC<MatchListProps> = ({
     const i2Overs = Number(i2.overs || 0);
 
     if (i2Runs > i1Runs) {
-      return `${i2.batting_team_name} WON BY ${10 - i2Wickets} WICKETS`;
+      const marginW = 10 - i2Wickets;
+      return `${i2.batting_team_name} WON BY ${marginW} ${marginW === 1 ? "WICKET" : "WICKETS"}`;
     } else if (i1Runs > i2Runs && (i2Overs >= totalOvers || i2Wickets >= 10)) {
       // Team 1 wins only if Team 2 is all out or ran out of overs
-      return `${i1.batting_team_name} WON BY ${i1Runs - i2Runs} RUNS`;
+      const marginR = i1Runs - i2Runs;
+      return `${i1.batting_team_name} WON BY ${marginR} ${marginR === 1 ? "RUN" : "RUNS"}`;
     } else if (
       i1Runs === i2Runs &&
       (i2Overs >= totalOvers || i2Wickets >= 10)
@@ -239,8 +241,9 @@ const MatchList: React.FC<MatchListProps> = ({
 
     // Match is completed but condition wasn't met (e.g. DLS, admin manual end)
     if (match.status === "COMPLETED") {
+      const marginR = i1Runs - i2Runs;
       return i1Runs > i2Runs
-        ? `${i1.batting_team_name} WON BY ${i1Runs - i2Runs} RUNS`
+        ? `${i1.batting_team_name} WON BY ${marginR} ${marginR === 1 ? "RUN" : "RUNS"}`
         : "MATCH TIED";
     }
 
@@ -543,7 +546,7 @@ const MatchList: React.FC<MatchListProps> = ({
                 </div>
 
                 <div className="flex flex-col gap-4">
-                  <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-center">
+                  <div className="grid grid-cols-[1fr_auto_1fr] gap-2 sm:gap-4 items-center">
                     {(() => {
                       // Match each team's innings by batting_team_name (not by index position)
                       const leftTeamName =
@@ -636,12 +639,15 @@ const MatchList: React.FC<MatchListProps> = ({
 
                       return (
                         <>
-                          <div className="flex flex-col">
-                            <h4 className="text-base font-black text-white uppercase tracking-tight italic group-hover:text-indigo-400 transition-colors">
+                          <div className="flex flex-col min-w-0">
+                            <h4
+                              title={leftTeamName}
+                              className="match-card-team-name text-white uppercase tracking-tight italic group-hover:text-indigo-400 transition-colors"
+                            >
                               {leftTeamName}
                             </h4>
                             {showLeftScore ? (
-                              <span className="text-xs font-black text-slate-400 tabular-nums">
+                              <span className="text-xs font-black text-slate-400 tabular-nums whitespace-nowrap">
                                 {leftRuns}/{leftWickets}
                                 <span className="text-[10px] text-slate-600 lowercase ml-1">
                                   ({leftOvers})
@@ -654,16 +660,19 @@ const MatchList: React.FC<MatchListProps> = ({
                             )}
                           </div>
 
-                          <div className="text-[10px] font-black text-slate-600 uppercase italic">
+                          <div className="text-[10px] font-black text-slate-600 uppercase italic shrink-0 px-1">
                             VS
                           </div>
 
-                          <div className="flex flex-col text-right">
-                            <h4 className="text-base font-black text-white uppercase tracking-tight italic group-hover:text-indigo-400 transition-colors">
+                          <div className="flex flex-col text-right min-w-0">
+                            <h4
+                              title={rightTeamName}
+                              className="match-card-team-name text-white uppercase tracking-tight italic group-hover:text-indigo-400 transition-colors"
+                            >
                               {rightTeamName}
                             </h4>
                             {showRightScore ? (
-                              <span className="text-xs font-black text-slate-400 tabular-nums">
+                              <span className="text-xs font-black text-slate-400 tabular-nums whitespace-nowrap">
                                 {rightRuns}/{rightWickets}
                                 <span className="text-[10px] text-slate-600 lowercase ml-1">
                                   ({rightOvers})

@@ -203,6 +203,7 @@ const sendMatchReportEmail = async (
   reportState,
   client,
   sendToAdmin = false,
+  sesClientOverride = null,
 ) => {
   // Get match details
   const matchRes = await client.query("SELECT * FROM matches WHERE id = $1", [
@@ -257,9 +258,11 @@ const sendMatchReportEmail = async (
     const t1 = i1.battingTeamName || i1.batting_team_name || "Team 1";
     const t2 = i2.battingTeamName || i2.batting_team_name || "Team 2";
     if (r2 > r1) {
-      resultText = `${t2} WON BY ${10 - w2} WICKETS`;
+      const marginW = 10 - w2;
+      resultText = `${t2} WON BY ${marginW} ${marginW === 1 ? "WICKET" : "WICKETS"}`;
     } else if (r1 > r2) {
-      resultText = `${t1} WON BY ${r1 - r2} RUNS`;
+      const marginR = r1 - r2;
+      resultText = `${t1} WON BY ${marginR} ${marginR === 1 ? "RUN" : "RUNS"}`;
     } else {
       resultText = "MATCH TIED";
     }
@@ -373,10 +376,14 @@ const sendMatchReportEmail = async (
     htmlBody += `
         <div style="margin-top: 40px;">
             <h3 style="background-color: #334155; background: #334155; padding: 10px 20px; border-radius: 8px; color: #e2e8f0; margin-bottom: 10px;">🏏 ${safeBattingTeam} - ${safeRuns}/${safeWickets} (${safeOvers})</h3>
-        <table bgcolor="#172033" style="width: 100%; border-collapse: collapse; text-align: left; background: #172033; background-color: #172033; border-radius: 10px; overflow: hidden;">
+        <table bgcolor="#172033" style="width: 100%; border-collapse: collapse; text-align: left; background: #172033; background-color: #172033; border-radius: 10px; overflow: hidden; table-layout: fixed;">
             <thead>
                 <tr bgcolor="#1e293b" style="background: #1e293b; background-color: #1e293b; color: #94a3b8; font-size: 12px; text-transform: uppercase;">
-                    <th style="padding: 12px; color: #94a3b8;">Batter</th><th style="padding: 12px; color: #94a3b8;">Dismissal</th><th style="padding: 12px; color: #94a3b8;">R</th><th style="padding: 12px; color: #94a3b8;">B</th><th style="padding: 12px; color: #94a3b8;">4s/6s</th>
+                    <th style="padding: 12px 8px; color: #94a3b8; width: 34%; white-space: nowrap;">Batter</th>
+                    <th style="padding: 12px 8px; color: #94a3b8; width: 30%;">Dismissal</th>
+                    <th style="padding: 12px 8px; color: #94a3b8; width: 12%; text-align: right;">R</th>
+                    <th style="padding: 12px 8px; color: #94a3b8; width: 10%; text-align: right;">B</th>
+                    <th style="padding: 12px 8px; color: #94a3b8; width: 14%; text-align: right; white-space: nowrap;">4s/6s</th>
                 </tr>
             </thead>
             <tbody>`;
@@ -413,11 +420,11 @@ const sendMatchReportEmail = async (
 
         htmlBody += `
                 <tr style="border-bottom: 1px solid #1e293b;">
-                    <td style="color: #f1f5f9; padding: 12px; font-weight: bold;">${safePName} ${p.is_out || p.isOut ? "" : "*"}</td>
-                    <td style="padding: 12px; color: #94a3b8; font-size: 12px; font-style: italic;">${safeDismissalText}</td>
-                    <td style="color: #f1f5f9; padding: 12px; font-weight: bold;">${safeRunsDisplay}</td>
-                    <td style="padding: 12px; color: #64748b;">${safeBallsDisplay}</td>
-                    <td style="padding: 12px; color: #64748b;">${safeFourSixDisplay}</td>
+                    <td style="color: #f1f5f9; padding: 12px 8px; font-weight: bold; white-space: nowrap; font-size: 13px; overflow: hidden; text-overflow: ellipsis;">${safePName} ${p.is_out || p.isOut ? "" : "*"}</td>
+                    <td style="padding: 12px 8px; color: #94a3b8; font-size: 12px; font-style: italic; word-break: break-word;">${safeDismissalText}</td>
+                    <td style="color: #f1f5f9; padding: 12px 8px; font-weight: bold; text-align: right;">${safeRunsDisplay}</td>
+                    <td style="padding: 12px 8px; color: #64748b; text-align: right;">${safeBallsDisplay}</td>
+                    <td style="padding: 12px 8px; color: #64748b; text-align: right; white-space: nowrap;">${safeFourSixDisplay}</td>
                 </tr>`;
       });
 
@@ -429,10 +436,12 @@ const sendMatchReportEmail = async (
       if (partnerships.length > 0) {
         htmlBody += `
           <div style="margin-top: 20px;">
-            <table bgcolor="#172033" style="width: 100%; border-collapse: collapse; text-align: left; background: #172033; background-color: #172033; border-radius: 10px; overflow: hidden;">
+            <table bgcolor="#172033" style="width: 100%; border-collapse: collapse; text-align: left; background: #172033; background-color: #172033; border-radius: 10px; overflow: hidden; table-layout: fixed;">
               <thead>
                 <tr bgcolor="#1e293b" style="background: #1e293b; background-color: #1e293b; color: #94a3b8; font-size: 12px; text-transform: uppercase;">
-                    <th style="padding: 12px; color: #94a3b8;">Wicket</th><th style="padding: 12px; color: #94a3b8;">Runs</th><th style="padding: 12px; color: #94a3b8;">Balls</th>
+                    <th style="padding: 12px 8px; color: #94a3b8; width: 50%;">Wicket</th>
+                    <th style="padding: 12px 8px; color: #94a3b8; width: 25%; text-align: right;">Runs</th>
+                    <th style="padding: 12px 8px; color: #94a3b8; width: 25%; text-align: right;">Balls</th>
                 </tr>
               </thead>
               <tbody>`;
@@ -444,9 +453,9 @@ const sendMatchReportEmail = async (
           const safeBalls = escapeHtml(p.balls);
           htmlBody += `
                 <tr style="border-bottom: 1px solid #1e293b;">
-                    <td style="color: #f1f5f9; padding: 12px; font-weight: bold;">${wicketLabel}</td>
-                    <td style="color: #f1f5f9; padding: 12px;">${safeRuns}</td>
-                    <td style="padding: 12px; color: #64748b;">${safeBalls}</td>
+                    <td style="color: #f1f5f9; padding: 12px 8px; font-weight: bold; white-space: nowrap; font-size: 13px;">${wicketLabel}</td>
+                    <td style="color: #f1f5f9; padding: 12px 8px; text-align: right;">${safeRuns}</td>
+                    <td style="padding: 12px 8px; color: #64748b; text-align: right;">${safeBalls}</td>
                 </tr>`;
         });
         htmlBody += `</tbody></table></div>`;
@@ -456,10 +465,14 @@ const sendMatchReportEmail = async (
     // --- BOWLING SECTION ---
     htmlBody += `
         <div style="margin-top: 20px;">
-            <table bgcolor="#172033" style="width: 100%; border-collapse: collapse; text-align: left; background: #172033; background-color: #172033; border-radius: 10px; overflow: hidden;">
+            <table bgcolor="#172033" style="width: 100%; border-collapse: collapse; text-align: left; background: #172033; background-color: #172033; border-radius: 10px; overflow: hidden; table-layout: fixed;">
                 <thead>
                     <tr bgcolor="#1e293b" style="background: #1e293b; background-color: #1e293b; color: #94a3b8; font-size: 12px; text-transform: uppercase;">
-                        <th style="padding: 12px; color: #94a3b8;">Bowler</th><th style="padding: 12px; color: #94a3b8;">O</th><th style="padding: 12px; color: #94a3b8;">M</th><th style="padding: 12px; color: #94a3b8;">R</th><th style="padding: 12px; color: #94a3b8;">W</th>
+                        <th style="padding: 12px 8px; color: #94a3b8; width: 44%; white-space: nowrap;">Bowler</th>
+                        <th style="padding: 12px 8px; color: #94a3b8; width: 14%; text-align: right;">O</th>
+                        <th style="padding: 12px 8px; color: #94a3b8; width: 14%; text-align: right;">M</th>
+                        <th style="padding: 12px 8px; color: #94a3b8; width: 14%; text-align: right;">R</th>
+                        <th style="padding: 12px 8px; color: #94a3b8; width: 14%; text-align: right;">W</th>
                     </tr>
                 </thead>
                 <tbody>`;
@@ -477,11 +490,11 @@ const sendMatchReportEmail = async (
         const safeBowlerWickets = escapeHtml(b.wickets || 0);
         htmlBody += `
                 <tr style="border-bottom: 1px solid #1e293b;">
-                    <td style="color: #f1f5f9; padding: 12px; font-weight: bold;">${safeBowlerName}</td>
-                    <td style="color: #f1f5f9; padding: 12px;">${safeBowlerOvers}</td>
-                    <td style="padding: 12px; color: #64748b;">${safeBowlerMaidens}</td>
-                    <td style="color: #f1f5f9; padding: 12px;">${safeBowlerRuns}</td>
-                    <td style="padding: 12px; color: #fb7185; font-weight: 800;">${safeBowlerWickets}</td>
+                    <td style="color: #f1f5f9; padding: 12px 8px; font-weight: bold; white-space: nowrap; font-size: 13px; overflow: hidden; text-overflow: ellipsis;">${safeBowlerName}</td>
+                    <td style="color: #f1f5f9; padding: 12px 8px; text-align: right;">${safeBowlerOvers}</td>
+                    <td style="padding: 12px 8px; color: #64748b; text-align: right;">${safeBowlerMaidens}</td>
+                    <td style="color: #f1f5f9; padding: 12px 8px; text-align: right;">${safeBowlerRuns}</td>
+                    <td style="padding: 12px 8px; color: #fb7185; font-weight: 800; text-align: right;">${safeBowlerWickets}</td>
                 </tr>`;
       });
 
@@ -535,7 +548,7 @@ const sendMatchReportEmail = async (
 </body>
 </html>`;
 
-  const ses = new SESClient({ region: "us-east-1" });
+  const ses = sesClientOverride || new SESClient({ region: "us-east-1" });
   let adminEmailSent = false;
   let scorerEmailSent = false;
 
@@ -651,6 +664,8 @@ const sendMatchReportEmail = async (
 
   return { adminEmailSent, scorerEmailSent };
 };
+
+exports.sendMatchReportEmail = sendMatchReportEmail;
 
 exports.handler = async (event, context) => {
   if (context) context.callbackWaitsForEmptyEventLoop = false;

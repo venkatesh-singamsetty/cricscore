@@ -253,4 +253,50 @@ describe("MatchView Component", () => {
 
     expect(screen.getByText(/🎯 7 OFF 3/i)).toBeInTheDocument();
   });
+
+  it("renders illegal deliveries as extra badges without advancing legal ball counter slots", async () => {
+    const initialState = createInningsState({
+      overs: 0,
+      balls: 0,
+      totalRuns: 0,
+      currentOver: [
+        {
+          id: "ball_wd1",
+          bowlerName: "GLADIATOR 1",
+          batterName: "SPARTAN 1",
+          runs: 0,
+          isExtra: true,
+          extraType: ExtraType.WIDE,
+          extraRuns: 1,
+          isWicket: false,
+          wicketType: WicketType.NONE,
+          overNumber: 0,
+          ballNumber: 0,
+        },
+      ],
+      allBalls: [],
+    });
+
+    render(
+      <MatchView
+        initialState={initialState}
+        totalOvers={2}
+        matchId="match_over_tracker_test"
+        userToken="test-token"
+        onInningsEnd={vi.fn()}
+        onResetMatch={vi.fn()}
+      />,
+    );
+
+    // Wide badge is rendered in THIS OVER strip
+    expect(screen.getByText("Wd")).toBeInTheDocument();
+
+    const thisOverContainer = screen.getByText(/THIS OVER/i).closest("div");
+    expect(thisOverContainer).toBeInTheDocument();
+
+    // Since 0 legal deliveries have occurred, all 6 legal ball counter slots (1 through 6) must still be rendered in THIS OVER
+    for (let slot = 1; slot <= 6; slot++) {
+      expect(thisOverContainer).toHaveTextContent(String(slot));
+    }
+  });
 });

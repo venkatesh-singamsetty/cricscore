@@ -83,8 +83,9 @@ Unit tests are isolated tests that verify individual functions, utilities, or ba
 
 Integration tests verify that different components and services work together correctly, simulating interactions without rendering in a real browser.
 
-- **Frontend Component Integration**: We use **React Testing Library** to mount React components in a virtual DOM, simulate user clicks, input typing, WebSocket messages, and verify that the components properly validate state transitions and payloads before firing network calls (including Admin Panel bulk deletion for Guest, Incomplete, and Test matches, and MatchList/LiveScoreboard test match classification with `TEST 🧪` vs `GUEST 👻` badges).
+- **Frontend Component Integration**: We use **React Testing Library** to mount React components in a virtual DOM, simulate user clicks, input typing, WebSocket messages, and verify that the components properly validate state transitions and payloads before firing network calls (including Admin Panel bulk deletion for Guest, Incomplete, and Test matches, MatchList/LiveScoreboard test match classification with `TEST 🧪` vs `GUEST 👻` badges, MatchList single-line `.match-card-team-name` truncation and styling, Scoreboard singular/plural victory margins e.g. `WON BY 1 RUN` / `WON BY 1 WICKET`, and MatchView over tracker maintaining 6 legal ball placeholders across illegal deliveries).
   - _Location:_ `apps/frontend/src/test/App.test.tsx`, `apps/frontend/src/test/AdminPanel.test.tsx`, `apps/frontend/src/test/MatchList.test.tsx`, `apps/frontend/src/test/MatchSetup.test.tsx`, `apps/frontend/src/test/MatchView.test.tsx`, `apps/frontend/src/test/MatchViewModals.test.tsx`, `apps/frontend/src/test/LiveScoreboard.test.tsx`, `apps/frontend/src/test/Scoreboard.test.tsx`, `apps/frontend/src/test/AiMatchPrediction.test.tsx`, `apps/frontend/src/test/ChatComponent.test.tsx`
+- **Backend Email & Scoring Integration**: Validates HTML email scorecard report generation with `table-layout: fixed`, nowrap mobile player name cells, and singular/plural victory grammar in `apps/backend/lambdas/match-api/index.test.js`.
 
 ### Running Integration Tests
 

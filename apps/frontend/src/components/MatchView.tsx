@@ -1032,10 +1032,6 @@ const MatchView: React.FC<MatchViewProps> = ({
       currentOver: [...nextInnings.currentOver, newBallEvent],
     };
 
-    if (finalInnings.currentOver.length > 6) {
-      finalInnings.currentOver = finalInnings.currentOver.slice(1);
-    }
-
     // Maiden Over check
     // A maiden requires ZERO runs and NO wides/no-balls in the over
     if (overCompleted) {
@@ -1661,11 +1657,11 @@ const MatchView: React.FC<MatchViewProps> = ({
             </div>
           </div>
 
-          {/* Over Timeline & Delivery Commentary — styled identically to viewer LiveScoreboard for high contrast & clarity */}
+          {/* Over Timeline */}
           <div className="bg-slate-800/60 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border border-white/10 shadow-lg shrink-0">
-            <div className="flex items-center justify-between gap-2 sm:gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               {/* Over Timeline Balls */}
-              <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto scrollbar-hide shrink-0">
+              <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto scrollbar-hide flex-1">
                 <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest flex items-center gap-1.5 shrink-0 bg-white/5 px-2.5 py-1 rounded-full border border-white/10">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                   THIS OVER
@@ -1682,86 +1678,104 @@ const MatchView: React.FC<MatchViewProps> = ({
                     </span>
                   </div>
                 ) : (
-                  innings.currentOver.map((ball, idx) => {
-                    const b = ball as any;
-                    const isRetHurt =
-                      b.wicketType === WicketType.RETIRED_HURT ||
-                      String(b.wicketType) === "RETIRED_HURT";
-                    const isRetOut =
-                      b.wicketType === WicketType.RETIRED_OUT ||
-                      String(b.wicketType) === "RETIRED_OUT";
-                    const isWicket = b.isWicket || b.is_wicket;
-                    const runs = Number(b.runs || 0);
-                    const isExtra = b.isExtra || b.is_extra;
-                    const extraType = String(
-                      b.extraType || b.extra_type || "",
-                    ).toUpperCase();
-
-                    let badgeBg =
-                      "bg-white text-slate-900 border-white shadow-sm";
-                    if (isRetHurt)
-                      badgeBg =
-                        "bg-amber-500 text-amber-950 border-amber-300 shadow-amber-500/30";
-                    else if (isRetOut)
-                      badgeBg =
-                        "bg-purple-600 text-white border-purple-400 shadow-purple-500/30";
-                    else if (isWicket)
-                      badgeBg =
-                        "bg-red-500 text-white border-red-300 shadow-red-500/30";
-                    else if (runs === 4)
-                      badgeBg =
-                        "bg-blue-600 text-white border-blue-400 shadow-blue-500/30";
-                    else if (runs === 6)
-                      badgeBg =
-                        "bg-purple-600 text-white border-purple-400 shadow-purple-500/30";
-                    else if (isExtra)
-                      badgeBg =
-                        "bg-amber-500 text-amber-950 border-amber-300 shadow-amber-500/30";
-
-                    let label = String(runs);
-                    if (isRetHurt) label = "RH";
-                    else if (isRetOut) label = "RO";
-                    else if (isWicket) label = runs > 0 ? `W+${runs}` : "W";
-                    else if (isExtra) {
-                      if (extraType === "WIDE")
-                        label = runs > 0 ? `Wd+${runs}` : "Wd";
-                      else if (extraType === "NO_BALL")
-                        label = runs > 0 ? `Nb+${runs}` : "Nb";
-                      else if (extraType === "BYE")
-                        label = runs > 0 ? `B+${runs}` : "B";
-                      else if (extraType === "LEG_BYE")
-                        label = runs > 0 ? `Lb+${runs}` : "Lb";
-                      else label = extraType ? extraType[0] : "E";
-                    }
+                  (() => {
+                    const legalBallsInOver = innings.currentOver.filter(
+                      (ball: any) => {
+                        const isRetHurt =
+                          ball.wicketType === WicketType.RETIRED_HURT ||
+                          String(ball.wicketType) === "RETIRED_HURT";
+                        const isRetOut =
+                          ball.wicketType === WicketType.RETIRED_OUT ||
+                          String(ball.wicketType) === "RETIRED_OUT";
+                        const extraType = String(
+                          ball.extraType || ball.extra_type || "",
+                        ).toUpperCase();
+                        return (
+                          !isRetHurt &&
+                          !isRetOut &&
+                          extraType !== "WIDE" &&
+                          extraType !== "NO_BALL"
+                        );
+                      },
+                    ).length;
 
                     return (
-                      <span
-                        key={idx}
-                        className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-black border shadow-md transition-all animate-in zoom-in-75 duration-300 ${badgeBg}`}
-                      >
-                        {label}
-                      </span>
-                    );
-                  })
-                )}
-                {innings.currentOver.length > 0 &&
-                  innings.currentOver.length < 6 &&
-                  [...Array(6 - innings.currentOver.length)].map((_, i) => (
-                    <span
-                      key={`empty-${i}`}
-                      className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-white/10 bg-slate-800/80 text-slate-400 font-bold text-[10px] flex items-center justify-center shadow-inner shrink-0"
-                    >
-                      {innings.currentOver.length + i + 1}
-                    </span>
-                  ))}
-              </div>
+                      <>
+                        {innings.currentOver.map((ball, idx) => {
+                          const b = ball as any;
+                          const isRetHurt =
+                            b.wicketType === WicketType.RETIRED_HURT ||
+                            String(b.wicketType) === "RETIRED_HURT";
+                          const isRetOut =
+                            b.wicketType === WicketType.RETIRED_OUT ||
+                            String(b.wicketType) === "RETIRED_OUT";
+                          const isWicket = b.isWicket || b.is_wicket;
+                          const runs = Number(b.runs || 0);
+                          const isExtra = b.isExtra || b.is_extra;
+                          const extraType = String(
+                            b.extraType || b.extra_type || "",
+                          ).toUpperCase();
 
-              {/* Delivery Commentary */}
-              <div className="flex items-center gap-1.5 min-w-0 flex-1 justify-end border-l border-white/10 pl-2 sm:pl-3">
-                <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0 animate-pulse"></span>
-                <p className="text-[10px] sm:text-xs font-bold text-slate-200 tracking-wide uppercase italic truncate">
-                  {lastCommentary || "Match in progress"}
-                </p>
+                          let badgeBg =
+                            "bg-white text-slate-900 border-white shadow-sm";
+                          if (isRetHurt)
+                            badgeBg =
+                              "bg-amber-500 text-amber-950 border-amber-300 shadow-amber-500/30";
+                          else if (isRetOut)
+                            badgeBg =
+                              "bg-purple-600 text-white border-purple-400 shadow-purple-500/30";
+                          else if (isWicket)
+                            badgeBg =
+                              "bg-red-500 text-white border-red-300 shadow-red-500/30";
+                          else if (runs === 4)
+                            badgeBg =
+                              "bg-blue-600 text-white border-blue-400 shadow-blue-500/30";
+                          else if (runs === 6)
+                            badgeBg =
+                              "bg-purple-600 text-white border-purple-400 shadow-purple-500/30";
+                          else if (isExtra)
+                            badgeBg =
+                              "bg-amber-500 text-amber-950 border-amber-300 shadow-amber-500/30";
+
+                          let label = String(runs);
+                          if (isRetHurt) label = "RH";
+                          else if (isRetOut) label = "RO";
+                          else if (isWicket)
+                            label = runs > 0 ? `W+${runs}` : "W";
+                          else if (isExtra) {
+                            if (extraType === "WIDE")
+                              label = runs > 0 ? `Wd+${runs}` : "Wd";
+                            else if (extraType === "NO_BALL")
+                              label = runs > 0 ? `Nb+${runs}` : "Nb";
+                            else if (extraType === "BYE")
+                              label = runs > 0 ? `B+${runs}` : "B";
+                            else if (extraType === "LEG_BYE")
+                              label = runs > 0 ? `Lb+${runs}` : "Lb";
+                            else label = extraType ? extraType[0] : "E";
+                          }
+
+                          return (
+                            <span
+                              key={idx}
+                              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-black border shadow-md transition-all animate-in zoom-in-75 duration-300 shrink-0 ${badgeBg}`}
+                            >
+                              {label}
+                            </span>
+                          );
+                        })}
+                        {legalBallsInOver < 6 &&
+                          [...Array(6 - legalBallsInOver)].map((_, i) => (
+                            <span
+                              key={`empty-${i}`}
+                              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-white/10 bg-slate-800/80 text-slate-400 font-bold text-[10px] flex items-center justify-center shadow-inner shrink-0"
+                            >
+                              {legalBallsInOver + i + 1}
+                            </span>
+                          ))}
+                      </>
+                    );
+                  })()
+                )}
               </div>
             </div>
           </div>

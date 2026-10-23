@@ -1589,9 +1589,11 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                     const i2Wickets = Number(i2.totalWickets || 0);
 
                     if (i2Runs > i1Runs) {
-                      return `${i2.battingTeamName} WON BY ${10 - i2Wickets} WICKETS`;
+                      const marginW = 10 - i2Wickets;
+                      return `${i2.battingTeamName} WON BY ${marginW} ${marginW === 1 ? "WICKET" : "WICKETS"}`;
                     } else if (i1Runs > i2Runs) {
-                      return `${i1.battingTeamName} WON BY ${i1Runs - i2Runs} RUNS`;
+                      const marginR = i1Runs - i2Runs;
+                      return `${i1.battingTeamName} WON BY ${marginR} ${marginR === 1 ? "RUN" : "RUNS"}`;
                     }
                     return "MATCH TIED";
                   })()

@@ -241,6 +241,48 @@ describe("Scoreboard Component", () => {
     );
   });
 
+  it("renders singular '1 WICKET' and '1 RUN' victory margins correctly", () => {
+    // 1-wicket victory: 9 wickets down, target 150 reached with 151
+    const oneWicketWonInnings: InningsState = {
+      ...mockCurrentInnings,
+      totalRuns: 151,
+      totalWickets: 9,
+      isCompleted: true,
+    };
+
+    const { rerender } = render(
+      <Scoreboard
+        currentInnings={oneWicketWonInnings}
+        previousInnings={mockPreviousInnings}
+        onClose={vi.fn()}
+        totalOvers={20}
+      />,
+    );
+
+    expect(screen.getByText(/WON BY 1 WICKET$/i)).toBeInTheDocument();
+
+    // 1-run victory: 1st inns 150, 2nd inns 149 (20.0 overs completed)
+    const oneRunLostInnings: InningsState = {
+      ...mockCurrentInnings,
+      totalRuns: 149,
+      totalWickets: 5,
+      overs: 20,
+      balls: 0,
+      isCompleted: true,
+    };
+
+    rerender(
+      <Scoreboard
+        currentInnings={oneRunLostInnings}
+        previousInnings={{ ...mockPreviousInnings, totalRuns: 150 }}
+        onClose={vi.fn()}
+        totalOvers={20}
+      />,
+    );
+
+    expect(screen.getByText(/WON BY 1 RUN$/i)).toBeInTheDocument();
+  });
+
   it("resets scorecard scroll position to top when switching innings tabs", () => {
     const { container } = render(
       <Scoreboard

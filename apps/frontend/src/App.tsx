@@ -875,13 +875,15 @@ const App: React.FC = () => {
           const target = completedInnings.target || 0;
           let matchWinner = "";
           if (completedInnings.totalRuns >= target) {
-            matchWinner = `${completedInnings.battingTeamName} WON BY ${10 - completedInnings.totalWickets} WICKETS`;
+            const marginW = 10 - completedInnings.totalWickets;
+            matchWinner = `${completedInnings.battingTeamName} WON BY ${marginW} ${marginW === 1 ? "WICKET" : "WICKETS"}`;
           } else {
             const runDiff = target - 1 - completedInnings.totalRuns;
+            const runUnit = runDiff === 1 ? "RUN" : "RUNS";
             matchWinner =
               runDiff === 0
                 ? "MATCH TIED"
-                : `${completedInnings.bowlingTeamName} WON BY ${runDiff} RUNS`;
+                : `${completedInnings.bowlingTeamName} WON BY ${runDiff} ${runUnit}`;
           }
           const headers = await getAuthHeaders();
           await fetch(`${API_URL}/match/${encodeURIComponent(matchId)}`, {
@@ -1228,11 +1230,13 @@ const App: React.FC = () => {
 
     const target = currentInnings.target || 0;
     if (currentInnings.totalRuns >= target) {
-      return `${currentInnings.battingTeamName} WON BY ${10 - currentInnings.totalWickets} WICKETS`;
+      const marginW = 10 - currentInnings.totalWickets;
+      return `${currentInnings.battingTeamName} WON BY ${marginW} ${marginW === 1 ? "WICKET" : "WICKETS"}`;
     } else {
       const runDiff = target - 1 - currentInnings.totalRuns;
       if (runDiff === 0) return "MATCH TIED!";
-      return `${currentInnings.bowlingTeamName} WON BY ${runDiff} RUNS`;
+      const runUnit = runDiff === 1 ? "RUN" : "RUNS";
+      return `${currentInnings.bowlingTeamName} WON BY ${runDiff} ${runUnit}`;
     }
   };
 

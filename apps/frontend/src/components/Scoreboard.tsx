@@ -429,16 +429,18 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
         const i2Overs = Number(i2.overs || 0);
 
         if (i2Runs > i1Runs) {
+          const marginW = 10 - i2Wickets;
           return {
-            text: `${i2.battingTeamName} WON BY ${10 - i2Wickets} WICKETS`,
+            text: `${i2.battingTeamName} WON BY ${marginW} ${marginW === 1 ? "WICKET" : "WICKETS"}`,
             team: i2.battingTeamName,
           };
         } else if (
           i1Runs > i2Runs &&
           (i2Overs >= matchTotalOvers || i2Wickets >= 10 || i2.isCompleted)
         ) {
+          const marginR = i1Runs - i2Runs;
           return {
-            text: `${i1.battingTeamName} WON BY ${i1Runs - i2Runs} RUNS`,
+            text: `${i1.battingTeamName} WON BY ${marginR} ${marginR === 1 ? "RUN" : "RUNS"}`,
             team: i1.battingTeamName,
           };
         } else if (
