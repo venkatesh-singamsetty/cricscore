@@ -21,13 +21,30 @@ if [ "$CURRENT_BRANCH" != "main" ] && [ -n "$CURRENT_BRANCH" ]; then
   fi
 fi
 
-# Proactive Dependabot Check: Alert if open Dependabot PRs exist
-if command -v gh >/dev/null 2>&1; then
-  BOT_PRS="$(gh pr list --author "app/dependabot" --state open --json number,title --jq '.[] | "#\(.number): \(.title)"' 2>/dev/null || true)"
-  if [ -n "$BOT_PRS" ]; then
-    echo "📦 [Dependabot Alert] Open Dependabot PRs detected on GitHub:"
-    echo "$BOT_PRS" | while read -r line; do echo "   👉 $line"; done
-    echo "💡 Tip: Run ./infra/scripts/consolidate_dependabot_prs.sh --merge to consolidate them before pushing."
+# Proactive Dependabot Check: Ensure any open Dependabot PRs are consolidated into the branch before pushing
+if command -v gh >/dev/null 2>&1 && [ "$CURRENT_BRANCH" != "main" ] && [ -n "$CURRENT_BRANCH" ]; then
+  BOT_PRS_JSON="$(gh pr list --repo "venkatesh-singamsetty/cricscore" --author "app/dependabot" --state open --json number,title,headRefOid 2>/dev/null || echo "[]")"
+  UNMERGED_COUNT=0
+  for row in $(echo "$BOT_PRS_JSON" | jq -r '.[] | @base64' 2>/dev/null || true); do
+    _jq() { echo "$row" | base64 --decode | jq -r "$1"; }
+    NUM=$(_jq '.number')
+    SHA=$(_jq '.headRefOid')
+    if ! git merge-base --is-ancestor "$SHA" HEAD 2>/dev/null; then
+      UNMERGED_COUNT=$((UNMERGED_COUNT + 1))
+    fi
+  done
+
+  if [ "$UNMERGED_COUNT" -gt 0 ]; then
+    echo "📦 [Dependabot Guard] Detected $UNMERGED_COUNT open Dependabot PR(s) not yet merged into '$CURRENT_BRANCH'."
+    echo "🔄 Automatically consolidating Dependabot PRs into local branch..."
+    if "$REPO_ROOT/infra/scripts/consolidate_dependabot_prs.sh" --merge; then
+      echo "✅ Successfully consolidated open Dependabot PR(s) into '$CURRENT_BRANCH'."
+      echo "👉 Please run 'git push' again to publish the consolidated commits to GitHub."
+      exit 1
+    else
+      echo "❌ Failed to automatically merge Dependabot PR(s). Please resolve conflicts and retry."
+      exit 1
+    fi
   fi
 fi
 

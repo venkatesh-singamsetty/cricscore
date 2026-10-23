@@ -16,10 +16,14 @@ description: Use when preparing a CricScore branch or pull request, selecting lo
    - Run `git fetch origin main`
    - Check if `origin/main` has new commits (`git log HEAD..origin/main --oneline`)
    - Merge `origin/main` into your branch (`git merge origin/main --no-edit`) so the PR branch is never out-of-date with `main`.
-3. **Verify Git Hygiene**:
+3. **Always wait for user confirmation before pushing**:
+   - Commit changes and deploy to `dev` for verification first.
+   - Present screenshots, test results, and dev link to the user.
+   - **Never run `git push` until the user has tested on `dev` and explicitly confirmed/approved pushing.**
+4. **Verify Git Hygiene**:
    - Run `git status -s` and `git diff --cached --stat`.
    - Ensure no `.env`, `.env.local`, `__pycache__/`, `*.pyc`, `venv/`, or temporary test screenshots (`*.png` in `apps/e2e/`) are tracked or staged.
-4. **Run Full Local Validation Before Pushing (Zero-Duplicate)**:
+5. **Run Full Local Validation Before Pushing (Zero-Duplicate)**:
    - Always commit your changes first: `git add . && git commit -m "..."`.
    - Once committed, either:
      - Run `git push` directly: `.husky/pre-push` will automatically invoke `./infra/scripts/validate_local.sh --fast` once, save the receipt, and push.

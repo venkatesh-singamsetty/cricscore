@@ -314,6 +314,15 @@ const App: React.FC = () => {
   const [hubKey, setHubKey] = useState(0); // For forcing reset to list
   const [scorecardDismissRequest, setScorecardDismissRequest] = useState(0);
   const [urlMatchId, setUrlMatchId] = useState<string | null>(null);
+  const [activeViewerMatchId, setActiveViewerMatchId] = useState<string | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (urlMatchId) {
+      setActiveViewerMatchId(urlMatchId);
+    }
+  }, [urlMatchId]);
   const [matchStatus, setMatchStatus] = useState<MatchStatus>(
     MatchStatus.SETUP,
   );
@@ -428,6 +437,21 @@ const App: React.FC = () => {
         {isStartingGuest ? "Starting…" : "Continue as Guest"}
       </button>
       <p className="auth-guest-hint">No account needed · score instantly</p>
+
+      {/* Scorer capabilities footer - Single line on mobile anchored cleanly */}
+      <div className="mt-3 pt-2.5 border-t border-white/5 flex items-center justify-center gap-1.5 sm:gap-2.5 text-center text-[8.5px] sm:text-[9.5px] text-slate-400 font-bold uppercase tracking-wider whitespace-nowrap overflow-hidden">
+        <span className="flex items-center gap-1 text-slate-300 shrink-0">
+          <span className="text-emerald-400 text-xs">⚡</span> Instant Setup
+        </span>
+        <span className="text-slate-600 shrink-0">·</span>
+        <span className="flex items-center gap-1 text-slate-300 shrink-0">
+          <span className="text-blue-400 text-xs">🌍</span> Match Hub
+        </span>
+        <span className="text-slate-600 shrink-0">·</span>
+        <span className="flex items-center gap-1 text-slate-300 shrink-0">
+          <span className="text-indigo-400 text-xs">📋</span> Scorecards
+        </span>
+      </div>
     </div>
   );
 
@@ -1112,8 +1136,11 @@ const App: React.FC = () => {
   };
 
   const handleViewClick = (target: "VIEWER" | "SCORER" | "ADMIN" | "CHAT") => {
-    if (target === "VIEWER" && view === "VIEWER") {
+    if (target === "VIEWER") {
       setScorecardDismissRequest((request) => request + 1);
+      setActiveViewerMatchId(null);
+      setUrlMatchId(null);
+      setHubKey((prev) => prev + 1);
     }
 
     if (target === "ADMIN") {
@@ -1428,7 +1455,8 @@ const App: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <div ref={matchMenuRef}>
+            {/* Standalone Match Options Button on desktop/tablet */}
+            <div ref={matchMenuRef} className="hidden sm:block">
               {matchStatus !== MatchStatus.SETUP && view !== "VIEWER" && (
                 <div className="relative">
                   <button
@@ -1536,6 +1564,45 @@ const App: React.FC = () => {
                         </div>
                       </div>
                     </div>
+                    {/* Active Match options in slide-out menu on mobile */}
+                    {matchStatus !== MatchStatus.SETUP && view !== "VIEWER" && (
+                      <>
+                        <button
+                          onClick={() => {
+                            setShowProfileMenu(false);
+                            handleQuitMatch();
+                          }}
+                          className="w-full px-4 py-3 text-left flex items-center gap-3 hover:bg-slate-800 transition-colors border-b border-white/5 text-rose-400 sm:hidden"
+                        >
+                          <span className="text-base">🚪</span>
+                          <div>
+                            <div className="text-xs font-black uppercase tracking-wider">
+                              Quit Match
+                            </div>
+                            <div className="text-[10px] text-slate-400 font-medium">
+                              Go back to Viewer
+                            </div>
+                          </div>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowProfileMenu(false);
+                            setShowResetConfirm(true);
+                          }}
+                          className="w-full px-4 py-3 text-left flex items-center gap-3 hover:bg-slate-800 transition-colors border-b border-white/5 text-amber-400 sm:hidden"
+                        >
+                          <span className="text-base">🏏</span>
+                          <div>
+                            <div className="text-xs font-black uppercase tracking-wider">
+                              New Match
+                            </div>
+                            <div className="text-[10px] text-slate-400 font-medium">
+                              Reset &amp; start fresh
+                            </div>
+                          </div>
+                        </button>
+                      </>
+                    )}
                     {/* Settings — admin only */}
                     {isAdmin && (
                       <button
@@ -1550,7 +1617,7 @@ const App: React.FC = () => {
                           <div className="text-xs font-black uppercase tracking-wider">
                             Settings
                           </div>
-                          <div className="text-[10px] text-slate-500 font-medium">
+                          <div className="text-[10px] text-slate-400 font-medium">
                             Match Ops
                           </div>
                         </div>
@@ -1647,29 +1714,34 @@ const App: React.FC = () => {
         >
           {view === "VIEWER" && (
             <div className="flex-1 min-h-0 overflow-y-auto bg-slate-950 flex flex-col p-3 sm:p-4 md:p-8">
-              <div className="max-w-5xl mx-auto w-full space-y-6 sm:space-y-8 animate-in fade-in zoom-in-95 duration-500 pb-6">
-                <div className="text-center">
-                  <div className="auth-hero-brand mb-1.5">
-                    <div
-                      className="auth-logo"
-                      style={{ width: 44, height: 44, fontSize: "1.45rem" }}
-                    >
-                      🌏
+              <div
+                className={`max-w-5xl mx-auto w-full ${activeViewerMatchId ? "space-y-4" : "space-y-6 sm:space-y-8"} animate-in fade-in zoom-in-95 duration-500 pb-6`}
+              >
+                {!activeViewerMatchId && (
+                  <div className="text-center">
+                    <div className="auth-hero-brand mb-1.5">
+                      <div
+                        className="auth-logo"
+                        style={{ width: 44, height: 44, fontSize: "1.45rem" }}
+                      >
+                        🌏
+                      </div>
+                      <h1 className="auth-title text-3xl sm:text-4xl">
+                        MATCH <span>HUB</span>
+                      </h1>
                     </div>
-                    <h1 className="auth-title text-3xl sm:text-4xl">
-                      MATCH <span>HUB</span>
-                    </h1>
+                    <p className="auth-subtitle">
+                      LIVE FEEDS &middot; HISTORICAL RECORDS
+                    </p>
                   </div>
-                  <p className="auth-subtitle">
-                    LIVE FEEDS &middot; HISTORICAL RECORDS
-                  </p>
-                </div>
+                )}
                 <LiveScoreboard
                   key={`hub-${hubKey}`}
                   isAdmin={isAdmin}
                   initialMatchId={urlMatchId || undefined}
                   onResumeMatch={undefined}
                   scorecardDismissRequest={scorecardDismissRequest}
+                  onActiveMatchChange={setActiveViewerMatchId}
                 />
               </div>
             </div>
@@ -1941,7 +2013,10 @@ const App: React.FC = () => {
                 )}
               </div>
             ) : (
-              <div className="flex-1 min-h-0 overflow-hidden sm:overflow-y-auto flex flex-col w-full bg-slate-950 p-0 sm:px-3 sm:py-6">
+              <div className="flex-1 min-h-0 overflow-hidden sm:overflow-y-auto flex flex-col w-full bg-slate-950 p-0 sm:px-3 sm:py-6 relative">
+                {/* Background ambient decorative glow */}
+                <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none -z-10"></div>
+                <div className="absolute bottom-1/4 left-1/2 -translate-x-1/2 translate-y-1/2 w-80 h-80 bg-blue-600/10 rounded-full blur-3xl pointer-events-none -z-10"></div>
                 <div className="max-w-5xl mx-auto w-full flex-1 min-h-0 flex flex-col justify-start sm:justify-center items-center animate-in fade-in zoom-in-95 duration-500">
                   <Authenticator
                     signUpAttributes={["given_name", "family_name"]}

@@ -30,6 +30,7 @@ interface LiveScoreboardProps {
   initialMatchId?: string;
   scorecardDismissRequest?: number;
   sectionTitle?: string;
+  onActiveMatchChange?: (matchId: string) => void;
 }
 
 const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
@@ -39,6 +40,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
   initialMatchId,
   scorecardDismissRequest = 0,
   sectionTitle,
+  onActiveMatchChange,
 }) => {
   const WS_URL = import.meta.env.VITE_WS_URL || "";
   const API_URL = import.meta.env.VITE_API_URL || "";
@@ -70,8 +72,9 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
     setShowFullScorecard(false);
     if (matchMeta?.status === "COMPLETED") {
       setTargetMatchId("");
+      onActiveMatchChange?.("");
     }
-  }, [matchMeta?.status]);
+  }, [matchMeta?.status, onActiveMatchChange]);
 
   useEffect(() => {
     if (scorecardDismissRequest === previousScorecardDismissRequest.current) {
@@ -152,6 +155,10 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
           isTest,
           isGuest,
         });
+
+        if (data.match.status === "COMPLETED" && !isBackground) {
+          setShowFullScorecard(true);
+        }
 
         // If completed match has missing or stale summary, auto-trigger generation
         const summary = data.match.ai_summary || "";
@@ -877,7 +884,8 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
     if (targetMatchId) {
       fetchMatchDetails(targetMatchId, false);
     }
-  }, [targetMatchId, fetchMatchDetails]);
+    onActiveMatchChange?.(targetMatchId);
+  }, [targetMatchId, fetchMatchDetails, onActiveMatchChange]);
 
   // Polling fallback: refresh every 5s while watching a live match,
   // in case WebSocket messages are missed or the connection briefly drops.
@@ -896,48 +904,45 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
   }, [targetMatchId, matchMeta?.status, fetchMatchDetails]);
 
   return (
-    <div className="p-4 sm:p-6 bg-slate-900/90 text-white rounded-2xl sm:rounded-3xl border border-white/10 shadow-2xl w-full">
-      {sectionTitle && (
+    <div
+      className={`${targetMatchId ? "p-3 sm:p-5 mb-6 sm:mb-8" : "p-4 sm:p-6"} bg-slate-900/90 text-white rounded-2xl sm:rounded-3xl border border-white/10 shadow-2xl w-full`}
+    >
+      {!targetMatchId && sectionTitle && (
         <h2 className="text-xl font-black text-white uppercase tracking-wider italic mb-4 px-1">
           {sectionTitle}
         </h2>
       )}
-      <div className="flex flex-col gap-4 mb-6">
-        <div className="flex justify-between items-center px-1">
-          <div className="flex items-center gap-2">
-            <div
-              className={`w-2 h-2 rounded-full ${isConnected ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`}
-            ></div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 italic">
-              {isConnected ? "LIVE BROADCASTING" : "CONNECTING..."}
-            </span>
+      {!targetMatchId && (
+        <div className="flex flex-col gap-4 mb-6">
+          <div className="flex justify-between items-center px-1">
+            <div className="flex items-center gap-2">
+              <div
+                className={`w-2 h-2 rounded-full ${isConnected ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`}
+              ></div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 italic">
+                {isConnected ? "LIVE BROADCASTING" : "CONNECTING..."}
+              </span>
+            </div>
+          </div>
+
+          <div className="relative group">
+            <input
+              type="text"
+              placeholder="SEARCH TEAM OR MATCH ID..."
+              className="w-full bg-slate-800/70 border border-white/10 rounded-xl px-4 py-2.5 text-[10px] font-black text-indigo-400 placeholder:text-slate-400 outline-none focus:border-indigo-500/50 transition-all uppercase tracking-widest tabular-nums"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
         </div>
-
-        <div className="relative group">
-          <input
-            type="text"
-            placeholder={
-              targetMatchId
-                ? "FOLLOW MATCH ID..."
-                : "SEARCH TEAM OR MATCH ID..."
-            }
-            className="w-full bg-slate-800/70 border border-white/10 rounded-xl px-4 py-2.5 text-[10px] font-black text-indigo-400 placeholder:text-slate-400 outline-none focus:border-indigo-500/50 transition-all uppercase tracking-widest tabular-nums"
-            value={targetMatchId ? targetMatchId : searchTerm}
-            onChange={(e) => {
-              const val = e.target.value;
-              if (targetMatchId) setTargetMatchId(val);
-              else setSearchTerm(val);
-            }}
-          />
-        </div>
-      </div>
+      )}
 
       {!targetMatchId ? (
         <MatchList
           onSelectMatch={(id) => {
             setTargetMatchId(id);
             setSearchTerm(""); // Reset search on select
+            onActiveMatchChange?.(id);
           }}
           isAdmin={isAdmin}
           showDeleteControls={showDeleteControls}
@@ -947,13 +952,16 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
           lastMessage={lastMessage}
         />
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-3 sm:space-y-4">
           <div className="flex justify-between items-center">
             <button
-              onClick={() => setTargetMatchId("")}
-              className="text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-white transition-colors"
+              onClick={() => {
+                setTargetMatchId("");
+                onActiveMatchChange?.("");
+              }}
+              className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-white transition-colors flex items-center gap-1.5 py-1"
             >
-              ← BACK TO HUB
+              <span>←</span> BACK TO HUB
             </button>
             {matchMeta && (
               <div className="flex items-center gap-2">
@@ -1063,23 +1071,23 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                   : "0.0";
 
               return (
-                <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                <div className="space-y-2.5 sm:space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-700">
                   {/* Score header */}
-                  <div className="bg-slate-800/80 p-4 sm:p-5 rounded-3xl border border-white/5 relative overflow-hidden shadow-xl space-y-3">
+                  <div className="bg-slate-800/80 p-3 sm:p-3.5 rounded-2xl border border-white/5 relative overflow-hidden shadow-xl space-y-2">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl -z-10"></div>
 
                     {/* Top Row: Matchup vs Overs */}
                     <div className="flex justify-between items-center gap-2">
                       <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
-                        <span className="bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 font-black px-2 sm:px-2.5 py-0.5 rounded-full text-[8px] sm:text-[9px] uppercase tracking-wider shrink-0">
+                        <span className="bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 font-black px-2.5 py-0.5 rounded-full text-[9px] sm:text-[10px] uppercase tracking-wider shrink-0">
                           {currentInnings.inningNumber === 1
                             ? "1ST INN"
                             : "2ND INN"}
                         </span>
-                        <span className="text-[9px] text-slate-500 italic">
+                        <span className="text-[10px] text-slate-500 italic">
                           vs
                         </span>
-                        <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">
+                        <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest truncate">
                           {currentInnings.bowlingTeamName}
                         </span>
                       </div>
@@ -1105,7 +1113,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
 
                     {/* Main Row: Prominent Batting Team on Left, Huge Score on Right */}
                     <div className="flex justify-between items-center gap-3 pt-1 pb-0.5 min-w-0">
-                      <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
                         <span className="text-xl sm:text-2xl shrink-0">🏏</span>
                         <h2 className="text-lg sm:text-2xl font-black text-emerald-400 uppercase tracking-tight truncate whitespace-nowrap">
                           {currentInnings.battingTeamName}
@@ -1139,7 +1147,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                           );
                           return (
                             <div className="flex items-center gap-2 flex-wrap min-w-0">
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-black text-[10px] sm:text-xs uppercase tracking-tight whitespace-nowrap shadow-sm">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-black text-[9px] sm:text-[11px] uppercase tracking-tight whitespace-nowrap shadow-sm">
                                 <span>🎯</span>
                                 <span>
                                   {runsNeeded > 0
@@ -1150,7 +1158,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                                   (Tgt {target})
                                 </span>
                               </span>
-                              <span className="text-[10px] text-slate-400 font-bold tracking-tight whitespace-nowrap opacity-80">
+                              <span className="text-[9px] sm:text-[10px] text-slate-400 font-bold tracking-tight whitespace-nowrap opacity-80">
                                 1st Inn:{" "}
                                 {matchDetails.innings[0].battingTeamName}{" "}
                                 <span className="text-slate-200 font-black">
@@ -1169,7 +1177,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
 
                       <button
                         onClick={() => setShowFullScorecard(true)}
-                        className="px-2.5 py-1 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm ml-auto shrink-0"
+                        className="px-2 py-0.5 sm:px-2.5 sm:py-1 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-lg text-[9px] sm:text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm ml-auto shrink-0"
                       >
                         Scorecard 📋
                       </button>
@@ -1213,38 +1221,38 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
 
                     return (
                       <div
-                        className={`grid ${dls ? "grid-cols-3" : "grid-cols-2"} gap-2`}
+                        className={`grid ${dls ? "grid-cols-3" : "grid-cols-2"} gap-2 sm:gap-2.5`}
                       >
-                        <div className="bg-slate-800/80 rounded-2xl py-2 px-2 text-center border border-white/5 shadow-md">
-                          <div className="text-[9px] md:text-xs font-black text-slate-400 uppercase tracking-wider">
+                        <div className="bg-slate-800/80 rounded-xl sm:rounded-2xl py-1.5 px-2.5 text-center border border-white/5 shadow-md">
+                          <div className="text-[9px] sm:text-xs font-black text-slate-400 uppercase tracking-wider">
                             CRR
                           </div>
-                          <div className="text-base md:text-lg font-black text-white tabular-nums leading-tight mt-0.5">
+                          <div className="text-base sm:text-lg font-black text-white tabular-nums leading-tight mt-0.5">
                             {crr}
                           </div>
                         </div>
                         {rrr !== null ? (
-                          <div className="bg-amber-500/10 rounded-2xl py-2 px-2 text-center border border-amber-500/30 shadow-md">
-                            <div className="text-[9px] md:text-xs font-black text-amber-500 uppercase tracking-wider">
+                          <div className="bg-amber-500/10 rounded-xl sm:rounded-2xl py-1.5 px-2.5 text-center border border-amber-500/30 shadow-md">
+                            <div className="text-[9px] sm:text-xs font-black text-amber-500 uppercase tracking-wider">
                               RRR
                             </div>
-                            <div className="text-base md:text-lg font-black text-amber-400 tabular-nums leading-tight mt-0.5">
+                            <div className="text-base sm:text-lg font-black text-amber-400 tabular-nums leading-tight mt-0.5">
                               {rrr}
                             </div>
                           </div>
                         ) : (
-                          <div className="bg-slate-800/80 rounded-2xl py-2 px-2 text-center border border-white/5 shadow-md">
-                            <div className="text-[9px] md:text-xs font-black text-slate-400 uppercase tracking-wider">
+                          <div className="bg-slate-800/80 rounded-xl sm:rounded-2xl py-1.5 px-2.5 text-center border border-white/5 shadow-md">
+                            <div className="text-[9px] sm:text-xs font-black text-slate-400 uppercase tracking-wider">
                               BALLS LEFT
                             </div>
-                            <div className="text-base md:text-lg font-black text-white tabular-nums leading-tight mt-0.5">
+                            <div className="text-base sm:text-lg font-black text-white tabular-nums leading-tight mt-0.5">
                               {ballsLeft}
                             </div>
                           </div>
                         )}
                         {dls && (
                           <div
-                            className={`rounded-2xl py-2 px-2 text-center border transition-all shadow-md ${
+                            className={`rounded-xl sm:rounded-2xl py-1.5 px-2.5 text-center border transition-all shadow-md ${
                               dls.isAhead
                                 ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
                                 : dls.isTied
@@ -1252,13 +1260,13 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                                   : "bg-red-500/10 border-red-500/30 text-red-400"
                             }`}
                           >
-                            <div className="text-[9px] md:text-xs font-black uppercase tracking-wider flex items-center justify-center gap-0.5">
+                            <div className="text-[9px] sm:text-xs font-black uppercase tracking-wider flex items-center justify-center gap-0.5">
                               <span>🌧️</span> DLS PAR
                             </div>
-                            <div className="text-base md:text-lg font-black tabular-nums leading-tight mt-0.5">
+                            <div className="text-base sm:text-lg font-black tabular-nums leading-tight mt-0.5">
                               {dls.parScore}
                             </div>
-                            <div className="text-[8px] md:text-[9px] font-bold truncate opacity-90 leading-none mt-0.5">
+                            <div className="text-[8px] sm:text-[9px] font-bold truncate opacity-90 leading-none mt-0.5">
                               {dls.statusText.replace(" (DLS)", "")}
                             </div>
                           </div>
@@ -1267,16 +1275,83 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                     );
                   })()}
 
+                  {/* Batsmen */}
+                  <div className="bg-white/5 rounded-xl sm:rounded-2xl border border-white/5 p-3 sm:p-3.5 space-y-2">
+                    <div className="grid grid-cols-[1fr_auto_auto] gap-4 text-[9px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest pb-1 border-b border-white/5">
+                      <div className="flex flex-col">
+                        <span className="text-[8px] text-indigo-400 mb-0.5 tracking-[0.2em]">
+                          {currentInnings.battingTeamName}
+                        </span>
+                        <span>Batter</span>
+                      </div>
+                      <span className="text-right w-10">R</span>
+                      <span className="text-right w-10 text-slate-600">B</span>
+                    </div>
+                    {activeBatters.length === 0 ? (
+                      <div className="text-xs font-black text-slate-600 uppercase text-center py-2">
+                        Waiting for first ball...
+                      </div>
+                    ) : (
+                      activeBatters.map((b: any) => (
+                        <div
+                          key={b.id}
+                          className="grid grid-cols-[1fr_auto_auto] gap-4 items-center group"
+                        >
+                          <span
+                            className={`font-black uppercase text-xs sm:text-sm italic truncate ${b.id === currentInnings.strikerId ? "text-white" : "text-slate-400"}`}
+                          >
+                            {b.name}{" "}
+                            {b.id === currentInnings.strikerId && (
+                              <span className="text-indigo-400 ml-1 opacity-80">
+                                *
+                              </span>
+                            )}
+                          </span>
+                          <span
+                            className={`font-black tabular-nums text-right w-10 text-xs sm:text-sm ${b.id === currentInnings.strikerId ? "text-white" : "text-slate-300"}`}
+                          >
+                            {b.runs}
+                          </span>
+                          <span
+                            className={`font-black tabular-nums text-right w-10 text-xs ${b.id === currentInnings.strikerId ? "text-slate-400" : "text-slate-500"}`}
+                          >
+                            {b.ballsFaced}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                    {currentInnings.allBalls &&
+                      currentInnings.allBalls.length > 0 && (
+                        <div className="mt-1.5 pt-1.5 border-t border-white/5 flex justify-between items-center text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400">
+                          <span>Partnership</span>
+                          <span className="text-indigo-400">
+                            {
+                              getCurrentPartnership(currentInnings.allBalls)
+                                .runs
+                            }{" "}
+                            <span className="text-slate-500 text-[8px] sm:text-[9px]">
+                              (
+                              {
+                                getCurrentPartnership(currentInnings.allBalls)
+                                  .balls
+                              }
+                              )
+                            </span>
+                          </span>
+                        </div>
+                      )}
+                  </div>
+
                   {/* THIS OVER Live Timeline Bar */}
-                  <div className="bg-slate-800/50 rounded-2xl border border-white/5 p-3.5 flex items-center justify-between shadow-lg">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                  <div className="bg-slate-800/50 rounded-xl border border-white/5 py-1.5 px-3 flex items-center justify-between shadow-md">
+                    <span className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 shrink-0">
                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                       THIS OVER
                     </span>
-                    <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
+                    <div className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto scrollbar-hide">
                       {!currentInnings.currentOver ||
                       currentInnings.currentOver.length === 0 ? (
-                        <span className="text-[10px] font-bold text-slate-500 italic uppercase">
+                        <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 italic uppercase">
                           Waiting for ball...
                         </span>
                       ) : (
@@ -1336,7 +1411,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                             return (
                               <span
                                 key={idx}
-                                className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-[10px] md:text-xs font-black border shadow-md transition-all animate-in zoom-in-75 duration-300 ${badgeBg}`}
+                                className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-[9px] sm:text-[10px] font-black border shadow-md transition-all animate-in zoom-in-75 duration-300 ${badgeBg}`}
                               >
                                 {label}
                               </span>
@@ -1369,115 +1444,38 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                     </div>
                   )}
 
-                  {/* Batsmen */}
-                  <div className="bg-white/5 rounded-2xl border border-white/5 p-4 space-y-3">
-                    <div className="grid grid-cols-[1fr_auto_auto] gap-4 text-[9px] font-black text-slate-500 uppercase tracking-widest pb-2 border-b border-white/5">
-                      <div className="flex flex-col">
-                        <span className="text-[7px] text-indigo-400 mb-0.5 tracking-[0.2em]">
-                          {currentInnings.battingTeamName}
-                        </span>
-                        <span>Batter</span>
-                      </div>
-                      <span className="text-right w-10">R</span>
-                      <span className="text-right w-10 text-slate-600">B</span>
-                    </div>
-                    {activeBatters.length === 0 ? (
-                      <div className="text-[10px] font-black text-slate-600 uppercase text-center py-2">
-                        Waiting for first ball...
-                      </div>
-                    ) : (
-                      activeBatters.map((b: any) => (
-                        <div
-                          key={b.id}
-                          className="grid grid-cols-[1fr_auto_auto] gap-4 items-center group"
-                        >
-                          <span
-                            className={`font-black uppercase text-sm italic truncate ${b.id === currentInnings.strikerId ? "text-white" : "text-slate-400"}`}
-                          >
-                            {b.name}{" "}
-                            {b.id === currentInnings.strikerId && (
-                              <span className="text-indigo-400 ml-1 opacity-80">
-                                *
-                              </span>
-                            )}
-                          </span>
-                          <span
-                            className={`font-black tabular-nums text-right w-10 ${b.id === currentInnings.strikerId ? "text-white" : "text-slate-300"}`}
-                          >
-                            {b.runs}
-                          </span>
-                          <span
-                            className={`font-black tabular-nums text-right w-10 text-xs ${b.id === currentInnings.strikerId ? "text-slate-400" : "text-slate-500"}`}
-                          >
-                            {b.ballsFaced}
-                          </span>
-                        </div>
-                      ))
-                    )}
-                    {currentInnings.allBalls &&
-                      currentInnings.allBalls.length > 0 && (
-                        <div className="mt-3 pt-3 border-t border-white/5 flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-400">
-                          <span>Partnership</span>
-                          <span className="text-indigo-400">
-                            {
-                              getCurrentPartnership(currentInnings.allBalls)
-                                .runs
-                            }{" "}
-                            <span className="text-slate-500 text-[9px]">
-                              (
-                              {
-                                getCurrentPartnership(currentInnings.allBalls)
-                                  .balls
-                              }
-                              )
-                            </span>
-                          </span>
-                        </div>
-                      )}
-                  </div>
-
                   {/* Bowler */}
-                  <div className="bg-white/5 rounded-2xl border border-white/5 p-4 space-y-3">
-                    <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 text-[9px] font-black text-slate-500 uppercase tracking-widest pb-2 border-b border-white/5">
+                  <div className="bg-white/5 rounded-xl sm:rounded-2xl border border-white/5 p-3 sm:p-3.5 space-y-2">
+                    <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 text-[9px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest pb-1 border-b border-white/5">
                       <div className="flex flex-col">
-                        <span className="text-[7px] text-indigo-400 mb-0.5 tracking-[0.2em]">
+                        <span className="text-[8px] text-indigo-400 mb-0.5 tracking-[0.2em]">
                           {currentInnings.bowlingTeamName}
                         </span>
                         <span>Bowler</span>
                       </div>
-                      <span className="text-right w-8">O</span>
-                      <span className="text-right w-8">R</span>
-                      <span className="text-right w-8 text-indigo-400">W</span>
+                      <span className="text-right w-9">O</span>
+                      <span className="text-right w-9">R</span>
+                      <span className="text-right w-9 text-indigo-400">W</span>
                     </div>
                     <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 items-center">
-                      <span className="font-black text-white uppercase text-sm italic truncate">
+                      <span className="font-black text-white uppercase text-xs sm:text-sm italic truncate">
                         {currentBowler.name}
                       </span>
-                      <span className="text-slate-400 font-black tabular-nums text-right w-8 text-xs">
+                      <span className="text-slate-400 font-black tabular-nums text-right w-9 text-xs">
                         {currentBowler.overs}.{currentBowler.balls}
                       </span>
-                      <span className="text-slate-300 font-black tabular-nums text-right w-8">
+                      <span className="text-slate-300 font-black tabular-nums text-right w-9 text-xs sm:text-sm">
                         {currentBowler.runsConceded}
                       </span>
-                      <span className="text-indigo-400 font-black tabular-nums text-right w-8">
+                      <span className="text-indigo-400 font-black tabular-nums text-right w-9 text-xs sm:text-sm">
                         {currentBowler.wickets}
                       </span>
-                    </div>
-                    <div className="mt-3 pt-3 border-t border-white/5 text-center">
-                      <span className="px-2 py-0.5 bg-white/5 rounded text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-2 w-max mx-auto">
-                        LIVE COMMENTARY
-                      </span>
-                      <p className="text-slate-300 text-xs font-medium italic leading-relaxed">
-                        {liveData
-                          ? `"${liveData.commentary}"`
-                          : "Waiting for the next ball..."}
-                      </p>
                     </div>
                   </div>
 
                   <button
                     onClick={() => setShowFullScorecard(true)}
-                    className="w-full py-4 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/20 rounded-2xl text-[10px] font-black text-indigo-300 uppercase tracking-[0.2em] transition-all"
+                    className="w-full py-2.5 sm:py-3 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/20 rounded-xl sm:rounded-2xl text-[10px] sm:text-[11px] font-black text-indigo-300 uppercase tracking-[0.2em] transition-all"
                   >
                     View Full Analysis 📋
                   </button>

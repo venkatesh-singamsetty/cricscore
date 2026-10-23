@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import Scoreboard from "../components/Scoreboard";
 import { InningsState, WicketType } from "../types";
 
@@ -152,7 +152,7 @@ describe("Scoreboard Component", () => {
     expect(screen.getByText(/THUNDER 3/i)).toBeInTheDocument();
     expect(screen.getByText(/b Bowler 1/i)).toBeInTheDocument();
 
-    // Unbatted squad members are present in the table as 1 row with YET TO BAT status
+    // Unbatted squad members are grouped together in a compact YET TO BAT strip
     const thunder4Elements = screen.getAllByText(/THUNDER 4/i);
     expect(thunder4Elements.length).toBeGreaterThanOrEqual(1);
 
@@ -160,7 +160,7 @@ describe("Scoreboard Component", () => {
     expect(thunder5Elements.length).toBeGreaterThanOrEqual(1);
 
     const yetToBatBadges = screen.getAllByText(/YET TO BAT/i);
-    expect(yetToBatBadges.length).toBe(2);
+    expect(yetToBatBadges.length).toBe(1);
 
     // Target equation & banner
     expect(screen.getByText(/Target Equation/i)).toBeInTheDocument();
@@ -203,6 +203,68 @@ describe("Scoreboard Component", () => {
     render(<Scoreboard currentInnings={completedInnings} onClose={vi.fn()} />);
 
     const dnbBadges = screen.getAllByText(/DID NOT BAT/i);
-    expect(dnbBadges.length).toBe(2);
+    expect(dnbBadges.length).toBe(1);
+  });
+
+  it("merges Player of the Match into the MATCH RESULT banner and suppresses duplicate Target Equation on completed matches", () => {
+    // 2nd innings reached target 150 (scored 151)
+    const wonInnings: InningsState = {
+      ...mockCurrentInnings,
+      totalRuns: 151,
+      totalWickets: 3,
+      isCompleted: true,
+    };
+
+    render(
+      <Scoreboard
+        currentInnings={wonInnings}
+        previousInnings={mockPreviousInnings}
+        onClose={vi.fn()}
+        playerOfTheMatch="THUNDER 1"
+        totalOvers={20}
+      />,
+    );
+
+    // Match Result banner shows winner
+    expect(screen.getByText(/WON BY 7 WICKETS/i)).toBeInTheDocument();
+
+    // POTM is integrated into the result banner
+    expect(screen.getByText(/POTM: THUNDER 1/i)).toBeInTheDocument();
+
+    // Duplicate Target Equation is suppressed on completed match
+    expect(screen.queryByText(/Target Equation/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Target Reached/i)).not.toBeInTheDocument();
+
+    // Batters table is immediately visible
+    expect(screen.getAllByText(/THUNDER 1/i).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("resets scorecard scroll position to top when switching innings tabs", () => {
+    const { container } = render(
+      <Scoreboard
+        currentInnings={mockCurrentInnings}
+        previousInnings={mockPreviousInnings}
+        onClose={vi.fn()}
+      />,
+    );
+
+    // Find the scrollable container
+    const scrollContainer = container.querySelector(".overflow-y-auto");
+    expect(scrollContainer).toBeTruthy();
+
+    if (scrollContainer) {
+      // Simulate scrolling down
+      scrollContainer.scrollTop = 350;
+      expect(scrollContainer.scrollTop).toBe(350);
+
+      // Switch tab to previous innings
+      const prevTabBtn = screen.getByRole("button", {
+        name: new RegExp(mockPreviousInnings.battingTeamName, "i"),
+      });
+      fireEvent.click(prevTabBtn);
+
+      // Scroll position should reset to 0
+      expect(scrollContainer.scrollTop).toBe(0);
+    }
   });
 });
