@@ -268,15 +268,18 @@ export function ChatComponent({
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) {
+          const cleaned = parsed.filter(
+            (m) =>
+              m &&
+              m.content &&
+              m.content !== "Hi! Ask me anything about the live match!",
+          );
+          if (cleaned.length > 0) return cleaned;
+        }
       } catch (e) {}
     }
-    return [
-      {
-        role: "assistant",
-        content: "Hi! Ask me anything about the live match!",
-      },
-    ];
+    return [];
   });
 
   const [input, setInput] = useState("");
@@ -405,7 +408,7 @@ export function ChatComponent({
   }, [messages]);
 
   React.useEffect(() => {
-    if (messages.length > 1 || loading) {
+    if (messages.length > 0 || loading) {
       messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
     } else if (messageListRef.current) {
       messageListRef.current.scrollTop = 0;
@@ -472,12 +475,21 @@ export function ChatComponent({
     }
 
     const userMsg = { role: "user" as const, content: trimmed };
-    setMessages((prev) => [...prev, userMsg]);
+    setMessages((prev) => [
+      ...prev.filter(
+        (m) => m.content !== "Hi! Ask me anything about the live match!",
+      ),
+      userMsg,
+    ]);
     setInput("");
     setLoading(true);
 
     try {
-      const history = messages.filter((m) => m.role !== "system");
+      const history = messages.filter(
+        (m) =>
+          m.role !== "system" &&
+          m.content !== "Hi! Ask me anything about the live match!",
+      );
 
       const res = await fetch(`${apiUrl}/chat`, {
         method: "POST",
@@ -520,12 +532,7 @@ export function ChatComponent({
       } catch (e) {}
     }
     safeLocalStorageRemove(CHAT_MEMORY_KEY);
-    setMessages([
-      {
-        role: "assistant",
-        content: "Hi! Ask me anything about the live match!",
-      },
-    ]);
+    setMessages([]);
   };
 
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -656,12 +663,12 @@ export function ChatComponent({
           className="flex-1 overflow-y-auto p-2.5 sm:p-4 md:p-3 overscroll-contain touch-pan-y flex flex-col"
           style={{ WebkitOverflowScrolling: "touch" }}
         >
-          {messages.length > 1 && (
+          {messages.length > 0 && (
             <div className="flex-1 min-h-[1rem] shrink-0"></div>
           )}
 
-          {/* Welcome & Default Questions (Spacious mobile view, clean-fitted desktop view) */}
-          {messages.length <= 1 && (
+          {/* Welcome & Default Questions shown when chat has no messages */}
+          {messages.length === 0 && (
             <div className="flex flex-col items-center justify-start pt-2 sm:pt-5 md:pt-1.5 pb-4 md:pb-1.5 px-3 sm:px-4 text-center w-full max-w-md sm:max-w-xl mx-auto animate-in fade-in duration-300">
               <div className="auth-hero-brand mb-1.5">
                 <div className="auth-logo w-11 h-11 md:w-[38px] md:h-[38px] text-[1.45rem] md:text-[1.25rem] flex items-center justify-center shrink-0">
@@ -709,7 +716,7 @@ export function ChatComponent({
           )}
 
           <div className="space-y-3 sm:space-y-4 flex flex-col shrink-0">
-            {messages.length > 1 &&
+            {messages.length > 0 &&
               messages.map((msg, idx) => (
                 <div
                   key={idx}
@@ -774,7 +781,7 @@ export function ChatComponent({
       </div>
 
       {/* Quick Prompt Suggestion Chips (Visible during active chat) */}
-      {messages.length > 1 && (
+      {messages.length > 0 && (
         <div className="shrink-0 px-3 py-2 overflow-x-auto scrollbar-none flex items-center gap-2 border-t border-white/5 bg-slate-900/95 z-20">
           <span className="text-[10px] font-black uppercase text-indigo-400 tracking-wider shrink-0 flex items-center gap-1">
             <Sparkles size={12} className="text-amber-400" />

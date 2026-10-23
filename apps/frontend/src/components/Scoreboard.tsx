@@ -182,7 +182,7 @@ const BattingTable: React.FC<BattingTableProps> = React.memo(
                             );
                           }
                           return (
-                            <span className="text-red-400 opacity-90 font-medium whitespace-nowrap">
+                            <span className="text-red-400 font-black uppercase tracking-tight whitespace-nowrap drop-shadow-sm">
                               {text}
                             </span>
                           );
