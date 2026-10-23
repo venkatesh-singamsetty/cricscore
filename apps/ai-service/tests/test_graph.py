@@ -1,5 +1,5 @@
 from cricscore_ai.graph import MAX_TOOL_CALLS, MSG_ERROR_DATA, MSG_NO_MATCH, MSG_NO_RULES, MSG_REFUSE, Deps, build_graph, run_chat
-from cricscore_ai.schemas import ChatRequest
+from cricscore_ai.schemas import ChatRequest, Source
 from tests.conftest import FakeEmbedder, FakeLLM, FakePredictor, FakeRepo, MID
 from tests.test_tools import GOOD
 
@@ -106,7 +106,18 @@ def test_github_issue_without_details_asks_for_details():
     assert "share a short title and a brief description" in r.reply
 
 
-def test_github_issue_with_bug_report_creates_issue():
+def test_github_issue_with_bug_report_creates_issue(monkeypatch):
+    monkeypatch.setattr(
+        "cricscore_ai.tools.create_github_issue",
+        lambda title, description, category="bug": {
+            "found": True,
+            "created": True,
+            "issueNumber": 316,
+            "url": "https://github.com/venkatesh-singamsetty/cricscore/issues/316",
+            "title": title,
+            "sources": [Source(type="github_issue", id="316", label="https://github.com/venkatesh-singamsetty/cricscore/issues/316")],
+        },
+    )
     r = run("Report a bug in the mobile scoreboard: overs counter overlaps", deps())
     assert r.intent == "github_issue"
     assert "github.com" in r.reply
@@ -119,7 +130,17 @@ def test_weather_without_location_asks_for_city():
     assert "Which city or ground is the match at" in r.reply
 
 
-def test_weather_with_location_calls_weather_service():
+def test_weather_with_location_calls_weather_service(monkeypatch):
+    monkeypatch.setattr(
+        "cricscore_ai.tools.get_match_weather",
+        lambda location, target_date="today", hours_ahead=6: {
+            "found": True,
+            "location": "Chicago, Illinois, United States",
+            "targetDate": target_date,
+            "hourlyForecast": [],
+            "sources": [Source(type="weather", id="Chicago, Illinois, United States", label="Open-Meteo (Chicago, Illinois, United States)")],
+        },
+    )
     r = run("What is the weather forecast for tomorrow in Chicago?", deps())
     assert r.intent == "weather"
     assert r.sources[0].type == "weather"
