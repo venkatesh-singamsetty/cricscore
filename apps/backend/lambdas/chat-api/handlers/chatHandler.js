@@ -57,79 +57,81 @@ async function chatHandler(body, corsHeaders) {
     };
   }
 
-  // Step 1: Fetch active match context
+  // Step 1: Fetch active match context (only when matchId is provided)
   let matchContext = "";
-  const dbClient = await pool.connect();
-  try {
-    await setSearchPath(dbClient);
-    if (matchId) {
-      const matchRes = await dbClient.query(
-        "SELECT * FROM matches WHERE id = $1",
-        [matchId],
-      );
-      if (matchRes.rows.length > 0) {
-        const m = matchRes.rows[0];
-        const tA = m.team_a_name || "Team A";
-        const tB = m.team_b_name || "Team B";
-        const isTeamABattingFirst = m.bat_first_team === tA;
+  if (matchId) {
+    try {
+      const dbClient = await pool.connect();
+      try {
+        await setSearchPath(dbClient);
+        const matchRes = await dbClient.query(
+          "SELECT * FROM matches WHERE id = $1",
+          [matchId],
+        );
+        if (matchRes.rows.length > 0) {
+          const m = matchRes.rows[0];
+          const tA = m.team_a_name || "Team A";
+          const tB = m.team_b_name || "Team B";
+          const isTeamABattingFirst = m.bat_first_team === tA;
 
-        const team1 = isTeamABattingFirst ? tA : tB;
-        const team1Score = isTeamABattingFirst
-          ? m.team_a_score || 0
-          : m.team_b_score || 0;
-        const team1Wickets = isTeamABattingFirst
-          ? m.team_a_wickets || 0
-          : m.team_b_wickets || 0;
-        const team1Overs = isTeamABattingFirst
-          ? m.team_a_overs || "0.0"
-          : m.team_b_overs || "0.0";
+          const team1 = isTeamABattingFirst ? tA : tB;
+          const team1Score = isTeamABattingFirst
+            ? m.team_a_score || 0
+            : m.team_b_score || 0;
+          const team1Wickets = isTeamABattingFirst
+            ? m.team_a_wickets || 0
+            : m.team_b_wickets || 0;
+          const team1Overs = isTeamABattingFirst
+            ? m.team_a_overs || "0.0"
+            : m.team_b_overs || "0.0";
 
-        const team2 = isTeamABattingFirst ? tB : tA;
-        const team2Score = isTeamABattingFirst
-          ? m.team_b_score || 0
-          : m.team_a_score || 0;
-        const team2Wickets = isTeamABattingFirst
-          ? m.team_b_wickets || 0
-          : m.team_a_wickets || 0;
-        const team2Overs = isTeamABattingFirst
-          ? m.team_b_overs || "0.0"
-          : m.team_a_overs || "0.0";
+          const team2 = isTeamABattingFirst ? tB : tA;
+          const team2Score = isTeamABattingFirst
+            ? m.team_b_score || 0
+            : m.team_a_score || 0;
+          const team2Wickets = isTeamABattingFirst
+            ? m.team_b_wickets || 0
+            : m.team_a_wickets || 0;
+          const team2Overs = isTeamABattingFirst
+            ? m.team_b_overs || "0.0"
+            : m.team_a_overs || "0.0";
 
-        const getBalls = (overStr) => {
-          const parts = String(overStr).split(".");
-          return (
-            (parseInt(parts[0], 10) || 0) * 6 + (parseInt(parts[1], 10) || 0)
-          );
-        };
-        const t1Balls = getBalls(team1Overs);
-        const t2Balls = getBalls(team2Overs);
-        const t1RR =
-          t1Balls > 0 ? (team1Score / (t1Balls / 6)).toFixed(1) : "0.0";
-        const t2RR =
-          t2Balls > 0 ? (team2Score / (t2Balls / 6)).toFixed(1) : "0.0";
+          const getBalls = (overStr) => {
+            const parts = String(overStr).split(".");
+            return (
+              (parseInt(parts[0], 10) || 0) * 6 + (parseInt(parts[1], 10) || 0)
+            );
+          };
+          const t1Balls = getBalls(team1Overs);
+          const t2Balls = getBalls(team2Overs);
+          const t1RR =
+            t1Balls > 0 ? (team1Score / (t1Balls / 6)).toFixed(1) : "0.0";
+          const t2RR =
+            t2Balls > 0 ? (team2Score / (t2Balls / 6)).toFixed(1) : "0.0";
 
-        matchContext = `Active Match: ${tA} vs ${tB} (Status: ${m.status}). Toss: ${m.toss_winner || "TBD"} elected to ${m.toss_decision || "TBD"}. Total Match Overs: ${m.total_overs || 0}.
+          matchContext = `Active Match: ${tA} vs ${tB} (Status: ${m.status}). Toss: ${m.toss_winner || "TBD"} elected to ${m.toss_decision || "TBD"}. Total Match Overs: ${m.total_overs || 0}.
 [1st Innings - ${team1}]: ${team1Score}/${team1Wickets} in ${team1Overs} overs (CRR: ${t1RR})
 [2nd Innings - ${team2}]: ${team2Score}/${team2Wickets} in ${team2Overs} overs (CRR: ${t2RR})`;
 
-        if (
-          t2Balls > 0 ||
-          t1Balls === m.total_overs * 6 ||
-          team1Wickets === 10
-        ) {
-          const target = team1Score + 1;
-          const runsNeeded = target - team2Score;
-          const ballsLeft = (m.total_overs || 0) * 6 - t2Balls;
-          if (m.status !== "COMPLETED") {
-            matchContext += `\nTarget for ${team2}: ${target} runs. They need ${runsNeeded} runs to win from ${ballsLeft} balls.`;
+          if (
+            t2Balls > 0 ||
+            t1Balls === m.total_overs * 6 ||
+            team1Wickets === 10
+          ) {
+            const target = team1Score + 1;
+            const runsNeeded = target - team2Score;
+            const ballsLeft = (m.total_overs || 0) * 6 - t2Balls;
+            if (m.status !== "COMPLETED") {
+              matchContext += `\nTarget for ${team2}: ${target} runs. They need ${runsNeeded} runs to win from ${ballsLeft} balls.`;
+            }
           }
         }
+      } finally {
+        dbClient.release();
       }
+    } catch (err) {
+      console.error("chatHandler: context fetch error:", err);
     }
-  } catch (err) {
-    console.error("chatHandler: context fetch error:", err);
-  } finally {
-    dbClient.release();
   }
 
   // Step 2: Build system prompt with tool routing instructions

@@ -6,8 +6,13 @@ const { Pool } = require("pg");
  */
 const pool = new Pool({
   connectionString: (process.env.DATABASE_URL || "").split("?")[0],
+  // codeql[js/disabling-certificate-validation] Aiven DB requires this unless explicit CA bundle is provided
   ssl: { rejectUnauthorized: false }, // Required for Aiven managed PostgreSQL
+  max: 1,
+  idleTimeoutMillis: 10000,
+  connectionTimeoutMillis: 5000,
 });
+pool.on("error", (err) => console.error("Idle PostgreSQL client error:", err));
 
 /**
  * Sets the PostgreSQL search_path for a client connection.
