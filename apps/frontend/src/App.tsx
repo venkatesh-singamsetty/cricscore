@@ -1436,22 +1436,34 @@ const App: React.FC = () => {
       >
         <div className="max-w-5xl mx-auto w-full px-3 py-1.5 md:py-2 flex justify-between items-center">
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-none max-w-full">
-            <div className="flex bg-slate-900/90 p-1 rounded-xl border border-white/5 shrink-0">
+            <div className="flex bg-slate-900/90 p-1 rounded-full border border-white/10 shrink-0 gap-1 shadow-inner">
               <button
                 onClick={() => handleViewClick("VIEWER")}
-                className={`px-3 py-1.5 md:px-5 md:py-2 font-bold text-xs md:text-sm tracking-wide transition-colors whitespace-nowrap ${view === "VIEWER" ? "text-blue-400 bg-slate-800/90 rounded-lg shadow-sm" : "text-gray-400 hover:text-blue-300"}`}
+                className={`px-3 py-1.5 md:px-5 md:py-2 font-black text-xs md:text-sm tracking-wide transition-all whitespace-nowrap rounded-full ${
+                  view === "VIEWER"
+                    ? "text-cyan-400 bg-cyan-500/15 border border-cyan-500/30 shadow-[0_0_12px_rgba(6,182,212,0.25)]"
+                    : "text-slate-400 hover:text-cyan-300 hover:bg-white/5 border border-transparent font-semibold"
+                }`}
               >
                 VIEWER 🌍
               </button>
               <button
                 onClick={() => handleViewClick("SCORER")}
-                className={`px-3 py-1.5 md:px-5 md:py-2 font-bold text-xs md:text-sm tracking-wide transition-colors whitespace-nowrap ${view === "SCORER" ? "text-emerald-400 bg-slate-800/90 rounded-lg shadow-sm" : "text-gray-400 hover:text-emerald-300"}`}
+                className={`px-3 py-1.5 md:px-5 md:py-2 font-black text-xs md:text-sm tracking-wide transition-all whitespace-nowrap rounded-full ${
+                  view === "SCORER"
+                    ? "text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.25)]"
+                    : "text-slate-400 hover:text-emerald-300 hover:bg-white/5 border border-transparent font-semibold"
+                }`}
               >
                 SCORER 🎮
               </button>
               <button
                 onClick={() => handleViewClick("CHAT")}
-                className={`px-3 py-1.5 md:px-5 md:py-2 font-bold text-xs md:text-sm tracking-wide transition-colors whitespace-nowrap ${view === "CHAT" ? "text-amber-400 bg-slate-800/90 rounded-lg shadow-sm" : "text-gray-400 hover:text-amber-300"}`}
+                className={`px-3 py-1.5 md:px-5 md:py-2 font-black text-xs md:text-sm tracking-wide transition-all whitespace-nowrap rounded-full ${
+                  view === "CHAT"
+                    ? "text-amber-400 bg-amber-500/15 border border-amber-500/30 shadow-[0_0_12px_rgba(245,158,11,0.25)]"
+                    : "text-slate-400 hover:text-amber-300 hover:bg-white/5 border border-transparent font-semibold"
+                }`}
               >
                 CHAT BOT ✨
               </button>

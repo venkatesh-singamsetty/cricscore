@@ -944,6 +944,12 @@ body {
   text-overflow: ellipsis; /* Adds ellipsis if the name is excessively long */
 }
 
+@media (max-width: 380px) {
+  .match-card-team-name {
+    font-size: 0.72rem;
+  }
+}
+
 @media (min-width: 640px) {
   .match-card-team-name {
     font-size: 1rem;

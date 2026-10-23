@@ -471,7 +471,7 @@ const MatchList: React.FC<MatchListProps> = ({
               <div
                 key={match.id}
                 onClick={() => onSelectMatch(match.id)}
-                className={`w-full bg-slate-900/80 border border-white/10 rounded-2xl p-4 sm:p-5 text-left hover:bg-slate-800/90 ${match.status === "COMPLETED" ? "hover:border-indigo-500/40" : "hover:border-emerald-500/40"} transition-all group relative overflow-hidden flex flex-col gap-4 cursor-pointer shadow-lg hover:shadow-2xl backdrop-blur-md`}
+                className={`w-full bg-slate-900/80 border border-white/10 rounded-2xl p-4 sm:p-5 text-left hover:bg-slate-800/90 hover:border-emerald-500/40 transition-all group relative overflow-hidden flex flex-col gap-4 cursor-pointer shadow-lg hover:shadow-2xl backdrop-blur-md`}
               >
                 {/* Header Row: Time Ago, Test / Guest Badge, Status on Left; Actions on Right (Same Row Level) */}
                 <div className="flex justify-between items-center gap-2">
@@ -495,7 +495,7 @@ const MatchList: React.FC<MatchListProps> = ({
                       </span>
                     ) : null}
                     {match.status === "COMPLETED" ? (
-                      <span className="px-2 py-0.5 rounded-md bg-indigo-900/40 text-indigo-400 border border-indigo-500/20 font-black text-[8px] uppercase tracking-widest whitespace-nowrap">
+                      <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-black text-[8px] uppercase tracking-widest whitespace-nowrap shadow-[0_0_8px_rgba(16,185,129,0.15)]">
                         COMPLETED
                       </span>
                     ) : isStale ? (
@@ -642,7 +642,7 @@ const MatchList: React.FC<MatchListProps> = ({
                           <div className="flex flex-col min-w-0">
                             <h4
                               title={leftTeamName}
-                              className="match-card-team-name text-white uppercase tracking-tight italic group-hover:text-indigo-400 transition-colors"
+                              className="match-card-team-name text-white uppercase tracking-tight italic group-hover:text-emerald-400 transition-colors truncate whitespace-nowrap"
                             >
                               {leftTeamName}
                             </h4>
@@ -667,7 +667,7 @@ const MatchList: React.FC<MatchListProps> = ({
                           <div className="flex flex-col text-right min-w-0">
                             <h4
                               title={rightTeamName}
-                              className="match-card-team-name text-white uppercase tracking-tight italic group-hover:text-indigo-400 transition-colors"
+                              className="match-card-team-name text-white uppercase tracking-tight italic group-hover:text-emerald-400 transition-colors truncate whitespace-nowrap"
                             >
                               {rightTeamName}
                             </h4>
@@ -720,9 +720,13 @@ const MatchList: React.FC<MatchListProps> = ({
                     })()}
 
                   {result && (
-                    <div className="mt-1 py-3 px-4 bg-indigo-500/10 border-y border-indigo-500/20 text-center rounded-xl">
-                      <span className="text-[11px] font-black text-indigo-400 uppercase tracking-widest animate-in fade-in slide-in-from-top-1">
-                        🏁 <HighlightedResult text={result} />
+                    <div className="mt-1 py-2.5 px-3 sm:px-4 bg-emerald-500/10 border border-emerald-500/25 text-center rounded-xl shadow-sm">
+                      <span className="text-[11px] sm:text-xs font-black text-emerald-400 uppercase tracking-wider animate-in fade-in slide-in-from-top-1">
+                        🏁{" "}
+                        <HighlightedResult
+                          text={result}
+                          teamClassName="text-emerald-400 font-black"
+                        />
                       </span>
                     </div>
                   )}

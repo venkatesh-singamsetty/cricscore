@@ -321,17 +321,17 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
             }}
             className={`w-8 h-8 rounded-full font-black text-xs flex items-center justify-center border transition-all ${
               mobileStep === s
-                ? "bg-indigo-600 text-white border-indigo-400 shadow-lg shadow-indigo-600/30"
+                ? "bg-indigo-600 text-white border-2 border-indigo-300 shadow-[0_0_15px_rgba(99,102,241,0.5)] ring-2 ring-indigo-400/40"
                 : mobileStep > s
-                  ? "bg-emerald-600/80 text-white border-emerald-400 cursor-pointer"
-                  : "bg-slate-800 text-slate-500 border-white/5"
+                  ? "bg-emerald-600 text-white border-2 border-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.3)] cursor-pointer"
+                  : "bg-slate-900 text-slate-400 border border-slate-700"
             }`}
           >
             {mobileStep > s ? "✓" : s}
           </button>
           {i < 2 && (
             <div
-              className={`w-8 h-0.5 rounded-full transition-all ${mobileStep > s ? "bg-emerald-500" : "bg-slate-700"}`}
+              className={`w-8 h-0.5 rounded-full transition-all ${mobileStep > s ? "bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.4)]" : "bg-slate-700"}`}
             />
           )}
         </React.Fragment>
@@ -349,8 +349,8 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
         {mobileStep === 1 && (
           <div className="flex flex-col px-2 pb-2 gap-2 animate-in fade-in duration-300">
             <div className="text-center shrink-0">
-              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-black uppercase tracking-widest text-indigo-400">
-                First Team
+              <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/20 border border-indigo-400/50 text-[10px] sm:text-xs font-black uppercase tracking-widest text-indigo-300 shadow-[0_0_12px_rgba(99,102,241,0.25)]">
+                Step 1: First Team
               </span>
             </div>
             {!hideResume && recentMatches.length > 0 && (
@@ -380,7 +380,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                 </div>
               </div>
             )}
-            <div className="bg-slate-900/50 border border-indigo-500/20 p-3 rounded-3xl flex flex-col gap-2 shadow-2xl">
+            <div className="bg-slate-900/80 border border-indigo-500/30 p-3 rounded-3xl flex flex-col gap-2 shadow-2xl backdrop-blur-sm">
               <input
                 type="text"
                 className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-sm md:text-base font-black text-indigo-300 focus:ring-2 focus:ring-indigo-500 outline-none uppercase text-center placeholder:opacity-30 shrink-0"
@@ -420,9 +420,9 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                   }
                   setMobileStep(2);
                 }}
-                className={`${onCancel ? "" : "col-span-2"} py-3.5 bg-indigo-600 rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-lg shadow-indigo-600/20 active:scale-95 transition-all`}
+                className={`${onCancel ? "" : "col-span-2"} py-3.5 bg-indigo-600 hover:bg-indigo-500 border border-indigo-400/50 rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-lg shadow-indigo-600/30 active:scale-95 transition-all`}
               >
-                Next: Second Team →
+                NEXT: SECOND TEAM ➔
               </button>
             </div>
           </div>
@@ -432,14 +432,14 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
         {mobileStep === 2 && (
           <div className="flex flex-col px-2 pb-2 gap-2 animate-in fade-in duration-300">
             <div className="text-center shrink-0">
-              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-[10px] font-black uppercase tracking-widest text-purple-400">
-                Second Team
+              <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-purple-500/20 border border-purple-400/50 text-[10px] sm:text-xs font-black uppercase tracking-widest text-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.25)]">
+                Step 2: Second Team
               </span>
-              <p className="text-[10px] text-slate-600 mt-1 font-bold uppercase">
+              <p className="text-[10px] text-slate-400 mt-1 font-bold uppercase">
                 vs <span className="text-indigo-400">{teamAName}</span>
               </p>
             </div>
-            <div className="bg-slate-900/50 border border-purple-500/20 p-3 rounded-3xl flex flex-col gap-2 shadow-2xl">
+            <div className="bg-slate-900/80 border border-purple-500/30 p-3 rounded-3xl flex flex-col gap-2 shadow-2xl backdrop-blur-sm">
               <input
                 type="text"
                 className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-sm md:text-base font-black text-purple-300 focus:ring-2 focus:ring-purple-500 outline-none uppercase text-center placeholder:opacity-30 shrink-0"
@@ -460,7 +460,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
               <button
                 type="button"
                 onClick={() => setMobileStep(1)}
-                className="py-3.5 bg-slate-800 border border-white/5 rounded-2xl font-black text-xs text-slate-300 uppercase tracking-wider active:scale-95"
+                className="py-3.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-2xl font-black text-xs text-white uppercase tracking-wider active:scale-95 transition-all"
               >
                 ← Back
               </button>
@@ -479,9 +479,9 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                   }
                   setMobileStep(3);
                 }}
-                className="py-3.5 bg-purple-600 rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-lg shadow-purple-600/20 active:scale-95 transition-all"
+                className="py-3.5 bg-purple-600 hover:bg-purple-500 border border-purple-400/50 rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-lg shadow-purple-600/30 active:scale-95 transition-all"
               >
-                Next: Overs &amp; Toss →
+                NEXT: OVERS &amp; TOSS ➔
               </button>
             </div>
           </div>
@@ -494,8 +494,8 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
             className="flex flex-grow flex-col px-3 pb-3 gap-3 overflow-y-auto scrollbar-hide animate-in fade-in duration-300"
           >
             <div className="text-center shrink-0">
-              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] font-black uppercase tracking-widest text-amber-400">
-                Overs &amp; Toss
+              <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/20 border border-amber-400/50 text-[10px] sm:text-xs font-black uppercase tracking-widest text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.25)]">
+                Step 3: Overs &amp; Toss
               </span>
               <div className="flex items-center justify-center gap-2 mt-1">
                 <span className="text-xs font-black text-indigo-400 uppercase">
