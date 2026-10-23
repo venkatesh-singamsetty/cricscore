@@ -289,4 +289,131 @@ describe("ChatComponent", () => {
       screen.getByText("CCL2026SpringChampionshipRulebook.pdf"),
     ).toBeInTheDocument();
   });
+
+  describe("Multi-Agent prompts and responses (RAG, DB, Weather, GitHub)", () => {
+    it("handles RAG prompts (Powerplay, Wide vs No-Ball, Fielders circle) and renders formatted answers", async () => {
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          reply:
+            "Under Tournament Rules, maximum 2 fielders are permitted outside the 30-yard circle in powerplay.",
+        }),
+      });
+
+      render(
+        <ChatComponent
+          matchId={null}
+          apiUrl="https://api.test.com"
+          setAlertMessage={vi.fn()}
+        />,
+      );
+
+      const promptChip = screen.getByRole("button", {
+        name: "How many fielders are allowed outside the circle?",
+      });
+      await act(async () => {
+        fireEvent.click(promptChip);
+      });
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(
+            /maximum 2 fielders are permitted outside the 30-yard circle/i,
+          ),
+        ).toBeInTheDocument();
+      });
+    });
+
+    it("handles DB prompts (Player of the Match, Match analysis) and renders results", async () => {
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          reply: "Player of the Match was Spartan 3 with 52 runs off 28 balls.",
+        }),
+      });
+
+      render(
+        <ChatComponent
+          matchId={null}
+          apiUrl="https://api.test.com"
+          setAlertMessage={vi.fn()}
+        />,
+      );
+
+      const pomChip = screen.getByRole("button", {
+        name: "Who won Player of the Match in the last match?",
+      });
+      await act(async () => {
+        fireEvent.click(pomChip);
+      });
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Player of the Match was Spartan 3/i),
+        ).toBeInTheDocument();
+      });
+    });
+
+    it("handles Weather prompts and renders forecast data cleanly", async () => {
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          reply:
+            "Weather Forecast for Chicago: 68°F / 20°C, Clear Skies, 0% rain chance.",
+        }),
+      });
+
+      render(
+        <ChatComponent
+          matchId={null}
+          apiUrl="https://api.test.com"
+          setAlertMessage={vi.fn()}
+        />,
+      );
+
+      const weatherChip = screen.getByRole("button", {
+        name: "Can you check the weather report for our match?",
+      });
+      await act(async () => {
+        fireEvent.click(weatherChip);
+      });
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Weather Forecast for Chicago: 68°F/i),
+        ).toBeInTheDocument();
+      });
+    });
+
+    it("handles GitHub Issue prompts and guides the user through reporting", async () => {
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          reply:
+            "I can help submit an issue to GitHub. Please provide a title and short description.",
+        }),
+      });
+
+      render(
+        <ChatComponent
+          matchId={null}
+          apiUrl="https://api.test.com"
+          setAlertMessage={vi.fn()}
+        />,
+      );
+
+      const issueChip = screen.getByRole("button", {
+        name: "I want to report a bug or request a new feature",
+      });
+      await act(async () => {
+        fireEvent.click(issueChip);
+      });
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/I can help submit an issue to GitHub/i),
+        ).toBeInTheDocument();
+      });
+    });
+  });
 });

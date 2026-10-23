@@ -12,6 +12,10 @@ Read the target component and its parent/child callers before modifying props or
 - **Authoritative Cumulative Totals (`explicitTotalRuns` / `explicitTotalWickets`)**:
   - `MatchView.tsx` includes `explicitTotalRuns`, `explicitTotalWickets`, `overs`, and `balls` in every `POST /match/{id}/score` payload (both normal deliveries and `undo: true`).
   - `applyLiveScoreToMatches.ts` and `LiveScoreboard.tsx` must use `explicitTotalRuns` and `explicitTotalWickets` when present rather than blindly adding incremental runs, preventing drift or double-counting.
+- **Monotonic Score Reconciliation & Inning Continuity**:
+  - `LiveScoreboard.tsx` enforces monotonic state reduction: background REST polling must NEVER downgrade or zero-out live scores (`Math.max(old.totalRuns, inn.totalRuns)` and `Math.max(old.totalWickets, inn.totalWickets)`).
+  - Preserves active batters, bowlers, and `allBalls` history across REST polling intervals. If a background poll returns a lagging DB response or empty arrays, the active live WebSocket state takes precedence.
+  - Multi-Inning Preservation: When transitioning to Inning 2 or match completion, prior completed innings in `prev.innings` are retained so completed 1st innings scorecards never vanish from spectator view.
 - **Strike-Rotation Batter Attribution (`ballData.batterName`)**:
   - When an odd run (1, 3) or over end rotates strike, `strikerName` in the WebSocket payload represents the _next_ ball's striker, while `ballData.batterName` identifies the batter who actually faced the delivery.
   - `LiveScoreboard.tsx` must attribute runs, boundaries, and balls faced strictly to `ballData.batterName` before updating crease positions (`strikerName` / `nonStrikerName`) so individual batter scores always sum to the team total.

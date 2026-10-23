@@ -40,7 +40,7 @@ const mockMatches = [
   {
     id: "e04d5d18-bced-4b42-95c9-0bd67db6dac9",
     team_a_name: "CHICAGO SPARTANS",
-    team_b_name: "ILLINOIS THUNDERS",
+    team_b_name: "MIDWEST GLADIATORS",
     total_overs: 1,
     status: "COMPLETED",
     created_at: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
@@ -57,7 +57,7 @@ const mockMatches = [
       },
       {
         inning_number: 2,
-        batting_team_name: "ILLINOIS THUNDERS",
+        batting_team_name: "MIDWEST GLADIATORS",
         total_runs: 11,
         total_wickets: 4,
         overs: 1,
@@ -90,7 +90,7 @@ describe("MatchList", () => {
 
     expect(screen.getAllByText("TEAM B").length).toBeGreaterThanOrEqual(1);
     expect(
-      screen.getAllByText("ILLINOIS THUNDERS").length,
+      screen.getAllByText("MIDWEST GLADIATORS").length,
     ).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByTestId("guest-match-badge")).toHaveLength(1);
     expect(screen.queryByText("GUESTS")).not.toBeInTheDocument();

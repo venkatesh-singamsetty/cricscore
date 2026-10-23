@@ -11,13 +11,13 @@ _GITHUB_ISSUE = re.compile(
     re.I,
 )
 _WEATHER = re.compile(
-    r"\b(weather(\s+report|\s+forecast)?|forecast|temperature|rain\s+(chance|probability|forecast)|hourly\s+weather|next\s+\d*\s*few?\s*hours)\b",
+    r"\b(weather(\s+report|\s+forecast)?|forecast|temperature|rain\w*|precipitation|hourly\s+weather|next\s+\d*\s*few?\s*hours)\b",
     re.I,
 )
 _PREDICT = re.compile(r"\b(predict\w*|win probability|chances?|who (will|is going to) win|likely to win|odds)\b", re.I)
 _RULES = re.compile(
     r"\b(rules?|regulations?|powerplay|lbw|dls|duckworth|tiebreak\w*|super over|penalt\w+|eligib\w+|"
-    r"free hit|wide|no[- ]ball|leg byes?|policy|reserve day|fielding restrictions?)\b",
+    r"free hit|wide|no[- ]ball|leg byes?|policy|reserve day|fielding restrictions?|fielders?|circle)\b",
     re.I,
 )
 _ANALYSIS = re.compile(r"\b(why|analy[sz]\w*|compare|comparison|turning point|how did|explain|insight|review)\b", re.I)

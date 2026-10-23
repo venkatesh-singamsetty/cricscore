@@ -8,7 +8,7 @@ describe("Scoreboard Component", () => {
     id: "inn-2",
     inningNumber: 2,
     target: 150,
-    battingTeamName: "ILLINOIS THUNDERS",
+    battingTeamName: "MIDWEST GLADIATORS",
     bowlingTeamName: "CHICAGO CHIEFS",
     totalRuns: 20,
     totalWickets: 1,
@@ -24,7 +24,7 @@ describe("Scoreboard Component", () => {
     players: {
       p1: {
         id: "p1",
-        name: "THUNDER 1",
+        name: "GLADIATOR 1",
         runs: 10,
         ballsFaced: 8,
         fours: 1,
@@ -33,7 +33,7 @@ describe("Scoreboard Component", () => {
       },
       p2: {
         id: "p2",
-        name: "THUNDER 2",
+        name: "GLADIATOR 2",
         runs: 5,
         ballsFaced: 4,
         fours: 1,
@@ -42,7 +42,7 @@ describe("Scoreboard Component", () => {
       },
       p3: {
         id: "p3",
-        name: "THUNDER 3",
+        name: "GLADIATOR 3",
         runs: 4,
         ballsFaced: 3,
         fours: 0,
@@ -53,7 +53,7 @@ describe("Scoreboard Component", () => {
       },
       p4: {
         id: "p4",
-        name: "THUNDER 4",
+        name: "GLADIATOR 4",
         runs: 0,
         ballsFaced: 0,
         fours: 0,
@@ -62,7 +62,7 @@ describe("Scoreboard Component", () => {
       },
       p5: {
         id: "p5",
-        name: "THUNDER 5",
+        name: "GLADIATOR 5",
         runs: 0,
         ballsFaced: 0,
         fours: 0,
@@ -87,7 +87,7 @@ describe("Scoreboard Component", () => {
     id: "inn-1",
     inningNumber: 1,
     battingTeamName: "CHICAGO CHIEFS",
-    bowlingTeamName: "ILLINOIS THUNDERS",
+    bowlingTeamName: "MIDWEST GLADIATORS",
     totalRuns: 149,
     totalWickets: 6,
     overs: 20,
@@ -145,18 +145,18 @@ describe("Scoreboard Component", () => {
     );
 
     // Active striker & non-striker
-    expect(screen.getByText(/THUNDER 1/i)).toBeInTheDocument();
-    expect(screen.getByText(/THUNDER 2/i)).toBeInTheDocument();
+    expect(screen.getByText(/GLADIATOR 1/i)).toBeInTheDocument();
+    expect(screen.getByText(/GLADIATOR 2/i)).toBeInTheDocument();
 
     // Dismissed batter
-    expect(screen.getByText(/THUNDER 3/i)).toBeInTheDocument();
+    expect(screen.getByText(/GLADIATOR 3/i)).toBeInTheDocument();
     expect(screen.getByText(/b Bowler 1/i)).toBeInTheDocument();
 
     // Unbatted squad members are grouped together in a compact YET TO BAT strip
-    const thunder4Elements = screen.getAllByText(/THUNDER 4/i);
+    const thunder4Elements = screen.getAllByText(/GLADIATOR 4/i);
     expect(thunder4Elements.length).toBeGreaterThanOrEqual(1);
 
-    const thunder5Elements = screen.getAllByText(/THUNDER 5/i);
+    const thunder5Elements = screen.getAllByText(/GLADIATOR 5/i);
     expect(thunder5Elements.length).toBeGreaterThanOrEqual(1);
 
     const yetToBatBadges = screen.getAllByText(/YET TO BAT/i);
@@ -220,7 +220,7 @@ describe("Scoreboard Component", () => {
         currentInnings={wonInnings}
         previousInnings={mockPreviousInnings}
         onClose={vi.fn()}
-        playerOfTheMatch="THUNDER 1"
+        playerOfTheMatch="GLADIATOR 1"
         totalOvers={20}
       />,
     );
@@ -229,14 +229,16 @@ describe("Scoreboard Component", () => {
     expect(screen.getByText(/WON BY 7 WICKETS/i)).toBeInTheDocument();
 
     // POTM is integrated into the result banner
-    expect(screen.getByText(/POTM: THUNDER 1/i)).toBeInTheDocument();
+    expect(screen.getByText(/POTM: GLADIATOR 1/i)).toBeInTheDocument();
 
     // Duplicate Target Equation is suppressed on completed match
     expect(screen.queryByText(/Target Equation/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Target Reached/i)).not.toBeInTheDocument();
 
     // Batters table is immediately visible
-    expect(screen.getAllByText(/THUNDER 1/i).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText(/GLADIATOR 1/i).length).toBeGreaterThanOrEqual(
+      2,
+    );
   });
 
   it("resets scorecard scroll position to top when switching innings tabs", () => {

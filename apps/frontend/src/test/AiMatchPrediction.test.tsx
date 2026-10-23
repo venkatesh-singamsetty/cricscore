@@ -15,7 +15,7 @@ describe("AiMatchPrediction Component", () => {
       ok: true,
       json: async () => ({
         team1: "CHICAGO SPARTANS",
-        team2: "ILLINOIS THUNDERS",
+        team2: "MIDWEST GLADIATORS",
         team1WinProbability: 0.5,
         team2WinProbability: 0.5,
         predictedWinner: "Balanced (50-50)",
@@ -27,7 +27,7 @@ describe("AiMatchPrediction Component", () => {
       <AiMatchPrediction
         matchId="match_1"
         teamA="CHICAGO SPARTANS"
-        teamB="ILLINOIS THUNDERS"
+        teamB="MIDWEST GLADIATORS"
         totalOvers={1}
         compact={true}
         inning={1}
@@ -39,7 +39,7 @@ describe("AiMatchPrediction Component", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/CHICAGO SPARTANS 50% - 50% ILLINOIS THUNDERS/i),
+        screen.getByText(/CHICAGO SPARTANS 50% - 50% MIDWEST GLADIATORS/i),
       ).toBeInTheDocument();
     });
   });
@@ -48,7 +48,7 @@ describe("AiMatchPrediction Component", () => {
     render(
       <AiMatchPrediction
         matchId="match_1"
-        teamA="ILLINOIS THUNDERS"
+        teamA="MIDWEST GLADIATORS"
         teamB="CHICAGO SPARTANS"
         totalOvers={1}
         compact={true}
@@ -62,7 +62,7 @@ describe("AiMatchPrediction Component", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/ILLINOIS THUNDERS 0% - 100% CHICAGO SPARTANS/i),
+        screen.getByText(/MIDWEST GLADIATORS 0% - 100% CHICAGO SPARTANS/i),
       ).toBeInTheDocument();
     });
     expect(global.fetch).not.toHaveBeenCalled();
@@ -72,11 +72,11 @@ describe("AiMatchPrediction Component", () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        team1: "ILLINOIS THUNDERS",
+        team1: "MIDWEST GLADIATORS",
         team2: "CHICAGO SPARTANS",
         team1WinProbability: 0.57,
         team2WinProbability: 0.43,
-        predictedWinner: "ILLINOIS THUNDERS",
+        predictedWinner: "MIDWEST GLADIATORS",
         modelVersion: "v2+dp-sim",
       }),
     });
@@ -84,7 +84,7 @@ describe("AiMatchPrediction Component", () => {
     render(
       <AiMatchPrediction
         matchId="match_1"
-        teamA="ILLINOIS THUNDERS"
+        teamA="MIDWEST GLADIATORS"
         teamB="CHICAGO SPARTANS"
         totalOvers={1}
         compact={true}
@@ -98,7 +98,7 @@ describe("AiMatchPrediction Component", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/ILLINOIS THUNDERS 57% - 43% CHICAGO SPARTANS/i),
+        screen.getByText(/MIDWEST GLADIATORS 57% - 43% CHICAGO SPARTANS/i),
       ).toBeInTheDocument();
     });
 

@@ -18,12 +18,13 @@ Use `apps/backend/lambdas/README.md`, `docs/websocket_tutorial.md`, and `infra/t
 - **`storage-worker` (`apps/backend/lambdas/storage-worker/index.js`)**:
   - Consumes SQS FIFO batches and commits ACID transactions to Aiven PostgreSQL.
   - **Authoritative Totals (`explicitTotalRuns` / `explicitTotalWickets`)**: Always prefer `explicitTotalRuns` and `explicitTotalWickets` when updating the `innings` row on both normal deliveries and `undo: true` events so out-of-order or retried events never cause cumulative score drift.
-  - **Resolve `inn2_<timestamp>` IDs**: When `ballData.inningId` starts with `inn2_`, look up or create the canonical 2nd-innings row in `innings` before inserting/deleting `balls`.
+  - **Resolve `inn2_<timestamp>` IDs**: When `ballData.inningId` starts with `inn2_` or is missing, query `SELECT id FROM innings WHERE match_id = $1 AND inning_number = $2` using `eventInningNumber` to avoid UUID cast failures or reverting deliveries into Inning 1.
 - **WebSocket Session & Fan-Out (`onconnect`, `ondisconnect`, `broadcaster`)**:
   - Tracks connection IDs in DynamoDB (`websocket_connections`) and prunes stale `410 GoneException` connections automatically during broadcast.
 
 ## 2. Database & Runtime Guardrails
 
+- **Bounded PostgreSQL Connection Pooling**: With Aiven PostgreSQL 20 connection ceiling, all Lambdas (`chat-api`, `match-api`, `storage-worker`) must configure `max: 1`, `idleTimeoutMillis: 10000`, `connectionTimeoutMillis: 5000` to prevent connection slot exhaustion across warm container instances.
 - **Warm Connection Pool Reuse**: Always reuse a module-scoped `pg.Pool` across Lambda invocations; never instantiate a new pool inside `handler` or call `pool.end()` per request.
 - **Parameterized SQL**: Use `$1, $2, ...` placeholders for all SQL parameters and wrap multi-table writes (`balls` + `innings`) in `BEGIN` / `COMMIT` / `ROLLBACK` transactions.
 

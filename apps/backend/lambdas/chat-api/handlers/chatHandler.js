@@ -57,79 +57,81 @@ async function chatHandler(body, corsHeaders) {
     };
   }
 
-  // Step 1: Fetch active match context
+  // Step 1: Fetch active match context (only when matchId is provided)
   let matchContext = "";
-  const dbClient = await pool.connect();
-  try {
-    await setSearchPath(dbClient);
-    if (matchId) {
-      const matchRes = await dbClient.query(
-        "SELECT * FROM matches WHERE id = $1",
-        [matchId],
-      );
-      if (matchRes.rows.length > 0) {
-        const m = matchRes.rows[0];
-        const tA = m.team_a_name || "Team A";
-        const tB = m.team_b_name || "Team B";
-        const isTeamABattingFirst = m.bat_first_team === tA;
+  if (matchId) {
+    try {
+      const dbClient = await pool.connect();
+      try {
+        await setSearchPath(dbClient);
+        const matchRes = await dbClient.query(
+          "SELECT * FROM matches WHERE id = $1",
+          [matchId],
+        );
+        if (matchRes.rows.length > 0) {
+          const m = matchRes.rows[0];
+          const tA = m.team_a_name || "Team A";
+          const tB = m.team_b_name || "Team B";
+          const isTeamABattingFirst = m.bat_first_team === tA;
 
-        const team1 = isTeamABattingFirst ? tA : tB;
-        const team1Score = isTeamABattingFirst
-          ? m.team_a_score || 0
-          : m.team_b_score || 0;
-        const team1Wickets = isTeamABattingFirst
-          ? m.team_a_wickets || 0
-          : m.team_b_wickets || 0;
-        const team1Overs = isTeamABattingFirst
-          ? m.team_a_overs || "0.0"
-          : m.team_b_overs || "0.0";
+          const team1 = isTeamABattingFirst ? tA : tB;
+          const team1Score = isTeamABattingFirst
+            ? m.team_a_score || 0
+            : m.team_b_score || 0;
+          const team1Wickets = isTeamABattingFirst
+            ? m.team_a_wickets || 0
+            : m.team_b_wickets || 0;
+          const team1Overs = isTeamABattingFirst
+            ? m.team_a_overs || "0.0"
+            : m.team_b_overs || "0.0";
 
-        const team2 = isTeamABattingFirst ? tB : tA;
-        const team2Score = isTeamABattingFirst
-          ? m.team_b_score || 0
-          : m.team_a_score || 0;
-        const team2Wickets = isTeamABattingFirst
-          ? m.team_b_wickets || 0
-          : m.team_a_wickets || 0;
-        const team2Overs = isTeamABattingFirst
-          ? m.team_b_overs || "0.0"
-          : m.team_a_overs || "0.0";
+          const team2 = isTeamABattingFirst ? tB : tA;
+          const team2Score = isTeamABattingFirst
+            ? m.team_b_score || 0
+            : m.team_a_score || 0;
+          const team2Wickets = isTeamABattingFirst
+            ? m.team_b_wickets || 0
+            : m.team_a_wickets || 0;
+          const team2Overs = isTeamABattingFirst
+            ? m.team_b_overs || "0.0"
+            : m.team_a_overs || "0.0";
 
-        const getBalls = (overStr) => {
-          const parts = String(overStr).split(".");
-          return (
-            (parseInt(parts[0], 10) || 0) * 6 + (parseInt(parts[1], 10) || 0)
-          );
-        };
-        const t1Balls = getBalls(team1Overs);
-        const t2Balls = getBalls(team2Overs);
-        const t1RR =
-          t1Balls > 0 ? (team1Score / (t1Balls / 6)).toFixed(1) : "0.0";
-        const t2RR =
-          t2Balls > 0 ? (team2Score / (t2Balls / 6)).toFixed(1) : "0.0";
+          const getBalls = (overStr) => {
+            const parts = String(overStr).split(".");
+            return (
+              (parseInt(parts[0], 10) || 0) * 6 + (parseInt(parts[1], 10) || 0)
+            );
+          };
+          const t1Balls = getBalls(team1Overs);
+          const t2Balls = getBalls(team2Overs);
+          const t1RR =
+            t1Balls > 0 ? (team1Score / (t1Balls / 6)).toFixed(1) : "0.0";
+          const t2RR =
+            t2Balls > 0 ? (team2Score / (t2Balls / 6)).toFixed(1) : "0.0";
 
-        matchContext = `Active Match: ${tA} vs ${tB} (Status: ${m.status}). Toss: ${m.toss_winner || "TBD"} elected to ${m.toss_decision || "TBD"}. Total Match Overs: ${m.total_overs || 0}.
+          matchContext = `Active Match: ${tA} vs ${tB} (Status: ${m.status}). Toss: ${m.toss_winner || "TBD"} elected to ${m.toss_decision || "TBD"}. Total Match Overs: ${m.total_overs || 0}.
 [1st Innings - ${team1}]: ${team1Score}/${team1Wickets} in ${team1Overs} overs (CRR: ${t1RR})
 [2nd Innings - ${team2}]: ${team2Score}/${team2Wickets} in ${team2Overs} overs (CRR: ${t2RR})`;
 
-        if (
-          t2Balls > 0 ||
-          t1Balls === m.total_overs * 6 ||
-          team1Wickets === 10
-        ) {
-          const target = team1Score + 1;
-          const runsNeeded = target - team2Score;
-          const ballsLeft = (m.total_overs || 0) * 6 - t2Balls;
-          if (m.status !== "COMPLETED") {
-            matchContext += `\nTarget for ${team2}: ${target} runs. They need ${runsNeeded} runs to win from ${ballsLeft} balls.`;
+          if (
+            t2Balls > 0 ||
+            t1Balls === m.total_overs * 6 ||
+            team1Wickets === 10
+          ) {
+            const target = team1Score + 1;
+            const runsNeeded = target - team2Score;
+            const ballsLeft = (m.total_overs || 0) * 6 - t2Balls;
+            if (m.status !== "COMPLETED") {
+              matchContext += `\nTarget for ${team2}: ${target} runs. They need ${runsNeeded} runs to win from ${ballsLeft} balls.`;
+            }
           }
         }
+      } finally {
+        dbClient.release();
       }
+    } catch (err) {
+      console.error("chatHandler: context fetch error:", err);
     }
-  } catch (err) {
-    console.error("chatHandler: context fetch error:", err);
-  } finally {
-    dbClient.release();
   }
 
   // Step 2: Build system prompt with tool routing instructions
@@ -175,7 +177,7 @@ ${DB_SCHEMA}
 - Team Names: There is no 'team_name' column. Use 'batting_team_name' or 'bowling_team_name' from the innings table.
 - Averages: AVG(runs) works, but remember to cast to float if needed. Strike rate is (SUM(runs) / SUM(balls_faced)) * 100.
 - For 'latest' or 'last', ALWAYS use: ORDER BY created_at DESC LIMIT 1. (Or LIMIT N when N matches are requested).
-- Player of the Match: Stored in 'matches.player_of_the_match' (and often mentioned in 'matches.ai_summary'). When asked who won Player of the Match in the last match, query matches WHERE status = 'COMPLETED' ORDER BY created_at DESC LIMIT 1 (including id, team_a_name, team_b_name, match_winner, player_of_the_match, ai_summary), and if player_of_the_match is NULL, also query top batters/bowlers in players/bowlers for that match_id to highlight the standout performer.
+- Player of the Match: Stored in 'matches.player_of_the_match' (and in 'matches.ai_summary'). When asked who won Player of the Match in the last match, query matches WHERE status = 'COMPLETED' ORDER BY created_at DESC LIMIT 1 (including id, team_a_name, team_b_name, match_winner, player_of_the_match, ai_summary). Always report 'player_of_the_match' exactly as recorded. If 'player_of_the_match' is NULL, inspect both top batters in 'players' (ORDER BY runs DESC) and top bowlers in 'bowlers' (ORDER BY wickets DESC, runs_conceded ASC; note the column in 'bowlers' is 'overs_completed') for that match to highlight the standout performer.
 
 Current Active Match Context: ${matchContext || "None provided"}
 Current Date and Time: ${new Date().toISOString()}
@@ -239,13 +241,17 @@ Current Date and Time: ${new Date().toISOString()}
   let responseMessage = response.choices[0].message;
 
   // Step 6: Agentic tool call loop — delegate to MCP Server for secure execution
-  if (responseMessage.tool_calls) {
+  const MAX_TOOL_ROUNDS = 2;
+  let toolRound = 0;
+  let githubIssuesCreatedInTurn = 0;
+
+  while (responseMessage.tool_calls && toolRound < MAX_TOOL_ROUNDS) {
+    toolRound += 1;
     messages.push(responseMessage);
-    let githubIssuesCreatedInTurn = 0;
 
     for (const toolCall of responseMessage.tool_calls) {
       console.log(
-        "chatHandler: delegating to MCP tool:",
+        `chatHandler: delegating to MCP tool (round ${toolRound}):`,
         toolCall.function.name,
       );
       let toolResult = "";
@@ -284,28 +290,57 @@ Current Date and Time: ${new Date().toISOString()}
       });
     }
 
-    // Final LLM call — generate human-readable answer from tool results
+    // Call LLM again to interpret results or generate follow-up query
+    const isFinalRound = toolRound >= MAX_TOOL_ROUNDS;
     try {
-      response = await openai.chat.completions.create({
+      const completionParams = {
         model: LLM_MODEL,
         messages,
-        tools,
-        temperature: 0.5,
+        temperature: 0.3,
         max_tokens: 2000,
-      });
+      };
+      if (!isFinalRound) {
+        completionParams.tools = tools;
+        completionParams.tool_choice = "auto";
+      }
+      response = await openai.chat.completions.create(completionParams);
       responseMessage = response.choices[0].message;
     } catch (err) {
-      console.error("chatHandler: Final LLM call error:", err);
+      console.error("chatHandler: Follow-up LLM call error:", err);
       responseMessage = {
         content:
-          "I'm unable to synthesize the full answer right now, but you can check the scoreboard for the latest updates.",
+          "I retrieved the match records, but was unable to synthesize the full answer right now. Please check the scorecard for details.",
       };
+      break;
+    }
+  }
+
+  // If the model still returned tool_calls on the final round without content,
+  // do a forced synthesis call strictly without tools so the user receives a readable answer.
+  if (!responseMessage.content) {
+    try {
+      const forcedSynthesis = await openai.chat.completions.create({
+        model: LLM_MODEL,
+        messages: [
+          ...messages,
+          {
+            role: "user",
+            content:
+              "Synthesize a clear, direct answer to the user's question using the information and tool results retrieved above. If specific data (such as an official Player of the Match award) is not recorded, state that clearly and summarize the match winner or available player scores.",
+          },
+        ],
+        temperature: 0.3,
+        max_tokens: 2000,
+      });
+      responseMessage = forcedSynthesis.choices[0].message;
+    } catch (synthErr) {
+      console.error("chatHandler: Forced synthesis error:", synthErr);
     }
   }
 
   const finalReply =
     responseMessage.content ||
-    "The operation was completed, but no detailed summary was generated.";
+    "I was able to inspect the database, but could not compile a complete summary. Please check the live scorecard or recent matches for full details.";
 
   return {
     statusCode: 200,

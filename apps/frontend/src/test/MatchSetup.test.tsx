@@ -29,7 +29,7 @@ describe("MatchSetup Component", () => {
     // Both mobile and desktop layouts render the team name inputs
     // Use getAllByDisplayValue since both layouts are in the DOM
     const teamAInputs = screen.getAllByDisplayValue("CHICAGO SPARTANS");
-    const teamBInputs = screen.getAllByDisplayValue("ILLINOIS THUNDERS");
+    const teamBInputs = screen.getAllByDisplayValue("MIDWEST GLADIATORS");
     expect(teamAInputs.length).toBeGreaterThanOrEqual(1);
     expect(teamBInputs.length).toBeGreaterThanOrEqual(1);
 
@@ -97,7 +97,7 @@ describe("MatchSetup Component", () => {
     await waitFor(() => {
       expect(mockStartMatch).toHaveBeenCalledWith(
         expect.objectContaining({ name: "CHICAGO SPARTANS" }),
-        expect.objectContaining({ name: "ILLINOIS THUNDERS" }),
+        expect.objectContaining({ name: "MIDWEST GLADIATORS" }),
         1, // Default overs is 1
         "CHICAGO SPARTANS", // Default: Toss Winner=Team A + Decision=BAT → Team A bats first
         expect.stringContaining("guest_match_"), // Guest match ID
@@ -143,7 +143,7 @@ describe("MatchSetup Component", () => {
       expect(global.fetch).toHaveBeenCalledTimes(2);
       expect(mockStartMatch).toHaveBeenCalledWith(
         expect.objectContaining({ name: "CHICAGO SPARTANS" }),
-        expect.objectContaining({ name: "ILLINOIS THUNDERS" }),
+        expect.objectContaining({ name: "MIDWEST GLADIATORS" }),
         1, // Default overs is 1
         "CHICAGO SPARTANS", // Default: Toss Winner=Team A + Decision=BAT → Team A bats first
         "123",

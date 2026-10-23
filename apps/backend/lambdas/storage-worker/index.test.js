@@ -221,6 +221,40 @@ describe("Storage Worker Lambda", () => {
     expect(inningsUpdate?.[1][7]).toBe("real-uuid-inn-2");
   });
 
+  it("should resolve inn2_ inningId by exact inning_number = 2 when eventInningNumber is provided", async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ id: "real-uuid-inning-2" }],
+    });
+
+    await handler({
+      Records: [
+        {
+          body: JSON.stringify({
+            matchId: "match_123",
+            inningId: "inn2_1729291111111",
+            inningNumber: 2,
+            syncOnly: true,
+            currentOvers: 1,
+            currentBalls: 0,
+            explicitTotalRuns: 12,
+            explicitTotalWickets: 1,
+          }),
+        },
+      ],
+    });
+
+    expect(mockQuery).toHaveBeenNthCalledWith(
+      1,
+      "SELECT id FROM innings WHERE match_id = $1 AND inning_number = $2",
+      ["match_123", 2],
+    );
+    const inningsUpdate = mockQuery.mock.calls.find(([query]) =>
+      String(query).includes("UPDATE innings SET"),
+    );
+    expect(inningsUpdate?.[1][5]).toBe(12);
+    expect(inningsUpdate?.[1][7]).toBe("real-uuid-inning-2");
+  });
+
   it.each(["RETIRED_HURT", "RETIRED_OUT"])(
     "does not decrement balls faced when undoing %s",
     async (wicketType) => {

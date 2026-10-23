@@ -42,3 +42,10 @@ jobs:
           npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+
+      - name: Enrich Latest GitHub Release Notes
+        if: success()
+        run: ./infra/scripts/enrich_release_notes.sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
