@@ -120,13 +120,8 @@ html, body, #root {
   width: 100% !important;
   position: relative;
   isolation: isolate;
-  background:
-    radial-gradient(40rem 28rem at 15% 10%, rgba(99, 102, 241, 0.28), transparent 60%),
-    radial-gradient(36rem 26rem at 85% 30%, rgba(236, 72, 153, 0.18), transparent 60%),
-    radial-gradient(30rem 24rem at 50% 100%, rgba(16, 185, 129, 0.14), transparent 60%),
-    #020617 !important;
-  background-size: 140% 140% !important;
-  animation: authAurora 18s ease-in-out infinite alternate;
+  /* Neutral dark surround (matches Viewer) instead of purple aurora */
+  background: #020617 !important;
 }
 
 @keyframes authAurora {
@@ -800,6 +795,63 @@ html, body, #root {
     margin-top: 0.4rem !important;
     font-size: 0.66rem !important;
   }
+
+  /* Create Account tab (5 fields vs 2 in Sign-In): compact sizing to guarantee zero-scroll on mobile */
+  [data-amplify-authenticator]:not(:has(.auth-footer)) {
+    padding-top: 0.25rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+  [data-amplify-authenticator]:not(:has(.auth-footer)) .auth-hero {
+    margin: 0 0 0.25rem !important;
+    gap: 0.2rem !important;
+  }
+  [data-amplify-authenticator]:not(:has(.auth-footer)) .auth-logo {
+    width: 30px !important;
+    height: 30px !important;
+    font-size: 1.05rem !important;
+    border-radius: 0.65rem !important;
+  }
+  [data-amplify-authenticator]:not(:has(.auth-footer)) .auth-title {
+    font-size: 1.25rem !important;
+    line-height: 1 !important;
+  }
+  [data-amplify-authenticator]:not(:has(.auth-footer)) .auth-subtitle {
+    display: none !important;
+  }
+  [data-amplify-authenticator]:not(:has(.auth-footer)) [data-amplify-router] {
+    padding: 0.75rem 0.95rem 0.75rem !important;
+    margin: 0 auto !important;
+  }
+  [data-amplify-authenticator]:not(:has(.auth-footer)) [role="tablist"] {
+    margin-bottom: 0.35rem !important;
+    padding: 0.2rem !important;
+  }
+  [data-amplify-authenticator]:not(:has(.auth-footer)) [role="tab"] {
+    padding: 0.4rem 0.5rem !important;
+    font-size: 0.8rem !important;
+  }
+  [data-amplify-authenticator]:not(:has(.auth-footer)) form .amplify-flex:not(.amplify-field-group) {
+    gap: 0.4rem !important;
+  }
+  [data-amplify-authenticator]:not(:has(.auth-footer)) .amplify-label,
+  [data-amplify-authenticator]:not(:has(.auth-footer)) label {
+    font-size: 0.65rem !important;
+    margin-bottom: 0.15rem !important;
+  }
+  [data-amplify-authenticator]:not(:has(.auth-footer)) input,
+  [data-amplify-authenticator]:not(:has(.auth-footer)) .amplify-input,
+  [data-amplify-authenticator]:not(:has(.auth-footer)) select {
+    padding: 0.45rem 0.85rem !important;
+    min-height: 40px !important;
+    font-size: 0.88rem !important;
+    border-radius: 0.65rem !important;
+  }
+  [data-amplify-authenticator]:not(:has(.auth-footer)) button[type="submit"] {
+    padding: 0.65rem 1rem !important;
+    min-height: 42px !important;
+    font-size: 0.9rem !important;
+    margin-top: 0.25rem !important;
+  }
 }
 
 @media (max-height: 720px) {
@@ -847,29 +899,33 @@ html, body, #root {
   }
 }
 
-/* Very short screens (small phones / landscape): compact 5-field Create Account tab to avoid scroll */
+/* Very short screens (small phones / landscape): ensure 5-field Create Account tab maintains compact sizing */
 @media (max-height: 700px) {
   [data-amplify-authenticator]:not(:has(.auth-footer)) {
     height: 100% !important;
     padding-top: 0.25rem !important;
-    padding-bottom: max(1rem, env(safe-area-inset-bottom)) !important;
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom)) !important;
   }
-  [data-amplify-authenticator]:not(:has(.auth-footer)) .auth-hero { margin: 0 0 0.35rem !important; }
-  [data-amplify-authenticator]:not(:has(.auth-footer)) .auth-logo { width: 32px !important; height: 32px !important; font-size: 1.1rem !important; margin: 0; border-radius: 0.7rem; }
+  [data-amplify-authenticator]:not(:has(.auth-footer)) .auth-hero { margin: 0 0 0.25rem !important; gap: 0.2rem !important; }
+  [data-amplify-authenticator]:not(:has(.auth-footer)) .auth-logo { width: 30px !important; height: 30px !important; font-size: 1.05rem !important; margin: 0; border-radius: 0.65rem; }
   [data-amplify-authenticator]:not(:has(.auth-footer)) .auth-title { font-size: 1.25rem !important; line-height: 1; }
   [data-amplify-authenticator]:not(:has(.auth-footer)) .auth-subtitle { display: none !important; }
-  [data-amplify-authenticator]:not(:has(.auth-footer)) [role="tablist"] { margin-bottom: 0.5rem !important; }
-  [data-amplify-authenticator]:not(:has(.auth-footer)) [role="tab"] { padding: 0.45rem 0.5rem !important; font-size: 0.82rem !important; }
+  [data-amplify-authenticator]:not(:has(.auth-footer)) [role="tablist"] { margin-bottom: 0.35rem !important; padding: 0.2rem !important; }
+  [data-amplify-authenticator]:not(:has(.auth-footer)) [role="tab"] { padding: 0.4rem 0.5rem !important; font-size: 0.8rem !important; }
   [data-amplify-authenticator]:not(:has(.auth-footer)) input,
-  [data-amplify-authenticator]:not(:has(.auth-footer)) .amplify-input {
-    padding: 0.75rem 1rem !important; /* px-4 py-3 */
-    min-height: 46px !important;
+  [data-amplify-authenticator]:not(:has(.auth-footer)) .amplify-input,
+  [data-amplify-authenticator]:not(:has(.auth-footer)) select {
+    padding: 0.45rem 0.85rem !important;
+    min-height: 40px !important;
+    font-size: 0.88rem !important;
   }
   [data-amplify-authenticator]:not(:has(.auth-footer)) button[type="submit"] {
-    padding: 0.75rem 1rem !important;
-    min-height: 46px !important;
+    padding: 0.65rem 1rem !important;
+    min-height: 42px !important;
+    font-size: 0.9rem !important;
+    margin-top: 0.25rem !important;
   }
-  [data-amplify-authenticator]:not(:has(.auth-footer)) form .amplify-flex:not(.amplify-field-group) { gap: 0.5rem !important; }
+  [data-amplify-authenticator]:not(:has(.auth-footer)) form .amplify-flex:not(.amplify-field-group) { gap: 0.4rem !important; }
   [data-amplify-authenticator]:not(:has(.auth-footer)) .amplify-tabs { margin-bottom: 0.25rem !important; }
 }
 
