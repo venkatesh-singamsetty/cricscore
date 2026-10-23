@@ -500,13 +500,13 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
           {previousInnings && (
             <button
               onClick={() => setActiveTab("previous")}
-              className={`flex-1 min-w-0 py-1.5 sm:py-2 px-1 sm:px-2.5 rounded-lg sm:rounded-xl text-[9.5px] xs:text-[10.5px] sm:text-xs font-bold sm:font-black uppercase tracking-tight italic transition-all flex items-center justify-between gap-1 sm:gap-1.5 ${
+              className={`flex-1 min-w-0 py-1.5 sm:py-2 px-1.5 sm:px-2.5 rounded-lg sm:rounded-xl text-[9.5px] xs:text-[10.5px] sm:text-xs font-bold sm:font-black uppercase tracking-tight italic transition-all flex items-center justify-between gap-1.5 sm:gap-2 ${
                 activeTab === "previous"
                   ? "bg-gradient-to-r from-indigo-600/90 to-blue-600/90 border border-indigo-400/40 text-white shadow-lg shadow-indigo-600/30 backdrop-blur-md"
                   : "bg-slate-800/50 border border-white/5 text-slate-400 hover:text-slate-200 hover:bg-slate-800/80"
               }`}
             >
-              <span className="flex-1 min-w-0 text-left truncate whitespace-nowrap block">
+              <span className="flex-1 min-w-0 text-left truncate whitespace-nowrap block mr-1.5">
                 {previousInnings.battingTeamName} (Inns 1)
               </span>
               <span
@@ -522,13 +522,13 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
           )}
           <button
             onClick={() => setActiveTab("current")}
-            className={`flex-1 min-w-0 py-1.5 sm:py-2 px-1 sm:px-2.5 rounded-lg sm:rounded-xl text-[9.5px] xs:text-[10.5px] sm:text-xs font-bold sm:font-black uppercase tracking-tight italic transition-all flex items-center justify-between gap-1 sm:gap-1.5 ${
+            className={`flex-1 min-w-0 py-1.5 sm:py-2 px-1.5 sm:px-2.5 rounded-lg sm:rounded-xl text-[9.5px] xs:text-[10.5px] sm:text-xs font-bold sm:font-black uppercase tracking-tight italic transition-all flex items-center justify-between gap-1.5 sm:gap-2 ${
               activeTab === "current"
                 ? "bg-gradient-to-r from-indigo-600/90 to-blue-600/90 border border-indigo-400/40 text-white shadow-lg shadow-indigo-600/30 backdrop-blur-md"
                 : "bg-slate-800/50 border border-white/5 text-slate-400 hover:text-slate-200 hover:bg-slate-800/80"
             }`}
           >
-            <span className="flex-1 min-w-0 text-left truncate whitespace-nowrap block">
+            <span className="flex-1 min-w-0 text-left truncate whitespace-nowrap block mr-1.5">
               {currentInnings.battingTeamName} (Inns{" "}
               {currentInnings.inningNumber})
             </span>
@@ -869,7 +869,7 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                                 <div
                                   key={idx}
                                   title={`Ball ${idx + 1}: ${deliveryDesc}`}
-                                  className={`w-7 h-7 sm:w-8 sm:h-8 shrink-0 rounded-lg flex items-center justify-center text-[9px] sm:text-[10px] font-black tabular-nums transition-all ${badgeStyle}`}
+                                  className={`w-7 h-7 sm:w-8 sm:h-8 shrink-0 rounded-lg inline-flex items-center justify-center text-[9px] sm:text-[10px] font-black tabular-nums transition-all ${badgeStyle}`}
                                 >
                                   {label}
                                 </div>
@@ -887,7 +887,7 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
             <div className="bg-slate-800/80 rounded-2xl sm:rounded-[2rem] p-3 sm:p-5 md:p-6 border border-white/10 backdrop-blur-xl relative overflow-hidden group shadow-xl">
               <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl -z-10 group-hover:bg-indigo-500/20 transition-all"></div>
 
-              <div className="flex flex-row flex-nowrap items-center justify-between gap-2 sm:gap-6 w-full">
+              <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-6 w-full">
                 <div className="space-y-0.5 min-w-0 shrink-0">
                   <span className="text-[9px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest block">
                     Innings Total
@@ -932,16 +932,16 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                           Extras: {w + nb + b + lb}
                         </span>
                         <div className="flex flex-nowrap items-center justify-end gap-1 sm:gap-1.5 text-[9px] sm:text-[10px] font-bold text-indigo-400 uppercase tracking-wider overflow-x-auto scrollbar-hide">
-                          <span className="bg-white/5 border border-white/5 px-1 sm:px-1.5 py-0.5 rounded whitespace-nowrap shrink-0">
+                          <span className="bg-white/5 border border-white/5 px-1 sm:px-1.5 py-0.5 rounded whitespace-nowrap shrink-0 inline-flex items-center justify-center">
                             WD: {w}
                           </span>
-                          <span className="bg-white/5 border border-white/5 px-1 sm:px-1.5 py-0.5 rounded whitespace-nowrap shrink-0">
+                          <span className="bg-white/5 border border-white/5 px-1 sm:px-1.5 py-0.5 rounded whitespace-nowrap shrink-0 inline-flex items-center justify-center">
                             NB: {nb}
                           </span>
-                          <span className="bg-white/5 border border-white/5 px-1 sm:px-1.5 py-0.5 rounded whitespace-nowrap shrink-0">
+                          <span className="bg-white/5 border border-white/5 px-1 sm:px-1.5 py-0.5 rounded whitespace-nowrap shrink-0 inline-flex items-center justify-center">
                             B: {b}
                           </span>
-                          <span className="bg-white/5 border border-white/5 px-1 sm:px-1.5 py-0.5 rounded whitespace-nowrap shrink-0">
+                          <span className="bg-white/5 border border-white/5 px-1 sm:px-1.5 py-0.5 rounded whitespace-nowrap shrink-0 inline-flex items-center justify-center">
                             LB: {lb}
                           </span>
                         </div>

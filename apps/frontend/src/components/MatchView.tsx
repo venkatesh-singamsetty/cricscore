@@ -1668,7 +1668,7 @@ const MatchView: React.FC<MatchViewProps> = ({
                 </span>
                 {innings.currentOver.length === 0 ? (
                   <div className="flex items-center gap-1.5 text-slate-500">
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-white/10 bg-slate-800/80 flex items-center justify-center animate-pulse">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-white/10 bg-slate-800/80 inline-flex items-center justify-center animate-pulse">
                       <span className="text-[10px] italic text-slate-400">
                         0
                       </span>
@@ -1757,7 +1757,7 @@ const MatchView: React.FC<MatchViewProps> = ({
                           return (
                             <span
                               key={idx}
-                              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-black border shadow-md transition-all animate-in zoom-in-75 duration-300 shrink-0 ${badgeBg}`}
+                              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full inline-flex items-center justify-center text-[10px] sm:text-xs font-black border shadow-md transition-all animate-in zoom-in-75 duration-300 shrink-0 ${badgeBg}`}
                             >
                               {label}
                             </span>
@@ -1767,7 +1767,7 @@ const MatchView: React.FC<MatchViewProps> = ({
                           [...Array(6 - legalBallsInOver)].map((_, i) => (
                             <span
                               key={`empty-${i}`}
-                              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-white/10 bg-slate-800/80 text-slate-400 font-bold text-[10px] flex items-center justify-center shadow-inner shrink-0"
+                              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-white/10 bg-slate-800/80 text-slate-400 font-bold text-[10px] inline-flex items-center justify-center shadow-inner shrink-0"
                             >
                               {legalBallsInOver + i + 1}
                             </span>

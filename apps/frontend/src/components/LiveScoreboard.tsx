@@ -1457,7 +1457,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                             return (
                               <span
                                 key={idx}
-                                className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-[9px] sm:text-[10px] font-black border shadow-md transition-all animate-in zoom-in-75 duration-300 ${badgeBg}`}
+                                className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full inline-flex items-center justify-center text-[9px] sm:text-[10px] font-black border shadow-md transition-all animate-in zoom-in-75 duration-300 ${badgeBg}`}
                               >
                                 {label}
                               </span>

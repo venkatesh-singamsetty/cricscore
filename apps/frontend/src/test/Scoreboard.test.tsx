@@ -325,7 +325,9 @@ describe("Scoreboard Component", () => {
     const currTabText = screen.getByText(/MIDWEST GLADIATORS \(Inns 2\)/i);
 
     expect(prevTabText).toHaveClass("whitespace-nowrap");
+    expect(prevTabText).toHaveClass("mr-1.5");
     expect(currTabText).toHaveClass("whitespace-nowrap");
+    expect(currTabText).toHaveClass("mr-1.5");
   });
 
   it("renders extras breakdown items with flex-nowrap and whitespace-nowrap", () => {
@@ -360,12 +362,13 @@ describe("Scoreboard Component", () => {
     expect(wdBadge).toHaveClass("whitespace-nowrap");
     expect(wdBadge.parentElement).toHaveClass("flex-nowrap");
 
-    // Verify Innings Total and Extras container is flex-row to prevent 2-line vertical stacking
+    // Verify Innings Total and Extras container uses flex-wrap and gap-2 for graceful wrapping on narrow screens
     const inningsTotalLabel = screen.getByText(/^Innings Total$/i);
-    const summaryRow = inningsTotalLabel.closest(".flex-row");
-    expect(summaryRow).toHaveClass("flex-row");
-    expect(summaryRow).toHaveClass("flex-nowrap");
+    const summaryRow = inningsTotalLabel.closest(".flex-wrap");
+    expect(summaryRow).toHaveClass("flex");
+    expect(summaryRow).toHaveClass("flex-wrap");
     expect(summaryRow).toHaveClass("justify-between");
+    expect(summaryRow).toHaveClass("gap-2");
   });
 
   it("applies whitespace-nowrap to partnerships and did-not-bat squad members", () => {
