@@ -1,3 +1,16 @@
+## [4.19.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.19.0...v4.19.1) (2026-10-23)
+
+### 🐛 Bug Fixes
+
+* **hub:** eliminate match refresh score lag, add hub polling fallback, and resolve dependabot 82 ([#314](https://github.com/venkatesh-singamsetty/cricscore/issues/314)) ([a5cb00e]())
+## 🎯 Overview & Purpose
+
+This Pull Request resolves a race condition where completed match scores
+temporarily stepped up across browser refreshes (e.g., `11/3` $\to$
+`19/3` $\to$ `26/3`), ensures the Match Hub spectator view auto-updates
+automatically every 5 seconds without requiring opening a specific
+scoreboard, and resolves Dependabot security alert #82.
+
 ## [4.19.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.18.0...v4.19.0) (2026-10-23)
 
 ### 🚀 Features
