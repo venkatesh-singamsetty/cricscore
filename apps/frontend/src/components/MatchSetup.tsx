@@ -558,21 +558,29 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                 <button
                   type="button"
                   onClick={() => setTossWinner("Team A")}
-                  className={`h-14 min-h-[52px] rounded-2xl font-black text-sm uppercase px-3 truncate transition-all border active:scale-95 flex items-center justify-center gap-2 ${tossWinner === "Team A" ? "bg-indigo-600 text-white border-indigo-400 shadow-xl shadow-indigo-600/30" : "bg-slate-800/80 text-slate-300 border-white/10 hover:border-white/20"}`}
+                  title={teamAName}
+                  aria-label={`Toss Winner: ${teamAName}`}
+                  className={`h-14 min-h-[52px] rounded-2xl font-black text-xs sm:text-sm uppercase px-2 sm:px-3 transition-all border active:scale-95 flex items-center justify-center gap-1.5 overflow-hidden ${tossWinner === "Team A" ? "bg-indigo-600 text-white border-indigo-400 shadow-xl shadow-indigo-600/30" : "bg-slate-800/80 text-slate-300 border-white/10 hover:border-white/20"}`}
                 >
-                  <span className="truncate">{teamAName}</span>
+                  <span className="truncate max-w-full text-center leading-tight">
+                    {teamAName}
+                  </span>
                   {tossWinner === "Team A" && (
-                    <span className="text-xs">🏆</span>
+                    <span className="text-xs shrink-0">🏆</span>
                   )}
                 </button>
                 <button
                   type="button"
                   onClick={() => setTossWinner("Team B")}
-                  className={`h-14 min-h-[52px] rounded-2xl font-black text-sm uppercase px-3 truncate transition-all border active:scale-95 flex items-center justify-center gap-2 ${tossWinner === "Team B" ? "bg-purple-600 text-white border-purple-400 shadow-xl shadow-purple-600/30" : "bg-slate-800/80 text-slate-300 border-white/10 hover:border-white/20"}`}
+                  title={teamBName}
+                  aria-label={`Toss Winner: ${teamBName}`}
+                  className={`h-14 min-h-[52px] rounded-2xl font-black text-xs sm:text-sm uppercase px-2 sm:px-3 transition-all border active:scale-95 flex items-center justify-center gap-1.5 overflow-hidden ${tossWinner === "Team B" ? "bg-purple-600 text-white border-purple-400 shadow-xl shadow-purple-600/30" : "bg-slate-800/80 text-slate-300 border-white/10 hover:border-white/20"}`}
                 >
-                  <span className="truncate">{teamBName}</span>
+                  <span className="truncate max-w-full text-center leading-tight">
+                    {teamBName}
+                  </span>
                   {tossWinner === "Team B" && (
-                    <span className="text-xs">🏆</span>
+                    <span className="text-xs shrink-0">🏆</span>
                   )}
                 </button>
               </div>
@@ -780,16 +788,24 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
                     <button
                       type="button"
                       onClick={() => setTossWinner("Team A")}
-                      className={`min-w-0 flex-1 basis-0 h-9 lg:h-10 px-2 rounded-lg font-black text-xs uppercase tracking-tight text-center transition-all border ${tossWinner === "Team A" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/30 border-indigo-400" : "text-slate-400 border-transparent hover:text-slate-200"}`}
+                      title={teamAName || "FIRST TEAM"}
+                      aria-label={`Toss Winner: ${teamAName || "FIRST TEAM"}`}
+                      className={`min-w-0 flex-1 basis-0 h-9 lg:h-10 px-2 rounded-lg font-black text-xs uppercase tracking-tight text-center transition-all border overflow-hidden ${tossWinner === "Team A" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/30 border-indigo-400" : "text-slate-400 border-transparent hover:text-slate-200"}`}
                     >
-                      {teamAName || "FIRST TEAM"}
+                      <span className="block truncate max-w-full">
+                        {teamAName || "FIRST TEAM"}
+                      </span>
                     </button>
                     <button
                       type="button"
                       onClick={() => setTossWinner("Team B")}
-                      className={`min-w-0 flex-1 basis-0 h-9 lg:h-10 px-2 rounded-lg font-black text-xs uppercase tracking-tight text-center transition-all border ${tossWinner === "Team B" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/30 border-indigo-400" : "text-slate-400 border-transparent hover:text-slate-200"}`}
+                      title={teamBName || "SECOND TEAM"}
+                      aria-label={`Toss Winner: ${teamBName || "SECOND TEAM"}`}
+                      className={`min-w-0 flex-1 basis-0 h-9 lg:h-10 px-2 rounded-lg font-black text-xs uppercase tracking-tight text-center transition-all border overflow-hidden ${tossWinner === "Team B" ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/30 border-indigo-400" : "text-slate-400 border-transparent hover:text-slate-200"}`}
                     >
-                      {teamBName || "SECOND TEAM"}
+                      <span className="block truncate max-w-full">
+                        {teamBName || "SECOND TEAM"}
+                      </span>
                     </button>
                   </div>
                 </div>

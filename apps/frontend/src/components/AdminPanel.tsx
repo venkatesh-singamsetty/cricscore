@@ -370,7 +370,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     </td>
                     <td className="px-4 sm:px-6 py-3.5 sm:py-4 whitespace-nowrap">
                       <span
-                        className={`px-2 py-1 text-[10px] font-black uppercase tracking-wider rounded-md ${user.status === "CONFIRMED" ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"}`}
+                        className={`inline-flex items-center justify-center whitespace-nowrap px-2.5 py-0.5 text-xs md:text-sm font-black uppercase tracking-wider rounded-md shrink-0 border ${user.status === "CONFIRMED" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-amber-500/20 text-amber-400 border-amber-500/30"}`}
                       >
                         {user.status}
                       </span>
@@ -689,10 +689,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               <button
                 onClick={() => setPendingBulkAction("delete-all-matches")}
                 disabled={!!actionLoading}
-                className="p-4 bg-red-950/40 hover:bg-red-900/60 border-2 border-red-500/60 shadow-lg shadow-red-500/20 rounded-2xl flex flex-col items-center justify-center gap-2.5 transition-all group disabled:opacity-50"
+                className="p-4 bg-gradient-to-b from-red-950/80 to-red-900/40 hover:from-red-900/90 hover:to-red-800/60 border-2 border-red-500/70 shadow-lg shadow-red-500/30 rounded-2xl flex flex-col items-center justify-center gap-2.5 transition-all group disabled:opacity-50"
               >
                 <AlertOctagon className="w-7 h-7 text-red-400 group-hover:scale-110 transition-transform animate-pulse" />
-                <span className="text-xs font-black text-red-400 uppercase tracking-widest text-center">
+                <span className="text-xs font-black text-white group-hover:text-red-200 uppercase tracking-widest text-center drop-shadow-sm">
                   {actionLoading === "delete-all-matches"
                     ? "Deleting..."
                     : "Delete All Matches"}

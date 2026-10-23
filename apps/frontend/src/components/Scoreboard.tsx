@@ -2,6 +2,13 @@ import React, { useState, useRef, useEffect } from "react";
 import HighlightedResult from "./HighlightedResult";
 import { InningsState, Player, Bowler, ExtraType } from "../types";
 import { getPartnerships } from "../utils/partnershipUtils";
+import {
+  calculateStrikeRate,
+  calculateStrikeRateNumber,
+  calculateEconomy,
+  calculateEconomyNumber,
+  resolvePOTM,
+} from "../utils/scorecardUtils";
 
 interface ScoreboardProps {
   currentInnings: InningsState;
@@ -91,11 +98,11 @@ const BattingTable: React.FC<BattingTableProps> = React.memo(
                 const isStriker = id === strikerId;
                 const isNonStriker = id === nonStrikerId;
                 const highlight = isCurrentTab && (isStriker || isNonStriker);
-                const srNum =
-                  player.ballsFaced > 0
-                    ? (player.runs / player.ballsFaced) * 100
-                    : 0;
-                const sr = player.ballsFaced > 0 ? srNum.toFixed(1) : "-";
+                const sr = calculateStrikeRate(player.runs, player.ballsFaced);
+                const srNum = calculateStrikeRateNumber(
+                  player.runs,
+                  player.ballsFaced,
+                );
                 const srColor = highlight
                   ? "text-white"
                   : srNum >= 180
@@ -310,13 +317,16 @@ const BowlingTable: React.FC<BowlingTableProps> = React.memo(
               )
                 return null;
 
-              const totalOvers = bowler.overs + bowler.balls / 6;
-              const econ =
-                totalOvers > 0
-                  ? (bowler.runsConceded / totalOvers).toFixed(1)
-                  : "-";
-              const econNum =
-                totalOvers > 0 ? bowler.runsConceded / totalOvers : 0;
+              const econ = calculateEconomy(
+                bowler.runsConceded,
+                bowler.overs,
+                bowler.balls,
+              );
+              const econNum = calculateEconomyNumber(
+                bowler.runsConceded,
+                bowler.overs,
+                bowler.balls,
+              );
               const isCurrent = isCurrentTab && id === currentBowlerId;
               const econColor = isCurrent
                 ? "text-white"
@@ -408,6 +418,7 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
   const matchTotalOvers = Number(
     totalOvers && totalOvers > 0 ? totalOvers : 20,
   );
+
   const matchResult = previousInnings
     ? (() => {
         const i1 = previousInnings;
@@ -439,6 +450,21 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
         return null;
       })()
     : null;
+
+  const isMatchFinished =
+    Boolean(matchResult) ||
+    Boolean(
+      currentInnings?.isCompleted &&
+      (previousInnings || currentInnings.inningNumber === 2),
+    );
+
+  const effectivePOTM =
+    isMatchFinished || playerOfTheMatch
+      ? resolvePOTM(
+          [previousInnings, currentInnings].filter(Boolean) as InningsState[],
+          playerOfTheMatch,
+        )
+      : null;
 
   return (
     <div className="fixed inset-x-0 top-14 bottom-0 md:top-16 bg-slate-950/85 z-[400] flex items-center justify-center p-2 sm:p-4 backdrop-blur-xl animate-in fade-in duration-300">
@@ -528,9 +554,9 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                   teamClassName="text-amber-300 font-extrabold"
                 />
               </span>
-              {playerOfTheMatch && (
+              {effectivePOTM && (
                 <span className="mt-1.5 inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-amber-400/15 border border-amber-400/30 text-amber-300 text-[10px] sm:text-xs font-black uppercase tracking-wider shadow-sm">
-                  <span>🎖️</span> POTM: {playerOfTheMatch}
+                  <span>🎖️</span> POTM: {effectivePOTM}
                 </span>
               )}
             </div>
@@ -543,7 +569,7 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
             ref={contentRef}
             className="min-h-0 flex-1 p-3 sm:p-5 overflow-y-auto overscroll-contain pb-12 scrollbar-hide space-y-3 sm:space-y-4"
           >
-            {playerOfTheMatch && !matchResult && (
+            {effectivePOTM && !matchResult && (
               <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 sm:px-5 sm:py-3 flex items-center gap-3">
                 <span className="text-xl sm:text-2xl">🏆</span>
                 <div>
@@ -551,7 +577,7 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                     Player of the Match
                   </div>
                   <div className="text-xs sm:text-base font-black text-amber-100 uppercase tracking-tight italic">
-                    {playerOfTheMatch}
+                    {effectivePOTM}
                   </div>
                 </div>
               </div>
@@ -772,32 +798,76 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                               </span>
                             </div>
                           </div>
-                          <div className="flex flex-wrap gap-2">
+                          <div className="flex flex-wrap gap-1.5 sm:gap-2 items-center">
                             {balls.map((ball: any, idx: number) => {
                               const isRetHurt =
                                 ball.wicketType === "RETIRED_HURT";
-                              const isWicket = ball.isWicket;
-                              const isExtra = ball.isExtra;
-                              let label = String(ball.runs);
-                              if (isWicket || isRetHurt) {
-                                label = ball.runs > 0 ? `W+${ball.runs}` : "W";
+                              const isWicket = Boolean(ball.isWicket);
+                              const isExtra = Boolean(ball.isExtra);
+                              const runs = Number(ball.runs || 0);
+
+                              let label = String(runs);
+                              let badgeStyle =
+                                "bg-slate-800/90 text-slate-200 border border-white/10";
+                              let deliveryDesc = `${runs} run${runs === 1 ? "" : "s"}`;
+
+                              if (isRetHurt) {
+                                label = "RH";
+                                badgeStyle =
+                                  "bg-amber-500/25 text-amber-300 border-2 border-amber-400 shadow-md shadow-amber-500/20";
+                                deliveryDesc = "Retired Hurt";
+                              } else if (isWicket && (runs > 0 || isExtra)) {
+                                label = `W+${runs}`;
+                                badgeStyle =
+                                  "bg-gradient-to-br from-red-600 to-rose-700 text-white border-2 border-amber-400 shadow-md shadow-red-600/30 ring-1 ring-amber-400/70 font-black";
+                                deliveryDesc = `Wicket + ${runs} run${runs === 1 ? "" : "s"}`;
+                              } else if (isWicket) {
+                                label = "W";
+                                badgeStyle =
+                                  "bg-red-600 text-white border-2 border-red-400 shadow-md shadow-red-600/30 font-black";
+                                deliveryDesc = "Wicket";
                               } else if (ball.extraType === "WIDE") {
-                                label =
-                                  ball.runs > 0 ? `Wd+${ball.runs}` : "Wd";
+                                label = runs > 0 ? `WD+${runs}` : "WD";
+                                badgeStyle =
+                                  "bg-amber-500/20 text-amber-300 border-2 border-amber-400/90 shadow-sm font-black";
+                                deliveryDesc = `Wide${runs > 0 ? ` + ${runs}` : ""}`;
                               } else if (ball.extraType === "NO_BALL") {
-                                label =
-                                  ball.runs > 0 ? `Nb+${ball.runs}` : "Nb";
+                                label = runs > 0 ? `NB+${runs}` : "NB";
+                                badgeStyle =
+                                  "bg-purple-500/20 text-purple-300 border-2 border-purple-400/90 shadow-sm font-black";
+                                deliveryDesc = `No Ball${runs > 0 ? ` + ${runs}` : ""}`;
                               } else if (ball.extraType === "BYE") {
-                                label = ball.runs > 0 ? `B+${ball.runs}` : "B";
+                                label = runs > 0 ? `B+${runs}` : "B";
+                                badgeStyle =
+                                  "bg-sky-500/20 text-sky-300 border border-sky-400/60 font-bold";
+                                deliveryDesc = `Bye${runs > 0 ? ` (${runs})` : ""}`;
                               } else if (ball.extraType === "LEG_BYE") {
-                                label =
-                                  ball.runs > 0 ? `Lb+${ball.runs}` : "Lb";
+                                label = runs > 0 ? `LB+${runs}` : "LB";
+                                badgeStyle =
+                                  "bg-indigo-500/20 text-indigo-300 border border-indigo-400/60 font-bold";
+                                deliveryDesc = `Leg Bye${runs > 0 ? ` (${runs})` : ""}`;
+                              } else if (runs === 4) {
+                                label = "4";
+                                badgeStyle =
+                                  "bg-sky-500/25 text-sky-300 border-2 border-sky-400/80 font-black shadow-sm";
+                                deliveryDesc = "Boundary 4";
+                              } else if (runs === 6) {
+                                label = "6";
+                                badgeStyle =
+                                  "bg-emerald-500/25 text-emerald-300 border-2 border-emerald-400/80 font-black shadow-sm";
+                                deliveryDesc = "Sixer 6";
+                              } else if (runs === 0) {
+                                label = "0";
+                                badgeStyle =
+                                  "bg-slate-900/90 text-slate-400 border border-white/10";
+                                deliveryDesc = "Dot ball";
                               }
 
                               return (
                                 <div
                                   key={idx}
-                                  className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black ${isRetHurt ? "bg-amber-500 text-amber-950 shadow-lg shadow-amber-500/30 border border-amber-300" : isWicket ? "bg-red-600 text-white shadow-lg shadow-red-600/20" : isExtra ? "bg-amber-600 text-white shadow-lg shadow-amber-600/20" : "bg-slate-800 text-slate-300"}`}
+                                  title={`Ball ${idx + 1}: ${deliveryDesc}`}
+                                  className={`w-7 h-7 sm:w-8 sm:h-8 shrink-0 rounded-lg flex items-center justify-center text-[9px] sm:text-[10px] font-black tabular-nums transition-all ${badgeStyle}`}
                                 >
                                   {label}
                                 </div>
@@ -812,20 +882,29 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
             </div>
 
             {/* Extras & Reset Footer */}
-            <div className="bg-slate-800/80 rounded-[2rem] p-6 sm:p-8 border border-white/10 backdrop-blur-xl relative overflow-hidden group shadow-xl">
+            <div className="bg-slate-800/80 rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 md:p-8 border border-white/10 backdrop-blur-xl relative overflow-hidden group shadow-xl">
               <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl -z-10 group-hover:bg-indigo-500/20 transition-all"></div>
 
-              <div className="flex flex-wrap items-center justify-between gap-8">
-                <div className="flex gap-12">
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-8">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-10">
+                  <div className="space-y-0.5 shrink-0">
+                    <span className="text-[9px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest block">
                       Innings Total
                     </span>
-                    <span className="text-2xl font-black text-white italic uppercase tracking-tighter">
-                      {displayInnings.totalRuns} Runs
-                    </span>
+                    <div className="whitespace-nowrap flex items-baseline gap-2">
+                      <span className="text-2xl sm:text-3xl font-black text-white italic uppercase tracking-tighter tabular-nums">
+                        {displayInnings.totalRuns}
+                      </span>
+                      <span className="text-xs sm:text-sm font-black text-indigo-400 uppercase tracking-wider">
+                        RUNS
+                      </span>
+                      <span className="text-slate-500 text-xs font-bold">
+                        ({displayInnings.totalWickets} wkts,{" "}
+                        {displayInnings.overs}.{displayInnings.balls} ov)
+                      </span>
+                    </div>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     {(() => {
                       let w = 0,
                         nb = 0,
@@ -850,20 +929,20 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                       });
                       return (
                         <>
-                          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">
+                          <span className="text-[9px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest block">
                             Extras Total: {w + nb + b + lb}
                           </span>
-                          <div className="flex gap-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest">
-                            <span className="bg-white/5 px-2 py-0.5 rounded">
+                          <div className="flex flex-wrap gap-1.5 sm:gap-2 text-[9px] sm:text-[10px] font-black text-indigo-400 uppercase tracking-widest">
+                            <span className="bg-white/5 border border-white/5 px-2 py-0.5 rounded">
                               WD: {w}
                             </span>
-                            <span className="bg-white/5 px-2 py-0.5 rounded">
+                            <span className="bg-white/5 border border-white/5 px-2 py-0.5 rounded">
                               NB: {nb}
                             </span>
-                            <span className="bg-white/5 px-2 py-0.5 rounded">
+                            <span className="bg-white/5 border border-white/5 px-2 py-0.5 rounded">
                               B: {b}
                             </span>
-                            <span className="bg-white/5 px-2 py-0.5 rounded">
+                            <span className="bg-white/5 border border-white/5 px-2 py-0.5 rounded">
                               LB: {lb}
                             </span>
                           </div>
