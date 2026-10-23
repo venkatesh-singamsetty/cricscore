@@ -250,13 +250,11 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
             return sum + ballTotal;
           }, 0);
 
-          const derivedTotalRuns =
-            allBallsMapped.length > 0
-              ? Math.max(playerRunsSum, ballsRunsSum)
-              : Math.max(
-                  Number(inn.total_runs || inn.totalRuns || 0),
-                  playerRunsSum,
-                );
+          const derivedTotalRuns = Math.max(
+            Number(inn.total_runs || inn.totalRuns || 0),
+            playerRunsSum,
+            ballsRunsSum,
+          );
 
           const outWicketsCount = Object.values(players).filter(
             (p: any) => p.isOut && p.wicketType !== WicketType.RETIRED_HURT,
@@ -266,13 +264,11 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
             (b: any) => b.isWicket && b.wicketType !== WicketType.RETIRED_HURT,
           ).length;
 
-          const derivedTotalWickets =
-            allBallsMapped.length > 0
-              ? Math.max(outWicketsCount, ballsWicketsCount)
-              : Math.max(
-                  Number(inn.total_wickets || inn.totalWickets || 0),
-                  outWicketsCount,
-                );
+          const derivedTotalWickets = Math.max(
+            Number(inn.total_wickets || inn.totalWickets || 0),
+            outWicketsCount,
+            ballsWicketsCount,
+          );
 
           const innOvers = Number(inn.overs || 0);
           const innBalls = Number(inn.balls || 0);
@@ -340,40 +336,70 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
             Date.now() - lastWsScoreUpdateAtRef.current < 3000;
           const merged = mappedInnings.map((inn: any) => {
             const old = prev.innings.find(
-              (p: any) => p.inningNumber === inn.inningNumber,
+              (p: any) =>
+                Number(p.inningNumber || p.inning_number) ===
+                Number(inn.inningNumber || inn.inning_number),
             );
             if (!old) return inn;
-            const oldBalls = Number(old.overs) * 6 + Number(old.balls);
-            const newBalls = Number(inn.overs) * 6 + Number(inn.balls);
-            if (
-              isRecentWsUpdate &&
-              (newBalls < oldBalls ||
-                (inn.allBalls?.length || 0) < (old.allBalls?.length || 0))
-            ) {
-              const mergedPlayers = { ...inn.players, ...old.players };
-              const mergedBattingOrder = [
-                ...(inn.battingOrder || []),
-                ...(old.battingOrder || []).filter(
-                  (id: string) => !(inn.battingOrder || []).includes(id),
-                ),
-              ];
-              const mergedBowlers = { ...inn.bowlers, ...old.bowlers };
-              const mergedBowlingOrder = [
-                ...(inn.bowlingOrder || []),
-                ...(old.bowlingOrder || []).filter(
-                  (id: string) => !(inn.bowlingOrder || []).includes(id),
-                ),
-              ];
-              return {
-                ...old,
-                players: mergedPlayers,
-                battingOrder: mergedBattingOrder,
-                bowlers: mergedBowlers,
-                bowlingOrder: mergedBowlingOrder,
-              };
-            }
-            return inn;
+            const oldBalls =
+              Number(old.overs || 0) * 6 + Number(old.balls || 0);
+            const newBalls =
+              Number(inn.overs || 0) * 6 + Number(inn.balls || 0);
+            const useOldBalls = isRecentWsUpdate && oldBalls > newBalls;
+            const mergedPlayers = { ...inn.players, ...old.players };
+            const mergedBattingOrder = [
+              ...(inn.battingOrder || []),
+              ...(old.battingOrder || []).filter(
+                (id: string) => !(inn.battingOrder || []).includes(id),
+              ),
+            ];
+            const mergedBowlers = { ...inn.bowlers, ...old.bowlers };
+            const mergedBowlingOrder = [
+              ...(inn.bowlingOrder || []),
+              ...(old.bowlingOrder || []).filter(
+                (id: string) => !(inn.bowlingOrder || []).includes(id),
+              ),
+            ];
+            return {
+              ...inn,
+              totalRuns: Math.max(
+                Number(old.totalRuns || 0),
+                Number(inn.totalRuns || 0),
+              ),
+              totalWickets: Math.max(
+                Number(old.totalWickets || 0),
+                Number(inn.totalWickets || 0),
+              ),
+              overs: useOldBalls ? old.overs : inn.overs,
+              balls: useOldBalls ? old.balls : inn.balls,
+              currentOver:
+                useOldBalls &&
+                (old.currentOver?.length || 0) > (inn.currentOver?.length || 0)
+                  ? old.currentOver
+                  : inn.currentOver,
+              allBalls:
+                (old.allBalls?.length || 0) > (inn.allBalls?.length || 0)
+                  ? old.allBalls
+                  : inn.allBalls,
+              players: mergedPlayers,
+              battingOrder: mergedBattingOrder,
+              bowlers: mergedBowlers,
+              bowlingOrder: mergedBowlingOrder,
+            };
           });
+
+          // Preserve any 2nd innings already tracked via WebSocket if background DB read hasn't seen it yet
+          for (const oldInn of prev.innings) {
+            const alreadyPresent = merged.some(
+              (m: any) =>
+                Number(m.inningNumber || m.inning_number) ===
+                Number(oldInn.inningNumber || oldInn.inning_number),
+            );
+            if (!alreadyPresent) {
+              merged.push(oldInn);
+            }
+          }
+
           return { innings: merged };
         });
       } catch (err) {
@@ -466,6 +492,17 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                 String(targetInningId).trim().toLowerCase(),
             );
           }
+          if (
+            targetInningIndex < 0 &&
+            (payload.inningNumber || payload.inning_number)
+          ) {
+            const innNum = Number(
+              payload.inningNumber || payload.inning_number,
+            );
+            targetInningIndex = updatedInnings.findIndex(
+              (i: any) => Number(i.inningNumber || i.inning_number) === innNum,
+            );
+          }
           if (targetInningIndex < 0 && targetBattingTeam) {
             targetInningIndex = updatedInnings.findIndex(
               (i: any) =>
@@ -474,33 +511,42 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                 i.batting_team_name?.trim().toLowerCase() ===
                   targetBattingTeam.trim().toLowerCase(),
             );
-            // If 2nd innings just started and isn't in updatedInnings yet, create it instead of corrupting innings 1
-            if (targetInningIndex < 0 && updatedInnings.length === 1) {
-              const firstInn = updatedInnings[0];
-              updatedInnings.push({
-                id: targetInningId || `inn2_${Date.now()}`,
-                inningNumber: 2,
-                target: Number(firstInn.totalRuns || 0) + 1,
-                battingTeamName: targetBattingTeam,
-                bowlingTeamName: firstInn.battingTeamName,
-                totalRuns: 0,
-                totalWickets: 0,
-                overs: 0,
-                balls: 0,
-                currentOver: [],
-                allBalls: [],
-                strikerId: "",
-                nonStrikerId: "",
-                currentBowlerId: "",
-                players: {},
-                bowlers: {},
-                battingOrder: [],
-                bowlingOrder: [],
-              });
-              targetInningIndex = 1;
-              if (targetMatchId) {
-                fetchMatchDetails(targetMatchId, true);
-              }
+          }
+          // If 2nd innings just started and isn't in updatedInnings yet, create it instead of corrupting innings 1
+          const targetInningNumber = Number(
+            payload.inningNumber ||
+              payload.inning_number ||
+              (targetInningIndex === 1 ? 2 : 1),
+          );
+          if (
+            targetInningIndex < 0 &&
+            (targetInningNumber === 2 || payload.previousInnings) &&
+            updatedInnings.length === 1
+          ) {
+            const firstInn = updatedInnings[0];
+            updatedInnings.push({
+              id: targetInningId || `inn2_${Date.now()}`,
+              inningNumber: 2,
+              target: Number(firstInn.totalRuns || 0) + 1,
+              battingTeamName: targetBattingTeam || firstInn.bowlingTeamName,
+              bowlingTeamName: firstInn.battingTeamName,
+              totalRuns: 0,
+              totalWickets: 0,
+              overs: 0,
+              balls: 0,
+              currentOver: [],
+              allBalls: [],
+              strikerId: "",
+              nonStrikerId: "",
+              currentBowlerId: "",
+              players: {},
+              bowlers: {},
+              battingOrder: [],
+              bowlingOrder: [],
+            });
+            targetInningIndex = 1;
+            if (targetMatchId) {
+              fetchMatchDetails(targetMatchId, true);
             }
           }
           if (targetInningIndex < 0 && !targetBattingTeam) {

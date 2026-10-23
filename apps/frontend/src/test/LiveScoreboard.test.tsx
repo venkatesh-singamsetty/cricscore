@@ -530,4 +530,121 @@ describe("LiveScoreboard Component", () => {
       expect(onActiveMatchChange).toHaveBeenCalledWith("");
     });
   });
+
+  it("updates 2nd innings live score via WebSocket and prevents background polling from reverting score", async () => {
+    // Initial REST details returns 1st innings complete, 2nd innings initialized at 0/0
+    const initial2ndInnDetails = {
+      match: {
+        id: "match_2nd_inn_test",
+        status: "LIVE",
+        team_a_name: "CHICAGO SPARTANS",
+        team_b_name: "ILLINOIS THUNDERS",
+        total_overs: 2,
+      },
+      innings: [
+        {
+          id: "inn_1",
+          inning_number: 1,
+          batting_team_name: "CHICAGO SPARTANS",
+          bowling_team_name: "ILLINOIS THUNDERS",
+          total_runs: 20,
+          total_wickets: 2,
+          overs: 2,
+          balls: 0,
+          players: [],
+          bowlers: [],
+          allBalls: [],
+        },
+        {
+          id: "inn_2_uuid",
+          inning_number: 2,
+          target: 21,
+          batting_team_name: "ILLINOIS THUNDERS",
+          bowling_team_name: "CHICAGO SPARTANS",
+          total_runs: 0,
+          total_wickets: 0,
+          overs: 0,
+          balls: 0,
+          striker_name: "THUNDER 1",
+          non_striker_name: "THUNDER 2",
+          current_bowler_name: "SPARTAN 1",
+          players: [],
+          bowlers: [],
+          allBalls: [],
+        },
+      ],
+    };
+
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => initial2ndInnDetails,
+    });
+
+    const { rerender } = render(
+      <LiveScoreboard initialMatchId="match_2nd_inn_test" />,
+    );
+
+    // Initial load: 2nd innings target 21, 0/0
+    await waitFor(() => {
+      expect(screen.getByText(/Tgt 21/i)).toBeInTheDocument();
+      expect(screen.getByText(/Need 21 off 12/i)).toBeInTheDocument();
+    });
+
+    // Score Ball 1 in 2nd Innings via WebSocket (using optimistic inningId inn2_...)
+    await act(async () => {
+      mockLastMessage = {
+        type: "LIVE_SCORE_UPDATE",
+        data: {
+          matchId: "match_2nd_inn_test",
+          inningId: "inn2_optimistic_123",
+          inningNumber: 2,
+          battingTeamName: "ILLINOIS THUNDERS",
+          strikerName: "THUNDER 2",
+          nonStrikerName: "THUNDER 1",
+          bowlerName: "SPARTAN 1",
+          currentOvers: 0,
+          currentBalls: 1,
+          explicitTotalRuns: 4,
+          explicitTotalWickets: 0,
+          runs: 4,
+          ballsFaced: 1,
+          fours: 1,
+          sixes: 0,
+          ballData: {
+            id: "ball_1",
+            batterName: "THUNDER 1",
+            bowlerName: "SPARTAN 1",
+            runs: 4,
+            isExtra: false,
+            extraType: ExtraType.NONE,
+            extraRuns: 0,
+            isWicket: false,
+            wicketType: WicketType.NONE,
+            overNumber: 0,
+            ballNumber: 1,
+          },
+        },
+      };
+      rerender(<LiveScoreboard initialMatchId="match_2nd_inn_test" />);
+    });
+
+    // Score updated to 4/0, Need 17 off 11
+    await waitFor(() => {
+      expect(screen.getByText(/Need 17 off 11/i)).toBeInTheDocument();
+    });
+
+    // Background REST polling runs with lagging DB state (still 0 runs)
+    await act(async () => {
+      mockLastMessage = {
+        type: "HUB_UPDATE",
+        data: { matchId: "match_2nd_inn_test", syncOnly: true },
+      };
+      rerender(<LiveScoreboard initialMatchId="match_2nd_inn_test" />);
+    });
+
+    // Score must NOT revert to 0/0; 4 runs must be preserved
+    await waitFor(() => {
+      expect(screen.getByText(/Need 17 off 11/i)).toBeInTheDocument();
+    });
+  });
 });

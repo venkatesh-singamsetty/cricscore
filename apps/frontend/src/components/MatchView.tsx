@@ -682,12 +682,12 @@ const MatchView: React.FC<MatchViewProps> = ({
         headers,
         body: JSON.stringify({
           matchId,
-          inningId:
-            !innings.id.startsWith("inn2_") ||
-            initialState.id.startsWith("inn2_")
-              ? innings.id
-              : initialState.id,
-          inningNumber: innings.inningNumber,
+          inningId: !innings.id.startsWith("inn2_")
+            ? innings.id
+            : !initialState.id.startsWith("inn2_")
+              ? initialState.id
+              : innings.id,
+          inningNumber: innings.inningNumber || 1,
           target: innings.target,
           battingTeamName: innings.battingTeamName,
           strikerName: striker.name,
@@ -762,12 +762,12 @@ const MatchView: React.FC<MatchViewProps> = ({
         headers,
         body: JSON.stringify({
           matchId,
-          inningId:
-            !finalInnings.id.startsWith("inn2_") ||
-            initialState.id.startsWith("inn2_")
-              ? finalInnings.id
-              : initialState.id,
-          inningNumber: finalInnings.inningNumber,
+          inningId: !finalInnings.id.startsWith("inn2_")
+            ? finalInnings.id
+            : !initialState.id.startsWith("inn2_")
+              ? initialState.id
+              : finalInnings.id,
+          inningNumber: finalInnings.inningNumber || 1,
           target: finalInnings.target,
           battingTeamName: finalInnings.battingTeamName,
           ballData: ball,
