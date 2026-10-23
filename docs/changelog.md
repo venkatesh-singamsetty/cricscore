@@ -1,3 +1,15 @@
+## [4.19.2](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.19.1...v4.19.2) (2026-10-23)
+
+### 🐛 Bug Fixes
+
+* **live:** prevent 2nd innings score reversion and ensure canonical inning attribution ([#315](https://github.com/venkatesh-singamsetty/cricscore/issues/315)) ([d7c4e9f]())
+## 🎯 Overview & Purpose
+
+This Pull Request guarantees that second-innings live scores update in
+real time without being clobbered or zeroed out during play or on
+completion, eliminating the issue where Inning 2 batters and bowlers
+showed 0 runs/balls while the match header showed the team total.
+
 ## [4.19.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.19.0...v4.19.1) (2026-10-23)
 
 ### 🐛 Bug Fixes
