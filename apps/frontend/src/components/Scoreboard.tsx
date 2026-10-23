@@ -546,20 +546,18 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
 
         {/* Result Highlight */}
         {matchResult && (
-          <div className="bg-gradient-to-r from-amber-500/10 via-slate-900 to-indigo-950/80 border-b border-amber-500/30 shrink-0 px-4 py-2.5 sm:py-3 text-center overflow-hidden relative shadow-2xl">
+          <div className="bg-gradient-to-r from-amber-500/10 via-slate-900 to-indigo-950/80 border-b border-amber-500/30 shrink-0 px-4 py-2 sm:py-2.5 text-center overflow-hidden relative shadow-2xl">
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer"></div>
             <div className="relative z-10 flex flex-col items-center justify-center px-2">
-              <span className="text-[8px] sm:text-[9px] font-black text-amber-400 uppercase tracking-[0.4em] opacity-90 mb-0.5 leading-none flex items-center gap-1.5">
-                <span>🏆</span> MATCH RESULT
-              </span>
-              <span className="max-w-full text-sm sm:text-lg font-black text-white uppercase tracking-tight italic drop-shadow-md leading-tight break-words">
+              <span className="max-w-full text-sm sm:text-lg font-black text-white uppercase tracking-tight italic drop-shadow-md leading-tight break-words inline-flex items-center justify-center gap-1.5">
+                <span className="not-italic">🏆</span>
                 <HighlightedResult
                   text={matchResult.text}
                   teamClassName="text-amber-300 font-extrabold"
                 />
               </span>
               {effectivePOTM && (
-                <span className="mt-1.5 inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-amber-400/15 border border-amber-400/30 text-amber-300 text-[10px] sm:text-xs font-black uppercase tracking-wider shadow-sm">
+                <span className="mt-1 inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-amber-400/15 border border-amber-400/30 text-amber-300 text-[10px] sm:text-xs font-black uppercase tracking-wider shadow-sm">
                   <span>🎖️</span> POTM: {effectivePOTM}
                 </span>
               )}
