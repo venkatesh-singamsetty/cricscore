@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import Scoreboard from "../components/Scoreboard";
-import { InningsState, WicketType } from "../types";
+import { InningsState, WicketType, ExtraType } from "../types";
 
 describe("Scoreboard Component", () => {
   const mockCurrentInnings: InningsState = {
@@ -326,5 +326,38 @@ describe("Scoreboard Component", () => {
 
     expect(prevTabText).toHaveClass("whitespace-nowrap");
     expect(currTabText).toHaveClass("whitespace-nowrap");
+  });
+
+  it("renders extras breakdown items with flex-nowrap and whitespace-nowrap", () => {
+    const inningsWithExtras: InningsState = {
+      ...mockCurrentInnings,
+      allBalls: [
+        {
+          id: "b_wide",
+          bowlerName: "Bowler 1",
+          batterName: "GLADIATOR 1",
+          runs: 0,
+          isExtra: true,
+          extraType: ExtraType.WIDE,
+          extraRuns: 1,
+          isWicket: false,
+          wicketType: WicketType.NONE,
+          overNumber: 0,
+          ballNumber: 0,
+        },
+      ],
+    };
+
+    render(
+      <Scoreboard
+        currentInnings={inningsWithExtras}
+        previousInnings={mockPreviousInnings}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const wdBadge = screen.getByText(/WD: 1/i);
+    expect(wdBadge).toHaveClass("whitespace-nowrap");
+    expect(wdBadge.parentElement).toHaveClass("flex-nowrap");
   });
 });

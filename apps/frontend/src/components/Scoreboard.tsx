@@ -936,17 +936,17 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                           <span className="text-[9px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest block">
                             Extras Total: {w + nb + b + lb}
                           </span>
-                          <div className="flex flex-wrap gap-1.5 sm:gap-2 text-[9px] sm:text-[10px] font-black text-indigo-400 uppercase tracking-widest">
-                            <span className="bg-white/5 border border-white/5 px-2 py-0.5 rounded">
+                          <div className="flex flex-nowrap items-center gap-1 sm:gap-2 text-[9.5px] sm:text-[10.5px] font-bold sm:font-black text-indigo-400 uppercase tracking-wider overflow-x-auto scrollbar-hide">
+                            <span className="bg-white/5 border border-white/5 px-1.5 sm:px-2 py-0.5 rounded whitespace-nowrap shrink-0">
                               WD: {w}
                             </span>
-                            <span className="bg-white/5 border border-white/5 px-2 py-0.5 rounded">
+                            <span className="bg-white/5 border border-white/5 px-1.5 sm:px-2 py-0.5 rounded whitespace-nowrap shrink-0">
                               NB: {nb}
                             </span>
-                            <span className="bg-white/5 border border-white/5 px-2 py-0.5 rounded">
+                            <span className="bg-white/5 border border-white/5 px-1.5 sm:px-2 py-0.5 rounded whitespace-nowrap shrink-0">
                               B: {b}
                             </span>
-                            <span className="bg-white/5 border border-white/5 px-2 py-0.5 rounded">
+                            <span className="bg-white/5 border border-white/5 px-1.5 sm:px-2 py-0.5 rounded whitespace-nowrap shrink-0">
                               LB: {lb}
                             </span>
                           </div>
