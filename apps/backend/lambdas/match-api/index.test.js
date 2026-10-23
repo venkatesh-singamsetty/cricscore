@@ -29,15 +29,14 @@ vi.mock("@aws-sdk/client-cognito-identity-provider", () => {
   };
 });
 
-const { mockSesSend, MockSendEmailCommand, MockSESClient } = vi.hoisted(() => {
-  const mockSesSend = vi.fn().mockResolvedValue({});
+const { MockSendEmailCommand, MockSESClient } = vi.hoisted(() => {
   const MockSendEmailCommand = vi.fn(function (input) {
     this.input = input;
   });
   const MockSESClient = vi.fn().mockImplementation(function () {
-    this.send = mockSesSend;
+    this.send = vi.fn().mockResolvedValue({});
   });
-  return { mockSesSend, MockSendEmailCommand, MockSESClient };
+  return { MockSendEmailCommand, MockSESClient };
 });
 
 vi.mock("@aws-sdk/client-ses", () => {
