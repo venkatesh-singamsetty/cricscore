@@ -250,7 +250,7 @@ const BattingTable: React.FC<BattingTableProps> = React.memo(
               {unbattedOrder.map((id) => (
                 <span
                   key={id}
-                  className="px-2 py-0.5 rounded-lg bg-slate-900/80 border border-white/10 text-[10px] sm:text-[11px] font-bold text-slate-200 tracking-tight shadow-sm"
+                  className="px-2 py-0.5 rounded-lg bg-slate-900/80 border border-white/10 text-[10px] sm:text-[11px] font-bold text-slate-200 tracking-tight shadow-sm whitespace-nowrap"
                 >
                   {players[id]?.name || id}
                 </span>
@@ -506,7 +506,7 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                   : "bg-slate-800/50 border border-white/5 text-slate-400 hover:text-slate-200 hover:bg-slate-800/80"
               }`}
             >
-              <span className="flex-1 min-w-0 text-left whitespace-nowrap overflow-hidden text-ellipsis">
+              <span className="flex-1 min-w-0 text-left truncate whitespace-nowrap block">
                 {previousInnings.battingTeamName} (Inns 1)
               </span>
               <span
@@ -528,7 +528,7 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                 : "bg-slate-800/50 border border-white/5 text-slate-400 hover:text-slate-200 hover:bg-slate-800/80"
             }`}
           >
-            <span className="flex-1 min-w-0 text-left whitespace-nowrap overflow-hidden text-ellipsis">
+            <span className="flex-1 min-w-0 text-left truncate whitespace-nowrap block">
               {currentInnings.battingTeamName} (Inns{" "}
               {currentInnings.inningNumber})
             </span>
@@ -748,16 +748,16 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                         key={idx}
                         className="bg-slate-900/60 hover:bg-slate-900/90 transition-colors"
                       >
-                        <td className="px-2 py-2 rounded-l-xl font-black text-xs text-slate-400">
+                        <td className="px-2 py-2 rounded-l-xl font-black text-xs text-slate-400 whitespace-nowrap">
                           {p.wicketNumber}
                         </td>
-                        <td className="px-2 py-2 font-black text-indigo-300">
+                        <td className="px-2 py-2 font-black text-indigo-300 whitespace-nowrap">
                           {p.runs}{" "}
                           <span className="text-slate-500 text-[10px] ml-1">
                             ({p.balls})
                           </span>
                         </td>
-                        <td className="px-2 py-2 rounded-r-xl font-bold text-[10px] text-slate-300 uppercase tracking-widest">
+                        <td className="px-2 py-2 rounded-r-xl font-bold text-[10px] text-slate-300 uppercase tracking-widest whitespace-nowrap">
                           {p.outBatterName || "Unbroken"}
                         </td>
                       </tr>
@@ -889,26 +889,26 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
             <div className="bg-slate-800/80 rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 md:p-8 border border-white/10 backdrop-blur-xl relative overflow-hidden group shadow-xl">
               <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl -z-10 group-hover:bg-indigo-500/20 transition-all"></div>
 
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-8">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-10">
+              <div className="flex flex-row items-center justify-between gap-4 sm:gap-8 flex-wrap">
+                <div className="flex flex-row items-center justify-between gap-4 sm:gap-10 flex-wrap w-full sm:w-auto">
                   <div className="space-y-0.5 shrink-0">
                     <span className="text-[9px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest block">
                       Innings Total
                     </span>
-                    <div className="whitespace-nowrap flex items-baseline gap-2">
-                      <span className="text-2xl sm:text-3xl font-black text-white italic uppercase tracking-tighter tabular-nums">
+                    <div className="whitespace-nowrap flex items-baseline gap-1.5 sm:gap-2">
+                      <span className="text-xl sm:text-3xl font-black text-white italic uppercase tracking-tighter tabular-nums">
                         {displayInnings.totalRuns}
                       </span>
                       <span className="text-xs sm:text-sm font-black text-indigo-400 uppercase tracking-wider">
                         RUNS
                       </span>
-                      <span className="text-slate-500 text-xs font-bold">
+                      <span className="text-slate-500 text-[10px] sm:text-xs font-bold">
                         ({displayInnings.totalWickets} wkts,{" "}
                         {displayInnings.overs}.{displayInnings.balls} ov)
                       </span>
                     </div>
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="space-y-1 shrink-0">
                     {(() => {
                       let w = 0,
                         nb = 0,

@@ -359,5 +359,43 @@ describe("Scoreboard Component", () => {
     const wdBadge = screen.getByText(/WD: 1/i);
     expect(wdBadge).toHaveClass("whitespace-nowrap");
     expect(wdBadge.parentElement).toHaveClass("flex-nowrap");
+
+    // Verify Innings Total and Extras container is flex-row to prevent 2-line vertical stacking
+    const inningsTotalLabel = screen.getByText(/^Innings Total$/i);
+    const summaryRow = inningsTotalLabel.closest(".flex-row");
+    expect(summaryRow).toHaveClass("flex-row");
+    expect(summaryRow).toHaveClass("justify-between");
+  });
+
+  it("applies whitespace-nowrap to partnerships and did-not-bat squad members", () => {
+    const inningsWithPartnership: InningsState = {
+      ...mockCurrentInnings,
+      allBalls: [
+        {
+          id: "b1",
+          bowlerName: "Bowler 1",
+          batterName: "GLADIATOR 1",
+          runs: 4,
+          isExtra: false,
+          extraType: ExtraType.NONE,
+          extraRuns: 0,
+          isWicket: true,
+          wicketType: WicketType.BOWLED,
+          overNumber: 0,
+          ballNumber: 1,
+        },
+      ],
+    };
+
+    render(
+      <Scoreboard
+        currentInnings={inningsWithPartnership}
+        previousInnings={mockPreviousInnings}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const outBatterCell = screen.getByText("GLADIATOR 1", { selector: "td" });
+    expect(outBatterCell).toHaveClass("whitespace-nowrap");
   });
 });
