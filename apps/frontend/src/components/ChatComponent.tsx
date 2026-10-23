@@ -669,16 +669,16 @@ export function ChatComponent({
 
           {/* Welcome & Default Questions shown when chat has no messages */}
           {messages.length === 0 && (
-            <div className="flex flex-col items-center justify-start pt-2 sm:pt-5 md:pt-1.5 pb-4 md:pb-1.5 px-3 sm:px-4 text-center w-full max-w-md sm:max-w-xl mx-auto animate-in fade-in duration-300">
+            <div className="flex flex-col items-center justify-start pt-2 sm:pt-5 md:pt-1.5 pb-4 md:pb-1.5 [@media(max-height:700px)]:pb-1 px-3 sm:px-4 text-center w-full max-w-md sm:max-w-xl mx-auto animate-in fade-in duration-300">
               <div className="auth-hero-brand mb-1.5">
-                <div className="auth-logo w-11 h-11 md:w-[38px] md:h-[38px] text-[1.45rem] md:text-[1.25rem] flex items-center justify-center shrink-0">
+                <div className="auth-logo w-11 h-11 md:w-[38px] md:h-[38px] text-[1.45rem] md:text-[1.25rem] [@media(max-height:700px)]:w-8 [@media(max-height:700px)]:h-8 [@media(max-height:700px)]:text-[1.05rem] flex items-center justify-center shrink-0">
                   🤖
                 </div>
-                <h2 className="auth-title text-2xl sm:text-3xl md:text-2xl font-black">
+                <h2 className="auth-title whitespace-nowrap text-[1.3rem] min-[400px]:text-2xl sm:text-3xl md:text-2xl font-black">
                   Cric<span>Score AI Assistant</span>
                 </h2>
               </div>
-              <p className="auth-subtitle mb-5 sm:mb-6 md:mb-2.5 text-xs font-semibold tracking-wider">
+              <p className="auth-subtitle mb-5 sm:mb-6 md:mb-2.5 [@media(max-height:700px)]:mb-2 text-xs font-semibold tracking-wider">
                 MATCH STATS &middot; TOURNAMENT RULES &middot; WEATHER &middot;
                 BUG REPORT
               </p>
@@ -688,7 +688,7 @@ export function ChatComponent({
                   <Sparkles size={13} className="text-amber-400" />
                   Suggested Questions
                 </span>
-                <div className="flex flex-col gap-2 sm:gap-2.5 md:gap-2">
+                <div className="flex flex-col gap-2 sm:gap-2.5 md:gap-2 [@media(max-height:700px)]:gap-1.5">
                   {QUICK_PROMPTS.map((prompt, i) => (
                     <button
                       key={i}
@@ -696,17 +696,17 @@ export function ChatComponent({
                       onClick={() => submitText(prompt, false)}
                       disabled={loading}
                       aria-label={prompt}
-                      className="w-full text-left py-2.5 px-3.5 sm:py-3 sm:px-4 md:py-2.5 md:px-3.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-white/5 hover:border-indigo-500/40 text-slate-200 hover:text-white transition-all text-[13px] sm:text-sm font-semibold flex items-center justify-between group active:scale-[0.98] shadow-sm"
+                      className="w-full text-left py-2.5 px-3.5 [@media(max-height:700px)]:py-1 [@media(max-height:700px)]:px-3 [@media(max-height:700px)]:text-[12px] sm:py-3 sm:px-4 md:py-2.5 md:px-3.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-white/5 hover:border-indigo-500/40 text-slate-200 hover:text-white transition-all text-[13px] sm:text-sm font-semibold flex items-center justify-between group active:scale-[0.98] shadow-sm"
                     >
-                      <span className="flex items-center gap-3 min-w-0">
-                        <span className="w-6 h-6 sm:w-6.5 sm:h-6.5 rounded-md bg-indigo-500/20 text-indigo-300 flex items-center justify-center text-[11px] sm:text-xs font-bold shrink-0">
+                      <span className="flex items-center gap-3 [@media(max-height:700px)]:gap-2 min-w-0">
+                        <span className="w-6 h-6 [@media(max-height:700px)]:w-5 [@media(max-height:700px)]:h-5 sm:w-6.5 sm:h-6.5 rounded-md bg-indigo-500/20 text-indigo-300 flex items-center justify-center text-[11px] sm:text-xs font-bold shrink-0">
                           {i + 1}
                         </span>
                         <span className="leading-snug">{prompt}</span>
                       </span>
                       <Send
                         size={14}
-                        className="text-slate-500 group-hover:text-indigo-400 shrink-0 ml-2 transition-colors"
+                        className="text-slate-500 group-hover:text-indigo-400 shrink-0 ml-2 transition-colors [@media(max-height:700px)]:hidden"
                       />
                     </button>
                   ))}
