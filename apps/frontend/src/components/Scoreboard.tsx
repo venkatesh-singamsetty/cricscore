@@ -496,21 +496,21 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
         </div>
 
         {/* Tabs */}
-        <div className="flex bg-slate-950/50 backdrop-blur-md p-1 sm:p-2 shrink-0 border-b border-white/10 gap-1.5 sm:gap-2.5">
+        <div className="flex bg-slate-950/50 backdrop-blur-md p-1 sm:p-2 shrink-0 border-b border-white/10 gap-1 sm:gap-2">
           {previousInnings && (
             <button
               onClick={() => setActiveTab("previous")}
-              className={`flex-1 min-w-0 py-1.5 sm:py-2.5 px-2 sm:px-3 rounded-xl sm:rounded-2xl text-[10px] sm:text-xs font-black uppercase tracking-wider italic transition-all flex items-center justify-center gap-1.5 sm:gap-2 ${
+              className={`flex-1 min-w-0 py-1.5 sm:py-2 px-1 sm:px-2.5 rounded-lg sm:rounded-xl text-[9.5px] xs:text-[10.5px] sm:text-xs font-bold sm:font-black uppercase tracking-tight italic transition-all flex items-center justify-between gap-1 sm:gap-1.5 ${
                 activeTab === "previous"
                   ? "bg-gradient-to-r from-indigo-600/90 to-blue-600/90 border border-indigo-400/40 text-white shadow-lg shadow-indigo-600/30 backdrop-blur-md"
                   : "bg-slate-800/50 border border-white/5 text-slate-400 hover:text-slate-200 hover:bg-slate-800/80"
               }`}
             >
-              <span className="whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
+              <span className="flex-1 min-w-0 text-left whitespace-nowrap overflow-hidden text-ellipsis">
                 {previousInnings.battingTeamName} (Inns 1)
               </span>
               <span
-                className={`px-1.5 py-0.5 rounded-md text-[9px] sm:text-[10px] font-black tabular-nums border shrink-0 ${
+                className={`px-1 py-0.5 rounded text-[9px] sm:text-[10px] font-black tabular-nums border shrink-0 ${
                   activeTab === "previous"
                     ? "bg-black/40 border-white/20 text-white"
                     : "bg-black/20 border-white/5 text-slate-400"
@@ -522,18 +522,18 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
           )}
           <button
             onClick={() => setActiveTab("current")}
-            className={`flex-1 min-w-0 py-1.5 sm:py-2.5 px-2 sm:px-3 rounded-xl sm:rounded-2xl text-[10px] sm:text-xs font-black uppercase tracking-wider italic transition-all flex items-center justify-center gap-1.5 sm:gap-2 ${
+            className={`flex-1 min-w-0 py-1.5 sm:py-2 px-1 sm:px-2.5 rounded-lg sm:rounded-xl text-[9.5px] xs:text-[10.5px] sm:text-xs font-bold sm:font-black uppercase tracking-tight italic transition-all flex items-center justify-between gap-1 sm:gap-1.5 ${
               activeTab === "current"
                 ? "bg-gradient-to-r from-indigo-600/90 to-blue-600/90 border border-indigo-400/40 text-white shadow-lg shadow-indigo-600/30 backdrop-blur-md"
                 : "bg-slate-800/50 border border-white/5 text-slate-400 hover:text-slate-200 hover:bg-slate-800/80"
             }`}
           >
-            <span className="whitespace-nowrap overflow-hidden text-ellipsis min-w-0">
+            <span className="flex-1 min-w-0 text-left whitespace-nowrap overflow-hidden text-ellipsis">
               {currentInnings.battingTeamName} (Inns{" "}
               {currentInnings.inningNumber})
             </span>
             <span
-              className={`px-1.5 py-0.5 rounded-md text-[9px] sm:text-[10px] font-black tabular-nums border shrink-0 ${
+              className={`px-1 py-0.5 rounded text-[9px] sm:text-[10px] font-black tabular-nums border shrink-0 ${
                 activeTab === "current"
                   ? "bg-black/40 border-white/20 text-white"
                   : "bg-black/20 border-white/5 text-slate-400"
