@@ -212,4 +212,60 @@ describe("MatchList", () => {
       screen.getAllByText("CHICAGO SPARTANS").length,
     ).toBeGreaterThanOrEqual(1);
   });
+
+  it("safely displays authoritative scores from column aggregates when innings array lags", async () => {
+    const lagMatch = [
+      {
+        id: "lag-match-123",
+        team_a_name: "TEAM A",
+        team_b_name: "TEAM B",
+        total_overs: 2,
+        status: "COMPLETED",
+        match_winner: "TEAM A WON BY 7 WICKETS",
+        team_a_score: 26,
+        team_a_wickets: 3,
+        team_a_overs: "2.0",
+        team_b_score: 25,
+        team_b_wickets: 4,
+        team_b_overs: "2.0",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        innings: [
+          {
+            inning_number: 1,
+            batting_team_name: "TEAM B",
+            total_runs: 25,
+            total_wickets: 4,
+            overs: 2,
+            balls: 0,
+          },
+          {
+            inning_number: 2,
+            batting_team_name: "TEAM A",
+            total_runs: 11, // Simulated lagging innings read
+            total_wickets: 3,
+            overs: 2,
+            balls: 0,
+          },
+        ],
+      },
+    ];
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => lagMatch,
+      }),
+    );
+
+    render(<MatchList onSelectMatch={vi.fn()} showDeleteControls={false} />);
+
+    // Should display authoritative 26/3 and winner banner
+    await waitFor(() => {
+      expect(screen.getByText(/26\/3/)).toBeInTheDocument();
+    });
+    expect(screen.getByText(/25\/4/)).toBeInTheDocument();
+    expect(screen.getByText(/WON BY 7 WICKETS/)).toBeInTheDocument();
+  });
 });

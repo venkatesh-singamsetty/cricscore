@@ -117,11 +117,11 @@ const MatchList: React.FC<MatchListProps> = ({
                 Number(incInn.overs || 0) * 6 + Number(incInn.balls || 0);
               const exBalls =
                 Number(exInn.overs || 0) * 6 + Number(exInn.balls || 0);
-              if (exBalls > incBalls) {
+              if (exBalls >= incBalls) {
                 return {
                   ...incInn,
-                  overs: exInn.overs,
-                  balls: exInn.balls,
+                  overs: exBalls > incBalls ? exInn.overs : incInn.overs,
+                  balls: exBalls > incBalls ? exInn.balls : incInn.balls,
                   total_runs: Math.max(
                     Number(exInn.total_runs || 0),
                     Number(incInn.total_runs || 0),
@@ -132,7 +132,17 @@ const MatchList: React.FC<MatchListProps> = ({
                   ),
                 };
               }
-              return incInn;
+              return {
+                ...incInn,
+                total_runs: Math.max(
+                  Number(exInn.total_runs || 0),
+                  Number(incInn.total_runs || 0),
+                ),
+                total_wickets: Math.max(
+                  Number(exInn.total_wickets || 0),
+                  Number(incInn.total_wickets || 0),
+                ),
+              };
             });
             // Preserve any 2nd innings already tracked via WebSocket if background DB read hasn't seen it yet
             for (const exInn of exInnings) {
@@ -166,6 +176,14 @@ const MatchList: React.FC<MatchListProps> = ({
   useEffect(() => {
     fetchMatches(false);
   }, [refreshTrigger, fetchMatches]);
+
+  // Periodic polling fallback: ensures Match Hub updates automatically even if no WebSocket message arrives
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchMatches(true);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [fetchMatches]);
 
   useEffect(() => {
     if (!activeMessage) return;
@@ -547,24 +565,86 @@ const MatchList: React.FC<MatchListProps> = ({
                           i.batting_team_name?.trim().toLowerCase() ===
                           rightTeamName.trim().toLowerCase(),
                       );
+
+                      const isLeftTeamA =
+                        leftTeamName.trim().toUpperCase() ===
+                        match.team_a_name.trim().toUpperCase();
+                      const leftColScore = isLeftTeamA
+                        ? Number(match.team_a_score || 0)
+                        : Number(match.team_b_score || 0);
+                      const leftColWickets = isLeftTeamA
+                        ? Number(match.team_a_wickets || 0)
+                        : Number(match.team_b_wickets || 0);
+                      const leftRuns = Math.max(
+                        Number(leftTeamInnings?.total_runs || 0),
+                        leftColScore,
+                      );
+                      const leftWickets = Math.max(
+                        Number(leftTeamInnings?.total_wickets || 0),
+                        leftColWickets,
+                      );
+                      const leftOvers =
+                        leftTeamInnings &&
+                        (Number(leftTeamInnings.overs) > 0 ||
+                          Number(leftTeamInnings.balls) > 0)
+                          ? `${leftTeamInnings.overs}.${leftTeamInnings.balls}`
+                          : (isLeftTeamA
+                              ? (match.team_a_overs as string)
+                              : (match.team_b_overs as string)) || "0.0";
+
+                      const isRightTeamA =
+                        rightTeamName.trim().toUpperCase() ===
+                        match.team_a_name.trim().toUpperCase();
+                      const rightColScore = isRightTeamA
+                        ? Number(match.team_a_score || 0)
+                        : Number(match.team_b_score || 0);
+                      const rightColWickets = isRightTeamA
+                        ? Number(match.team_a_wickets || 0)
+                        : Number(match.team_b_wickets || 0);
+                      const rightRuns = Math.max(
+                        Number(rightTeamInnings?.total_runs || 0),
+                        rightColScore,
+                      );
+                      const rightWickets = Math.max(
+                        Number(rightTeamInnings?.total_wickets || 0),
+                        rightColWickets,
+                      );
+                      const rightOvers =
+                        rightTeamInnings &&
+                        (Number(rightTeamInnings.overs) > 0 ||
+                          Number(rightTeamInnings.balls) > 0)
+                          ? `${rightTeamInnings.overs}.${rightTeamInnings.balls}`
+                          : (isRightTeamA
+                              ? (match.team_a_overs as string)
+                              : (match.team_b_overs as string)) || "0.0";
+
+                      const showLeftScore =
+                        leftTeamInnings &&
+                        (match.status === "LIVE" ||
+                          leftRuns > 0 ||
+                          leftWickets > 0 ||
+                          leftOvers !== "0.0");
+
+                      const showRightScore =
+                        rightTeamInnings &&
+                        ((match.status === "LIVE" &&
+                          match.innings &&
+                          match.innings.length > 1) ||
+                          rightRuns > 0 ||
+                          rightWickets > 0 ||
+                          rightOvers !== "0.0");
+
                       return (
                         <>
                           <div className="flex flex-col">
                             <h4 className="text-base font-black text-white uppercase tracking-tight italic group-hover:text-indigo-400 transition-colors">
                               {leftTeamName}
                             </h4>
-                            {leftTeamInnings &&
-                            (match.status === "LIVE" ||
-                              Number(leftTeamInnings.overs) > 0 ||
-                              Number(leftTeamInnings.balls) > 0 ||
-                              Number(leftTeamInnings.total_runs) > 0 ||
-                              Number(leftTeamInnings.total_wickets) > 0) ? (
+                            {showLeftScore ? (
                               <span className="text-xs font-black text-slate-400 tabular-nums">
-                                {Number(leftTeamInnings.total_runs)}/
-                                {Number(leftTeamInnings.total_wickets)}
+                                {leftRuns}/{leftWickets}
                                 <span className="text-[10px] text-slate-600 lowercase ml-1">
-                                  ({leftTeamInnings.overs}.
-                                  {leftTeamInnings.balls})
+                                  ({leftOvers})
                                 </span>
                               </span>
                             ) : (
@@ -582,20 +662,11 @@ const MatchList: React.FC<MatchListProps> = ({
                             <h4 className="text-base font-black text-white uppercase tracking-tight italic group-hover:text-indigo-400 transition-colors">
                               {rightTeamName}
                             </h4>
-                            {rightTeamInnings &&
-                            ((match.status === "LIVE" &&
-                              match.innings &&
-                              match.innings.length > 1) ||
-                              Number(rightTeamInnings.overs) > 0 ||
-                              Number(rightTeamInnings.balls) > 0 ||
-                              Number(rightTeamInnings.total_runs) > 0 ||
-                              Number(rightTeamInnings.total_wickets) > 0) ? (
+                            {showRightScore ? (
                               <span className="text-xs font-black text-slate-400 tabular-nums">
-                                {rightTeamInnings.total_runs}/
-                                {rightTeamInnings.total_wickets}
+                                {rightRuns}/{rightWickets}
                                 <span className="text-[10px] text-slate-600 lowercase ml-1">
-                                  ({rightTeamInnings.overs}.
-                                  {rightTeamInnings.balls})
+                                  ({rightOvers})
                                 </span>
                               </span>
                             ) : (
