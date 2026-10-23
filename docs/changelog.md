@@ -1,3 +1,20 @@
+## [4.19.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.18.0...v4.19.0) (2026-10-23)
+
+### 🚀 Features
+
+* **frontend:** spectator cockpit, glassmorphic scorecard, chatbot flow, and mobile UI refinement ([#313](https://github.com/venkatesh-singamsetty/cricscore/issues/313)) ([e7de501]()), closes [#310]() [#311]() [#312]()
+## 🎯 Overview & Purpose
+
+This Pull Request brings a major comprehensive upgrade across the
+CricScore frontend and mobile spectator experience. It addresses live
+spectator cockpit visibility, broadcast-quality scorecard presentation,
+scorecard data aggregation integrity (cross-team POTM resolution and
+strike rate safety), interactive chatbot conversation flow, modern
+glassmorphic theme consistency, and mobile ergonomics based on the
+master UI/UX refinement checklist.
+
+In addition, it consolidates three automated Dependabot security &
+
 ## [4.18.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.17.2...v4.18.0) (2026-10-22)
 
 ### 🚀 Features
