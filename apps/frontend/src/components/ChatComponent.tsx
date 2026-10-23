@@ -715,7 +715,7 @@ export function ChatComponent({
             </div>
           )}
 
-          <div className="space-y-3 sm:space-y-4 flex flex-col shrink-0">
+          <div className="space-y-3.5 sm:space-y-4 flex flex-col shrink-0 pb-2">
             {messages.length > 0 &&
               messages.map((msg, idx) => (
                 <div
@@ -723,7 +723,7 @@ export function ChatComponent({
                   className={`flex gap-2.5 sm:gap-3 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
                 >
                   <div
-                    className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0 ${msg.role === "user" ? "bg-indigo-500" : "bg-slate-700"}`}
+                    className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm ${msg.role === "user" ? "bg-indigo-500" : "bg-slate-700"}`}
                   >
                     {msg.role === "user" ? (
                       <User size={14} className="text-white sm:w-4 sm:h-4" />
@@ -735,7 +735,11 @@ export function ChatComponent({
                     )}
                   </div>
                   <div
-                    className={`p-3 rounded-2xl max-w-[85%] sm:max-w-[80%] shadow-md relative group pr-8 ${msg.role === "user" ? "bg-indigo-600 text-white rounded-tr-none shadow-indigo-500/20" : "bg-slate-800 text-slate-200 rounded-tl-none border border-white/5"}`}
+                    className={`p-3.5 sm:p-4 rounded-2xl max-w-[85%] sm:max-w-[80%] shadow-md relative group pr-9 sm:pr-10 ${
+                      msg.role === "user"
+                        ? "bg-indigo-600 text-white rounded-tr-none shadow-indigo-500/20"
+                        : "bg-slate-800 text-slate-100 rounded-tl-none border border-white/10"
+                    }`}
                   >
                     <FormattedContent content={msg.content} />
 
@@ -762,7 +766,7 @@ export function ChatComponent({
                     className="text-indigo-300 animate-pulse sm:w-4 sm:h-4"
                   />
                 </div>
-                <div className="p-3 rounded-2xl bg-slate-800 text-slate-400 rounded-tl-none border border-white/5 flex items-center gap-2">
+                <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-800 text-slate-400 rounded-tl-none border border-white/10 flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-slate-500 animate-bounce"></div>
                   <div
                     className="w-2 h-2 rounded-full bg-slate-500 animate-bounce"
@@ -782,7 +786,7 @@ export function ChatComponent({
 
       {/* Quick Prompt Suggestion Chips (Visible during active chat) */}
       {messages.length > 0 && (
-        <div className="shrink-0 px-3 py-2 overflow-x-auto scrollbar-none flex items-center gap-2 border-t border-white/5 bg-slate-900/95 z-20">
+        <div className="shrink-0 px-3 py-2 sm:py-2.5 overflow-x-auto scrollbar-none flex items-center gap-2 border-t border-white/10 bg-slate-900/95 backdrop-blur-md z-20">
           <span className="text-[10px] font-black uppercase text-indigo-400 tracking-wider shrink-0 flex items-center gap-1">
             <Sparkles size={12} className="text-amber-400" />
             Quick:
@@ -793,7 +797,7 @@ export function ChatComponent({
               type="button"
               onClick={() => submitText(prompt, false)}
               disabled={loading}
-              className="px-3 py-1 rounded-full bg-slate-800 hover:bg-indigo-600/30 text-slate-300 hover:text-indigo-200 border border-white/10 hover:border-indigo-500/40 text-[11px] font-bold whitespace-nowrap transition-all active:scale-95 shrink-0 disabled:opacity-50"
+              className="px-3 py-1.5 rounded-full bg-slate-800 hover:bg-indigo-600/30 text-slate-200 hover:text-indigo-200 border border-white/10 hover:border-indigo-500/40 text-[11px] sm:text-xs font-semibold whitespace-nowrap transition-all active:scale-95 shrink-0 disabled:opacity-50 shadow-sm"
             >
               {prompt}
             </button>
@@ -802,7 +806,7 @@ export function ChatComponent({
       )}
 
       <div
-        className="shrink-0 p-2.5 sm:p-4 bg-slate-800 border-t border-white/10 z-30 sticky bottom-0"
+        className="shrink-0 p-2.5 sm:p-3.5 bg-slate-900/95 backdrop-blur-md border-t border-white/10 z-30 sticky bottom-0"
         style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.625rem)" }}
       >
         <form onSubmit={sendMessage} className="flex items-center gap-2">

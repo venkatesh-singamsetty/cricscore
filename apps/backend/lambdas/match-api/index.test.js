@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { handler, stripPlayerOfMatchLine } from "./index.js";
+import {
+  handler,
+  stripPlayerOfMatchLine,
+  sendMatchReportEmail,
+} from "./index.js";
 
 // Mock the AWS SDK Clients
 vi.mock("@aws-sdk/client-lambda", () => {
@@ -25,12 +29,20 @@ vi.mock("@aws-sdk/client-cognito-identity-provider", () => {
   };
 });
 
+const { MockSendEmailCommand, MockSESClient } = vi.hoisted(() => {
+  const MockSendEmailCommand = vi.fn(function (input) {
+    this.input = input;
+  });
+  const MockSESClient = vi.fn().mockImplementation(function () {
+    this.send = vi.fn().mockResolvedValue({});
+  });
+  return { MockSendEmailCommand, MockSESClient };
+});
+
 vi.mock("@aws-sdk/client-ses", () => {
   return {
-    SESClient: vi.fn().mockImplementation(function () {
-      this.send = vi.fn().mockResolvedValue({});
-    }),
-    SendEmailCommand: vi.fn(),
+    SESClient: MockSESClient,
+    SendEmailCommand: MockSendEmailCommand,
   };
 });
 
@@ -511,5 +523,113 @@ describe("match-api Lambda handler", () => {
     const response = await handler(event);
     expect(response.statusCode).toBe(403);
     expect(JSON.parse(response.body).error).toContain("Forbidden");
+  });
+
+  it("generates match report email with table-layout: fixed and white-space: nowrap on player names", async () => {
+    const mockClientInstance = {
+      query: vi.fn().mockImplementation((query) => {
+        if (typeof query === "string" && query.includes("FROM matches")) {
+          return Promise.resolve({
+            rows: [
+              {
+                id: "match_abc",
+                team_a_name: "CHICAGO SPARTANS",
+                team_b_name: "MIDWEST GLADIATORS",
+                scorer_email: "scorer@example.com",
+                status: "COMPLETED",
+                created_at: new Date().toISOString(),
+              },
+            ],
+          });
+        }
+        return Promise.resolve({ rows: [] });
+      }),
+    };
+
+    const reportState = {
+      innings: [
+        {
+          id: "inn_1",
+          battingTeamName: "CHICAGO SPARTANS",
+          totalRuns: 100,
+          totalWickets: 2,
+          overs: 10,
+          balls: 0,
+          players: [
+            {
+              name: "SPARTAN 1",
+              runs: 45,
+              ballsFaced: 30,
+              fours: 4,
+              sixes: 1,
+              isOut: false,
+            },
+          ],
+          bowlers: [
+            {
+              name: "GLADIATOR 1",
+              overs: 2,
+              balls: 0,
+              runsConceded: 15,
+              wickets: 1,
+            },
+          ],
+        },
+        {
+          id: "inn_2",
+          battingTeamName: "MIDWEST GLADIATORS",
+          totalRuns: 99,
+          totalWickets: 5,
+          overs: 10,
+          balls: 0,
+          players: [
+            {
+              name: "GLADIATOR 1",
+              runs: 40,
+              ballsFaced: 28,
+              fours: 3,
+              sixes: 1,
+              isOut: true,
+              wicketType: "BOWLED",
+              wicketBy: "SPARTAN 2",
+            },
+          ],
+          bowlers: [
+            {
+              name: "SPARTAN 2",
+              overs: 2,
+              balls: 0,
+              runsConceded: 12,
+              wickets: 1,
+            },
+          ],
+        },
+      ],
+    };
+
+    const mockSend = vi.fn().mockResolvedValue({});
+    const mockSes = { send: mockSend };
+
+    await sendMatchReportEmail(
+      "match_abc",
+      "recipient@example.com",
+      "https://cricscoredev.venkateshsingamsetty.com",
+      reportState,
+      mockClientInstance,
+      false,
+      mockSes,
+    );
+
+    expect(mockSend).toHaveBeenCalled();
+    const sentCommand = mockSend.mock.calls[0][0];
+    const htmlBody = sentCommand.input.Message.Body.Html.Data;
+
+    // Verify table-layout: fixed is enforced for aligned scorecard columns
+    expect(htmlBody).toContain("table-layout: fixed");
+
+    // Verify white-space: nowrap and compact font size are applied to player name cells
+    expect(htmlBody).toContain("white-space: nowrap; font-size: 12px;");
+    expect(htmlBody).toContain("SPARTAN 1&nbsp;*");
+    expect(htmlBody).toContain("GLADIATOR 1");
   });
 });

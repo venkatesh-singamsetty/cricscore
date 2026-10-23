@@ -342,19 +342,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           )}
 
           <div className="overflow-x-auto bg-slate-950/60 rounded-2xl border border-white/10 shadow-lg">
-            <table className="w-full text-left text-slate-300 text-sm">
-              <thead className="text-xs text-slate-400 uppercase bg-slate-900/50">
+            <table className="w-full min-w-[520px] text-left text-slate-300 text-xs sm:text-sm">
+              <thead className="text-[11px] sm:text-xs text-slate-400 uppercase bg-slate-900/50">
                 <tr>
-                  <th className="px-4 sm:px-6 py-3.5 sm:py-4 whitespace-nowrap">
+                  <th className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                     User Email
                   </th>
-                  <th className="px-4 sm:px-6 py-3.5 sm:py-4 whitespace-nowrap">
+                  <th className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                     Status
                   </th>
-                  <th className="px-4 sm:px-6 py-3.5 sm:py-4 whitespace-nowrap">
+                  <th className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                     Roles
                   </th>
-                  <th className="px-4 sm:px-6 py-3.5 sm:py-4 text-right whitespace-nowrap">
+                  <th className="px-3 sm:px-6 py-3 sm:py-4 text-right whitespace-nowrap">
                     Actions
                   </th>
                 </tr>
@@ -365,17 +365,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     key={user.username}
                     className="border-b border-white/5 last:border-0 hover:bg-slate-800/30 transition-colors"
                   >
-                    <td className="px-4 sm:px-6 py-3.5 sm:py-4 font-medium text-white whitespace-nowrap">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 font-medium text-white whitespace-nowrap">
                       {user.email}
                     </td>
-                    <td className="px-4 sm:px-6 py-3.5 sm:py-4 whitespace-nowrap">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                       <span
-                        className={`inline-flex items-center justify-center whitespace-nowrap px-2.5 py-0.5 text-xs md:text-sm font-black uppercase tracking-wider rounded-md shrink-0 border ${user.status === "CONFIRMED" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-amber-500/20 text-amber-400 border-amber-500/30"}`}
+                        className={`inline-flex items-center justify-center whitespace-nowrap px-2 py-0.5 text-[10px] sm:text-xs font-black uppercase tracking-wider rounded-md shrink-0 border ${user.status === "CONFIRMED" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-amber-500/20 text-amber-400 border-amber-500/30"}`}
                       >
                         {user.status}
                       </span>
                     </td>
-                    <td className="px-4 sm:px-6 py-3.5 sm:py-4 whitespace-nowrap">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                       {(() => {
                         const isGuest =
                           user.email.startsWith("guest-") ||

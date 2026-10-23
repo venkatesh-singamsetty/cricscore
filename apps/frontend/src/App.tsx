@@ -142,7 +142,7 @@ const authFormFields = {
     },
     password: {
       label: "Password",
-      placeholder: "Min 8 chars, upper+lower+number+special",
+      placeholder: "Min 8 chars (A-Z, 0-9, #!@)",
       isRequired: true,
       order: 2,
     },
@@ -421,7 +421,7 @@ const App: React.FC = () => {
   };
 
   const GuestCta = () => (
-    <div className="auth-guest-wrap">
+    <div className="auth-guest-wrap mb-1">
       <div className="auth-divider">
         <span>or</span>
       </div>
@@ -439,7 +439,7 @@ const App: React.FC = () => {
       <p className="auth-guest-hint">No account needed · score instantly</p>
 
       {/* Scorer capabilities footer - Single line on mobile anchored cleanly */}
-      <div className="mt-3 pt-2.5 border-t border-white/5 flex items-center justify-center gap-1.5 sm:gap-2.5 text-center text-[8.5px] sm:text-[9.5px] text-slate-400 font-bold uppercase tracking-wider whitespace-nowrap overflow-hidden">
+      <div className="mt-3 pt-2.5 pb-1 border-t border-white/5 flex items-center justify-center gap-1.5 sm:gap-2.5 text-center text-[8.5px] sm:text-[9.5px] text-slate-400 font-bold uppercase tracking-wider whitespace-nowrap overflow-hidden">
         <span className="flex items-center gap-1 text-slate-300 shrink-0">
           <span className="text-emerald-400 text-xs">⚡</span> Instant Setup
         </span>
@@ -875,13 +875,15 @@ const App: React.FC = () => {
           const target = completedInnings.target || 0;
           let matchWinner = "";
           if (completedInnings.totalRuns >= target) {
-            matchWinner = `${completedInnings.battingTeamName} WON BY ${10 - completedInnings.totalWickets} WICKETS`;
+            const marginW = 10 - completedInnings.totalWickets;
+            matchWinner = `${completedInnings.battingTeamName} WON BY ${marginW} ${marginW === 1 ? "WICKET" : "WICKETS"}`;
           } else {
             const runDiff = target - 1 - completedInnings.totalRuns;
+            const runUnit = runDiff === 1 ? "RUN" : "RUNS";
             matchWinner =
               runDiff === 0
                 ? "MATCH TIED"
-                : `${completedInnings.bowlingTeamName} WON BY ${runDiff} RUNS`;
+                : `${completedInnings.bowlingTeamName} WON BY ${runDiff} ${runUnit}`;
           }
           const headers = await getAuthHeaders();
           await fetch(`${API_URL}/match/${encodeURIComponent(matchId)}`, {
@@ -1228,11 +1230,13 @@ const App: React.FC = () => {
 
     const target = currentInnings.target || 0;
     if (currentInnings.totalRuns >= target) {
-      return `${currentInnings.battingTeamName} WON BY ${10 - currentInnings.totalWickets} WICKETS`;
+      const marginW = 10 - currentInnings.totalWickets;
+      return `${currentInnings.battingTeamName} WON BY ${marginW} ${marginW === 1 ? "WICKET" : "WICKETS"}`;
     } else {
       const runDiff = target - 1 - currentInnings.totalRuns;
       if (runDiff === 0) return "MATCH TIED!";
-      return `${currentInnings.bowlingTeamName} WON BY ${runDiff} RUNS`;
+      const runUnit = runDiff === 1 ? "RUN" : "RUNS";
+      return `${currentInnings.bowlingTeamName} WON BY ${runDiff} ${runUnit}`;
     }
   };
 
@@ -1432,22 +1436,34 @@ const App: React.FC = () => {
       >
         <div className="max-w-5xl mx-auto w-full px-3 py-1.5 md:py-2 flex justify-between items-center">
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-none max-w-full">
-            <div className="flex bg-slate-900/90 p-1 rounded-xl border border-white/5 shrink-0">
+            <div className="flex bg-slate-900/90 p-1 rounded-full border border-white/10 shrink-0 gap-1 shadow-inner">
               <button
                 onClick={() => handleViewClick("VIEWER")}
-                className={`px-3 py-1.5 md:px-5 md:py-2 font-bold text-xs md:text-sm tracking-wide transition-colors whitespace-nowrap ${view === "VIEWER" ? "text-blue-400 bg-slate-800/90 rounded-lg shadow-sm" : "text-gray-400 hover:text-blue-300"}`}
+                className={`px-3 py-1.5 md:px-5 md:py-2 font-black text-xs md:text-sm tracking-wide transition-all whitespace-nowrap rounded-full ${
+                  view === "VIEWER"
+                    ? "text-cyan-400 bg-cyan-500/15 border border-cyan-500/30 shadow-[0_0_12px_rgba(6,182,212,0.25)]"
+                    : "text-slate-400 hover:text-cyan-300 hover:bg-white/5 border border-transparent font-semibold"
+                }`}
               >
                 VIEWER 🌍
               </button>
               <button
                 onClick={() => handleViewClick("SCORER")}
-                className={`px-3 py-1.5 md:px-5 md:py-2 font-bold text-xs md:text-sm tracking-wide transition-colors whitespace-nowrap ${view === "SCORER" ? "text-emerald-400 bg-slate-800/90 rounded-lg shadow-sm" : "text-gray-400 hover:text-emerald-300"}`}
+                className={`px-3 py-1.5 md:px-5 md:py-2 font-black text-xs md:text-sm tracking-wide transition-all whitespace-nowrap rounded-full ${
+                  view === "SCORER"
+                    ? "text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.25)]"
+                    : "text-slate-400 hover:text-emerald-300 hover:bg-white/5 border border-transparent font-semibold"
+                }`}
               >
                 SCORER 🎮
               </button>
               <button
                 onClick={() => handleViewClick("CHAT")}
-                className={`px-3 py-1.5 md:px-5 md:py-2 font-bold text-xs md:text-sm tracking-wide transition-colors whitespace-nowrap ${view === "CHAT" ? "text-amber-400 bg-slate-800/90 rounded-lg shadow-sm" : "text-gray-400 hover:text-amber-300"}`}
+                className={`px-3 py-1.5 md:px-5 md:py-2 font-black text-xs md:text-sm tracking-wide transition-all whitespace-nowrap rounded-full ${
+                  view === "CHAT"
+                    ? "text-amber-400 bg-amber-500/15 border border-amber-500/30 shadow-[0_0_12px_rgba(245,158,11,0.25)]"
+                    : "text-slate-400 hover:text-amber-300 hover:bg-white/5 border border-transparent font-semibold"
+                }`}
               >
                 CHAT BOT ✨
               </button>
@@ -2013,7 +2029,12 @@ const App: React.FC = () => {
                 )}
               </div>
             ) : (
-              <div className="flex-1 min-h-0 overflow-hidden sm:overflow-y-auto flex flex-col w-full bg-slate-950 p-0 sm:px-3 sm:py-6 relative">
+              <div
+                className="flex-1 min-h-0 overflow-hidden sm:overflow-y-auto flex flex-col w-full bg-slate-950 p-0 sm:px-3 sm:py-6 relative"
+                style={{
+                  paddingBottom: "max(1rem, env(safe-area-inset-bottom, 1rem))",
+                }}
+              >
                 {/* Background ambient decorative glow */}
                 <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none -z-10"></div>
                 <div className="absolute bottom-1/4 left-1/2 -translate-x-1/2 translate-y-1/2 w-80 h-80 bg-blue-600/10 rounded-full blur-3xl pointer-events-none -z-10"></div>

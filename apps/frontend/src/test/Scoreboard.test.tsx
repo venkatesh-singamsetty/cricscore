@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import Scoreboard from "../components/Scoreboard";
-import { InningsState, WicketType } from "../types";
+import { InningsState, WicketType, ExtraType } from "../types";
 
 describe("Scoreboard Component", () => {
   const mockCurrentInnings: InningsState = {
@@ -241,6 +241,48 @@ describe("Scoreboard Component", () => {
     );
   });
 
+  it("renders singular '1 WICKET' and '1 RUN' victory margins correctly", () => {
+    // 1-wicket victory: 9 wickets down, target 150 reached with 151
+    const oneWicketWonInnings: InningsState = {
+      ...mockCurrentInnings,
+      totalRuns: 151,
+      totalWickets: 9,
+      isCompleted: true,
+    };
+
+    const { rerender } = render(
+      <Scoreboard
+        currentInnings={oneWicketWonInnings}
+        previousInnings={mockPreviousInnings}
+        onClose={vi.fn()}
+        totalOvers={20}
+      />,
+    );
+
+    expect(screen.getByText(/WON BY 1 WICKET$/i)).toBeInTheDocument();
+
+    // 1-run victory: 1st inns 150, 2nd inns 149 (20.0 overs completed)
+    const oneRunLostInnings: InningsState = {
+      ...mockCurrentInnings,
+      totalRuns: 149,
+      totalWickets: 5,
+      overs: 20,
+      balls: 0,
+      isCompleted: true,
+    };
+
+    rerender(
+      <Scoreboard
+        currentInnings={oneRunLostInnings}
+        previousInnings={{ ...mockPreviousInnings, totalRuns: 150 }}
+        onClose={vi.fn()}
+        totalOvers={20}
+      />,
+    );
+
+    expect(screen.getByText(/WON BY 1 RUN$/i)).toBeInTheDocument();
+  });
+
   it("resets scorecard scroll position to top when switching innings tabs", () => {
     const { container } = render(
       <Scoreboard
@@ -268,5 +310,96 @@ describe("Scoreboard Component", () => {
       // Scroll position should reset to 0
       expect(scrollContainer.scrollTop).toBe(0);
     }
+  });
+
+  it("applies whitespace-nowrap and mobile padding to innings tab button titles", () => {
+    render(
+      <Scoreboard
+        currentInnings={mockCurrentInnings}
+        previousInnings={mockPreviousInnings}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const prevTabText = screen.getByText(/CHICAGO CHIEFS \(Inns 1\)/i);
+    const currTabText = screen.getByText(/MIDWEST GLADIATORS \(Inns 2\)/i);
+
+    expect(prevTabText).toHaveClass("whitespace-nowrap");
+    expect(prevTabText).toHaveClass("mr-1.5");
+    expect(currTabText).toHaveClass("whitespace-nowrap");
+    expect(currTabText).toHaveClass("mr-1.5");
+  });
+
+  it("renders extras breakdown items with flex-nowrap and whitespace-nowrap", () => {
+    const inningsWithExtras: InningsState = {
+      ...mockCurrentInnings,
+      allBalls: [
+        {
+          id: "b_wide",
+          bowlerName: "Bowler 1",
+          batterName: "GLADIATOR 1",
+          runs: 0,
+          isExtra: true,
+          extraType: ExtraType.WIDE,
+          extraRuns: 1,
+          isWicket: false,
+          wicketType: WicketType.NONE,
+          overNumber: 0,
+          ballNumber: 0,
+        },
+      ],
+    };
+
+    render(
+      <Scoreboard
+        currentInnings={inningsWithExtras}
+        previousInnings={mockPreviousInnings}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const wdBadge = screen.getByText(/WD: 1/i);
+    expect(wdBadge).toHaveClass("whitespace-nowrap");
+    expect(wdBadge.parentElement).toHaveClass("flex-nowrap");
+
+    // Verify Innings Total and Extras container uses flex-wrap and gap-2 for graceful wrapping on narrow screens
+    const inningsTotalLabel = screen.getByText(/^Innings Total$/i);
+    const summaryRow = inningsTotalLabel.closest(".flex-wrap");
+    expect(summaryRow).toHaveClass("flex");
+    expect(summaryRow).toHaveClass("flex-wrap");
+    expect(summaryRow).toHaveClass("justify-between");
+    expect(summaryRow).toHaveClass("gap-2");
+  });
+
+  it("applies whitespace-nowrap to partnerships and did-not-bat squad members", () => {
+    const inningsWithPartnership: InningsState = {
+      ...mockCurrentInnings,
+      allBalls: [
+        {
+          id: "b1",
+          bowlerName: "Bowler 1",
+          batterName: "GLADIATOR 1",
+          runs: 4,
+          isExtra: false,
+          extraType: ExtraType.NONE,
+          extraRuns: 0,
+          isWicket: true,
+          wicketType: WicketType.BOWLED,
+          overNumber: 0,
+          ballNumber: 1,
+        },
+      ],
+    };
+
+    render(
+      <Scoreboard
+        currentInnings={inningsWithPartnership}
+        previousInnings={mockPreviousInnings}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const outBatterCell = screen.getByText("GLADIATOR 1", { selector: "td" });
+    expect(outBatterCell).toHaveClass("whitespace-nowrap");
   });
 });

@@ -719,7 +719,7 @@ describe("LiveScoreboard Component", () => {
 
     // Assert that the match result is displayed
     await waitFor(() => {
-      expect(screen.getByText("MATCH RESULT")).toBeInTheDocument();
+      expect(screen.getAllByText("🏆").length).toBeGreaterThan(0);
       expect(screen.getAllByText(/WON BY/i).length).toBeGreaterThan(0);
     });
 

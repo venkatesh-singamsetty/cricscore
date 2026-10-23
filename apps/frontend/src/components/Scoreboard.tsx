@@ -250,7 +250,7 @@ const BattingTable: React.FC<BattingTableProps> = React.memo(
               {unbattedOrder.map((id) => (
                 <span
                   key={id}
-                  className="px-2 py-0.5 rounded-lg bg-slate-900/80 border border-white/10 text-[10px] sm:text-[11px] font-bold text-slate-200 tracking-tight shadow-sm"
+                  className="px-2 py-0.5 rounded-lg bg-slate-900/80 border border-white/10 text-[10px] sm:text-[11px] font-bold text-slate-200 tracking-tight shadow-sm whitespace-nowrap"
                 >
                   {players[id]?.name || id}
                 </span>
@@ -429,16 +429,18 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
         const i2Overs = Number(i2.overs || 0);
 
         if (i2Runs > i1Runs) {
+          const marginW = 10 - i2Wickets;
           return {
-            text: `${i2.battingTeamName} WON BY ${10 - i2Wickets} WICKETS`,
+            text: `${i2.battingTeamName} WON BY ${marginW} ${marginW === 1 ? "WICKET" : "WICKETS"}`,
             team: i2.battingTeamName,
           };
         } else if (
           i1Runs > i2Runs &&
           (i2Overs >= matchTotalOvers || i2Wickets >= 10 || i2.isCompleted)
         ) {
+          const marginR = i1Runs - i2Runs;
           return {
-            text: `${i1.battingTeamName} WON BY ${i1Runs - i2Runs} RUNS`,
+            text: `${i1.battingTeamName} WON BY ${marginR} ${marginR === 1 ? "RUN" : "RUNS"}`,
             team: i1.battingTeamName,
           };
         } else if (
@@ -494,19 +496,21 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
         </div>
 
         {/* Tabs */}
-        <div className="flex bg-slate-950/50 backdrop-blur-md p-1.5 sm:p-2 shrink-0 border-b border-white/10 gap-1.5 sm:gap-2.5">
+        <div className="flex bg-slate-950/50 backdrop-blur-md p-1 sm:p-2 shrink-0 border-b border-white/10 gap-1 sm:gap-2">
           {previousInnings && (
             <button
               onClick={() => setActiveTab("previous")}
-              className={`flex-1 py-2 sm:py-2.5 px-3 rounded-xl sm:rounded-2xl text-[10px] sm:text-xs font-black uppercase tracking-wider italic transition-all flex items-center justify-center gap-2 ${
+              className={`flex-1 min-w-0 py-1.5 sm:py-2 px-1.5 sm:px-2.5 rounded-lg sm:rounded-xl text-[9.5px] xs:text-[10.5px] sm:text-xs font-bold sm:font-black uppercase tracking-tight italic transition-all flex items-center justify-between gap-1.5 sm:gap-2 ${
                 activeTab === "previous"
                   ? "bg-gradient-to-r from-indigo-600/90 to-blue-600/90 border border-indigo-400/40 text-white shadow-lg shadow-indigo-600/30 backdrop-blur-md"
                   : "bg-slate-800/50 border border-white/5 text-slate-400 hover:text-slate-200 hover:bg-slate-800/80"
               }`}
             >
-              <span>{previousInnings.battingTeamName} (Inns 1)</span>
+              <span className="flex-1 min-w-0 text-left truncate whitespace-nowrap block mr-1.5">
+                {previousInnings.battingTeamName} (Inns 1)
+              </span>
               <span
-                className={`px-1.5 py-0.5 rounded-md text-[9px] sm:text-[10px] font-black tabular-nums border ${
+                className={`px-1 py-0.5 rounded text-[9px] sm:text-[10px] font-black tabular-nums border shrink-0 ${
                   activeTab === "previous"
                     ? "bg-black/40 border-white/20 text-white"
                     : "bg-black/20 border-white/5 text-slate-400"
@@ -518,18 +522,18 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
           )}
           <button
             onClick={() => setActiveTab("current")}
-            className={`flex-1 py-2 sm:py-2.5 px-3 rounded-xl sm:rounded-2xl text-[10px] sm:text-xs font-black uppercase tracking-wider italic transition-all flex items-center justify-center gap-2 ${
+            className={`flex-1 min-w-0 py-1.5 sm:py-2 px-1.5 sm:px-2.5 rounded-lg sm:rounded-xl text-[9.5px] xs:text-[10.5px] sm:text-xs font-bold sm:font-black uppercase tracking-tight italic transition-all flex items-center justify-between gap-1.5 sm:gap-2 ${
               activeTab === "current"
                 ? "bg-gradient-to-r from-indigo-600/90 to-blue-600/90 border border-indigo-400/40 text-white shadow-lg shadow-indigo-600/30 backdrop-blur-md"
                 : "bg-slate-800/50 border border-white/5 text-slate-400 hover:text-slate-200 hover:bg-slate-800/80"
             }`}
           >
-            <span>
+            <span className="flex-1 min-w-0 text-left truncate whitespace-nowrap block mr-1.5">
               {currentInnings.battingTeamName} (Inns{" "}
               {currentInnings.inningNumber})
             </span>
             <span
-              className={`px-1.5 py-0.5 rounded-md text-[9px] sm:text-[10px] font-black tabular-nums border ${
+              className={`px-1 py-0.5 rounded text-[9px] sm:text-[10px] font-black tabular-nums border shrink-0 ${
                 activeTab === "current"
                   ? "bg-black/40 border-white/20 text-white"
                   : "bg-black/20 border-white/5 text-slate-400"
@@ -542,20 +546,18 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
 
         {/* Result Highlight */}
         {matchResult && (
-          <div className="bg-gradient-to-r from-amber-500/10 via-slate-900 to-indigo-950/80 border-b border-amber-500/30 shrink-0 px-4 py-2.5 sm:py-3 text-center overflow-hidden relative shadow-2xl">
+          <div className="bg-gradient-to-r from-amber-500/10 via-slate-900 to-indigo-950/80 border-b border-amber-500/30 shrink-0 px-4 py-2 sm:py-2.5 text-center overflow-hidden relative shadow-2xl">
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer"></div>
             <div className="relative z-10 flex flex-col items-center justify-center px-2">
-              <span className="text-[8px] sm:text-[9px] font-black text-amber-400 uppercase tracking-[0.4em] opacity-90 mb-0.5 leading-none flex items-center gap-1.5">
-                <span>🏆</span> MATCH RESULT
-              </span>
-              <span className="max-w-full text-sm sm:text-lg font-black text-white uppercase tracking-tight italic drop-shadow-md leading-tight break-words">
+              <span className="max-w-full text-sm sm:text-lg font-black text-white uppercase tracking-tight italic drop-shadow-md leading-tight break-words inline-flex items-center justify-center gap-1.5">
+                <span className="not-italic">🏆</span>
                 <HighlightedResult
                   text={matchResult.text}
                   teamClassName="text-amber-300 font-extrabold"
                 />
               </span>
               {effectivePOTM && (
-                <span className="mt-1.5 inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-amber-400/15 border border-amber-400/30 text-amber-300 text-[10px] sm:text-xs font-black uppercase tracking-wider shadow-sm">
+                <span className="mt-1 inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-amber-400/15 border border-amber-400/30 text-amber-300 text-[10px] sm:text-xs font-black uppercase tracking-wider shadow-sm">
                   <span>🎖️</span> POTM: {effectivePOTM}
                 </span>
               )}
@@ -744,16 +746,16 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                         key={idx}
                         className="bg-slate-900/60 hover:bg-slate-900/90 transition-colors"
                       >
-                        <td className="px-2 py-2 rounded-l-xl font-black text-xs text-slate-400">
+                        <td className="px-2 py-2 rounded-l-xl font-black text-xs text-slate-400 whitespace-nowrap">
                           {p.wicketNumber}
                         </td>
-                        <td className="px-2 py-2 font-black text-indigo-300">
+                        <td className="px-2 py-2 font-black text-indigo-300 whitespace-nowrap">
                           {p.runs}{" "}
                           <span className="text-slate-500 text-[10px] ml-1">
                             ({p.balls})
                           </span>
                         </td>
-                        <td className="px-2 py-2 rounded-r-xl font-bold text-[10px] text-slate-300 uppercase tracking-widest">
+                        <td className="px-2 py-2 rounded-r-xl font-bold text-[10px] text-slate-300 uppercase tracking-widest whitespace-nowrap">
                           {p.outBatterName || "Unbroken"}
                         </td>
                       </tr>
@@ -867,7 +869,7 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                                 <div
                                   key={idx}
                                   title={`Ball ${idx + 1}: ${deliveryDesc}`}
-                                  className={`w-7 h-7 sm:w-8 sm:h-8 shrink-0 rounded-lg flex items-center justify-center text-[9px] sm:text-[10px] font-black tabular-nums transition-all ${badgeStyle}`}
+                                  className={`w-7 h-7 sm:w-8 sm:h-8 shrink-0 rounded-lg inline-flex items-center justify-center text-[9px] sm:text-[10px] font-black tabular-nums transition-all ${badgeStyle}`}
                                 >
                                   {label}
                                 </div>
@@ -882,100 +884,96 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
             </div>
 
             {/* Extras & Reset Footer */}
-            <div className="bg-slate-800/80 rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 md:p-8 border border-white/10 backdrop-blur-xl relative overflow-hidden group shadow-xl">
+            <div className="bg-slate-800/80 rounded-2xl sm:rounded-[2rem] p-3 sm:p-5 md:p-6 border border-white/10 backdrop-blur-xl relative overflow-hidden group shadow-xl">
               <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl -z-10 group-hover:bg-indigo-500/20 transition-all"></div>
 
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-8">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-10">
-                  <div className="space-y-0.5 shrink-0">
-                    <span className="text-[9px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest block">
-                      Innings Total
+              <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-6 w-full">
+                <div className="space-y-0.5 min-w-0 shrink-0">
+                  <span className="text-[9px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest block">
+                    Innings Total
+                  </span>
+                  <div className="whitespace-nowrap flex items-baseline gap-1 sm:gap-1.5">
+                    <span className="text-xl sm:text-2xl md:text-3xl font-black text-white italic uppercase tracking-tighter tabular-nums">
+                      {displayInnings.totalRuns}
                     </span>
-                    <div className="whitespace-nowrap flex items-baseline gap-2">
-                      <span className="text-2xl sm:text-3xl font-black text-white italic uppercase tracking-tighter tabular-nums">
-                        {displayInnings.totalRuns}
-                      </span>
-                      <span className="text-xs sm:text-sm font-black text-indigo-400 uppercase tracking-wider">
-                        RUNS
-                      </span>
-                      <span className="text-slate-500 text-xs font-bold">
-                        ({displayInnings.totalWickets} wkts,{" "}
-                        {displayInnings.overs}.{displayInnings.balls} ov)
-                      </span>
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    {(() => {
-                      let w = 0,
-                        nb = 0,
-                        b = 0,
-                        lb = 0;
-                      displayInnings.allBalls.forEach((ball) => {
-                        const extraR = Number(
-                          ball.extraRuns !== undefined
-                            ? ball.extraRuns
-                            : (ball as any).extra_runs || 0,
-                        );
-                        const r = Number(ball.runs || 0);
-                        const totalBallRuns = extraR + r;
-                        if (ball.extraType === ExtraType.WIDE)
-                          w += totalBallRuns;
-                        if (ball.extraType === ExtraType.NO_BALL)
-                          nb += totalBallRuns;
-                        if (ball.extraType === ExtraType.BYE)
-                          b += totalBallRuns;
-                        if (ball.extraType === ExtraType.LEG_BYE)
-                          lb += totalBallRuns;
-                      });
-                      return (
-                        <>
-                          <span className="text-[9px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest block">
-                            Extras Total: {w + nb + b + lb}
-                          </span>
-                          <div className="flex flex-wrap gap-1.5 sm:gap-2 text-[9px] sm:text-[10px] font-black text-indigo-400 uppercase tracking-widest">
-                            <span className="bg-white/5 border border-white/5 px-2 py-0.5 rounded">
-                              WD: {w}
-                            </span>
-                            <span className="bg-white/5 border border-white/5 px-2 py-0.5 rounded">
-                              NB: {nb}
-                            </span>
-                            <span className="bg-white/5 border border-white/5 px-2 py-0.5 rounded">
-                              B: {b}
-                            </span>
-                            <span className="bg-white/5 border border-white/5 px-2 py-0.5 rounded">
-                              LB: {lb}
-                            </span>
-                          </div>
-                        </>
-                      );
-                    })()}
+                    <span className="text-[11px] sm:text-xs font-black text-indigo-400 uppercase tracking-wider">
+                      RUNS
+                    </span>
+                    <span className="text-slate-400 text-[10px] sm:text-xs font-bold whitespace-nowrap">
+                      ({displayInnings.totalWickets} wkts,{" "}
+                      {displayInnings.overs}.{displayInnings.balls} ov)
+                    </span>
                   </div>
                 </div>
-                {!isSpectator && onResetMatch && activeTab === "current" && (
-                  <div className="mt-8 pt-6 border-t border-white/10 flex flex-wrap gap-4 items-center justify-center">
+                <div className="space-y-0.5 min-w-0 shrink-0 text-right">
+                  {(() => {
+                    let w = 0,
+                      nb = 0,
+                      b = 0,
+                      lb = 0;
+                    displayInnings.allBalls.forEach((ball) => {
+                      const extraR = Number(
+                        ball.extraRuns !== undefined
+                          ? ball.extraRuns
+                          : (ball as any).extra_runs || 0,
+                      );
+                      const r = Number(ball.runs || 0);
+                      const totalBallRuns = extraR + r;
+                      if (ball.extraType === ExtraType.WIDE) w += totalBallRuns;
+                      if (ball.extraType === ExtraType.NO_BALL)
+                        nb += totalBallRuns;
+                      if (ball.extraType === ExtraType.BYE) b += totalBallRuns;
+                      if (ball.extraType === ExtraType.LEG_BYE)
+                        lb += totalBallRuns;
+                    });
+                    return (
+                      <>
+                        <span className="text-[9px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest block whitespace-nowrap">
+                          Extras: {w + nb + b + lb}
+                        </span>
+                        <div className="flex flex-nowrap items-center justify-end gap-1 sm:gap-1.5 text-[9px] sm:text-[10px] font-bold text-indigo-400 uppercase tracking-wider overflow-x-auto scrollbar-hide">
+                          <span className="bg-white/5 border border-white/5 px-1 sm:px-1.5 py-0.5 rounded whitespace-nowrap shrink-0 inline-flex items-center justify-center">
+                            WD: {w}
+                          </span>
+                          <span className="bg-white/5 border border-white/5 px-1 sm:px-1.5 py-0.5 rounded whitespace-nowrap shrink-0 inline-flex items-center justify-center">
+                            NB: {nb}
+                          </span>
+                          <span className="bg-white/5 border border-white/5 px-1 sm:px-1.5 py-0.5 rounded whitespace-nowrap shrink-0 inline-flex items-center justify-center">
+                            B: {b}
+                          </span>
+                          <span className="bg-white/5 border border-white/5 px-1 sm:px-1.5 py-0.5 rounded whitespace-nowrap shrink-0 inline-flex items-center justify-center">
+                            LB: {lb}
+                          </span>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+              {!isSpectator && onResetMatch && activeTab === "current" && (
+                <div className="mt-8 pt-6 border-t border-white/10 flex flex-wrap gap-4 items-center justify-center">
+                  <button
+                    onClick={() => {
+                      onClose();
+                      onResetMatch();
+                    }}
+                    className="py-3 px-8 rounded-full bg-indigo-900/40 text-indigo-400 font-black text-xs uppercase tracking-widest border border-indigo-500/20 active:scale-95 transition-transform hover:bg-indigo-900/60"
+                  >
+                    START NEW MATCH
+                  </button>
+                  {onQuitMatch && (
                     <button
                       onClick={() => {
                         onClose();
-                        onResetMatch();
+                        onQuitMatch();
                       }}
-                      className="py-3 px-8 rounded-full bg-indigo-900/40 text-indigo-400 font-black text-xs uppercase tracking-widest border border-indigo-500/20 active:scale-95 transition-transform hover:bg-indigo-900/60"
+                      className="py-3 px-8 rounded-full bg-rose-900/40 text-rose-400 font-black text-xs uppercase tracking-widest border border-rose-500/20 active:scale-95 transition-transform hover:bg-rose-900/60"
                     >
-                      START NEW MATCH
+                      QUIT MATCH
                     </button>
-                    {onQuitMatch && (
-                      <button
-                        onClick={() => {
-                          onClose();
-                          onQuitMatch();
-                        }}
-                        className="py-3 px-8 rounded-full bg-rose-900/40 text-rose-400 font-black text-xs uppercase tracking-widest border border-rose-500/20 active:scale-95 transition-transform hover:bg-rose-900/60"
-                      >
-                        QUIT MATCH
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         ) : (
