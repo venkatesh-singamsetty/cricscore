@@ -73,11 +73,23 @@ exports.handler = async (event, context) => {
           : matchEvent.totalWickets;
 
       let inningId = rawInningId;
+      const eventInningNumber = Number(
+        matchEvent.inningNumber || matchEvent.inning_number || 0,
+      );
       if (!inningId || String(inningId).startsWith("inn2_")) {
-        const innLookup = await client.query(
-          "SELECT id FROM innings WHERE match_id = $1 ORDER BY inning_number DESC LIMIT 1",
-          [matchId],
-        );
+        let innLookup;
+        if (eventInningNumber > 0) {
+          innLookup = await client.query(
+            "SELECT id FROM innings WHERE match_id = $1 AND inning_number = $2",
+            [matchId, eventInningNumber],
+          );
+        }
+        if (!innLookup || innLookup.rows.length === 0) {
+          innLookup = await client.query(
+            "SELECT id FROM innings WHERE match_id = $1 ORDER BY inning_number DESC LIMIT 1",
+            [matchId],
+          );
+        }
         if (innLookup.rows.length > 0) {
           inningId = innLookup.rows[0].id;
         }
