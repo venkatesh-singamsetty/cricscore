@@ -744,24 +744,24 @@ html, body, #root {
 
   /* Sign-In tab (:has(.auth-footer)) has only 2 fields vs 5 in Create Account:
      give hero + tagline + inputs comfortable breathing room while keeping top alignment consistent */
-  [data-amplify-authenticator]:has(.auth-footer) .auth-hero {
+  [data-amplify-authenticator] .auth-hero {
     margin: 0.45rem 0 0.75rem !important;
     gap: 0.35rem !important;
   }
-  [data-amplify-authenticator]:has(.auth-footer) .auth-logo {
+  [data-amplify-authenticator] .auth-logo {
     width: 40px !important;
     height: 40px !important;
     font-size: 1.35rem !important;
     border-radius: 0.85rem !important;
   }
-  [data-amplify-authenticator]:has(.auth-footer) .auth-title {
+  [data-amplify-authenticator] .auth-title {
     font-size: 1.65rem !important;
   }
-  [data-amplify-authenticator] [data-amplify-router]:has(.auth-footer) {
+  [data-amplify-authenticator] [data-amplify-router] {
     padding: 1.05rem 1.05rem 1.25rem !important;
     margin-bottom: max(1rem, env(safe-area-inset-bottom)) !important;
   }
-  [data-amplify-authenticator] [data-amplify-router]:has(.auth-footer) [role="tablist"] {
+  [data-amplify-authenticator] [data-amplify-router] [role="tablist"] {
     margin-bottom: 0.8rem !important;
   }
   [data-amplify-authenticator] [data-amplify-router]:has(.auth-footer) form .amplify-flex:not(.amplify-field-group) {
@@ -797,39 +797,6 @@ html, body, #root {
   }
 
   /* Create Account tab (5 fields vs 2 in Sign-In): compact sizing to guarantee zero-scroll on mobile */
-  [data-amplify-authenticator]:not(:has(.auth-footer)) {
-    padding-top: 0.25rem !important;
-    padding-bottom: 0.5rem !important;
-  }
-  [data-amplify-authenticator]:not(:has(.auth-footer)) .auth-hero {
-    margin: 0 0 0.25rem !important;
-    gap: 0.2rem !important;
-  }
-  [data-amplify-authenticator]:not(:has(.auth-footer)) .auth-logo {
-    width: 30px !important;
-    height: 30px !important;
-    font-size: 1.05rem !important;
-    border-radius: 0.65rem !important;
-  }
-  [data-amplify-authenticator]:not(:has(.auth-footer)) .auth-title {
-    font-size: 1.25rem !important;
-    line-height: 1 !important;
-  }
-  [data-amplify-authenticator]:not(:has(.auth-footer)) .auth-subtitle {
-    display: none !important;
-  }
-  [data-amplify-authenticator]:not(:has(.auth-footer)) [data-amplify-router] {
-    padding: 0.75rem 0.95rem 0.75rem !important;
-    margin: 0 auto !important;
-  }
-  [data-amplify-authenticator]:not(:has(.auth-footer)) [role="tablist"] {
-    margin-bottom: 0.35rem !important;
-    padding: 0.2rem !important;
-  }
-  [data-amplify-authenticator]:not(:has(.auth-footer)) [role="tab"] {
-    padding: 0.4rem 0.5rem !important;
-    font-size: 0.8rem !important;
-  }
   [data-amplify-authenticator]:not(:has(.auth-footer)) form .amplify-flex:not(.amplify-field-group) {
     gap: 0.4rem !important;
   }
@@ -866,10 +833,10 @@ html, body, #root {
   .auth-title {
     font-size: 1.5rem !important;
   }
-  [data-amplify-authenticator] [data-amplify-router]:has(.auth-footer) {
+  [data-amplify-authenticator] [data-amplify-router] {
     padding: 0.75rem 0.9rem 0.9rem !important;
   }
-  [data-amplify-authenticator] [data-amplify-router]:has(.auth-footer) [role="tablist"] {
+  [data-amplify-authenticator] [data-amplify-router] [role="tablist"] {
     margin-bottom: 0.5rem !important;
   }
   [data-amplify-authenticator] [data-amplify-router]:has(.auth-footer) form .amplify-flex:not(.amplify-field-group) {
@@ -901,32 +868,25 @@ html, body, #root {
 
 /* Very short screens (small phones / landscape): ensure 5-field Create Account tab maintains compact sizing */
 @media (max-height: 700px) {
-  [data-amplify-authenticator]:not(:has(.auth-footer)) {
-    height: 100% !important;
-    padding-top: 0.25rem !important;
-    padding-bottom: max(0.5rem, env(safe-area-inset-bottom)) !important;
-  }
-  [data-amplify-authenticator]:not(:has(.auth-footer)) .auth-hero { margin: 0 0 0.25rem !important; gap: 0.2rem !important; }
-  [data-amplify-authenticator]:not(:has(.auth-footer)) .auth-logo { width: 30px !important; height: 30px !important; font-size: 1.05rem !important; margin: 0; border-radius: 0.65rem; }
-  [data-amplify-authenticator]:not(:has(.auth-footer)) .auth-title { font-size: 1.25rem !important; line-height: 1; }
-  [data-amplify-authenticator]:not(:has(.auth-footer)) .auth-subtitle { display: none !important; }
-  [data-amplify-authenticator]:not(:has(.auth-footer)) [role="tablist"] { margin-bottom: 0.35rem !important; padding: 0.2rem !important; }
-  [data-amplify-authenticator]:not(:has(.auth-footer)) [role="tab"] { padding: 0.4rem 0.5rem !important; font-size: 0.8rem !important; }
   [data-amplify-authenticator]:not(:has(.auth-footer)) input,
   [data-amplify-authenticator]:not(:has(.auth-footer)) .amplify-input,
   [data-amplify-authenticator]:not(:has(.auth-footer)) select {
-    padding: 0.45rem 0.85rem !important;
-    min-height: 40px !important;
-    font-size: 0.88rem !important;
+    padding: 0.3rem 0.85rem !important;
+    min-height: 36px !important;
+    font-size: 0.86rem !important;
   }
   [data-amplify-authenticator]:not(:has(.auth-footer)) button[type="submit"] {
-    padding: 0.65rem 1rem !important;
-    min-height: 42px !important;
-    font-size: 0.9rem !important;
-    margin-top: 0.25rem !important;
+    padding: 0.5rem 1rem !important;
+    min-height: 38px !important;
+    font-size: 0.88rem !important;
+    margin-top: 0.15rem !important;
   }
-  [data-amplify-authenticator]:not(:has(.auth-footer)) form .amplify-flex:not(.amplify-field-group) { gap: 0.4rem !important; }
+  [data-amplify-authenticator]:not(:has(.auth-footer)) form .amplify-flex:not(.amplify-field-group) { gap: 0.3rem !important; }
+  [data-amplify-authenticator]:not(:has(.auth-footer)) .amplify-label,
+  [data-amplify-authenticator]:not(:has(.auth-footer)) label { margin-bottom: 0.1rem !important; font-size: 0.62rem !important; }
   [data-amplify-authenticator]:not(:has(.auth-footer)) .amplify-tabs { margin-bottom: 0.25rem !important; }
+  [data-amplify-authenticator] [data-amplify-router]:not(:has(.auth-footer)) { padding-bottom: 0.6rem !important; margin-bottom: 0.25rem !important; }
+  [data-amplify-authenticator]:not(:has(.auth-footer)) [data-amplify-container] { padding-bottom: 0.25rem !important; }
 }
 
 /* ============================================================
