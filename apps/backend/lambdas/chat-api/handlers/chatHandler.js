@@ -241,13 +241,17 @@ Current Date and Time: ${new Date().toISOString()}
   let responseMessage = response.choices[0].message;
 
   // Step 6: Agentic tool call loop — delegate to MCP Server for secure execution
-  if (responseMessage.tool_calls) {
+  const MAX_TOOL_ROUNDS = 2;
+  let toolRound = 0;
+  let githubIssuesCreatedInTurn = 0;
+
+  while (responseMessage.tool_calls && toolRound < MAX_TOOL_ROUNDS) {
+    toolRound += 1;
     messages.push(responseMessage);
-    let githubIssuesCreatedInTurn = 0;
 
     for (const toolCall of responseMessage.tool_calls) {
       console.log(
-        "chatHandler: delegating to MCP tool:",
+        `chatHandler: delegating to MCP tool (round ${toolRound}):`,
         toolCall.function.name,
       );
       let toolResult = "";
@@ -286,28 +290,57 @@ Current Date and Time: ${new Date().toISOString()}
       });
     }
 
-    // Final LLM call — generate human-readable answer from tool results
+    // Call LLM again to interpret results or generate follow-up query
+    const isFinalRound = toolRound >= MAX_TOOL_ROUNDS;
     try {
-      response = await openai.chat.completions.create({
+      const completionParams = {
         model: LLM_MODEL,
         messages,
-        tools,
-        temperature: 0.5,
+        temperature: 0.3,
         max_tokens: 2000,
-      });
+      };
+      if (!isFinalRound) {
+        completionParams.tools = tools;
+        completionParams.tool_choice = "auto";
+      }
+      response = await openai.chat.completions.create(completionParams);
       responseMessage = response.choices[0].message;
     } catch (err) {
-      console.error("chatHandler: Final LLM call error:", err);
+      console.error("chatHandler: Follow-up LLM call error:", err);
       responseMessage = {
         content:
-          "I'm unable to synthesize the full answer right now, but you can check the scoreboard for the latest updates.",
+          "I retrieved the match records, but was unable to synthesize the full answer right now. Please check the scorecard for details.",
       };
+      break;
+    }
+  }
+
+  // If the model still returned tool_calls on the final round without content,
+  // do a forced synthesis call strictly without tools so the user receives a readable answer.
+  if (!responseMessage.content) {
+    try {
+      const forcedSynthesis = await openai.chat.completions.create({
+        model: LLM_MODEL,
+        messages: [
+          ...messages,
+          {
+            role: "user",
+            content:
+              "Synthesize a clear, direct answer to the user's question using the information and tool results retrieved above. If specific data (such as an official Player of the Match award) is not recorded, state that clearly and summarize the match winner or available player scores.",
+          },
+        ],
+        temperature: 0.3,
+        max_tokens: 2000,
+      });
+      responseMessage = forcedSynthesis.choices[0].message;
+    } catch (synthErr) {
+      console.error("chatHandler: Forced synthesis error:", synthErr);
     }
   }
 
   const finalReply =
     responseMessage.content ||
-    "The operation was completed, but no detailed summary was generated.";
+    "I was able to inspect the database, but could not compile a complete summary. Please check the live scorecard or recent matches for full details.";
 
   return {
     statusCode: 200,

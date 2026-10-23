@@ -725,5 +725,170 @@ describe("chatHandler", () => {
       expect(res2.statusCode).toBe(200);
       expect(JSON.parse(res2.body).reply).toContain("Issue #320");
     });
+
+    it("handles multi-turn tool calling when player_of_the_match is null and LLM issues follow-up SQL query", async () => {
+      mockCreate
+        // Initial call -> tool call 1: query matches
+        .mockResolvedValueOnce({
+          choices: [
+            {
+              message: {
+                content: null,
+                tool_calls: [
+                  {
+                    id: "call_sql_1",
+                    function: {
+                      name: "execute_sql",
+                      arguments: JSON.stringify({
+                        query:
+                          "SELECT team_a_name, team_b_name, match_winner, player_of_the_match FROM matches WHERE status = 'COMPLETED' ORDER BY created_at DESC LIMIT 1;",
+                      }),
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        })
+        // Second call (round 1 response) -> tool call 2: query players because player_of_the_match is null
+        .mockResolvedValueOnce({
+          choices: [
+            {
+              message: {
+                content: null,
+                tool_calls: [
+                  {
+                    id: "call_sql_2",
+                    function: {
+                      name: "execute_sql",
+                      arguments: JSON.stringify({
+                        query:
+                          "SELECT name, runs, balls_faced FROM players ORDER BY runs DESC LIMIT 1;",
+                      }),
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        })
+        // Third call (round 2 response) -> LLM has no tools available, synthesizes final text
+        .mockResolvedValueOnce({
+          choices: [
+            {
+              message: {
+                content:
+                  "In the last match between Chicago Spartans and Midwest Gladiators, Chicago Spartans won. Official Player of the Match was not recorded, but Marcus Stone was the top performer with 58 runs off 34 balls.",
+                tool_calls: null,
+              },
+            },
+          ],
+        });
+
+      mockCallTool
+        .mockResolvedValueOnce({
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify([
+                {
+                  team_a_name: "Chicago Spartans",
+                  team_b_name: "Midwest Gladiators",
+                  match_winner: "Chicago Spartans",
+                  player_of_the_match: null,
+                },
+              ]),
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify([
+                {
+                  name: "Marcus Stone",
+                  runs: 58,
+                  balls_faced: 34,
+                },
+              ]),
+            },
+          ],
+        });
+
+      const res = await chatHandler(
+        { message: "Who won Player of the Match in the last match?" },
+        corsHeaders,
+      );
+
+      expect(res.statusCode).toBe(200);
+      const data = JSON.parse(res.body);
+      expect(data.reply).toContain("Marcus Stone");
+      expect(data.reply).toContain("Chicago Spartans");
+      expect(mockCreate).toHaveBeenCalledTimes(3);
+      // Verify final synthesis call did NOT pass tools
+      const thirdCallArgs = mockCreate.mock.calls[2][0];
+      expect(thirdCallArgs.tools).toBeUndefined();
+    });
+
+    it("triggers forced text synthesis fallback when final iteration content is null", async () => {
+      mockCreate
+        // Initial call -> tool call
+        .mockResolvedValueOnce({
+          choices: [
+            {
+              message: {
+                content: null,
+                tool_calls: [
+                  {
+                    id: "call_sql_1",
+                    function: {
+                      name: "execute_sql",
+                      arguments: JSON.stringify({ query: "SELECT 1;" }),
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        })
+        // Second call (round 1) -> still returned null content without tool calls (an edge case)
+        .mockResolvedValueOnce({
+          choices: [
+            {
+              message: {
+                content: null,
+                tool_calls: null,
+              },
+            },
+          ],
+        })
+        // Forced synthesis call
+        .mockResolvedValueOnce({
+          choices: [
+            {
+              message: {
+                content:
+                  "Forced synthesis: The match was won by Chicago Spartans.",
+                tool_calls: null,
+              },
+            },
+          ],
+        });
+
+      mockCallTool.mockResolvedValueOnce({
+        content: [{ type: "text", text: "[]" }],
+      });
+
+      const res = await chatHandler(
+        { message: "Who won Player of the Match in the last match?" },
+        corsHeaders,
+      );
+
+      expect(res.statusCode).toBe(200);
+      const data = JSON.parse(res.body);
+      expect(data.reply).toContain("Chicago Spartans");
+      expect(mockCreate).toHaveBeenCalledTimes(3);
+    });
   });
 });
