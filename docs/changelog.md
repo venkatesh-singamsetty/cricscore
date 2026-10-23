@@ -1,3 +1,34 @@
+## [4.20.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.19.2...v4.20.0) (2026-10-23)
+
+### 🚀 Features
+
+* team rename to Midwest Gladiators, AI multi-agent test battery, and release automation ([#323](https://github.com/venkatesh-singamsetty/cricscore/issues/323)) ([d53c1bd]())
+## 🎯 Overview & Purpose
+
+This Pull Request delivers four major system improvements across
+CricScore:
+1. **Default Team B Rename to MIDWEST GLADIATORS**: Replaces the generic
+default Team B ("ILLINOIS THUNDERS") with "MIDWEST GLADIATORS" and a
+thematic squad ("Gladiator 1" through "Gladiator 11"), balancing
+character counts and mobile layout symmetry against "CHICAGO SPARTANS".
+2. **Fresh Branching & Sync Guard (`start_feature_branch.sh`)**: Adds an
+automated CLI script to eliminate branch divergence by fetching
+`origin/main`, hard-resetting local `main`, branching cleanly, and
+consolidating open Dependabot PRs.
+3. **Multi-Agent AI Test Battery & Deterministic Routing**: Expands
+deterministic unit and integration test coverage across all 4 specialist
+agent types (**Weather**, **RAG**, **DB**, **GitHub**) with at least 2
+canonical questions matching `ChatComponent.tsx` quick prompts, fixing
+regex routing for fielding and precipitation queries.
+4. **Automated Release Notes Enrichment (`enrich_release_notes.sh`)**:
+Automates post-release title formatting (locking strictly to version tag
+`vX.Y.Z`) and extracts clean, high-level summaries from merged PRs
+without noisy debug dumps.
+5. **Database Resilience & Pool Bounding**: Adds exponential backoff
+retry logic to `migrate.sh` and configures bounded PostgreSQL pools
+(`max: 1`) on warm Lambda containers to prevent connection slot
+exhaustion on Aiven PostgreSQL.
+
 ## [4.19.2](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.19.1...v4.19.2) (2026-10-23)
 
 ### 🐛 Bug Fixes
