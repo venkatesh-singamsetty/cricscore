@@ -210,12 +210,12 @@ GitHub secrets are **not** needed for local deploys. They are only used by Step 
 
 What happens afterwards:
 
-| Event                       | Result                                                                                                          |
-| --------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| Open/update PR              | Security checks (GitLeaks, Checkov, Trivy, CodeQL), unit/component tests, build, Terraform validate. No deploy. |
-| Merge/Push to `main` (`CI`) | Deploys **Dev**, then runs AI evaluation, Playwright E2E against Dev, and OWASP ZAP baseline scan.              |
-| `CI` succeeds (`Release`)   | **Semantic Release** cuts the next `v*` tag, updates `docs/changelog.md`, and publishes GitHub Release notes.   |
-| Release published (`CD`)    | Deploys **Prod**, then runs AI evaluation, Playwright E2E against Prod, and OWASP ZAP scan.                     |
+| Event                       | Result                                                                                                                                                                                                                                              |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Open/update PR              | Security checks (GitLeaks, Checkov, Trivy, CodeQL), unit/component tests, build, Terraform validate. No deploy.                                                                                                                                     |
+| Merge/Push to `main` (`CI`) | Deploys **Dev**, then runs AI evaluation, Playwright E2E against Dev, and OWASP ZAP baseline scan.                                                                                                                                                  |
+| `CI` succeeds (`Release`)   | **Semantic Release** cuts the next `v*` tag, updates `docs/changelog.md`, and publishes concise GitHub Release notes (one line per PR title; PR bodies are intentionally excluded via `.releaserc.json` and the repo squash-merge setting `BLANK`). |
+| Release published (`CD`)    | Deploys **Prod**, then runs AI evaluation, Playwright E2E against Prod, and OWASP ZAP scan.                                                                                                                                                         |
 
 Publishing a release (or pushing a `v*` tag) triggers **CD** for Prod. If you configure required reviewers under **GitHub → Settings → Environments → `prod`**, GitHub Actions will pause `CD` deployments until you review and approve them. Meanwhile, automated nightly drift detection (`drift.yml`) runs autonomously without human gates because it is strictly read-only (`terraform plan -detailed-exitcode`) and does not apply infrastructure changes.
 
