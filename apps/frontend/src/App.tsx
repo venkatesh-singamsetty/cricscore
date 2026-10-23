@@ -142,7 +142,7 @@ const authFormFields = {
     },
     password: {
       label: "Password",
-      placeholder: "Min 8 chars, upper+lower+number+special",
+      placeholder: "Min 8 chars (A-Z, 0-9, #!@)",
       isRequired: true,
       order: 2,
     },
@@ -421,7 +421,7 @@ const App: React.FC = () => {
   };
 
   const GuestCta = () => (
-    <div className="auth-guest-wrap">
+    <div className="auth-guest-wrap mb-1">
       <div className="auth-divider">
         <span>or</span>
       </div>
@@ -439,7 +439,7 @@ const App: React.FC = () => {
       <p className="auth-guest-hint">No account needed · score instantly</p>
 
       {/* Scorer capabilities footer - Single line on mobile anchored cleanly */}
-      <div className="mt-3 pt-2.5 border-t border-white/5 flex items-center justify-center gap-1.5 sm:gap-2.5 text-center text-[8.5px] sm:text-[9.5px] text-slate-400 font-bold uppercase tracking-wider whitespace-nowrap overflow-hidden">
+      <div className="mt-3 pt-2.5 pb-1 border-t border-white/5 flex items-center justify-center gap-1.5 sm:gap-2.5 text-center text-[8.5px] sm:text-[9.5px] text-slate-400 font-bold uppercase tracking-wider whitespace-nowrap overflow-hidden">
         <span className="flex items-center gap-1 text-slate-300 shrink-0">
           <span className="text-emerald-400 text-xs">⚡</span> Instant Setup
         </span>
@@ -2029,7 +2029,12 @@ const App: React.FC = () => {
                 )}
               </div>
             ) : (
-              <div className="flex-1 min-h-0 overflow-hidden sm:overflow-y-auto flex flex-col w-full bg-slate-950 p-0 sm:px-3 sm:py-6 relative">
+              <div
+                className="flex-1 min-h-0 overflow-hidden sm:overflow-y-auto flex flex-col w-full bg-slate-950 p-0 sm:px-3 sm:py-6 relative"
+                style={{
+                  paddingBottom: "max(1rem, env(safe-area-inset-bottom, 1rem))",
+                }}
+              >
                 {/* Background ambient decorative glow */}
                 <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none -z-10"></div>
                 <div className="absolute bottom-1/4 left-1/2 -translate-x-1/2 translate-y-1/2 w-80 h-80 bg-blue-600/10 rounded-full blur-3xl pointer-events-none -z-10"></div>

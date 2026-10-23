@@ -624,10 +624,10 @@ html, body, #root {
     height: 100% !important;
     max-height: 100% !important;
     flex: 1 1 0% !important;
-    padding: 0.5rem 0.75rem calc(0.5rem + env(safe-area-inset-bottom)) !important;
+    padding: 0.5rem 0.75rem max(1.25rem, calc(0.75rem + env(safe-area-inset-bottom))) !important;
     justify-content: flex-start !important;
     align-items: stretch !important;
-    overflow: hidden !important;
+    overflow-y: auto !important;
   }
   [data-amplify-authenticator] [data-amplify-container] {
     width: 100% !important;
@@ -635,10 +635,10 @@ html, body, #root {
     flex: 1 1 0% !important;
     display: flex !important;
     flex-direction: column !important;
-    justify-content: center !important;
+    justify-content: flex-start !important;
     min-height: 0 !important;
     overflow-y: auto !important;
-    padding: 0.5rem 0.25rem !important;
+    padding: 0.25rem 0.25rem max(1.25rem, calc(0.75rem + env(safe-area-inset-bottom))) !important;
   }
   [data-amplify-authenticator] [data-amplify-router],
   .amplify-authenticator__router {
@@ -646,13 +646,13 @@ html, body, #root {
     height: auto !important;
     max-width: 480px !important;
     width: 100% !important;
-    margin: auto !important;
-    max-height: 100% !important;
+    margin: 0.25rem auto max(1.25rem, env(safe-area-inset-bottom)) !important;
+    max-height: none !important;
     min-height: 0 !important;
     display: flex !important;
     flex-direction: column !important;
     justify-content: flex-start !important;
-    padding: 1.1rem 1.15rem 0.95rem !important;
+    padding: 1.1rem 1.15rem 1.25rem !important;
     border-radius: 2rem !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
     background: rgba(15, 23, 42, 0.85) !important;
@@ -704,16 +704,28 @@ html, body, #root {
     white-space: nowrap !important;
   }
   [data-amplify-authenticator] input,
-  [data-amplify-authenticator] .amplify-input {
-    padding: 0.65rem 0.85rem !important;
+  [data-amplify-authenticator] .amplify-input,
+  [data-amplify-authenticator] select {
+    padding: 0.75rem 1rem !important; /* px-4 py-3 */
+    min-height: 48px !important;
     font-size: 0.92rem !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
   }
   [data-amplify-authenticator] button[type="submit"] {
     padding: 0.75rem 1rem !important;
-    font-size: 0.92rem !important;
+    min-height: 48px !important;
+    font-size: 0.95rem !important;
   }
   [data-amplify-authenticator] form .amplify-flex:not(.amplify-field-group) {
-    gap: 0.55rem !important;
+    gap: 0.75rem !important;
+    width: 100% !important;
+  }
+  [data-amplify-authenticator] .amplify-field,
+  [data-amplify-authenticator] .amplify-field-group,
+  [data-amplify-authenticator] .amplify-field-group__field-wrapper {
+    width: 100% !important;
+    box-sizing: border-box !important;
   }
   [data-amplify-authenticator] .amplify-tabs {
     margin-bottom: 0.35rem !important;
@@ -726,6 +738,7 @@ html, body, #root {
   }
   .auth-guest-btn {
     padding: 0.75rem 0.9rem !important;
+    min-height: 46px !important;
     font-size: 0.84rem !important;
   }
   .auth-guest-hint {
@@ -750,7 +763,8 @@ html, body, #root {
     font-size: 1.65rem !important;
   }
   [data-amplify-authenticator] [data-amplify-router]:has(.auth-footer) {
-    padding: 1.05rem 1.05rem 0.9rem !important;
+    padding: 1.05rem 1.05rem 1.25rem !important;
+    margin-bottom: max(1rem, env(safe-area-inset-bottom)) !important;
   }
   [data-amplify-authenticator] [data-amplify-router]:has(.auth-footer) [role="tablist"] {
     margin-bottom: 0.8rem !important;
@@ -760,11 +774,14 @@ html, body, #root {
   }
   [data-amplify-authenticator] [data-amplify-router]:has(.auth-footer) input,
   [data-amplify-authenticator] [data-amplify-router]:has(.auth-footer) .amplify-input {
-    padding: 0.8rem 1rem !important;
+    padding: 0.75rem 1rem !important; /* px-4 py-3 */
+    min-height: 48px !important;
     font-size: 0.95rem !important;
+    width: 100% !important;
   }
   [data-amplify-authenticator] [data-amplify-router]:has(.auth-footer) button[type="submit"] {
-    padding: 0.85rem 1rem !important;
+    padding: 0.75rem 1rem !important;
+    min-height: 48px !important;
     font-size: 0.95rem !important;
     margin-top: 0.15rem !important;
   }
@@ -775,7 +792,8 @@ html, body, #root {
     margin: 0.85rem 0 0.75rem !important;
   }
   [data-amplify-authenticator] [data-amplify-router]:has(.auth-footer) .auth-guest-btn {
-    padding: 0.8rem 1rem !important;
+    padding: 0.75rem 1rem !important;
+    min-height: 46px !important;
     font-size: 0.86rem !important;
   }
   [data-amplify-authenticator] [data-amplify-router]:has(.auth-footer) .auth-guest-hint {
@@ -797,21 +815,23 @@ html, body, #root {
     font-size: 1.5rem !important;
   }
   [data-amplify-authenticator] [data-amplify-router]:has(.auth-footer) {
-    padding: 0.75rem 0.9rem 0.6rem !important;
+    padding: 0.75rem 0.9rem 0.9rem !important;
   }
   [data-amplify-authenticator] [data-amplify-router]:has(.auth-footer) [role="tablist"] {
     margin-bottom: 0.5rem !important;
   }
   [data-amplify-authenticator] [data-amplify-router]:has(.auth-footer) form .amplify-flex:not(.amplify-field-group) {
-    gap: 0.55rem !important;
+    gap: 0.65rem !important;
   }
   [data-amplify-authenticator] [data-amplify-router]:has(.auth-footer) input,
   [data-amplify-authenticator] [data-amplify-router]:has(.auth-footer) .amplify-input {
-    padding: 0.6rem 0.85rem !important;
+    padding: 0.75rem 1rem !important; /* px-4 py-3 */
+    min-height: 48px !important;
     font-size: 0.9rem !important;
   }
   [data-amplify-authenticator] [data-amplify-router]:has(.auth-footer) button[type="submit"] {
-    padding: 0.7rem 0.9rem !important;
+    padding: 0.75rem 1rem !important;
+    min-height: 48px !important;
     font-size: 0.9rem !important;
   }
   [data-amplify-authenticator] [data-amplify-router]:has(.auth-footer) .auth-divider {
@@ -819,6 +839,7 @@ html, body, #root {
   }
   [data-amplify-authenticator] [data-amplify-router]:has(.auth-footer) .auth-guest-btn {
     padding: 0.65rem 0.9rem !important;
+    min-height: 46px !important;
     font-size: 0.82rem !important;
   }
   [data-amplify-authenticator] [data-amplify-router]:has(.auth-footer) .auth-guest-hint {
@@ -831,7 +852,7 @@ html, body, #root {
   [data-amplify-authenticator]:not(:has(.auth-footer)) {
     height: 100% !important;
     padding-top: 0.25rem !important;
-    padding-bottom: calc(0.25rem + env(safe-area-inset-bottom)) !important;
+    padding-bottom: max(1rem, env(safe-area-inset-bottom)) !important;
   }
   [data-amplify-authenticator]:not(:has(.auth-footer)) .auth-hero { margin: 0 0 0.35rem !important; }
   [data-amplify-authenticator]:not(:has(.auth-footer)) .auth-logo { width: 32px !important; height: 32px !important; font-size: 1.1rem !important; margin: 0; border-radius: 0.7rem; }
@@ -840,9 +861,15 @@ html, body, #root {
   [data-amplify-authenticator]:not(:has(.auth-footer)) [role="tablist"] { margin-bottom: 0.5rem !important; }
   [data-amplify-authenticator]:not(:has(.auth-footer)) [role="tab"] { padding: 0.45rem 0.5rem !important; font-size: 0.82rem !important; }
   [data-amplify-authenticator]:not(:has(.auth-footer)) input,
-  [data-amplify-authenticator]:not(:has(.auth-footer)) .amplify-input { padding: 0.5rem 0.7rem !important; }
-  [data-amplify-authenticator]:not(:has(.auth-footer)) button[type="submit"] { padding: 0.65rem 0.9rem !important; }
-  [data-amplify-authenticator]:not(:has(.auth-footer)) form .amplify-flex:not(.amplify-field-group) { gap: 0.35rem !important; }
+  [data-amplify-authenticator]:not(:has(.auth-footer)) .amplify-input {
+    padding: 0.75rem 1rem !important; /* px-4 py-3 */
+    min-height: 46px !important;
+  }
+  [data-amplify-authenticator]:not(:has(.auth-footer)) button[type="submit"] {
+    padding: 0.75rem 1rem !important;
+    min-height: 46px !important;
+  }
+  [data-amplify-authenticator]:not(:has(.auth-footer)) form .amplify-flex:not(.amplify-field-group) { gap: 0.5rem !important; }
   [data-amplify-authenticator]:not(:has(.auth-footer)) .amplify-tabs { margin-bottom: 0.25rem !important; }
 }
 
