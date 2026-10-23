@@ -36,16 +36,22 @@ PR_NUMBERS=$(echo "$CURRENT_BODY" | grep -oE '#[0-9]+' | tr -d '#' | sort -u || 
 for PR_NUM in $PR_NUMBERS; do
   echo "🔗 Checking linked PR: #$PR_NUM"
   PR_BODY=$(gh pr view "$PR_NUM" --json body -q .body 2>/dev/null || echo "")
-  # If PR body has substantial markdown and isn't already appended
+  # Extract high-level summary if present and not already included
   if [ -n "$PR_BODY" ] && ! echo "$CURRENT_BODY" | grep -qF "Overview & Purpose"; then
-    echo "✨ Enriching release notes with details from PR #$PR_NUM..."
-    NEW_BODY="${CURRENT_BODY}
+    echo "✨ Extracting clean overview from PR #$PR_NUM..."
+    # Extract only the Overview section if present, or concise summary
+    CLEAN_OVERVIEW=$(echo "$PR_BODY" | awk '/## (🎯 )?Overview/{flag=1; next} /^## /{flag=0} flag' | sed '/^$/N;/^\n$/D' || true)
+    if [ -n "$CLEAN_OVERVIEW" ]; then
+      NEW_BODY="${CURRENT_BODY}
 
 ---
 
-${PR_BODY}"
-    gh release edit "$LATEST_TAG" --notes "$NEW_BODY"
-    CURRENT_BODY="$NEW_BODY"
+### 🎯 Overview & Purpose
+
+${CLEAN_OVERVIEW}"
+      gh release edit "$LATEST_TAG" --notes "$NEW_BODY"
+      CURRENT_BODY="$NEW_BODY"
+    fi
   fi
 done
 
