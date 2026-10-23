@@ -364,6 +364,7 @@ describe("Scoreboard Component", () => {
     const inningsTotalLabel = screen.getByText(/^Innings Total$/i);
     const summaryRow = inningsTotalLabel.closest(".flex-row");
     expect(summaryRow).toHaveClass("flex-row");
+    expect(summaryRow).toHaveClass("flex-nowrap");
     expect(summaryRow).toHaveClass("justify-between");
   });
 

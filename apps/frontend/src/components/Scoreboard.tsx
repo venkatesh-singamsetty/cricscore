@@ -886,100 +886,96 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
             </div>
 
             {/* Extras & Reset Footer */}
-            <div className="bg-slate-800/80 rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 md:p-8 border border-white/10 backdrop-blur-xl relative overflow-hidden group shadow-xl">
+            <div className="bg-slate-800/80 rounded-2xl sm:rounded-[2rem] p-3 sm:p-5 md:p-6 border border-white/10 backdrop-blur-xl relative overflow-hidden group shadow-xl">
               <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl -z-10 group-hover:bg-indigo-500/20 transition-all"></div>
 
-              <div className="flex flex-row items-center justify-between gap-4 sm:gap-8 flex-wrap">
-                <div className="flex flex-row items-center justify-between gap-4 sm:gap-10 flex-wrap w-full sm:w-auto">
-                  <div className="space-y-0.5 shrink-0">
-                    <span className="text-[9px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest block">
-                      Innings Total
+              <div className="flex flex-row flex-nowrap items-center justify-between gap-2 sm:gap-6 w-full">
+                <div className="space-y-0.5 min-w-0 shrink-0">
+                  <span className="text-[9px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest block">
+                    Innings Total
+                  </span>
+                  <div className="whitespace-nowrap flex items-baseline gap-1 sm:gap-1.5">
+                    <span className="text-xl sm:text-2xl md:text-3xl font-black text-white italic uppercase tracking-tighter tabular-nums">
+                      {displayInnings.totalRuns}
                     </span>
-                    <div className="whitespace-nowrap flex items-baseline gap-1.5 sm:gap-2">
-                      <span className="text-xl sm:text-3xl font-black text-white italic uppercase tracking-tighter tabular-nums">
-                        {displayInnings.totalRuns}
-                      </span>
-                      <span className="text-xs sm:text-sm font-black text-indigo-400 uppercase tracking-wider">
-                        RUNS
-                      </span>
-                      <span className="text-slate-500 text-[10px] sm:text-xs font-bold">
-                        ({displayInnings.totalWickets} wkts,{" "}
-                        {displayInnings.overs}.{displayInnings.balls} ov)
-                      </span>
-                    </div>
-                  </div>
-                  <div className="space-y-1 shrink-0">
-                    {(() => {
-                      let w = 0,
-                        nb = 0,
-                        b = 0,
-                        lb = 0;
-                      displayInnings.allBalls.forEach((ball) => {
-                        const extraR = Number(
-                          ball.extraRuns !== undefined
-                            ? ball.extraRuns
-                            : (ball as any).extra_runs || 0,
-                        );
-                        const r = Number(ball.runs || 0);
-                        const totalBallRuns = extraR + r;
-                        if (ball.extraType === ExtraType.WIDE)
-                          w += totalBallRuns;
-                        if (ball.extraType === ExtraType.NO_BALL)
-                          nb += totalBallRuns;
-                        if (ball.extraType === ExtraType.BYE)
-                          b += totalBallRuns;
-                        if (ball.extraType === ExtraType.LEG_BYE)
-                          lb += totalBallRuns;
-                      });
-                      return (
-                        <>
-                          <span className="text-[9px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest block">
-                            Extras Total: {w + nb + b + lb}
-                          </span>
-                          <div className="flex flex-nowrap items-center gap-1 sm:gap-2 text-[9.5px] sm:text-[10.5px] font-bold sm:font-black text-indigo-400 uppercase tracking-wider overflow-x-auto scrollbar-hide">
-                            <span className="bg-white/5 border border-white/5 px-1.5 sm:px-2 py-0.5 rounded whitespace-nowrap shrink-0">
-                              WD: {w}
-                            </span>
-                            <span className="bg-white/5 border border-white/5 px-1.5 sm:px-2 py-0.5 rounded whitespace-nowrap shrink-0">
-                              NB: {nb}
-                            </span>
-                            <span className="bg-white/5 border border-white/5 px-1.5 sm:px-2 py-0.5 rounded whitespace-nowrap shrink-0">
-                              B: {b}
-                            </span>
-                            <span className="bg-white/5 border border-white/5 px-1.5 sm:px-2 py-0.5 rounded whitespace-nowrap shrink-0">
-                              LB: {lb}
-                            </span>
-                          </div>
-                        </>
-                      );
-                    })()}
+                    <span className="text-[11px] sm:text-xs font-black text-indigo-400 uppercase tracking-wider">
+                      RUNS
+                    </span>
+                    <span className="text-slate-400 text-[10px] sm:text-xs font-bold whitespace-nowrap">
+                      ({displayInnings.totalWickets} wkts,{" "}
+                      {displayInnings.overs}.{displayInnings.balls} ov)
+                    </span>
                   </div>
                 </div>
-                {!isSpectator && onResetMatch && activeTab === "current" && (
-                  <div className="mt-8 pt-6 border-t border-white/10 flex flex-wrap gap-4 items-center justify-center">
+                <div className="space-y-0.5 min-w-0 shrink-0 text-right">
+                  {(() => {
+                    let w = 0,
+                      nb = 0,
+                      b = 0,
+                      lb = 0;
+                    displayInnings.allBalls.forEach((ball) => {
+                      const extraR = Number(
+                        ball.extraRuns !== undefined
+                          ? ball.extraRuns
+                          : (ball as any).extra_runs || 0,
+                      );
+                      const r = Number(ball.runs || 0);
+                      const totalBallRuns = extraR + r;
+                      if (ball.extraType === ExtraType.WIDE) w += totalBallRuns;
+                      if (ball.extraType === ExtraType.NO_BALL)
+                        nb += totalBallRuns;
+                      if (ball.extraType === ExtraType.BYE) b += totalBallRuns;
+                      if (ball.extraType === ExtraType.LEG_BYE)
+                        lb += totalBallRuns;
+                    });
+                    return (
+                      <>
+                        <span className="text-[9px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest block whitespace-nowrap">
+                          Extras: {w + nb + b + lb}
+                        </span>
+                        <div className="flex flex-nowrap items-center justify-end gap-1 sm:gap-1.5 text-[9px] sm:text-[10px] font-bold text-indigo-400 uppercase tracking-wider overflow-x-auto scrollbar-hide">
+                          <span className="bg-white/5 border border-white/5 px-1 sm:px-1.5 py-0.5 rounded whitespace-nowrap shrink-0">
+                            WD: {w}
+                          </span>
+                          <span className="bg-white/5 border border-white/5 px-1 sm:px-1.5 py-0.5 rounded whitespace-nowrap shrink-0">
+                            NB: {nb}
+                          </span>
+                          <span className="bg-white/5 border border-white/5 px-1 sm:px-1.5 py-0.5 rounded whitespace-nowrap shrink-0">
+                            B: {b}
+                          </span>
+                          <span className="bg-white/5 border border-white/5 px-1 sm:px-1.5 py-0.5 rounded whitespace-nowrap shrink-0">
+                            LB: {lb}
+                          </span>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+              {!isSpectator && onResetMatch && activeTab === "current" && (
+                <div className="mt-8 pt-6 border-t border-white/10 flex flex-wrap gap-4 items-center justify-center">
+                  <button
+                    onClick={() => {
+                      onClose();
+                      onResetMatch();
+                    }}
+                    className="py-3 px-8 rounded-full bg-indigo-900/40 text-indigo-400 font-black text-xs uppercase tracking-widest border border-indigo-500/20 active:scale-95 transition-transform hover:bg-indigo-900/60"
+                  >
+                    START NEW MATCH
+                  </button>
+                  {onQuitMatch && (
                     <button
                       onClick={() => {
                         onClose();
-                        onResetMatch();
+                        onQuitMatch();
                       }}
-                      className="py-3 px-8 rounded-full bg-indigo-900/40 text-indigo-400 font-black text-xs uppercase tracking-widest border border-indigo-500/20 active:scale-95 transition-transform hover:bg-indigo-900/60"
+                      className="py-3 px-8 rounded-full bg-rose-900/40 text-rose-400 font-black text-xs uppercase tracking-widest border border-rose-500/20 active:scale-95 transition-transform hover:bg-rose-900/60"
                     >
-                      START NEW MATCH
+                      QUIT MATCH
                     </button>
-                    {onQuitMatch && (
-                      <button
-                        onClick={() => {
-                          onClose();
-                          onQuitMatch();
-                        }}
-                        className="py-3 px-8 rounded-full bg-rose-900/40 text-rose-400 font-black text-xs uppercase tracking-widest border border-rose-500/20 active:scale-95 transition-transform hover:bg-rose-900/60"
-                      >
-                        QUIT MATCH
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         ) : (
