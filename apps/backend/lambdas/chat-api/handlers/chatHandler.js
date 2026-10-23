@@ -177,7 +177,7 @@ ${DB_SCHEMA}
 - Team Names: There is no 'team_name' column. Use 'batting_team_name' or 'bowling_team_name' from the innings table.
 - Averages: AVG(runs) works, but remember to cast to float if needed. Strike rate is (SUM(runs) / SUM(balls_faced)) * 100.
 - For 'latest' or 'last', ALWAYS use: ORDER BY created_at DESC LIMIT 1. (Or LIMIT N when N matches are requested).
-- Player of the Match: Stored in 'matches.player_of_the_match' (and often mentioned in 'matches.ai_summary'). When asked who won Player of the Match in the last match, query matches WHERE status = 'COMPLETED' ORDER BY created_at DESC LIMIT 1 (including id, team_a_name, team_b_name, match_winner, player_of_the_match, ai_summary), and if player_of_the_match is NULL, also query top batters/bowlers in players/bowlers for that match_id to highlight the standout performer.
+- Player of the Match: Stored in 'matches.player_of_the_match' (and in 'matches.ai_summary'). When asked who won Player of the Match in the last match, query matches WHERE status = 'COMPLETED' ORDER BY created_at DESC LIMIT 1 (including id, team_a_name, team_b_name, match_winner, player_of_the_match, ai_summary). Always report 'player_of_the_match' exactly as recorded. If 'player_of_the_match' is NULL, inspect both top batters in 'players' (ORDER BY runs DESC) and top bowlers in 'bowlers' (ORDER BY wickets DESC, runs_conceded ASC; note the column in 'bowlers' is 'overs_completed') for that match to highlight the standout performer.
 
 Current Active Match Context: ${matchContext || "None provided"}
 Current Date and Time: ${new Date().toISOString()}
