@@ -1,3 +1,90 @@
+## [4.21.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.20.0...v4.21.0) (2026-10-23)
+
+### 🚀 Features
+
+* **ui:** mobile responsive polish, theme accents, scorecard layouts, and auth ergonomics ([#325](https://github.com/venkatesh-singamsetty/cricscore/issues/325)) ([176bd22]())
+## Summary
+
+This PR delivers comprehensive UI/UX polish, responsive mobile
+ergonomics, singular/plural grammar accuracy, and layout refinements
+across CricScore:
+
+### 1. Navigation & Theme Accents (`App.tsx`)
+- **Top Navigation Switcher**: Implemented pill-shaped tabs with custom
+accent tints and ambient glow:
+- **VIEWER 🌍**: Active Cyan tint (`text-cyan-400 bg-cyan-500/15
+border-cyan-500/30`)
+- **SCORER 🎮**: Active Emerald Green tint (`text-emerald-400
+bg-emerald-500/15 border-emerald-500/30`)
+- **CHAT BOT ✨**: Active Amber/Gold tint (`text-amber-400
+bg-amber-500/15 border-amber-500/30`)
+  - Inactive tabs remain softly muted with smooth transition states.
+
+### 2. Match Hub & Victory Banners (`MatchList.tsx`, `index.css`)
+- **Outcome Badges & Highlights**: Standardized completed status tags
+and victory banners to accessible, high-visibility emerald green
+(`text-emerald-400` / `#34d399`).
+- **Fixture Team Names**: Enforced strict single-line display with
+responsive scaling down to `0.72rem` on compact viewports to prevent
+wrapping across rows.
+- **Streamlined Victory Text**: Prefixed victory outcome with trophy
+icon (`🏆`), consolidating lines for clean presentation.
+
+### 3. Scorecard Modal & Timeline Ergonomics (`Scoreboard.tsx`,
+`index.css`)
+- **Innings Tab Buttons**: Implemented `flex-1 min-w-0` with
+`white-space: nowrap` and `gap-1.5` so multi-word team names and score
+badges fit on one line without premature truncation or overlap.
+- **Innings Summary Footer**: Structured totals and extras into a
+flexible row container (`flex flex-wrap items-center justify-between
+gap-2`), maintaining a single row on standard screens while gracefully
+wrapping on ultra-compact devices.
+- **Timeline Pills**: Enforced `inline-flex items-center justify-center`
+across ball-by-ball delivery badges and extras pills (`WD`, `NB`, `B`,
+`LB`) for centered alignment.
+
+### 4. Scorer Cockpit & Setup Wizard (`MatchSetup.tsx`, `MatchView.tsx`)
+- **Dynamic Over Timeline**: Illegal deliveries (Wides & No-Balls) now
+render as extra inline badges without advancing the 6 legal ball counter
+slots (`1` through `6`).
+- **Setup Progress Indicators**: Enhanced Steps 1/2/3 progress dots and
+badges with high-contrast borders and luminous glows.
+- **Navigation Buttons**: Styled primary action buttons (`NEXT: SECOND
+TEAM ➔`, `NEXT: OVERS & TOSS ➔`) with prominent contrast against dark
+surfaces.
+- **Squad Roster Inputs**: Ensured pixel-accurate vertical sync between
+line numbers and uppercase player names across mobile viewports.
+
+### 5. Authentication & Registration Ergonomics (`App.tsx`, `index.css`)
+- **Shortened Password Placeholder**: Updated registration placeholder
+to `"Min 8 chars (A-Z, 0-9, #!@)"` so text is never clipped on mobile
+screens before the visibility toggle icon.
+- **Uniform Mobile Touch Targets**: Standardized all input fields
+(`Email`, `Password`, `Confirm Password`, `First Name`, `Last Name`)
+with consistent `px-4 py-3` (`0.75rem 1rem`) padding, `min-height:
+48px`, and `w-full` responsiveness.
+- **Guest CTA & Toolbar Clearance**: Enhanced container bottom padding
+and margins with `max(1.25rem, calc(0.75rem +
+env(safe-area-inset-bottom)))` to prevent collisions with mobile browser
+navigation toolbars (e.g. Safari floating tab bar).
+
+### 6. AI Chat Bot Interface Polish (`ChatComponent.tsx`)
+- **Message Cards & Bubbles**: Balanced message padding (`p-3.5
+sm:p-4`), added dedicated `pr-9` right padding for floating copy action
+buttons, and refined bubble margins.
+- **Suggestion Chips & Input Alignment**: Set backdrop blur and border
+separation on bottom quick prompt chips (`QUICK:`), preventing
+overlapping with the fixed input bar.
+
+### 7. Email Reports & Grammar Precision (`match-api/index.js`,
+`App.tsx`, `LiveScoreboard.tsx`)
+- **Grammar Correction**: Corrected singular vs plural margins across
+all views and emails (`WON BY 1 RUN` instead of `WON BY 1 RUNS`, `WON BY
+1 WICKET` instead of `WON BY 1 WICKETS`).
+- **Mobile Email Tables**: Applied `table-layout: fixed` and
+`white-space: nowrap` to prevent batter asterisks and team names from
+wrapping onto separate lines in mobile email clients.
+
 ## [4.20.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.19.2...v4.20.0) (2026-10-23)
 
 ### 🚀 Features
