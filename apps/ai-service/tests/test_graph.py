@@ -120,8 +120,9 @@ def test_github_issue_with_bug_report_creates_issue(monkeypatch):
     )
     r = run("Report a bug in the mobile scoreboard: overs counter overlaps", deps())
     assert r.intent == "github_issue"
-    assert "github.com" in r.reply
+    assert "Created GitHub Issue #316" in r.reply
     assert r.sources[0].type == "github_issue"
+    assert r.sources[0].id == "316"
 
 
 def test_weather_without_location_asks_for_city():
