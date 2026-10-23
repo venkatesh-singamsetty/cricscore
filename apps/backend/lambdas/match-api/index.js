@@ -295,15 +295,15 @@ const sendMatchReportEmail = async (
 </head>
 <body style="margin: 0; padding: 0; background-color: #0f172a;" bgcolor="#0f172a">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0f172a" style="background-color: #0f172a;">
-<tr><td align="center" bgcolor="#0f172a" style="background-color: #0f172a; padding: 12px;">
-    <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #0f172a; background-color: #0f172a; color: #ffffff; padding: 24px; border-radius: 20px; max-width: 680px; text-align: left;">
-        <h1 style="color: #6366f1; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 5px;">🏆 CRICSCORE OFFICIAL REPORT</h1>
-        <p style="color: #94a3b8; font-weight: bold; margin-top: 0;">${safeTeamA} vs ${safeTeamB}</p>
+<tr><td align="center" bgcolor="#0f172a" style="background-color: #0f172a; padding: 8px;">
+    <div style="font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #0f172a; background-color: #0f172a; color: #ffffff; padding: 16px 12px; border-radius: 16px; max-width: 640px; text-align: left; box-sizing: border-box;">
+        <h1 style="color: #6366f1; text-transform: uppercase; letter-spacing: 1px; font-size: 18px; line-height: 1.2; margin: 0 0 4px 0;">🏆 CRICSCORE OFFICIAL REPORT</h1>
+        <p style="color: #94a3b8; font-weight: bold; font-size: 13px; margin: 0 0 16px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${safeTeamA} vs ${safeTeamB}</p>
         
-        <div style="background: #1e293b; padding: 20px; border-radius: 15px; border: 1px solid #334155; margin: 20px 0;">
-            <h2 style="margin: 0; color: #fb7185; text-transform: uppercase; font-style: italic;">${safeResultText}</h2>
-            <p style="font-size: 14px; color: #94a3b8;">${safeCreatedAt}</p>
-            <a href="${safeViewUrl}" style="display: inline-block; padding: 12px 24px; background: #4f46e5; color: white; text-decoration: none; border-radius: 10px; font-weight: bold; margin-top: 10px;">VIEW INTERACTIVE SCORECARD ⚡</a>
+        <div style="background: #1e293b; padding: 16px; border-radius: 12px; border: 1px solid #334155; margin: 16px 0;">
+            <h2 style="margin: 0 0 4px 0; color: #fb7185; text-transform: uppercase; font-style: italic; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${safeResultText}</h2>
+            <p style="font-size: 12px; color: #94a3b8; margin: 0 0 10px 0;">${safeCreatedAt}</p>
+            <a href="${safeViewUrl}" style="display: inline-block; padding: 10px 20px; background: #4f46e5; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 13px; white-space: nowrap;">VIEW INTERACTIVE SCORECARD ⚡</a>
         </div>`;
 
   for (const inn of innArr) {
@@ -374,16 +374,16 @@ const sendMatchReportEmail = async (
     }
 
     htmlBody += `
-        <div style="margin-top: 40px;">
-            <h3 style="background-color: #334155; background: #334155; padding: 10px 20px; border-radius: 8px; color: #e2e8f0; margin-bottom: 10px;">🏏 ${safeBattingTeam} - ${safeRuns}/${safeWickets} (${safeOvers})</h3>
+        <div style="margin-top: 30px;">
+            <h3 style="background-color: #334155; background: #334155; padding: 8px 12px; border-radius: 8px; color: #e2e8f0; font-size: 14px; font-weight: bold; margin: 0 0 10px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">🏏 ${safeBattingTeam} - ${safeRuns}/${safeWickets} (${safeOvers})</h3>
         <table bgcolor="#172033" style="width: 100%; border-collapse: collapse; text-align: left; background: #172033; background-color: #172033; border-radius: 10px; overflow: hidden; table-layout: fixed;">
             <thead>
-                <tr bgcolor="#1e293b" style="background: #1e293b; background-color: #1e293b; color: #94a3b8; font-size: 12px; text-transform: uppercase;">
-                    <th style="padding: 12px 8px; color: #94a3b8; width: 34%; white-space: nowrap;">Batter</th>
-                    <th style="padding: 12px 8px; color: #94a3b8; width: 30%;">Dismissal</th>
-                    <th style="padding: 12px 8px; color: #94a3b8; width: 12%; text-align: right;">R</th>
-                    <th style="padding: 12px 8px; color: #94a3b8; width: 10%; text-align: right;">B</th>
-                    <th style="padding: 12px 8px; color: #94a3b8; width: 14%; text-align: right; white-space: nowrap;">4s/6s</th>
+                <tr bgcolor="#1e293b" style="background: #1e293b; background-color: #1e293b; color: #94a3b8; font-size: 11px; text-transform: uppercase;">
+                    <th style="padding: 10px 6px; color: #94a3b8; width: 38%; white-space: nowrap;">Batter</th>
+                    <th style="padding: 10px 6px; color: #94a3b8; width: 32%; white-space: nowrap;">Dismissal</th>
+                    <th style="padding: 10px 6px; color: #94a3b8; width: 10%; text-align: right; white-space: nowrap;">R</th>
+                    <th style="padding: 10px 6px; color: #94a3b8; width: 8%; text-align: right; white-space: nowrap;">B</th>
+                    <th style="padding: 10px 6px; color: #94a3b8; width: 12%; text-align: right; white-space: nowrap;">4/6</th>
                 </tr>
             </thead>
             <tbody>`;
@@ -420,11 +420,11 @@ const sendMatchReportEmail = async (
 
         htmlBody += `
                 <tr style="border-bottom: 1px solid #1e293b;">
-                    <td style="color: #f1f5f9; padding: 12px 8px; font-weight: bold; white-space: nowrap; font-size: 13px; overflow: hidden; text-overflow: ellipsis;">${safePName} ${p.is_out || p.isOut ? "" : "*"}</td>
-                    <td style="padding: 12px 8px; color: #94a3b8; font-size: 12px; font-style: italic; word-break: break-word;">${safeDismissalText}</td>
-                    <td style="color: #f1f5f9; padding: 12px 8px; font-weight: bold; text-align: right;">${safeRunsDisplay}</td>
-                    <td style="padding: 12px 8px; color: #64748b; text-align: right;">${safeBallsDisplay}</td>
-                    <td style="padding: 12px 8px; color: #64748b; text-align: right; white-space: nowrap;">${safeFourSixDisplay}</td>
+                    <td style="color: #f1f5f9; padding: 10px 6px; font-weight: bold; white-space: nowrap; font-size: 12px; overflow: hidden; text-overflow: ellipsis;">${safePName}${p.is_out || p.isOut ? "" : "&nbsp;*"}</td>
+                    <td style="padding: 10px 6px; color: #94a3b8; font-size: 11px; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${safeDismissalText}</td>
+                    <td style="color: #f1f5f9; padding: 10px 6px; font-weight: bold; text-align: right; font-size: 12px; white-space: nowrap;">${safeRunsDisplay}</td>
+                    <td style="padding: 10px 6px; color: #64748b; text-align: right; font-size: 11px; white-space: nowrap;">${safeBallsDisplay}</td>
+                    <td style="padding: 10px 6px; color: #64748b; text-align: right; font-size: 11px; white-space: nowrap;">${safeFourSixDisplay}</td>
                 </tr>`;
       });
 
@@ -438,10 +438,10 @@ const sendMatchReportEmail = async (
           <div style="margin-top: 20px;">
             <table bgcolor="#172033" style="width: 100%; border-collapse: collapse; text-align: left; background: #172033; background-color: #172033; border-radius: 10px; overflow: hidden; table-layout: fixed;">
               <thead>
-                <tr bgcolor="#1e293b" style="background: #1e293b; background-color: #1e293b; color: #94a3b8; font-size: 12px; text-transform: uppercase;">
-                    <th style="padding: 12px 8px; color: #94a3b8; width: 50%;">Wicket</th>
-                    <th style="padding: 12px 8px; color: #94a3b8; width: 25%; text-align: right;">Runs</th>
-                    <th style="padding: 12px 8px; color: #94a3b8; width: 25%; text-align: right;">Balls</th>
+                <tr bgcolor="#1e293b" style="background: #1e293b; background-color: #1e293b; color: #94a3b8; font-size: 11px; text-transform: uppercase;">
+                    <th style="padding: 10px 6px; color: #94a3b8; width: 50%; white-space: nowrap;">Wicket</th>
+                    <th style="padding: 10px 6px; color: #94a3b8; width: 25%; text-align: right; white-space: nowrap;">Runs</th>
+                    <th style="padding: 10px 6px; color: #94a3b8; width: 25%; text-align: right; white-space: nowrap;">Balls</th>
                 </tr>
               </thead>
               <tbody>`;
@@ -453,9 +453,9 @@ const sendMatchReportEmail = async (
           const safeBalls = escapeHtml(p.balls);
           htmlBody += `
                 <tr style="border-bottom: 1px solid #1e293b;">
-                    <td style="color: #f1f5f9; padding: 12px 8px; font-weight: bold; white-space: nowrap; font-size: 13px;">${wicketLabel}</td>
-                    <td style="color: #f1f5f9; padding: 12px 8px; text-align: right;">${safeRuns}</td>
-                    <td style="padding: 12px 8px; color: #64748b; text-align: right;">${safeBalls}</td>
+                    <td style="color: #f1f5f9; padding: 10px 6px; font-weight: bold; white-space: nowrap; font-size: 12px; overflow: hidden; text-overflow: ellipsis;">${wicketLabel}</td>
+                    <td style="color: #f1f5f9; padding: 10px 6px; text-align: right; font-size: 12px; white-space: nowrap;">${safeRuns}</td>
+                    <td style="padding: 10px 6px; color: #64748b; text-align: right; font-size: 11px; white-space: nowrap;">${safeBalls}</td>
                 </tr>`;
         });
         htmlBody += `</tbody></table></div>`;
@@ -467,12 +467,12 @@ const sendMatchReportEmail = async (
         <div style="margin-top: 20px;">
             <table bgcolor="#172033" style="width: 100%; border-collapse: collapse; text-align: left; background: #172033; background-color: #172033; border-radius: 10px; overflow: hidden; table-layout: fixed;">
                 <thead>
-                    <tr bgcolor="#1e293b" style="background: #1e293b; background-color: #1e293b; color: #94a3b8; font-size: 12px; text-transform: uppercase;">
-                        <th style="padding: 12px 8px; color: #94a3b8; width: 44%; white-space: nowrap;">Bowler</th>
-                        <th style="padding: 12px 8px; color: #94a3b8; width: 14%; text-align: right;">O</th>
-                        <th style="padding: 12px 8px; color: #94a3b8; width: 14%; text-align: right;">M</th>
-                        <th style="padding: 12px 8px; color: #94a3b8; width: 14%; text-align: right;">R</th>
-                        <th style="padding: 12px 8px; color: #94a3b8; width: 14%; text-align: right;">W</th>
+                    <tr bgcolor="#1e293b" style="background: #1e293b; background-color: #1e293b; color: #94a3b8; font-size: 11px; text-transform: uppercase;">
+                        <th style="padding: 10px 6px; color: #94a3b8; width: 44%; white-space: nowrap;">Bowler</th>
+                        <th style="padding: 10px 6px; color: #94a3b8; width: 14%; text-align: right; white-space: nowrap;">O</th>
+                        <th style="padding: 10px 6px; color: #94a3b8; width: 14%; text-align: right; white-space: nowrap;">M</th>
+                        <th style="padding: 10px 6px; color: #94a3b8; width: 14%; text-align: right; white-space: nowrap;">R</th>
+                        <th style="padding: 10px 6px; color: #94a3b8; width: 14%; text-align: right; white-space: nowrap;">W</th>
                     </tr>
                 </thead>
                 <tbody>`;
@@ -490,11 +490,11 @@ const sendMatchReportEmail = async (
         const safeBowlerWickets = escapeHtml(b.wickets || 0);
         htmlBody += `
                 <tr style="border-bottom: 1px solid #1e293b;">
-                    <td style="color: #f1f5f9; padding: 12px 8px; font-weight: bold; white-space: nowrap; font-size: 13px; overflow: hidden; text-overflow: ellipsis;">${safeBowlerName}</td>
-                    <td style="color: #f1f5f9; padding: 12px 8px; text-align: right;">${safeBowlerOvers}</td>
-                    <td style="padding: 12px 8px; color: #64748b; text-align: right;">${safeBowlerMaidens}</td>
-                    <td style="color: #f1f5f9; padding: 12px 8px; text-align: right;">${safeBowlerRuns}</td>
-                    <td style="padding: 12px 8px; color: #fb7185; font-weight: 800; text-align: right;">${safeBowlerWickets}</td>
+                    <td style="color: #f1f5f9; padding: 10px 6px; font-weight: bold; white-space: nowrap; font-size: 12px; overflow: hidden; text-overflow: ellipsis;">${safeBowlerName}</td>
+                    <td style="color: #f1f5f9; padding: 10px 6px; text-align: right; font-size: 12px; white-space: nowrap;">${safeBowlerOvers}</td>
+                    <td style="padding: 10px 6px; color: #64748b; text-align: right; font-size: 11px; white-space: nowrap;">${safeBowlerMaidens}</td>
+                    <td style="color: #f1f5f9; padding: 10px 6px; text-align: right; font-size: 12px; white-space: nowrap;">${safeBowlerRuns}</td>
+                    <td style="padding: 10px 6px; color: #fb7185; font-weight: 800; text-align: right; font-size: 12px; white-space: nowrap;">${safeBowlerWickets}</td>
                 </tr>`;
       });
 

@@ -627,9 +627,9 @@ describe("match-api Lambda handler", () => {
     // Verify table-layout: fixed is enforced for aligned scorecard columns
     expect(htmlBody).toContain("table-layout: fixed");
 
-    // Verify white-space: nowrap and 13px font size are applied to player name cells
-    expect(htmlBody).toContain("white-space: nowrap; font-size: 13px;");
-    expect(htmlBody).toContain("SPARTAN 1 *");
+    // Verify white-space: nowrap and compact font size are applied to player name cells
+    expect(htmlBody).toContain("white-space: nowrap; font-size: 12px;");
+    expect(htmlBody).toContain("SPARTAN 1&nbsp;*");
     expect(htmlBody).toContain("GLADIATOR 1");
   });
 });
