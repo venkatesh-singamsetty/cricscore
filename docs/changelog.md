@@ -1,3 +1,39 @@
+## [4.21.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.21.0...v4.21.1) (2026-10-23)
+
+### 🐛 Bug Fixes
+
+* **auth:** fit Create Account on mobile without scrolling + neutral dark auth background ([#326](https://github.com/venkatesh-singamsetty/cricscore/issues/326)) ([a440abd]())
+## 🎯 Overview
+Follow-up polish to the mobile auth screen: the **Create Account** tab
+(5 fields) no longer forces users to scroll to reach the submit button,
+and the auth screen now uses the same neutral dark surround as the
+Viewer.
+
+## ✨ Changes
+### 📱 Create Account fits the viewport (mobile)
+- Compact sizing for the 5-field form when no `.auth-footer` is present:
+smaller hero/logo, hidden subtitle, tighter tabs, field gaps, labels,
+inputs (`min-height: 40px`) and submit button (`42px`).
+- Result at 390x664 (iOS Safari): submit button ends ~574px, leaving
+~90px clearance, so **zero scrolling** is needed.
+- The `max-height: 700px` short-screen rules were aligned with the same
+compact sizing.
+- **Sign-In unchanged**: keeps `px-4 py-3` inputs, 48px touch targets,
+and toolbar-safe bottom spacing.
+
+### 🌑 Neutral dark auth background
+- Removed the purple/pink/green animated aurora gradient from the auth
+container; it is now solid `#020617`, matching the Viewer.
+
+## 🧪 Testing
+- Frontend unit tests: 151 passed
+- `./infra/scripts/validate_local.sh --fast`: passed
+- Deployed to dev and verified on mobile viewport
+
+## 📂 Files
+- `apps/frontend/src/index.css` (CSS only, no logic or label changes, so
+no E2E updates needed)
+
 ## [4.21.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.20.0...v4.21.0) (2026-10-23)
 
 ### 🚀 Features
