@@ -34,15 +34,43 @@ describe("chatHandler", () => {
       GITHUB_TOKEN: "mock-gh-token",
     };
 
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 201,
-      json: async () => ({
-        number: 101,
-        html_url:
-          "https://github.com/venkatesh-singamsetty/cricscore/issues/101",
-        title: "[AI Report] Mock Issue",
-      }),
+    global.fetch = vi.fn().mockImplementation(async (url) => {
+      const urlStr = String(url);
+      if (urlStr.includes("/embeddings")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            data: [{ embedding: [0.01, 0.02, 0.03] }],
+          }),
+        };
+      }
+      if (urlStr.includes("open-meteo") || urlStr.includes("geocoding-api")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            results: [
+              { name: "Chicago", latitude: 41.8781, longitude: -87.6298 },
+            ],
+            current_weather: { temperature: 68, weathercode: 0 },
+            hourly: {
+              time: ["2026-10-23T12:00"],
+              precipitation_probability: [0],
+            },
+          }),
+        };
+      }
+      return {
+        ok: true,
+        status: 201,
+        json: async () => ({
+          number: 101,
+          html_url:
+            "https://github.com/venkatesh-singamsetty/cricscore/issues/101",
+          title: "[AI Report] Mock Issue",
+        }),
+      };
     });
 
     querySpy = vi.fn().mockResolvedValue({ rows: [] });
@@ -339,5 +367,363 @@ describe("chatHandler", () => {
     expect(secondToolMessage.content).toContain(
       "Only 1 GitHub issue can be created per message",
     );
+  });
+
+  describe("Multi-Agent specialist routing & tool delegation (RAG, DB, Weather, GitHub)", () => {
+    it("RAG Agent: handles 'What are the Powerplay rules?' and 'Wide vs No-Ball: Which takes precedence?' via search_tournament_rules", async () => {
+      mockCreate
+        .mockResolvedValueOnce({
+          choices: [
+            {
+              message: {
+                content: null,
+                tool_calls: [
+                  {
+                    id: "call_rules_1",
+                    function: {
+                      name: "search_tournament_rules",
+                      arguments: JSON.stringify({ query: "Powerplay rules" }),
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          choices: [
+            {
+              message: {
+                content:
+                  "Powerplay rules: 2 fielders outside circle in overs 1-6.",
+                tool_calls: null,
+              },
+            },
+          ],
+        });
+      mockCallTool.mockResolvedValueOnce({
+        content: [
+          {
+            type: "text",
+            text: "Powerplay: 2 fielders permitted outside circle.",
+          },
+        ],
+      });
+
+      const res1 = await chatHandler(
+        { message: "What are the Powerplay rules?" },
+        corsHeaders,
+      );
+      expect(res1.statusCode).toBe(200);
+      expect(JSON.parse(res1.body).reply).toContain("Powerplay rules");
+
+      // Query 2: Wide vs No-Ball
+      mockCreate
+        .mockResolvedValueOnce({
+          choices: [
+            {
+              message: {
+                content: null,
+                tool_calls: [
+                  {
+                    id: "call_rules_2",
+                    function: {
+                      name: "search_tournament_rules",
+                      arguments: JSON.stringify({
+                        query: "Wide vs No-Ball precedence",
+                      }),
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          choices: [
+            {
+              message: {
+                content: "No-ball takes precedence over wide under Law 21.",
+                tool_calls: null,
+              },
+            },
+          ],
+        });
+      mockCallTool.mockResolvedValueOnce({
+        content: [
+          {
+            type: "text",
+            text: "Law 21: An unfair delivery that is both a No-ball and a Wide is scored as a No-ball.",
+          },
+        ],
+      });
+
+      const res2 = await chatHandler(
+        { message: "Wide vs No-Ball: Which takes precedence?" },
+        corsHeaders,
+      );
+      expect(res2.statusCode).toBe(200);
+      expect(JSON.parse(res2.body).reply).toContain("No-ball takes precedence");
+    });
+
+    it("DB Agent: handles 'Can you analyze the current match details?' and 'Who won Player of the Match in the last match?' via execute_sql", async () => {
+      mockCreate
+        .mockResolvedValueOnce({
+          choices: [
+            {
+              message: {
+                content: null,
+                tool_calls: [
+                  {
+                    id: "call_db_1",
+                    function: {
+                      name: "execute_sql",
+                      arguments: JSON.stringify({
+                        query:
+                          "SELECT team_a_name, team_b_name FROM matches ORDER BY created_at DESC LIMIT 1;",
+                      }),
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          choices: [
+            {
+              message: {
+                content:
+                  "Current match: Chicago Spartans scored 142/4, Midwest Gladiators are 98/2.",
+                tool_calls: null,
+              },
+            },
+          ],
+        });
+      mockCallTool.mockResolvedValueOnce({
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify([
+              {
+                team_a_name: "Chicago Spartans",
+                team_b_name: "Midwest Gladiators",
+              },
+            ]),
+          },
+        ],
+      });
+
+      const res1 = await chatHandler(
+        { message: "Can you analyze the current match details?" },
+        corsHeaders,
+      );
+      expect(res1.statusCode).toBe(200);
+      expect(JSON.parse(res1.body).reply).toContain("Chicago Spartans");
+
+      // Query 2: Player of the Match
+      mockCreate
+        .mockResolvedValueOnce({
+          choices: [
+            {
+              message: {
+                content: null,
+                tool_calls: [
+                  {
+                    id: "call_db_2",
+                    function: {
+                      name: "execute_sql",
+                      arguments: JSON.stringify({
+                        query:
+                          "SELECT player_of_the_match FROM matches WHERE player_of_the_match IS NOT NULL ORDER BY created_at DESC LIMIT 1;",
+                      }),
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          choices: [
+            {
+              message: {
+                content:
+                  "Player of the Match in the last match was Spartan 3 (54 runs off 28 balls).",
+                tool_calls: null,
+              },
+            },
+          ],
+        });
+      mockCallTool.mockResolvedValueOnce({
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify([{ player_of_the_match: "Spartan 3" }]),
+          },
+        ],
+      });
+
+      const res2 = await chatHandler(
+        { message: "Who won Player of the Match in the last match?" },
+        corsHeaders,
+      );
+      expect(res2.statusCode).toBe(200);
+      expect(JSON.parse(res2.body).reply).toContain("Player of the Match");
+    });
+
+    it("Weather Agent: handles 'Can you check the weather report for our match?' and forecast queries via get_match_weather", async () => {
+      // Query 1: Asks for city if unspecified
+      mockCreate.mockResolvedValueOnce({
+        choices: [
+          {
+            message: {
+              content:
+                "Which city or ground is the match at? Please share the city name to retrieve live weather.",
+              tool_calls: null,
+            },
+          },
+        ],
+      });
+      const res1 = await chatHandler(
+        { message: "Can you check the weather report for our match?" },
+        corsHeaders,
+      );
+      expect(res1.statusCode).toBe(200);
+      expect(JSON.parse(res1.body).reply).toContain("city");
+
+      // Query 2: Specific city forecast delegates to get_match_weather
+      mockCreate
+        .mockResolvedValueOnce({
+          choices: [
+            {
+              message: {
+                content: null,
+                tool_calls: [
+                  {
+                    id: "call_weather_1",
+                    function: {
+                      name: "get_match_weather",
+                      arguments: JSON.stringify({
+                        city: "Chicago",
+                        timeframe: "tomorrow",
+                      }),
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          choices: [
+            {
+              message: {
+                content:
+                  "Weather forecast for Chicago tomorrow: 68°F / 20°C, 0% chance of rain, ideal cricket conditions.",
+                tool_calls: null,
+              },
+            },
+          ],
+        });
+      mockCallTool.mockResolvedValueOnce({
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              city: "Chicago",
+              rainProbability: 0,
+              forecast: "Clear",
+            }),
+          },
+        ],
+      });
+
+      const res2 = await chatHandler(
+        { message: "What is the weather forecast for tomorrow in Chicago?" },
+        corsHeaders,
+      );
+      expect(res2.statusCode).toBe(200);
+      expect(JSON.parse(res2.body).reply).toContain("Chicago tomorrow");
+    });
+
+    it("GitHub Agent: handles 'I want to report a bug or request a new feature' and issue creation via create_github_issue", async () => {
+      // Query 1: Requests title/description if generic
+      mockCreate.mockResolvedValueOnce({
+        choices: [
+          {
+            message: {
+              content:
+                "I can help file a GitHub issue! Please share a short title and a brief description of the bug or feature.",
+              tool_calls: null,
+            },
+          },
+        ],
+      });
+      const res1 = await chatHandler(
+        { message: "I want to report a bug or request a new feature" },
+        corsHeaders,
+      );
+      expect(res1.statusCode).toBe(200);
+      expect(JSON.parse(res1.body).reply).toContain("GitHub issue");
+
+      // Query 2: Detailed report invokes create_github_issue
+      mockCreate
+        .mockResolvedValueOnce({
+          choices: [
+            {
+              message: {
+                content: null,
+                tool_calls: [
+                  {
+                    id: "call_gh_1",
+                    function: {
+                      name: "create_github_issue",
+                      arguments: JSON.stringify({
+                        title: "Mobile scoreboard overlap",
+                        description:
+                          "Overs counter overlaps run rate on iPhone SE",
+                      }),
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          choices: [
+            {
+              message: {
+                content:
+                  "Created GitHub Issue #320: https://github.com/venkatesh-singamsetty/cricscore/issues/320",
+                tool_calls: null,
+              },
+            },
+          ],
+        });
+      mockCallTool.mockResolvedValueOnce({
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              created: true,
+              issueNumber: 320,
+              url: "https://github.com/venkatesh-singamsetty/cricscore/issues/320",
+            }),
+          },
+        ],
+      });
+
+      const res2 = await chatHandler(
+        {
+          message:
+            "Report a bug in the mobile scoreboard: overs counter overlaps",
+        },
+        corsHeaders,
+      );
+      expect(res2.statusCode).toBe(200);
+      expect(JSON.parse(res2.body).reply).toContain("Issue #320");
+    });
   });
 });

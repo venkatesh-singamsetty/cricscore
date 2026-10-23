@@ -106,7 +106,47 @@ def test_github_issue_without_details_asks_for_details():
     assert "share a short title and a brief description" in r.reply
 
 
+def test_github_issue_with_bug_report_creates_issue():
+    r = run("Report a bug in the mobile scoreboard: overs counter overlaps", deps())
+    assert r.intent == "github_issue"
+    assert "github.com" in r.reply
+    assert r.sources[0].type == "github_issue"
+
+
 def test_weather_without_location_asks_for_city():
     r = run("Can you check the weather report for our match?", deps())
     assert r.intent == "weather"
     assert "Which city or ground is the match at" in r.reply
+
+
+def test_weather_with_location_calls_weather_service():
+    r = run("What is the weather forecast for tomorrow in Chicago?", deps())
+    assert r.intent == "weather"
+    assert r.sources[0].type == "weather"
+    assert "Chicago" in r.sources[0].id
+
+
+def test_rag_agent_multiple_canonical_rule_queries():
+    repo = FakeRepo(rules=[
+        {"id": "1", "document_name": "Tournament_Rules.pdf", "chunk_text": "Powerplay is 6 overs. Only 2 fielders outside circle."},
+        {"id": "2", "document_name": "ICC_Playing_Conditions.pdf", "chunk_text": "No ball takes precedence over wide."}
+    ])
+    
+    # Query 1: Wide vs No-Ball
+    r1 = run("Wide vs No-Ball: Which takes precedence?", deps(repo))
+    assert r1.intent == "rules"
+    assert len(r1.sources) > 0
+
+    # Query 2: Fielders outside circle
+    r2 = run("How many fielders are allowed outside the circle?", deps(repo))
+    assert r2.intent == "rules"
+    assert len(r2.sources) > 0
+
+
+def test_db_agent_player_of_the_match_query():
+    repo = FakeRepo()
+    r = run("Who won Player of the Match in the last match?", deps(repo))
+    assert r.intent == "match_info"
+    assert repo.calls == ["recent"]
+    assert len(r.sources) > 0
+

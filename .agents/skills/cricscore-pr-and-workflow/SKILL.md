@@ -7,9 +7,15 @@ description: Use when preparing a CricScore branch or pull request, selecting lo
 
 ## 1. Branch & Pre-Push Checklist (Mandatory)
 
-1. **Always pull `main` & create a fresh branch for every new feature or bug fix**:
+1. **Always start new tasks with `start_feature_branch.sh`**:
    - Before starting any new feature or bug fix, run:
-     `git checkout main && git pull origin main && git checkout -b <feat|fix>/<descriptive-name>`
+     `./infra/scripts/start_feature_branch.sh <feat|fix>/<descriptive-name>`
+   - This automated script guarantees:
+     1. Working tree is clean.
+     2. Latest `origin/main` is fetched.
+     3. Local `main` is cleanly fast-forwarded to `origin/main`.
+     4. The new branch is created strictly from `origin/main` (preventing branch divergence or stale ancestor issues).
+     5. Open Dependabot PRs are consolidated into the fresh branch if authorized.
    - Never push directly to `main`, never reuse an already-merged PR branch, and do not force-push or rewrite shared history without explicit user authorization.
    - If open PRs authored strictly by `app/dependabot` exist, follow `cricscore-dependabot-consolidation` (`./infra/scripts/consolidate_dependabot_prs.sh --merge`) to pull them into the working branch, validate/fix locally, push to `origin`, and close the superseded Dependabot PRs only after collaborator (`admin`/`maintain`/`write`) and ancestor verification (`./infra/scripts/consolidate_dependabot_prs.sh --close --target-pr <PR>`).
 2. **Always sync with `origin/main` before pushing**:

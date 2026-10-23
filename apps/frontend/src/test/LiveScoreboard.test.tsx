@@ -647,4 +647,84 @@ describe("LiveScoreboard Component", () => {
       expect(screen.getByText(/Need 17 off 11/i)).toBeInTheDocument();
     });
   });
+
+  it("preserves completed 1st innings data and renders match result without dropping innings", async () => {
+    const completedMatchDetails = {
+      match: {
+        id: "match_completed_test",
+        status: "COMPLETED",
+        team_a_name: "CHICAGO SPARTANS",
+        team_b_name: "MIDWEST GLADIATORS",
+        total_overs: 1,
+        match_winner: "MIDWEST GLADIATORS",
+      },
+      innings: [
+        {
+          id: "inn_1",
+          inning_number: 1,
+          batting_team_name: "CHICAGO SPARTANS",
+          bowling_team_name: "MIDWEST GLADIATORS",
+          total_runs: 14,
+          total_wickets: 1,
+          overs: 1,
+          balls: 0,
+          players: [
+            {
+              id: "p_s1",
+              name: "SPARTAN 1",
+              runs: 14,
+              balls_faced: 6,
+              fours: 2,
+              sixes: 0,
+              is_out: false,
+              batting_position: 1,
+            },
+          ],
+          bowlers: [],
+          allBalls: [],
+        },
+        {
+          id: "inn_2",
+          inning_number: 2,
+          batting_team_name: "MIDWEST GLADIATORS",
+          bowling_team_name: "CHICAGO SPARTANS",
+          total_runs: 16,
+          total_wickets: 0,
+          overs: 0,
+          balls: 5,
+          players: [
+            {
+              id: "p_g1",
+              name: "GLADIATOR 1",
+              runs: 16,
+              balls_faced: 5,
+              fours: 1,
+              sixes: 2,
+              is_out: false,
+              batting_position: 1,
+            },
+          ],
+          bowlers: [],
+          allBalls: [],
+        },
+      ],
+    };
+
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => completedMatchDetails,
+    });
+
+    render(<LiveScoreboard initialMatchId="match_completed_test" />);
+
+    // Assert that the match result is displayed
+    await waitFor(() => {
+      expect(screen.getByText("MATCH RESULT")).toBeInTheDocument();
+      expect(screen.getAllByText(/WON BY/i).length).toBeGreaterThan(0);
+    });
+
+    // Assert that both innings totals are preserved and rendered
+    expect(screen.getAllByText(/14\/1/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/16\/0/i).length).toBeGreaterThan(0);
+  });
 });

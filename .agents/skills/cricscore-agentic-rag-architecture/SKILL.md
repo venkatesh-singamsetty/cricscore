@@ -39,10 +39,26 @@ Use `docs/ai_architecture.md`, `docs/github_issue_agent.md`, `docs/weather_repor
   - When viewing a match, `ChatComponent.tsx` passes `matchContext` (teams, live score, target, overs, recent balls, batter/bowler stats) so the assistant answers live tactical, DLS, and win-probability questions accurately without extra round-trips.
   - Quick-action chips adapt dynamically: live match tactical chips when a match is active; general cricket history chips otherwise.
 
-## 4. Testing & Validation
+## 4. Multi-Agent Test Suite Invariants (Weather, RAG, DB, GitHub)
 
-- Unit tests:
-  - Python AI service: `apps/ai-service/.venv/bin/pytest apps/ai-service -q`
-  - Backend adapter: `npm --prefix apps/backend test`
-  - Frontend chat component: `npm --prefix apps/frontend test -- --run src/test/ChatComponent.test.tsx`
-  - Playwright E2E: `apps/e2e/tests/ai-api.spec.ts` (verifies 401 on rulebooks, 200 on predictions, refusal of destructive delete requests).
+The AI test battery MUST verify all 4 specialist agent categories across all three layers (Python AI service, Node.js Lambda adapter, and React frontend) using at least 2 canonical questions matching `QUICK_PROMPTS` in `ChatComponent.tsx`:
+
+1. **Weather Agent (`get_match_weather`)**:
+   - Canonical prompts: _"Can you check the weather report for our match?"_, _"What is the weather forecast for tomorrow in Chicago?"_, _"Will rain interrupt play today?"_
+   - Verifies 2-step flow: asks for city/ground if omitted, calls Open-Meteo with coordinates, returns DLS rain advisories.
+2. **RAG Agent (`search_tournament_rules`)**:
+   - Canonical prompts: _"What are the Powerplay rules?"_, _"Wide vs No-Ball: Which takes precedence?"_, _"How many fielders are allowed outside the circle?"_
+   - Verifies `pgvector` similarity search, strict evidence grounding (Rule 8), zero hallucination on missing rules, and citation chips.
+3. **Database / Match Info Agent (`execute_sql`)**:
+   - Canonical prompts: _"Can you analyze the current match details?"_, _"Who won Player of the Match in the last match?"_, _"What was the score of the latest match?"_
+   - Verifies single-statement read-only SELECT execution, safe aggregation, and match context injection.
+4. **GitHub Issue Agent (`create_github_issue`)**:
+   - Canonical prompts: _"I want to report a bug or request a new feature"_, _"Report a bug in the mobile scoreboard: overs counter overlaps"_
+   - Verifies 2-step confirmation prompt, rate limit (max 1 issue per message), and GitHub issue link formatting.
+
+## 5. Testing & Validation Commands
+
+- **Python AI service**: `PYTHONPATH=apps/ai-service apps/ai-service/.venv/bin/pytest apps/ai-service -q`
+- **Backend adapter**: `npm --prefix apps/backend test -- lambdas/chat-api/`
+- **Frontend chat component**: `npm --prefix apps/frontend test -- --run src/test/ChatComponent.test.tsx`
+- **Playwright E2E**: `apps/e2e/tests/ai-api.spec.ts` (verifies 401 on rulebooks, 200 on predictions, refusal of destructive delete requests).
