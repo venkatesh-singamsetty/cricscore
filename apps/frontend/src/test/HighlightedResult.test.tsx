@@ -5,14 +5,14 @@ import HighlightedResult from "../components/HighlightedResult";
 describe("HighlightedResult Component", () => {
   it("highlights winning team before ' WON BY ' with default green styling", () => {
     const { container } = render(
-      <HighlightedResult text="ILLINOIS THUNDERS WON BY 5 WICKETS" />,
+      <HighlightedResult text="MIDWEST GLADIATORS WON BY 5 WICKETS" />,
     );
 
     const highlightedSpan = container.querySelector("span");
     expect(highlightedSpan).toBeInTheDocument();
-    expect(highlightedSpan).toHaveTextContent("ILLINOIS THUNDERS");
+    expect(highlightedSpan).toHaveTextContent("MIDWEST GLADIATORS");
     expect(highlightedSpan).toHaveClass("text-emerald-400");
-    expect(container).toHaveTextContent("ILLINOIS THUNDERS WON BY 5 WICKETS");
+    expect(container).toHaveTextContent("MIDWEST GLADIATORS WON BY 5 WICKETS");
   });
 
   it("applies custom teamClassName when provided", () => {

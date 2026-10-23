@@ -40,26 +40,26 @@ describe("LiveScoreboard Component", () => {
       id: "match_5b80826d",
       status: "LIVE",
       team_a_name: "CHICAGO SPARTANS",
-      team_b_name: "ILLINOIS THUNDERS",
+      team_b_name: "MIDWEST GLADIATORS",
       total_overs: 1,
     },
     innings: [
       {
         id: "inn_1",
         inning_number: 1,
-        batting_team_name: "ILLINOIS THUNDERS",
+        batting_team_name: "MIDWEST GLADIATORS",
         bowling_team_name: "CHICAGO SPARTANS",
         total_runs: 8,
         total_wickets: 0,
         overs: 0,
         balls: 3,
-        striker_name: "THUNDER 3",
-        non_striker_name: "THUNDER 5",
+        striker_name: "GLADIATOR 3",
+        non_striker_name: "GLADIATOR 5",
         current_bowler_name: "SPARTAN 11",
         players: [
           {
-            id: "p_t3",
-            name: "THUNDER 3",
+            id: "p_g3",
+            name: "GLADIATOR 3",
             runs: 8,
             balls_faced: 3,
             fours: 2,
@@ -68,8 +68,8 @@ describe("LiveScoreboard Component", () => {
             batting_position: 1,
           },
           {
-            id: "p_t5",
-            name: "THUNDER 5",
+            id: "p_g5",
+            name: "GLADIATOR 5",
             runs: 0,
             balls_faced: 0,
             fours: 0,
@@ -105,21 +105,21 @@ describe("LiveScoreboard Component", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getAllByText(/ILLINOIS THUNDERS/i).length).toBeGreaterThan(
+      expect(screen.getAllByText(/MIDWEST GLADIATORS/i).length).toBeGreaterThan(
         0,
       );
     });
 
-    // Ball 4: THUNDER 3 hits 3 runs (reaches 11), strike rotates so strikerName is now THUNDER 5
+    // Ball 4: GLADIATOR 3 hits 3 runs (reaches 11), strike rotates so strikerName is now GLADIATOR 5
     await act(async () => {
       mockLastMessage = {
         type: "LIVE_SCORE_UPDATE",
         data: {
           matchId: "match_5b80826d",
           inningId: "inn_1",
-          battingTeamName: "ILLINOIS THUNDERS",
-          strikerName: "THUNDER 5",
-          nonStrikerName: "THUNDER 3",
+          battingTeamName: "MIDWEST GLADIATORS",
+          strikerName: "GLADIATOR 5",
+          nonStrikerName: "GLADIATOR 3",
           bowlerName: "SPARTAN 11",
           currentOvers: 0,
           currentBalls: 4,
@@ -135,7 +135,7 @@ describe("LiveScoreboard Component", () => {
           bowlerBalls: 4,
           ballData: {
             id: "ball_4",
-            batterName: "THUNDER 3",
+            batterName: "GLADIATOR 3",
             bowlerName: "SPARTAN 11",
             runs: 3,
             isExtra: false,
@@ -151,16 +151,16 @@ describe("LiveScoreboard Component", () => {
       rerender(<LiveScoreboard initialMatchId="match_5b80826d" />);
     });
 
-    // Ball 5: THUNDER 5 hits 1 run (reaches 1), strike rotates back to THUNDER 3
+    // Ball 5: GLADIATOR 5 hits 1 run (reaches 1), strike rotates back to GLADIATOR 3
     await act(async () => {
       mockLastMessage = {
         type: "LIVE_SCORE_UPDATE",
         data: {
           matchId: "match_5b80826d",
           inningId: "inn_1",
-          battingTeamName: "ILLINOIS THUNDERS",
-          strikerName: "THUNDER 3",
-          nonStrikerName: "THUNDER 5",
+          battingTeamName: "MIDWEST GLADIATORS",
+          strikerName: "GLADIATOR 3",
+          nonStrikerName: "GLADIATOR 5",
           bowlerName: "SPARTAN 11",
           currentOvers: 0,
           currentBalls: 5,
@@ -176,7 +176,7 @@ describe("LiveScoreboard Component", () => {
           bowlerBalls: 5,
           ballData: {
             id: "ball_5",
-            batterName: "THUNDER 5",
+            batterName: "GLADIATOR 5",
             bowlerName: "SPARTAN 11",
             runs: 1,
             isExtra: false,
@@ -192,16 +192,16 @@ describe("LiveScoreboard Component", () => {
       rerender(<LiveScoreboard initialMatchId="match_5b80826d" />);
     });
 
-    // Ball 6: THUNDER 3 hits 2 runs (reaches 13), end of over rotates strike to THUNDER 5
+    // Ball 6: GLADIATOR 3 hits 2 runs (reaches 13), end of over rotates strike to GLADIATOR 5
     await act(async () => {
       mockLastMessage = {
         type: "LIVE_SCORE_UPDATE",
         data: {
           matchId: "match_5b80826d",
           inningId: "inn_1",
-          battingTeamName: "ILLINOIS THUNDERS",
-          strikerName: "THUNDER 5",
-          nonStrikerName: "THUNDER 3",
+          battingTeamName: "MIDWEST GLADIATORS",
+          strikerName: "GLADIATOR 5",
+          nonStrikerName: "GLADIATOR 3",
           bowlerName: "SPARTAN 11",
           currentOvers: 1,
           currentBalls: 0,
@@ -217,7 +217,7 @@ describe("LiveScoreboard Component", () => {
           bowlerBalls: 0,
           ballData: {
             id: "ball_6",
-            batterName: "THUNDER 3",
+            batterName: "GLADIATOR 3",
             bowlerName: "SPARTAN 11",
             runs: 2,
             isExtra: false,
@@ -249,7 +249,7 @@ describe("LiveScoreboard Component", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getAllByText(/ILLINOIS THUNDERS/i).length).toBeGreaterThan(
+      expect(screen.getAllByText(/MIDWEST GLADIATORS/i).length).toBeGreaterThan(
         0,
       );
     });
@@ -260,10 +260,10 @@ describe("LiveScoreboard Component", () => {
         data: {
           matchId: "match_5b80826d",
           inningId: "inn_1",
-          battingTeamName: "ILLINOIS THUNDERS",
+          battingTeamName: "MIDWEST GLADIATORS",
           undo: true,
-          strikerName: "THUNDER 3",
-          nonStrikerName: "THUNDER 5",
+          strikerName: "GLADIATOR 3",
+          nonStrikerName: "GLADIATOR 5",
           bowlerName: "SPARTAN 11",
           currentOvers: 0,
           currentBalls: 2,
@@ -291,7 +291,7 @@ describe("LiveScoreboard Component", () => {
         id: "match_5b80826d",
         status: "LIVE",
         team_a_name: "CHICAGO SPARTANS",
-        team_b_name: "ILLINOIS THUNDERS",
+        team_b_name: "MIDWEST GLADIATORS",
         total_overs: 1,
       },
       innings: [
@@ -299,7 +299,7 @@ describe("LiveScoreboard Component", () => {
           id: "inn_1",
           inning_number: 1,
           batting_team_name: "CHICAGO SPARTANS",
-          bowling_team_name: "ILLINOIS THUNDERS",
+          bowling_team_name: "MIDWEST GLADIATORS",
           total_runs: 11,
           total_wickets: 1,
           overs: 1,
@@ -312,19 +312,19 @@ describe("LiveScoreboard Component", () => {
           id: "inn_2",
           inning_number: 2,
           target: 12,
-          batting_team_name: "ILLINOIS THUNDERS",
+          batting_team_name: "MIDWEST GLADIATORS",
           bowling_team_name: "CHICAGO SPARTANS",
           total_runs: 10,
           total_wickets: 1,
           overs: 0,
           balls: 5,
-          striker_name: "THUNDER 1",
-          non_striker_name: "THUNDER 7",
+          striker_name: "GLADIATOR 1",
+          non_striker_name: "GLADIATOR 7",
           current_bowler_name: "SPARTAN 2",
           players: [
             {
-              id: "p_t1",
-              name: "THUNDER 1",
+              id: "p_g1",
+              name: "GLADIATOR 1",
               runs: 7,
               balls_faced: 3,
               fours: 1,
@@ -332,8 +332,8 @@ describe("LiveScoreboard Component", () => {
               is_out: false,
             },
             {
-              id: "p_t7",
-              name: "THUNDER 7",
+              id: "p_g7",
+              name: "GLADIATOR 7",
               runs: 3,
               balls_faced: 2,
               fours: 0,
@@ -366,7 +366,7 @@ describe("LiveScoreboard Component", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole("heading", { name: /ILLINOIS THUNDERS/i }),
+        screen.getByRole("heading", { name: /MIDWEST GLADIATORS/i }),
       ).toBeInTheDocument();
     });
 
@@ -397,7 +397,7 @@ describe("LiveScoreboard Component", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole("heading", { name: /ILLINOIS THUNDERS/i }),
+        screen.getByRole("heading", { name: /MIDWEST GLADIATORS/i }),
       ).toBeInTheDocument();
     });
 
@@ -425,16 +425,16 @@ describe("LiveScoreboard Component", () => {
         id: "match_completed_1",
         status: "COMPLETED",
         team_a_name: "CHICAGO SPARTANS",
-        team_b_name: "ILLINOIS THUNDERS",
+        team_b_name: "MIDWEST GLADIATORS",
         total_overs: 1,
-        player_of_the_match: "THUNDER 3",
+        player_of_the_match: "GLADIATOR 3",
       },
       innings: [
         {
           id: "inn_1",
           inning_number: 1,
           batting_team_name: "CHICAGO SPARTANS",
-          bowling_team_name: "ILLINOIS THUNDERS",
+          bowling_team_name: "MIDWEST GLADIATORS",
           total_runs: 10,
           total_wickets: 2,
           overs: 1,
@@ -453,7 +453,7 @@ describe("LiveScoreboard Component", () => {
           bowlers: [
             {
               id: "b1",
-              name: "THUNDER 3",
+              name: "GLADIATOR 3",
               overs_completed: 1,
               balls: 0,
               maidens: 0,
@@ -465,7 +465,7 @@ describe("LiveScoreboard Component", () => {
         {
           id: "inn_2",
           inning_number: 2,
-          batting_team_name: "ILLINOIS THUNDERS",
+          batting_team_name: "MIDWEST GLADIATORS",
           bowling_team_name: "CHICAGO SPARTANS",
           total_runs: 11,
           total_wickets: 0,
@@ -474,7 +474,7 @@ describe("LiveScoreboard Component", () => {
           players: [
             {
               id: "p2",
-              name: "THUNDER 3",
+              name: "GLADIATOR 3",
               runs: 11,
               balls_faced: 4,
               fours: 2,
@@ -520,7 +520,7 @@ describe("LiveScoreboard Component", () => {
     expect(
       screen.getAllByText(/WON BY 10 WICKETS/i).length,
     ).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/POTM: THUNDER 3/i)).toBeInTheDocument();
+    expect(screen.getByText(/POTM: GLADIATOR 3/i)).toBeInTheDocument();
 
     // Closing the scorecard returns to Match Hub
     const closeBtn = screen.getByRole("button", { name: /Close scorecard/i });
@@ -538,7 +538,7 @@ describe("LiveScoreboard Component", () => {
         id: "match_2nd_inn_test",
         status: "LIVE",
         team_a_name: "CHICAGO SPARTANS",
-        team_b_name: "ILLINOIS THUNDERS",
+        team_b_name: "MIDWEST GLADIATORS",
         total_overs: 2,
       },
       innings: [
@@ -546,7 +546,7 @@ describe("LiveScoreboard Component", () => {
           id: "inn_1",
           inning_number: 1,
           batting_team_name: "CHICAGO SPARTANS",
-          bowling_team_name: "ILLINOIS THUNDERS",
+          bowling_team_name: "MIDWEST GLADIATORS",
           total_runs: 20,
           total_wickets: 2,
           overs: 2,
@@ -559,14 +559,14 @@ describe("LiveScoreboard Component", () => {
           id: "inn_2_uuid",
           inning_number: 2,
           target: 21,
-          batting_team_name: "ILLINOIS THUNDERS",
+          batting_team_name: "MIDWEST GLADIATORS",
           bowling_team_name: "CHICAGO SPARTANS",
           total_runs: 0,
           total_wickets: 0,
           overs: 0,
           balls: 0,
-          striker_name: "THUNDER 1",
-          non_striker_name: "THUNDER 2",
+          striker_name: "GLADIATOR 1",
+          non_striker_name: "GLADIATOR 2",
           current_bowler_name: "SPARTAN 1",
           players: [],
           bowlers: [],
@@ -598,9 +598,9 @@ describe("LiveScoreboard Component", () => {
           matchId: "match_2nd_inn_test",
           inningId: "inn2_optimistic_123",
           inningNumber: 2,
-          battingTeamName: "ILLINOIS THUNDERS",
-          strikerName: "THUNDER 2",
-          nonStrikerName: "THUNDER 1",
+          battingTeamName: "MIDWEST GLADIATORS",
+          strikerName: "GLADIATOR 2",
+          nonStrikerName: "GLADIATOR 1",
           bowlerName: "SPARTAN 1",
           currentOvers: 0,
           currentBalls: 1,
@@ -612,7 +612,7 @@ describe("LiveScoreboard Component", () => {
           sixes: 0,
           ballData: {
             id: "ball_1",
-            batterName: "THUNDER 1",
+            batterName: "GLADIATOR 1",
             bowlerName: "SPARTAN 1",
             runs: 4,
             isExtra: false,

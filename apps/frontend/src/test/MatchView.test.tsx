@@ -28,7 +28,7 @@ const createInningsState = (
   id: "inn_1",
   inningNumber: 1,
   battingTeamName: "CHICAGO SPARTANS",
-  bowlingTeamName: "ILLINOIS THUNDERS",
+  bowlingTeamName: "MIDWEST GLADIATORS",
   totalRuns: 10,
   totalWickets: 0,
   overs: 0,
@@ -61,7 +61,7 @@ const createInningsState = (
   bowlers: {
     b1: {
       id: "b1",
-      name: "THUNDER 1",
+      name: "GLADIATOR 1",
       overs: 0,
       balls: 5,
       maidens: 0,
@@ -72,7 +72,7 @@ const createInningsState = (
   currentOver: [
     {
       id: "ball_5",
-      bowlerName: "THUNDER 1",
+      bowlerName: "GLADIATOR 1",
       batterName: "SPARTAN 1",
       runs: 4,
       isExtra: false,
@@ -87,7 +87,7 @@ const createInningsState = (
   allBalls: [
     {
       id: "ball_5",
-      bowlerName: "THUNDER 1",
+      bowlerName: "GLADIATOR 1",
       batterName: "SPARTAN 1",
       runs: 4,
       isExtra: false,
@@ -188,7 +188,7 @@ describe("MatchView Component", () => {
       allBalls: [
         {
           id: "ball_6",
-          bowlerName: "THUNDER 1",
+          bowlerName: "GLADIATOR 1",
           batterName: "SPARTAN 1",
           runs: 4,
           isExtra: false,
@@ -231,7 +231,7 @@ describe("MatchView Component", () => {
     const secondInnings = createInningsState({
       id: "inn2_temp",
       inningNumber: 2,
-      battingTeamName: "ILLINOIS THUNDERS",
+      battingTeamName: "MIDWEST GLADIATORS",
       bowlingTeamName: "CHICAGO SPARTANS",
       totalRuns: 8,
       totalWickets: 0,

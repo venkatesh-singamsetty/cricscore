@@ -135,12 +135,12 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
   onCancel,
 }) => {
   const [teamAName, setTeamAName] = useState("CHICAGO SPARTANS");
-  const [teamBName, setTeamBName] = useState("ILLINOIS THUNDERS");
+  const [teamBName, setTeamBName] = useState("MIDWEST GLADIATORS");
   const [teamASquad, setTeamASquad] = useState(
     "Spartan 1\nSpartan 2\nSpartan 3\nSpartan 4\nSpartan 5\nSpartan 6\nSpartan 7\nSpartan 8\nSpartan 9\nSpartan 10\nSpartan 11",
   );
   const [teamBSquad, setTeamBSquad] = useState(
-    "Thunder 1\nThunder 2\nThunder 3\nThunder 4\nThunder 5\nThunder 6\nThunder 7\nThunder 8\nThunder 9\nThunder 10\nThunder 11",
+    "Gladiator 1\nGladiator 2\nGladiator 3\nGladiator 4\nGladiator 5\nGladiator 6\nGladiator 7\nGladiator 8\nGladiator 9\nGladiator 10\nGladiator 11",
   );
   const [overs, setOvers] = useState<number | string>(1);
   const [tossWinner, setTossWinner] = useState("Team A");
