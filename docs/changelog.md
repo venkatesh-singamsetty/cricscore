@@ -1,3 +1,9 @@
+## [4.21.2](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.21.1...v4.21.2) (2026-10-23)
+
+### 🐛 Bug Fixes
+
+* **ui:** stable Create Account layout and compact ChatBot welcome on short mobile screens ([#327](https://github.com/venkatesh-singamsetty/cricscore/issues/327)) ([78bcad4]())
+
 ## [4.21.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.21.0...v4.21.1) (2026-10-23)
 
 ### 🐛 Bug Fixes
