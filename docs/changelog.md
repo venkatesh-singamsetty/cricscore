@@ -1,3 +1,9 @@
+## [4.23.2](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.23.1...v4.23.2) (2026-11-01)
+
+### 🐛 Bug Fixes
+
+* **ci:** pin prod drift and keepalive to release tags & upgrade to keyless OIDC ([#342](https://github.com/venkatesh-singamsetty/cricscore/issues/342)) ([bd566c1]())
+
 ## [4.23.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.23.0...v4.23.1) (2026-11-01)
 
 ### 🐛 Bug Fixes
