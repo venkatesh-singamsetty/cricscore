@@ -1,3 +1,9 @@
+## [4.22.4](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.22.3...v4.22.4) (2026-11-01)
+
+### 📚 Documentation
+
+* balance tables with monorepo tree, diagrams, and tutorial lists across README and docs ([#337](https://github.com/venkatesh-singamsetty/cricscore/issues/337)) ([01902f8]())
+
 ## [4.22.3](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.22.2...v4.22.3) (2026-11-01)
 
 ### 🐛 Bug Fixes
