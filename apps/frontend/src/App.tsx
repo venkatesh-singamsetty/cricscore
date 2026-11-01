@@ -18,6 +18,7 @@ import {
 } from "aws-amplify/auth";
 import { Hub } from "aws-amplify/utils";
 import { hasCognitoAuthConfig } from "./authConfig";
+import { stripPlayerOfMatchLine } from "./utils/summaryFormat";
 import {
   safeLocalStorageGet,
   safeLocalStorageRemove,
@@ -365,6 +366,7 @@ const App: React.FC = () => {
   const hasSentAutoEmailRef = useRef(false);
 
   const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [playerOfTheMatch, setPlayerOfTheMatch] = useState<string | null>(null);
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
 
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
@@ -898,6 +900,8 @@ const App: React.FC = () => {
                 totalWickets: completedInnings.totalWickets,
                 overs: completedInnings.overs,
                 balls: completedInnings.balls,
+                players: completedInnings.players,
+                bowlers: completedInnings.bowlers,
               },
               previousInnings: previousInnings
                 ? {
@@ -906,6 +910,8 @@ const App: React.FC = () => {
                     totalWickets: previousInnings.totalWickets,
                     overs: previousInnings.overs,
                     balls: previousInnings.balls,
+                    players: previousInnings.players,
+                    bowlers: previousInnings.bowlers,
                   }
                 : undefined,
             }),
@@ -968,6 +974,7 @@ const App: React.FC = () => {
       setTotalOvers(match.total_overs);
       setMatchId(mId);
       setAiSummary(match.ai_summary || null);
+      setPlayerOfTheMatch(match.player_of_the_match || null);
 
       // 2. Reconstruct Innings State
       const mapInnings = (inn: any): InningsState => {
@@ -1270,13 +1277,24 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSendEmail = async (silent = false, sendToAdmin = false) => {
+  const handleSendEmail = async (
+    silent = false,
+    sendToAdmin = false,
+    overrideAi?: { summary?: string | null; playerOfTheMatch?: string | null },
+  ) => {
     if (!currentInnings || !matchId) return;
 
     const API_URL = import.meta.env.VITE_API_URL || "";
 
     try {
       const reportState = {
+        teamAName: teamA?.name,
+        teamBName: teamB?.name,
+        totalOvers,
+        matchWinner: getWinnerMessage(),
+        aiSummary: overrideAi?.summary ?? aiSummary ?? null,
+        playerOfTheMatch:
+          overrideAi?.playerOfTheMatch ?? playerOfTheMatch ?? null,
         innings: [
           ...(previousInnings ? [previousInnings] : []),
           currentInnings,
@@ -1337,6 +1355,9 @@ const App: React.FC = () => {
     if (!matchId) return;
     setIsGeneratingAi(true);
     setAiSummary(null); // Instantly clear stale text so loading indicator shows
+    if (forceRefresh) {
+      setPlayerOfTheMatch(null);
+    }
     const API_URL = import.meta.env.VITE_API_URL || "";
     try {
       const headers = await getAuthHeaders();
@@ -1367,6 +1388,7 @@ const App: React.FC = () => {
       const finalSummary = data.summary;
 
       setAiSummary(finalSummary);
+      setPlayerOfTheMatch(data.playerOfTheMatch || null);
       return data;
     } catch (error) {
       console.error(error);
@@ -1385,28 +1407,30 @@ const App: React.FC = () => {
         hasSentAutoEmailRef.current = true;
         setHasSentAutoEmail(true);
         setAiSummary(null); // Instantly purge live 0/0 summary
+        setPlayerOfTheMatch(null);
 
         const isGuest = !userToken && matchId?.startsWith("guest_");
 
         if (isGuest) {
           // Guest matches: generate AI summary locally (no DB), skip email
           setTimeout(() => {
-            handleGenerateAiSummary(true).catch(() => {
+            handleGenerateAiSummary(false).catch(() => {
               setAiSummary(
                 "AI summary is only available for registered scorers. Sign up to unlock post-match analytics! 🎯",
               );
             });
           }, 1000);
         } else {
-          // 🕰️ Wait 2 seconds to ensure backend state is settled, then generate AI summary
-          // AND ONLY AFTER AI summary finishes & saves to DB, dispatch the report email!
+          // 🕰️ Wait 1.5 seconds to ensure backend state is settled, then fetch/generate AI summary
+          // (forceRefresh=false so Scorer and Viewer share the exact same cached summary & POM)
+          // AND ONLY AFTER AI summary finishes & saves to DB, dispatch the report email & S3 backup!
           setTimeout(() => {
-            handleGenerateAiSummary(true)
-              .then(() => {
+            handleGenerateAiSummary(false)
+              .then((summaryData) => {
                 console.log(
                   "✅ AI Summary generated & saved to DB. Dispatching report email...",
                 );
-                return handleSendEmail(true, true);
+                return handleSendEmail(true, true, summaryData);
               })
               .catch((err) => {
                 console.error(
@@ -1416,7 +1440,7 @@ const App: React.FC = () => {
                 // Fallback: send report email even if AI summary generation failed
                 handleSendEmail(true, true);
               });
-          }, 2000);
+          }, 1500);
         }
       }
     }
@@ -1424,6 +1448,7 @@ const App: React.FC = () => {
       hasSentAutoEmailRef.current = false;
       setHasSentAutoEmail(false); // Reset for next match
       setAiSummary(null);
+      setPlayerOfTheMatch(null);
     }
   }, [matchStatus, matchId, hasSentAutoEmail]);
 
@@ -1995,7 +2020,7 @@ const App: React.FC = () => {
                               <div className="bg-slate-800/50 border border-indigo-500/30 rounded-2xl p-4 text-left shadow-xl">
                                 <div className="flex justify-between items-center mb-3">
                                   <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">
-                                    <span>🤖</span> POM & MATCH SUMMARY
+                                    <span>🤖</span> MATCH SUMMARY &amp; POM
                                   </h4>
                                   <button
                                     onClick={() =>
@@ -2008,8 +2033,23 @@ const App: React.FC = () => {
                                   </button>
                                 </div>
                                 <div className="text-slate-300 text-xs leading-relaxed whitespace-pre-wrap">
-                                  {aiSummary}
+                                  {playerOfTheMatch
+                                    ? stripPlayerOfMatchLine(aiSummary)
+                                    : aiSummary}
                                 </div>
+                                {playerOfTheMatch && (
+                                  <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-center gap-3">
+                                    <span className="text-2xl">🏆</span>
+                                    <div>
+                                      <div className="text-amber-500 text-[10px] font-black tracking-widest uppercase">
+                                        Player of the Match
+                                      </div>
+                                      <div className="text-amber-100 font-bold text-sm">
+                                        {playerOfTheMatch}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             ) : (
                               <div className="bg-slate-800/30 border border-white/5 rounded-2xl p-4 text-center">

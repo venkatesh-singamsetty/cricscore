@@ -15,7 +15,7 @@ Use `docs/ai_architecture.md`, `docs/github_issue_agent.md`, `docs/weather_repor
     - **Cricket RAG Agent (`search_tournament_rules`)**: `pgvector` similarity search on official tournament rulebooks (`rule_chunks`).
     - **Cricket Analysis Agent**: Synthesizes live match statistics and game progression analysis.
     - **Prediction Agent (`predict_match_outcome`)**: Live win probability and par calculation integration.
-    - **Weather Report Agent (`get_match_weather`)**: Zero-cost ($0) live ("next few hours") and upcoming/tomorrow's match weather forecasts + DLS rain advisories via Open-Meteo (`geocoding-api.open-meteo.com` & `api.open-meteo.com`, no API key required). Asks the user for their city/ground first if no location is provided (`docs/weather_report_agent.md`).
+    - **Weather Report Agent (`get_match_weather`)**: Free (no API key, no AWS cost) live ("next few hours") and upcoming/tomorrow's match weather forecasts + DLS rain advisories via Open-Meteo (`geocoding-api.open-meteo.com` & `api.open-meteo.com`, no API key required). Asks the user for their city/ground first if no location is provided (`docs/weather_report_agent.md`).
     - **GitHub Issue Specialist Agent (`create_github_issue`)**: Creates labeled GitHub issues (`["via-cricscore-ai", category]`) in `venkatesh-singamsetty/cricscore` via server-side `GITHUB_TOKEN`, enforcing a 2-step confirmation flow (asks for title/description if generic) and a 1-issue-per-message rate limit (`docs/github_issue_agent.md`).
   - State is strictly bounded with recursion caps, tool call limits, and error recovery.
   - Optional LangSmith tracing (`tracing.py`) enabled via `LANGCHAIN_TRACING_V2=true`.

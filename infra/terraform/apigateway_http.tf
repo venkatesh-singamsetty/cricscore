@@ -21,7 +21,19 @@ resource "aws_apigatewayv2_stage" "default" {
     throttling_burst_limit = 100
     throttling_rate_limit  = 50
   }
-  depends_on = [aws_api_gateway_account.apigateway_account]
+  # /chat and /chat/summary are unauthenticated and call a paid LLM provider,
+  # so cap them far below the API default to bound abuse and spend.
+  route_settings {
+    route_key              = "POST /chat"
+    throttling_burst_limit = 10
+    throttling_rate_limit  = 5
+  }
+  route_settings {
+    route_key              = "POST /chat/summary"
+    throttling_burst_limit = 10
+    throttling_rate_limit  = 5
+  }
+  depends_on = [aws_api_gateway_account.apigateway_account, aws_apigatewayv2_route.post_chat, aws_apigatewayv2_route.post_chat_summary]
 }
 
 resource "aws_apigatewayv2_authorizer" "cognito" {
@@ -39,7 +51,7 @@ resource "aws_apigatewayv2_authorizer" "cognito" {
 # CloudWatch Log Group for API Gateway HTTP access logs
 resource "aws_cloudwatch_log_group" "http_api_access_logs" {
   name              = "/aws/apigateway/${var.project_name}-http"
-  retention_in_days = 30
+  retention_in_days = 7
 }
 
 # Integration for Match API

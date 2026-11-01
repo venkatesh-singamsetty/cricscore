@@ -1,10 +1,17 @@
 # 🏗️ Architecture: Live Event-Driven Scoring Engine
 
-CricScore is built on a high-concurrency, **Event-Driven Architecture (EDA)** where every ball event is a persistent record in **Aiven PostgreSQL** and a real-time broadcast via **AWS API Gateway WebSockets**.
+CricScore is built on a high-concurrency, **Event-Driven Architecture (EDA)** where every ball event is a persistent record in **Aiven PostgreSQL** and a real-time broadcast via **AWS API Gateway WebSockets**, operating at **~$1/month** across `dev` and `prod` combined.
+
+---
 
 ## 🗺️ System Diagrams (Mermaid)
 
-Editable, text-based versions of the platform diagrams. The icon-based images shown in the main [README](../README.md) are generated from [`docs/diagrams/generate_architecture_diagrams.py`](./diagrams/generate_architecture_diagrams.py).
+Editable, text-based versions of the platform diagrams. The icon-based PNG/SVG diagrams shown in the main [README](../README.md) are generated via [`docs/diagrams/generate_architecture_diagrams.py`](./diagrams/generate_architecture_diagrams.py).
+
+```bash
+# Regenerate all 3 high-resolution architecture diagrams (PNG + SVG)
+python3 docs/diagrams/generate_architecture_diagrams.py
+```
 
 ### ☁️ 1. Multi-Cloud System Architecture: AWS Serverless & Aiven PostgreSQL
 
@@ -13,84 +20,90 @@ The core application platform leverages a serverless, event-driven multi-cloud d
 ```mermaid
 flowchart TD
     %% User and CDN Layer
-    Client["Fan / Scorer / Admin (React UI)"] --> Route53["Amazon Route 53 (DNS)"]
-    Route53 -.-> CloudFront["AWS CloudFront (CDN)"]
-    Route53 -.-> APIGW_HTTP["Amazon API Gateway (HTTP API)"]
-    Route53 -.-> APIGW_WS["Amazon API Gateway (WebSocket API)"]
+    Client["Fan / Scorer / Admin (React 19 SPA)"] --> Route53["Amazon Route 53 (DNS)"]
+    Route53 --> ACM["AWS Certificate Manager (TLS Certs)"]
+    ACM --> CloudFront["Amazon CloudFront (CDN + OAC)"]
+    ACM --> APIGW_HTTP["Amazon API Gateway (HTTP REST API)"]
+    ACM --> APIGW_WS["Amazon API Gateway (WebSocket API)"]
 
-    subgraph Edge ["Frontend Delivery"]
-        CloudFront --> S3_App["Amazon S3: Static React Assets"]
+    subgraph Edge ["1. DNS, SSL & CDN Edge"]
+        CloudFront --> S3_App["Amazon S3: Static React SPA & Access Logs (7d/30d Lifecycle)"]
     end
 
     %% Security & Ingress
-    subgraph Security ["Identity & Authorization"]
-        Cognito["Amazon Cognito User Pool"]
-        JWT_Auth["API Gateway Cognito JWT Authorizer"]
-        Cognito -->|Token Issuance| Client
-        JWT_Auth -.->|Enforces Bearer JWT| APIGW_HTTP
+    subgraph Security ["2. Auth (AWS Amplify + Cognito) & IAM"]
+        Amplify["AWS Amplify Auth SDK & UI"]
+        Cognito["AWS Cognito User Pool (JWT + RBAC)"]
+        PreSignup["cognito-presignup Lambda (Guest Auto-Confirm)"]
+        IAM["AWS IAM (Least-Privilege Roles)"]
+        Client --> Amplify --> Cognito --> PreSignup
+        Cognito -.->|JWT Authorizer| APIGW_HTTP
     end
 
     %% Backend Compute
-    subgraph Compute ["AWS Lambda Serverless Compute"]
-        MatchAPI["match-api Lambda (Node.js)"]
-        ScoreUpdate["score-update Lambda (Node.js)"]
-        StorageWorker["storage-worker Lambda (Node.js)"]
-        Broadcaster["broadcaster Lambda (Node.js)"]
+    subgraph Compute ["3. AWS Lambda Serverless Compute"]
+        MatchAPI["match-api Lambda (Node.js 24)"]
+        ScoreUpdate["score-update Lambda (Node.js 24)"]
+        StorageWorker["storage-worker Lambda (Node.js 24)"]
+        Broadcaster["broadcaster Lambda (Node.js 24)"]
         ConnHandlers["onconnect / ondisconnect Lambdas"]
-        ChatAPI["chat-api Lambda (Node.js Adapter)"]
-        MLPredict["ml-predict Lambda (Python 3.12 Docker)"]
-        AIService["apps/ai-service (Python 3.12 LangGraph)"]
+        ChatAPI["chat-api Lambda (Node.js 24 + In-Memory MCP)"]
+        MLPredict["ml-predict Lambda (Python 3.12 Container)"]
     end
 
     %% Asynchronous Fan-Out
-    subgraph Messaging ["Event-Driven Fan-Out Ingestion"]
-        SNS_Score{{"Amazon SNS: live-score-fanout"}}
-        SQS_Queue[["Amazon SQS: persistence-queue"]]
+    subgraph Messaging ["Event-Driven Fan-Out Ingestion (Diagram 2)"]
+        SNS_Score{{"Amazon SNS: match-events"}}
+        SQS_Queue[["Amazon SQS FIFO: storage-buffer.fifo"]]
         DDB[("Amazon DynamoDB: WebSocket Connections")]
     end
 
-    %% Multi-Cloud Persistence
-    subgraph AivenCloud ["Aiven Managed Cloud Database"]
-        AivenPG[("Aiven PostgreSQL 16 + pgvector (dev / prod)")]
+    %% Multi-Cloud Persistence & Registries
+    subgraph DataLayer ["4. Data, Registries & Email"]
+        AivenPG[("Aiven PostgreSQL 16 + pgvector (dev / prod schemas)")]
+        SES["Amazon SES (Scorecard Emails)"]
+        S3_Backups[("Amazon S3: Match Backups (180d), ML Model Registry & TF State")]
+        ECR["Amazon ECR: xgboost-cpu Image (~309 MB, 1-Image Retention)"]
     end
 
-    %% External & Auxiliary Services
-    subgraph Operations ["Observability & Auxiliary Services"]
-        CloudWatch["CloudWatch Logs (7-day retention) & Alarms"]
-        SES["Amazon SES (Match PDF Reports)"]
-        S3_Backups[("Amazon S3: Match Backups & ML Model Registry")]
-        OpenAI["OpenAI-Compatible LLM / Embedding Provider"]
-        OpenMeteo["Open-Meteo Weather API ($0, No API Key)"]
-        GitHubAPI["GitHub REST API (Issue Creation)"]
+    %% External & Observability Services
+    subgraph Operations ["5. Observability, Tracing, Cost & External APIs"]
+        CloudWatch["CloudWatch Logs (7d Retention) & Alarms + SNS"]
+        XRay["AWS X-Ray (5% Trace Sampling)"]
+        Budgets["AWS Budgets (~$1/mo Alert)"]
+        OpenAI["OpenAI-Compatible LLM & Embeddings"]
+        OpenMeteo["Open-Meteo Weather API"]
+        GitHubAPI["GitHub Issues REST API"]
     end
 
     %% Wire connections
-    APIGW_HTTP -->|/match routes| MatchAPI
+    APIGW_HTTP -->|/match & /admin| MatchAPI
     APIGW_HTTP -->|POST /update-score| ScoreUpdate
-    APIGW_HTTP -->|POST /chat| ChatAPI
+    APIGW_HTTP -->|POST /chat & /chat/summary| ChatAPI
     APIGW_HTTP -->|POST /match/predict| MLPredict
-    APIGW_WS -->|Connect / Disconnect| ConnHandlers
+    APIGW_WS -->|$connect / $disconnect| ConnHandlers
     ConnHandlers --> DDB
 
     ScoreUpdate -->|Fast Path Broadcast| SNS_Score
-    ScoreUpdate -->|Guaranteed Delivery| SQS_Queue
+    ScoreUpdate -->|Ordered Persistence| SQS_Queue
     SNS_Score --> Broadcaster
     MatchAPI -->|Direct Invoke: HUB_UPDATE| Broadcaster
-    Broadcaster -->|Push Updates| APIGW_WS
+    Broadcaster --> DDB
+    Broadcaster -->|Push Live Frames| APIGW_WS
     SQS_Queue --> StorageWorker
 
     MatchAPI --> AivenPG
-    StorageWorker -->|Batched Ball Events| AivenPG
+    StorageWorker -->|Transactional Ball Writes| AivenPG
     MatchAPI --> SES
     MatchAPI --> S3_Backups
 
-    MLPredict -->|Load Versioned Model Artifacts| S3_Backups
+    ECR -->|Container Runtime| MLPredict
+    S3_Backups -->|Versioned Model v2.2.0| MLPredict
 
-    ChatAPI --> AIService
+    ChatAPI -->|Read-Only SQL & pgvector RAG| AivenPG
+    ChatAPI -.-> OpenAI
     ChatAPI -.-> OpenMeteo
     ChatAPI -.-> GitHubAPI
-    AIService -->|Parameterized Read-Only SQL & pgvector| AivenPG
-    AIService -.-> OpenAI
 ```
 
 ---
@@ -119,7 +132,7 @@ flowchart TD
         subgraph SpecializedAgents ["6 Bounded Specialist Agents (Max 3 Tool Calls)"]
             MatchAgent["📊 Match Stats Agent (Parameterized SQL, 3s Timeout, Row Limits)"]
             RAGAgent["📖 Tournament Rules RAG Agent (pgvector Cosine Search)"]
-            WeatherAgent["🌦️ Match Weather Agent (Open-Meteo API, $0 Cost)"]
+            WeatherAgent["🌦️ Match Weather Agent (Open-Meteo API, No Key Required)"]
             IssueAgent["🐛 GitHub Issue Agent (GitHub REST API, 2-Step Confirmation)"]
             AnalysisAgent["🏏 Cricket Context & Tactical Agent (Live Telemetry + DLS + Pacing)"]
             PredictionAgent["🎯 Win Prediction Agent (Feature Validation & Model Inference)"]
@@ -132,7 +145,7 @@ flowchart TD
         PG_Relational[("Aiven PostgreSQL: Matches, Innings, Players")]
         PG_Vector[("pgvector: Tournament Rulebooks Embeddings")]
         ML_Model["cricscore-ml-predict Lambda (Inference Engine)"]
-        WeatherAPI["Open-Meteo Weather API ($0, No API Key)"]
+        WeatherAPI["Open-Meteo Weather API (Public API, No Key Required)"]
         GitHubAPI_Tool["GitHub REST API (Issue Creation)"]
         MCPServer["In-Memory MCP Server & Python Stdio (Tool Schema Registry)"]
     end
@@ -188,7 +201,7 @@ flowchart TD
 | :---- | :---------------------------------------- | :-------------------------------------- | :-------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **1** | 📊 **Match Stats Agent**                  | `execute_sql`                           | Aiven PostgreSQL 16         | • Strict read-only `SELECT` enforcement<br/>• Blocks write/DDL keywords (`DROP`, `DELETE`, `UPDATE`)<br/>• 3-second statement timeout                                                    |
 | **2** | 📖 **Tournament Rules RAG Agent**         | `search_tournament_rules`               | `pgvector` store (Aiven PG) | • Cosine similarity search on PDF chunks<br/>• Proportional powerplay scaling for shortened overs<br/>• Strict citation: `[Source: document_name]`<br/>• Anti-hallucination truthfulness |
-| **3** | 🌦️ **Weather Specialist Agent**           | `get_match_weather`                     | Open-Meteo API              | • Geocoding + hourly forecasts<br/>• Rain probability %, temp, wind speed<br/>• Cricket & DLS rain advisories<br/>• $0 cost (no API key required)                                        |
+| **3** | 🌦️ **Weather Specialist Agent**           | `get_match_weather`                     | Open-Meteo API              | • Geocoding + hourly forecasts<br/>• Rain probability %, temp, wind speed<br/>• Cricket & DLS rain advisories<br/>• Public API (no API key required)                                     |
 | **4** | 🐛 **GitHub Issue Reporter Agent**        | `create_github_issue`                   | GitHub REST API             | • Creates labeled issues (`via-cricscore-ai`, category)<br/>• 2-step confirmation to capture title & description<br/>• Rate-limited: max 1 issue per turn                                |
 | **5** | 🏏 **Cricket Context & Tactical Agent**   | Live match context injection            | Real-time scoreboard state  | • Analyzes CRR vs RRR equations<br/>• Match phase analysis (Powerplay / Middle / Death)<br/>• Evaluates bowler overs and matchup strategy without extra DB queries                       |
 | **6** | 🎯 **Win Probability & Prediction Agent** | `predict_match_outcome` / direct Lambda | XGBoost + Markov DP + DLS   | • Validates 8 situational features<br/>• Blends ML gradient boosting with dynamic programming<br/>• Produces probabilistic percentages and conversational commentary                     |
@@ -201,63 +214,41 @@ The prediction platform integrates a reproducible **MLOps lifecycle** (DVC + MLf
 
 ```mermaid
 flowchart TD
-    subgraph DataPipeline ["Phase 1: Dataset Pipeline & DVC Versioning"]
-        Cricsheet["Cricsheet Ball-by-Ball JSON Archives"]
-        Extractor["data_pipeline.py"]
-        RawCSV[("live_data.csv (786K+ Raw Deliveries, 100K-120K CI Subsample)")]
-        DVC_Track["DVC Tracking: cricket-data/t20s_json.zip.dvc & dvc.yaml"]
-        Cricsheet --> Extractor --> RawCSV --> DVC_Track
+    subgraph DataPipeline ["Phase 1: Dataset Pipeline & DVC Lineage"]
+        Cricsheet["Cricsheet T20 Ball-by-Ball Archives (786K+ Deliveries)"]
+        Extractor["data_pipeline.py (live_data.csv Extraction)"]
+        DVC_Track["DVC Lineage: cricket-data/t20s_json.zip.dvc, dvc.yaml & dvc.lock"]
+        Cricsheet --> Extractor --> DVC_Track
     end
 
-    subgraph Experimentation ["Phase 2: Multi-Algorithm Experimentation & Leakage-Free Validation"]
-        Splitter["Match-Grouped Split (70% Train, 15% Val, 15% Test: Zero Leakage)"]
+    subgraph Experimentation ["Phase 2: Multi-Algorithm Benchmark & Champion Selection"]
+        Splitter["Match-Grouped Split (70% Train / 15% Val / 15% Test — Zero Leakage)"]
+        Benchmark["compare_models.py: 8-Model Benchmark (7 Sklearn Baselines + XGBoost)"]
+        MLflowStore[("MLflow Experiment Store (ROC-AUC, Log Loss, Brier Score)")]
+        Winner["Promoted Champion: XGBoost v2.2.0 (Val AUC 0.772, Test AUC 0.753)"]
 
-        subgraph Candidates ["Candidate Algorithm Benchmark (8 Models)"]
-            LogReg["LogisticRegression (Baseline)"]
-            NB["GaussianNB / DecisionTree / LinearSVC"]
-            HGB["HistGradientBoostingClassifier"]
-            RF["RandomForest / ExtraTrees"]
-            XGB["XGBoost (Champion v2.2.0)"]
-        end
-
-        Metrics["Evaluation Metrics: Log Loss, Brier Score, ROC-AUC, Accuracy, Latency"]
-        MLflowStore[("Local MLflow Store: apps/ml-engine/mlruns/")]
-
-        RawCSV --> Splitter --> Candidates --> Metrics --> MLflowStore
+        DVC_Track --> Splitter --> Benchmark --> MLflowStore --> Winner
     end
 
-    subgraph Governance ["Phase 3: Promotion Gates & Manifest Generation"]
-        Gate{"Quality Gates: Accuracy >= 0.60 & ROC-AUC >= 0.65?"}
-        Winner["Promoted Winner: XGBoost (v2.2.0)"]
-        Manifest["model_manifest.json (Semantic Version, Metrics, SHA-256 Checksum)"]
-        Report["comparison_report.md (Markdown Benchmark Table)"]
+    subgraph Governance ["Phase 3: CI Quality Gate & Dual S3 + ECR Registries"]
+        Gate{"CI Quality Gate (mlops-pipeline.yml): Acc >= 60% & ROC-AUC >= 65%"}
+        Manifest["model_manifest.json (Semantic Version + SHA-256 Checksum)"]
+        S3Registry[("Amazon S3 Model Registry: models/v2.2.0/ (.joblib ~227 KB)")]
+        ECR["Amazon ECR: xgboost-cpu Image (~309 MB, countNumber = 1 Single Image)"]
 
-        Metrics --> Gate
-        Gate -->|Approved| Winner --> Manifest --> Report
+        Winner --> Gate
+        Gate -->|Approved| Manifest
+        Manifest --> S3Registry
+        Manifest --> ECR
     end
 
-    subgraph Automation ["Phase 4: CI/CD & S3 Model Registry"]
-        WorkflowA["mlops-pipeline.yml (Dataset/Training Changes & Monthly Cron)"]
-        S3Registry[("Amazon S3: Versioned Model Registry (models/v2.2.0/)")]
-        ECR["Amazon ECR Container Registry (:v2.2.0 + Lifecycle Policy)"]
-    end
+    subgraph Serving ["Phase 4: Real-Time Hybrid Inference (AWS Lambda)"]
+        LambdaContainer["ml-predict Lambda (Python 3.12, 1024 MB, /tmp SHA-256 Verified Cache)"]
+        HybridEngine["Hybrid Win Engine: XGBoost v2.2.0 + Markov DP Simulation + DLS Par"]
 
-    subgraph Serving ["Phase 5: Real-Time Hybrid Inference (AWS Lambda)"]
-        LambdaContainer["cricscore-ml-predict Lambda (Python 3.12, 1024MB, Lazy Imports)"]
-        SafeLoader["S3 /tmp Cache + SHA-256 Checksum Loader & MODEL_VERSION Routing"]
-
-        subgraph HybridEngine ["Format-Agnostic Probability Engine (1–20 Overs)"]
-            FirstInn["1st Innings: Par-RPO Projection Logistic Curve"]
-            SecondInn["2nd Innings: Hybrid Markov DP Simulation + DLS Resource Par"]
-            TerminalCheck["Terminal State Evaluator (0% / 100% Certainty Check)"]
-        end
-
-        Manifest --> WorkflowA
-        WorkflowA --> S3Registry
-        S3Registry -->|MODEL_VERSION| SafeLoader
-        ECR --> LambdaContainer
-        LambdaContainer --> SafeLoader --> TerminalCheck --> FirstInn
-        TerminalCheck --> SecondInn
+        S3Registry -->|Cold-Start Pull & SHA-256 Verify| LambdaContainer
+        ECR -->|Container Runtime| LambdaContainer
+        LambdaContainer --> HybridEngine
     end
 ```
 
@@ -327,14 +318,15 @@ sequenceDiagram
 
 ## 🏛️ Technical Pillars & Specifications
 
-CricScore implements an **Event-Driven Architecture (EDA)** using serverless and managed services:
-
-- **Decoupled Fan-Out:** The `score-upd` Lambda publishes to AWS SNS for instant spectator broadcasts and enqueues a separate FIFO message into AWS SQS (`storage-buffer.fifo`) for ordered asynchronous persistence to Aiven PostgreSQL.
-- **Authoritative Cumulative State & Strike-Rotation Safety:** Every `POST /match/{id}/score` payload includes authoritative `explicitTotalRuns` and `explicitTotalWickets` alongside `ballData.batterName` (the batter who faced the delivery), ensuring both `storage-worker` and `LiveScoreboard` stay 100% synchronized across odd-run strike rotations, over completions, and `undo: true` rollbacks.
-- **WebSocket vs. Polling Recency Guard (`lastWsUpdateRef`):** `LiveScoreboard` suppresses background REST poll overwrites for 3 seconds after any WebSocket push so a lagging database read never reverts a live boundary or wicket.
-- **Idempotent Innings & Match Completion:** `POST /match/{id}/innings` uses `ON CONFLICT (match_id, inning_number) DO UPDATE`, and both `storage-worker` and `match-api` automatically resolve optimistic `inn2_<timestamp>` IDs to the canonical PostgreSQL `inning_id`.
-- **X-Ray Distributed Tracing:** AWS X-Ray active tracing is enabled across all Lambda functions with a 5% fixed sampling rate and a one-request-per-second reservoir (`infra/terraform/xray.tf`).
-- **Scoring Authorization:** Cognito JWTs protect scoring and admin routes at API Gateway, while `match-api` enforces per-resource ownership (`scorer_email`) or Cognito `Admin` group membership. Public match-read routes expose live scoreboards by match UUID.
+| Technical Pillar                        | Implementation File(s)                                                     | Mechanism & Guarantee                                                                                                                                                              |
+| :-------------------------------------- | :------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Decoupled Fan-Out**                   | `score-update/index.js`, `broadcaster/index.js`, `storage-worker/index.js` | Publishes to **AWS SNS** (`match-events`) for instant `<50ms` WebSocket fan-out while enqueuing into **AWS SQS FIFO** (`storage-buffer.fifo`) for ordered PostgreSQL writes.       |
+| **Authoritative Cumulative State**      | `App.tsx`, `storage-worker/index.js`, `LiveScoreboard.tsx`                 | Every `POST /update-score` payload sends `explicitTotalRuns`, `explicitTotalWickets`, and `ballData.batterName`, keeping DB and UI synchronized across strike rotations and undos. |
+| **WebSocket vs. Polling Recency Guard** | `LiveScoreboard.tsx` (`lastWsUpdateRef`)                                   | Suppresses background REST poll overwrites for `3 seconds` after any WebSocket push so a lagging read never reverts a live boundary or wicket.                                     |
+| **Idempotent Innings & Match Sync**     | `match-api/index.js`, `storage-worker/index.js`                            | `POST /match/{id}/innings` uses `ON CONFLICT (match_id, inning_number) DO UPDATE` and resolves optimistic `inn2_<timestamp>` IDs to the canonical PostgreSQL `inning_id`.          |
+| **Deterministic Player of the Match**   | `chat-api/handlers/summaryHandler.js` (`computePlayerOfTheMatch`)          | Computes Cricket MVP Impact Score deterministically (batting runs, team share, `4s`/`6s`, SR vs match RPO, wickets, economy, maidens, `1.35x + 5.0` win bonus) and caches in DB.   |
+| **X-Ray Distributed Tracing**           | `infra/terraform/xray.tf`, `infra/terraform/lambda.tf`                     | Active tracing enabled on all 8 Lambdas with a `5%` fixed sampling rate and a `1 req/sec` reservoir (`cricscore-low-cost-5pct`) to stay within AWS X-Ray Free Tier.                |
+| **Scoring & Admin Authorization**       | `infra/terraform/apigw.tf`, `match-api/index.js` (`isAuthorized`)          | Cognito JWT Authorizer protects write/admin routes at API Gateway; `match-api` verifies resource ownership (`scorer_email`) or Cognito `Admin` group membership.                   |
 
 ---
 
@@ -342,82 +334,45 @@ CricScore implements an **Event-Driven Architecture (EDA)** using serverless and
 
 > See [`docs/auth.md`](./auth.md) for the full authentication specification.
 
-CricScore uses **AWS Cognito User Pools** with a 4-tier role model:
-
-| Role          | Access                                                                                            |
-| ------------- | ------------------------------------------------------------------------------------------------- |
-| **Viewer 🌍** | Public-only, no sign-in required                                                                  |
-| **Guest 🎮**  | Cognito account (`guest-{ts}@cricscore.local`); guest matches are persisted and can be cleaned up |
-| **Scorer 🎮** | Authenticated scorer access; owns their own matches                                               |
-| **Admin ⚡**  | Admin-group access, with a configured super-admin email bypass for backend operations             |
-
-Authorization for protected operations is enforced at two layers:
-
-1. **Frontend** — JWT presence and `cognito:groups` group check in React state
-2. **Backend** — API Gateway JWT Authorizer validates tokens on protected routes; Lambda checks ownership or admin access where applicable. Public routes do not use this authorizer.
+| Role          | Identity Mechanism                                    | Frontend Capabilities                                          | Backend Authorization (`API Gateway` + `Lambda`)                                          |
+| :------------ | :---------------------------------------------------- | :------------------------------------------------------------- | :---------------------------------------------------------------------------------------- |
+| **Viewer 🌍** | Public UUID link (no sign-in required)                | View live scoreboards, full scorecards, and AI Chat            | Open `GET /matches`, `GET /match/{id}/details`, `POST /chat`, `POST /match/predict`       |
+| **Guest 🎮**  | Shadow Cognito account (`guest-{ts}@cricscore.local`) | Score practice matches; auto-confirmed via `cognito-presignup` | Valid Cognito JWT; isolated guest records can be bulk-pruned by Admins                    |
+| **Scorer 🎮** | Verified Cognito User Pool account                    | Create matches, score ball-by-ball, undo, email reports        | Valid Cognito JWT + per-match ownership check (`matches.scorer_email == jwt.email`)       |
+| **Admin ⚡**  | Cognito `Admin` group / `ADMIN_REPORT_EMAIL`          | Full Match Ops Admin Panel, user management, PDF rules         | Valid Cognito JWT + `cognito:groups` includes `Admin` (or super-admin email verification) |
 
 ---
 
-## 🏛️ Component Breakdown
+## 🧩 Platform Component Breakdown
 
-### **1. Official Scorer (The Implementation)**
-
-- **Match Registry**: Games are anchored to a unique UUID provided by **Aiven PostgreSQL** during initialization.
-- **score_update Lambda**: Validates ball-by-ball payloads and publishes them to AWS SNS for downstream fan-out.
-- **State Persistence**: Score events are queued through FIFO SQS for asynchronous storage; the live broadcast and database write are separate operations.
-- **Cross-Session Identity Guard**: A `prevEmailRef` ref in `App.tsx` detects user identity changes (e.g., guest → real account) and automatically clears all match state, preventing data bleed across sessions.
-
-### **2. Managed Fan Hub (The Discovery Engine)**
-
-- **match_api Lambda**: Handles match discovery, initial deep-link hydration, admin user management APIs, and all CRUD operations with per-resource auth checks.
-- **broadcaster Lambda**: Consumes SNS events and performs parallel pushes to active spectator WebSocket tunnels via DynamoDB Registry.
-- **WebSocket Lifecycle (onConnect/onDisconnect)**: Manage the "who is watching now" registry in DynamoDB.
-- **Admin Panel**: React component providing user management (list, promote, demote, delete) and database cleanup operations. Accessible only to users in the Cognito `Admin` group.
-
-### **3. Reliability & Persistence (The Storage Buffer)**
-
-- **storage_worker Lambda**: Triggered by FIFO AWS SQS batches to persist queued match events to Aiven PostgreSQL.
-
-### **4. Security Strategy**
-
-- **Cognito Authentication**: Scoring and administrative routes require a valid Cognito JWT. API Gateway applies its JWT Authorizer only to configured protected routes; public routes do not use it.
-- **Per-Resource Authorization**: The `isAuthorized()` function in `match-api` checks that the requesting user is either the match owner, a super-admin email, or in the Cognito `Admin` group.
-- **Admin Group**: Managed in Cognito via Terraform. Administrative routes check group membership; selected backend operations also permit the configured super-admin email.
-- **Guest Isolation**: Guest accounts use shadow Cognito accounts (`guest-*@cricscore.local`) that can be cleaned up by Admins without affecting real user data.
-- **TLS**: PostgreSQL connections use TLS; the chat API currently disables server-certificate verification.
-- **Match Ownership**: Scoring changes check `scorer_email` and `matchId`; public match-read routes remain accessible by match UUID.
-- **Role-Based Access Hierarchy**:
-  - **Viewer 🌍**: Public/No-Auth spectator access based solely on the sharable match UUID.
-  - **Scorer 🎮**: Cognito-authenticated access for persistence and ball-by-ball updates. Can only manage matches they created.
-  - **Admin ⚡**: Cognito `Admin` group membership is checked for administrative operations; selected backend operations also allow the configured super-admin email.
-
-### **5. Infrastructure Automation & CI/CD**
-
-- **Automated Bootstrapping**: `infra/scripts/setup.sh` provides intelligent OS-aware dependency installation.
-- **Dynamic Variable Hydration**: `./infra/scripts/deploy.sh --env dev` bridges environment variables into Terraform format.
-- **Non-Destructive Configuration**: Local deployment cleanly appends live API Gateway and WebSocket URLs into `apps/frontend/.env`.
-- **Pipeline Dynamics**: `.github/workflows/ci.yml` validates changes and deploys DEV; `.github/workflows/cd.yml` handles PROD releases. Both use GitHub environment variables and secrets.
-
-### **6. Agentic AI & MCP Specialist Architecture (The Assistant)**
-
-- **Dual-Supervisor Design**:
-  - **Serverless Edge Supervisor (`chat-api` Lambda)**: Direct, low-latency Node.js Lambda running an in-memory MCP Client and Server (`InMemoryTransport`). Validates SQL queries as strictly read-only `SELECT` statements, queries `pgvector` for rulebook citations, fetches zero-cost Open-Meteo weather forecasts, and creates GitHub issues via server-side Octokit tokens.
-  - **Python Multi-Agent Supervisor (`apps/ai-service`)**: Extended LangGraph supervisor with deterministic intent routing and evidence synthesis across 6 domain-bounded specialist agents.
-- **6 Specialist Agents**:
-  1. 📊 **Match Stats Agent**: Read-only parameterized PostgreSQL 16 text-to-SQL with 3-second statement timeouts and row limits.
-  2. 📖 **Tournament Rules RAG Agent**: `pgvector` cosine similarity search across chunked tournament PDFs with mandatory `[Source: document_name]` citation.
-  3. 🌦️ **Weather Specialist Agent**: Open-Meteo API integration ($0 cost, no API keys) providing hourly temperatures, rain probability %, and DLS rain advisories.
-  4. 🐛 **GitHub Issue Reporter Agent**: Creates triaged GitHub issues with `via-cricscore-ai` labeling and strict 2-step confirmation to prevent spam.
-  5. 🏏 **Cricket Context & Tactical Agent**: Evaluates CRR vs RRR, match phases (Powerplay, Middle, Death), and bowler overs from live telemetry.
-  6. 🎯 **Win Probability & Prediction Agent**: Invokes the `ml-predict` inference engine and wraps statistical win likelihood in tactical cricket commentary.
-
-### **7. Serverless MLOps & Hybrid Win Prediction (The Engine)**
-
-- **DVC Dataset Versioning**: Tracks Cricsheet T20 raw ball-by-ball archives (`cricket-data/t20s_json.zip.dvc`, 786K+ raw deliveries) with SHA-256 reproducibility.
-- **Multi-Algorithm Benchmarking**: Evaluates 8 candidate models (Logistic Regression, GaussianNB, Decision Trees, Linear SVM, Random Forest, Extra Trees, HistGradientBoosting, and **XGBoost**) via match-grouped 70/15/15 splits to eliminate target leakage.
-- **S3 Model Registry & Decoupled ECR Runtime**: Decouples the Python 3.12 Docker runtime in Amazon ECR from the versioned `.joblib` model weights in S3 (`models/${var.ml_model_version}/`), enabling instant zero-downtime rollbacks via Terraform without rebuilding 650MB+ container images.
-- **Hybrid Serving Engine (`predict.py`)**: At runtime, `cricscore-ml-predict` dynamically blends XGBoost gradient boosting with a 2nd-innings Markov Chain Dynamic Programming (DP) chase simulation and Duckworth-Lewis-Stern (DLS) resource par tables.
+| Subsystem                           | AWS / Cloud Components                                         | Key Files                                                               | Primary Responsibilities                                                                                                                                              |
+| :---------------------------------- | :------------------------------------------------------------- | :---------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1. Official Scorer Engine**       | `score-update` Lambda, SNS, SQS FIFO, Cognito                  | `apps/frontend/src/App.tsx`, `apps/backend/lambdas/score-update/`       | Initializes UUID matches, validates ball-by-ball deliveries, publishes to SNS/SQS, and isolates sessions via `prevEmailRef` identity guard.                           |
+| **2. Managed Fan Hub**              | `match-api` Lambda, `broadcaster` Lambda, DynamoDB, WebSockets | `apps/backend/lambdas/match-api/`, `apps/backend/lambdas/broadcaster/`  | Serves live match discovery, deep-link hydration, `HUB_UPDATE` broadcasts, WebSocket connection registry (`$connect`/`$disconnect`), and Admin Panel.                 |
+| **3. Storage Buffer Worker**        | `storage-worker` Lambda, SQS FIFO, Aiven PostgreSQL 16         | `apps/backend/lambdas/storage-worker/index.js`                          | Drains ordered FIFO batches (`MessageGroupId = matchId`) and executes transactional SQL updates for `matches`, `innings`, `players`, `bowlers`, `ball_events`.        |
+| **4. Security & Identity**          | AWS Cognito User Pool, `cognito-presignup` Lambda, IAM         | `infra/terraform/cognito.tf`, `infra/terraform/iam.tf`                  | Enforces least-privilege IAM roles, JWT route protection, `isAuthorized()` ownership checks, TLS PostgreSQL connections, and guest shadow isolation.                  |
+| **5. Infrastructure & CI/CD**       | Terraform, S3 State, GitHub Actions (`ci.yml`, `cd.yml`)       | `infra/scripts/setup.sh`, `infra/scripts/deploy.sh`, `infra/terraform/` | Automates bootstrapping, dynamic `.env.local` hydration into `TF_VAR_*`, dev deployments on `main`, and production releases on `v*` tags.                             |
+| **6. Agentic AI & MCP Assistant**   | `chat-api` Lambda (Node.js 24), `apps/ai-service` (LangGraph)  | `apps/backend/lambdas/chat-api/`, `apps/ai-service/cricscore_ai/`       | Runs in-memory MCP Server + 6 specialist agents (SQL Stats, `pgvector` Rules RAG, Open-Meteo Weather, GitHub Issue Reporter, Tactical Context, Win Predictor).        |
+| **7. Serverless MLOps & Predictor** | `ml-predict` Lambda, Amazon ECR (`xgboost-cpu`), S3 Registry   | `apps/ml-engine/compare_models.py`, `apps/ml-engine/predict.py`         | Tracks 786K+ Cricsheet deliveries via DVC, benchmarks 8 models in MLflow, serves **XGBoost (`v2.2.0`)** + Markov DP + DLS from S3/ECR (`~309 MB`, `countNumber = 1`). |
 
 ---
 
-© 2026 CricScore Documentation. 🏎️🏎️🏆🏛️🛡️🏁🚀
+## 🛠️ Quick Verification Commands
+
+```bash
+# 1. Validate Terraform infrastructure configuration
+./infra/scripts/terraform.sh validate
+
+# 2. Run all backend, frontend, AI service, and ML engine test suites
+npm --prefix apps/backend test -- --run
+npm --prefix apps/frontend test -- --run
+./apps/ai-service/.venv/bin/pytest apps/ai-service -q
+./apps/ai-service/.venv/bin/pytest apps/ml-engine/tests -q
+
+# 3. Deploy full stack to dev using local environment variables
+./infra/scripts/deploy.sh --env dev --use-local-env
+```
+
+---
+
+© 2026 CricScore Documentation. 🏎️🏆🏛️🛡️🏁🚀

@@ -1,257 +1,151 @@
-# 💰 Cloud Cost & Infrastructure Management
+# 💰 Cloud Cost & Infrastructure Management (~$1/Month AWS Footprint)
 
-This document provides estimated operational costs for the CricScore platform. Free-tier eligibility, allowances, and service pricing vary; treat the figures below as estimates and check the current AWS pricing for your account, region, and deployment.
-
-## 🏗️ AWS Infrastructure (US-East-1 Estimates)
-
-### 1. **Compute: AWS Lambda**
-
-- **Free Tier Limit (Always Free)**: 1,000,000 Requests AND 400,000 GB-Seconds per month.
-- **The Fan-Out Multiplier (3x)**: Every single ball event (1 click) triggers **3 Lambda invocations** (`score-upd` $\rightarrow$ `broadcaster` + `storage-worker`).
-- **Cognito Pre-Signup Lambda**: A lightweight `cognito-presignup` Lambda is invoked on each new user registration. Guest accounts (`guest-*@cricscore.local`) auto-confirm; normal accounts go through standard Cognito email verification.
-- **Est. Max Load**: 1M requests / 3 Lambdas = 333,333 ball events = **~1,388 full 20-over matches per month** remaining within the AWS Lambda request allowance.
-- **Compute Duration Economics**:
-  - `score-upd` (256 MB, ~15ms avg) = 0.00384 GB-s per ball
-  - `storage-worker` (256 MB, ~20ms avg) = 0.00512 GB-s per ball
-  - `broadcaster` (128 MB, ~10ms avg) = 0.00128 GB-s per ball
-  - `ml-predict` (1024 MB, ~1.56ms avg) = 0.00156 GB-s per ball
-  - Total per delivery = **~0.0118 GB-seconds**. 240,000 deliveries (1,000 matches) consumes **~2,832 GB-seconds**—less than **0.7%** of the 400,000 GB-second free tier allowance.
-- **Lambda Function Sizing & Timeout Matrix (`infra/terraform/lambda.tf`)**:
-
-| Function                      | Package Type | Memory    | Timeout               | Log Retention | Primary Role                                                        |
-| :---------------------------- | :----------- | :-------- | :-------------------- | :------------ | :------------------------------------------------------------------ |
-| `<project>-match-api`         | ZIP (Node24) | `128 MB`  | `30s`                 | `7 days`      | Match CRUD, deep-link hydration, admin ops, SES email, S3 backup    |
-| `<project>-score-upd`         | ZIP (Node24) | `256 MB`  | `30s`                 | `7 days`      | Validates ball events and fans out to SNS + SQS FIFO                |
-| `<project>-storage-worker`    | ZIP (Node24) | `256 MB`  | `30s`                 | `7 days`      | Consumes SQS FIFO (`batch_size = 1`) and writes to PostgreSQL       |
-| `<project>-broadcaster`       | ZIP (Node24) | `128 MB`  | `3s` (module default) | `7 days`      | Consumes SNS events and pushes WebSocket frames via API Gateway     |
-| `<project>-onconnect`         | ZIP (Node24) | `128 MB`  | `3s` (module default) | `7 days`      | Registers active spectator WebSocket `connectionId` in DynamoDB     |
-| `<project>-ondisconnect`      | ZIP (Node24) | `128 MB`  | `3s` (module default) | `7 days`      | Removes disconnected spectator `connectionId` from DynamoDB         |
-| `<project>-cognito-presignup` | ZIP (Node24) | `128 MB`  | `3s` (module default) | `7 days`      | Auto-confirms `guest-*@cricscore.local` shadow accounts             |
-| `<project>-chat-api`          | ZIP (Node24) | `1024 MB` | `30s`                 | `7 days`      | Read-only Agentic RAG (`pgvector` + execute_sql guard + AI summary) |
-| `<project>-ml-predict`        | ECR Image    | `1024 MB` | `30s`                 | `7 days`      | XGBoost (`v2.2.0`, S3 versioned model registry) + Markov DP + DLS   |
-
-### 2. **Real-time: WebSocket API Gateway**
-
-- **Free Tier Limit (First 12 Months)**: 1,000,000 Messages + 750,000 Connection Minutes per month.
-- **Cost After Tier**: $1.00 per 1M messages + $0.25 per 1M connection minutes ($0.00000025/min).
-- **Multiplier (`X`)**: For every 1 ball scored, API Gateway pushes **`X` messages** (Where `X` is the number of active, live spectators). If 100 fans watch 1 over (6 balls), it costs 600 messages.
-- **Connection Minute Consumption**: 20 concurrent spectators watching an entire 90-minute match consumes 1,800 connection minutes. 100 matches/month = 180,000 minutes (comfortably below the 750,000 free-tier limit).
-
-### 3. **Messaging & Buffering (AWS SNS & SQS)**
-
-- **SNS (Fan-Out Hub - Always Free)**: First 1,000,000 Publishes + 100,000 HTTP/S Deliveries per month are **FREE**.
-- **SQS (Reliability Buffer - Always Free)**: The configured queue is FIFO (`storage-buffer.fifo`). Amazon SQS provides an **Always-Free tier of 1,000,000 requests per month** across Standard and FIFO queues.
-  - SQS FIFO operations for 1,000 matches (SendMessage + ReceiveMessage + DeleteMessage ≈ 720,000 requests) fall **100% within the 1M monthly free tier ($0.00)**.
-  - Post-free tier rate: $0.50 per 1M requests (720,000 requests = ~$0.36/mo).
-- **The Multiplier**: A score update sends one SNS publish and one direct SQS FIFO message (`MessageGroupId = matchId`). The SNS topic invokes `broadcaster` directly.
-- **Encryption**: SNS uses `alias/aws/sns` (AWS-managed, **free**). SQS uses `sqs_managed_sse_enabled` (**free**).
-
-### 4. **Storage: Amazon S3 & DynamoDB**
-
-- **S3 (App Hosting & Backups)**: First 5GB of Standard Storage + 20,000 GET requests + 2,000 PUT requests per month are **FREE** (first 12 months).
-  - React app static build: ~5MB.
-  - Completed match JSON backup snapshots: ~5–15KB per match. 1,000 matches ≈ 15MB total.
-  - Combined storage: ~20MB. Post 12-month rate is $0.023/GB/mo, costing **$0.00046/month** (under $0.01/year).
-- **S3 Encryption**: Uses SSE-S3 (`AES256`) — AWS-managed, **$0/month**.
-- **DynamoDB (Always Free)**: `PAY_PER_REQUEST` on-demand capacity mode with **25GB of Storage + 2.5 Million Read/Write units per month** included in AWS Always-Free tier. Spectator connection tracking consumes <0.01% of this capacity.
-
-### 5. **Delivery: CloudFront & Route 53**
-
-- **CloudFront (Always Free)**: First **1TB of data transfer out** + 10,000,000 HTTP/HTTPS requests per month are permanently **FREE**. Effectively $0.00 for CricScore's lightweight payload.
-- **Route 53**:
-  - Hosted Zone: Fixed cost of **$0.50 per month** per hosted zone (first 25 zones).
-  - **AWS Alias Query Exemption**: Route 53 charges **$0.00** for queries to Alias records that map to AWS CloudFront distributions (`A` alias to CloudFront). Only non-alias queries incur the standard $0.40/million rate, keeping DNS query charges effectively at $0.00.
-
-### 6. **Reporting: AWS SES (Email)**
-
-- **Cost (Always Free)**: First **62,000 emails per month are FREE** when sent from AWS Lambda or EC2.
-- **Usage**: Each match conclusion triggers 1 auto-email to fans/admins. Even with 1,000 matches, 1,000 emails remains well within the 62,000 free quota. Post-tier rate is $0.10 per 1,000 emails.
-
-### 7. **Monitoring: AWS CloudWatch Alarms & Logs**
-
-- **Cost (Always Free)**: First **10 standard metric alarms** and first **5GB of log ingestion/storage** per month are permanently **FREE**.
-- **Usage**: The platform provisions 2 alarms (`match-api-errors`, `score-update-errors`), leaving 8 free alarm slots.
-- **Log Retention**: Enforces `retention_in_days = 7` on all 9 Lambda log groups in `infra/terraform/lambda.tf`. Stored log volume auto-expires, staying well under 100MB/month. **Cost: $0/month**.
-- **Alert Dispatch**: Alarms notify via Amazon SNS topic and email subscription, fully covered within the SNS free tier.
-
-### 8. **Distributed Tracing: AWS X-Ray**
-
-- **Cost (Always Free)**: First **100,000 traces recorded** and **1,000,000 traces retrieved** per month are permanently **FREE**.
-- **Usage**: Configured sampling rule in `infra/terraform/xray.tf` applies a 5% fixed rate with a 1 req/sec reservoir, capturing key transactions while keeping trace volumes well within the free allocation.
-
-### 9. **CloudWatch Dashboard** _(removed — paid)_
-
-- **Cost**: **$3.00/month** per dashboard. No free tier.
-- **Decision**: The current Terraform configuration does not provision an `aws_cloudwatch_dashboard`, avoiding the recurring $3/month charge.
-- **Alternative**: The repository auto-generates [`docs/aws_resources_dashboard.md`](./aws_resources_dashboard.md) on every commit with direct deep-links to the [CloudWatch Metrics console](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#metricsV2).
-
-### 10. **CI/CD Automation: GitHub Actions**
-
-- **Cost**: First 2,000 execution minutes per month are **FREE** for private repositories (Unlimited for public).
-- **Usage**: CI/CD checks, Semantic Releases, Drift Detection, and E2E Tests use a fraction of these minutes. $0/month.
-
-### 11. **Encryption: AWS KMS** _(removed)_
-
-- **Previously**: A Customer Managed Key (CMK) was used to encrypt S3, SNS, and SQS resources, costing **$1.00/month** per key + API call charges (~$2/month total).
-- **Now**: All resources use free AWS-managed encryption:
-  - S3 → `SSE-S3 (AES256)` — **$0**
-  - SNS → `alias/aws/sns` — **$0**
-  - SQS → `sqs_managed_sse_enabled` — **$0**
-- **Saving**: ~$2.00/month eliminated with no reduction in encryption strength.
-
-### 12. **Identity: AWS Cognito User Pool**
-
-- **Free Tier Limit**: Published Cognito Lite/Essentials free-tier allowances cover up to 10,000–50,000 MAUs depending on account tier; check current pricing before estimating.
-- **What's included**: Sign-up, sign-in, token issuance (JWT), user pool storage, group management (`Admin` group), and pre-signup Lambda triggers.
-- **Guest accounts**: Each guest scorer creates a shadow Cognito account (`guest-*@cricscore.local`) that counts as 1 MAU per month. Admins can purge stale guest accounts via the authenticated Match Ops Admin Panel (`Purge Guest Accounts`) to keep MAU count near zero.
-- **Cost for typical usage**: **$0/month**.
-
-### 13. **ML Inference: S3 Versioned Model Registry & ECR Containerized Lambda (`ml-predict`)**
-
-- **Architecture**: Stores versioned **XGBoost** model bundles (`v2.2.0`, ~227 KB `.joblib` + `model_manifest.json` + `live_metadata.json`) in the existing S3 bucket (`s3://<project>-match-backups-.../models/<version>/`, costing **$0.00** under the 5 GB S3 free tier) and runs the inference engine (`predict.py` + `win_probability.py` Markov DP + DLS resource par) in a Linux x86_64 Lambda container (`1024 MB` RAM, `30s` timeout, lazy-loaded libraries for `<70ms` cold-start `Phase: init`).
-- **Inference Latency & Compute Economics**:
-  - Warm execution duration is **~1.56 ms** per ball prediction.
-  - At 1024 MB (1 GB) memory, 1.56 ms consumes only `0.00156 GB-seconds` per invocation.
-  - Under the AWS Lambda permanent free allowance of **400,000 GB-seconds/month**, the platform can execute over **250,000,000 predictions/month completely FREE** before incurring compute charges.
-- **ECR Storage & Automated Lifecycle Governance**:
-  - Each ECR repository (`cricscoredev-ml-predict` and `cricscore-ml-predict`) enforces an automated `aws_ecr_lifecycle_policy` that expires untagged images after 1 day and retains only the active version tag (`:v2.2.0` + `:latest`), plus immediate untagged image cleanup during `deploy.sh`.
-- **On-Demand Retraining (`mlops-pipeline.yml`)**:
-  - Retraining in GitHub Actions only triggers when `cricket-data/**` or training scripts (`data_pipeline.py`, `compare_models.py`, `train_model.py`, `requirements-train.txt`) change, on the monthly schedule, or via manual dispatch—saving CI minutes on routine PRs.
-- **Client-Side Short-Circuit Optimization (`AiMatchPrediction.tsx`)**:
-  - Before the first legal ball is bowled (`ballsBowled === 0 && wickets === 0`), the UI renders an instant `50% - 50%` baseline without invoking Lambda.
-  - When a chase is mathematically decided (`runsNeeded <= 0`, `ballsLeft <= 0`, `wickets >= 10`, or `runsNeeded > ballsLeft * 6`), the frontend resolves `100% / 0%` or `0% / 100%` locally without a network round-trip.
-- **Total ML Inference Cost**: **$0.00/month**.
+CricScore is engineered around **serverless scale-to-zero** and deliberate architectural **trade-offs** to keep the combined **Development + Production** AWS monthly bill around **~$1.00 / month**.
 
 ---
 
-## 🚫 Strictly Forbidden Paid AWS Resources
+## 🗺️ 1. Cost-Optimized Serverless Architecture
 
-To prevent accidental bill shock, the following resources are **strictly prohibited** in `infra/terraform/`:
+```mermaid
+flowchart LR
+    subgraph PaidTier ["Paid AWS Layer (~$0.70–$1.00/mo Combined)"]
+        R53["Route 53 Hosted Zone + DNS (~$0.53/mo)"]
+        S3["Amazon S3 (7d/30d/180d Lifecycle Rules, ~$0.07/mo)"]
+        APIGW["API Gateway HTTP + WS (50 rps / 5 rps LLM, ~$0.06/mo)"]
+        DDB_SES["DynamoDB On-Demand + SES (~$0.02/mo)"]
+        ECR["Amazon ECR (xgboost-cpu ~309 MB, countNumber = 1, ~$0.01/mo)"]
+    end
 
-| Forbidden Resource                                     | Typical Monthly Cost          | Required Zero-Cost Alternative in CricScore                                          |
-| :----------------------------------------------------- | :---------------------------- | :----------------------------------------------------------------------------------- |
-| **AWS NAT Gateway / VPC Endpoints**                    | **~$32.00+/month** + data     | Run Lambdas outside a VPC using TLS + Cognito JWT + IAM authorization                |
-| **CloudWatch Dashboards (`aws_cloudwatch_dashboard`)** | **$3.00/month** per board     | Use auto-generated [`docs/aws_resources_dashboard.md`](./aws_resources_dashboard.md) |
-| **KMS Customer-Managed Keys (`aws_kms_key`)**          | **$1.00/month** per key + API | Use AWS-managed encryption (`AES256`, `alias/aws/sns`, `sqs_managed_sse`)            |
-| **AWS Secrets Manager**                                | **$0.40/secret/month**        | Inject via Terraform `TF_VAR_*` from `.env.local` / GitHub Environment secrets       |
-| **DynamoDB Provisioned Capacity**                      | **Fixed hourly RCU/WCU**      | Always set `billing_mode = "PAY_PER_REQUEST"` on `websocket_connections`             |
+    subgraph FreeTier ["AWS Permanent Free Tier (Within Monthly Allowances)"]
+        CF_ACM["CloudFront CDN (PriceClass_100) + 6 ACM TLS Certs + 2 Cognito Pools"]
+        Compute["18 Lambdas (9/env) + SNS (match-events) + SQS FIFO (storage-buffer.fifo)"]
+        Telemetry["CloudWatch Logs (7-Day Retention) + 4 Alarms + X-Ray (5%) + Budgets ($5 Cap)"]
+    end
 
----
+    subgraph External ["External Managed & Usage-Based Tiers"]
+        Aiven[("Aiven PostgreSQL 16 + pgvector (Free Tier, Dev/Prod Schemas)")]
+        Weather["Open-Meteo Weather API (Keyless Public API)"]
+        LLM["OpenAI-Compatible LLM (gpt-4o-mini, ~$0.0004/query)"]
+    end
 
-## 🛡️ Cost Defense & DDoS Guardrails
-
-Because CricScore uses serverless AWS services, unplanned traffic can increase usage and cost. The configured controls below provide traffic and cost safeguards:
-
-1. **API Gateway Throttling**: Both the HTTP and WebSocket API Gateways enforce `default_route_settings` with `throttling_rate_limit = 50` req/sec and `throttling_burst_limit = 100`.
-2. **Bounded Lambda Timeouts & Connection Reuse**: All Lambdas have strict timeouts (`10s–30s`) and reuse module-scoped `pg.Pool` connections across warm invocations so hung downstream calls never rack up GB-seconds or exhaust PostgreSQL connections.
-3. **AWS Cost Budget (`infra/terraform/cost_budget.tf`)**: Configures an automated email alert at 100% of a **$5.00 monthly budget** to `var.admin_email`.
-4. **Secrets Scanning**: GitLeaks runs in CI and in the local pre-commit hook to prevent credential leaks that could lead to unauthorized cloud spend.
-
----
-
-## 🗄️ Database (Aiven PostgreSQL)
-
-### 1. **PostgreSQL (Aiven)**
-
-- **Free Tier**: Aiven offers a free-tier for PostgreSQL (1 CPU, 1GB RAM, 1GB Storage).
-- **Availability**: Note that Free-tier instances may power-cycle after prolonged inactivity but can be restarted manually. No SLA applies.
-- **Lifecycle**: Auto-backups are included.
-- **Upgrade Path**: DigitalOcean or AWS-managed RDS starts at ~$15/mo if high-availability is required.
+    R53 --> CF_ACM & APIGW
+    CF_ACM --> S3
+    APIGW --> Compute
+    ECR --> Compute
+    Compute --> DDB_SES & S3 & Telemetry & Aiven & Weather & LLM
+```
 
 ---
 
-## 💸 Detailed Ownership Costs
+## 📊 2. Monthly AWS Cloud Cost Summary (Dev + Prod Combined)
 
-CricScore is designed for **maximum profitability** on minimal infrastructure. Below is the projected cost of ownership with a standard **`.com` custom domain** renewing annually at **$10.00/year** (amortized to **$0.83/month**).
+Measured from AWS Cost Explorer in `us-east-1` across both deployed environments (`cricscoredev` and `cricscore`):
 
-### Domain Renewal Architecture: Annual Invoicing & Monthly Amortization
+| AWS Service / Layer                 | Provisioned Resources (Dev + Prod)                                       | Monthly AWS Cost | Cost Driver & Architectural Trade-Off                                                                                         |
+| :---------------------------------- | :----------------------------------------------------------------------- | :--------------: | :---------------------------------------------------------------------------------------------------------------------------- |
+| **Amazon Route 53**                 | 1 Hosted Zone + Alias (`A`) & ACM validation records                     |    **~$0.53**    | Fixed `$0.50/mo` hosted zone + `~$0.03/mo` standard DNS queries (`A` Alias queries to CloudFront & API Gateway are free)      |
+| **Amazon S3**                       | Static SPA buckets, access logs, match backups, ML model registry, state |    **~$0.07**    | Lifecycle rules expire old static versions after 7d, access logs after 30d, and raw match backups after 180d                  |
+| **Amazon API Gateway**              | 2 HTTP APIs + 2 WebSocket APIs                                           |    **~$0.06**    | `$1.00` per million requests/messages; protected by stage throttling (`50 rps`) and `/chat` route throttling (`5 rps`)        |
+| **Amazon SES & DynamoDB**           | Scorecard email dispatch + `PAY_PER_REQUEST` WebSocket connection tables |    **~$0.02**    | On-demand DynamoDB (`PAY_PER_REQUEST`, no provisioned RCU/WCU) + `$0.10` per 1,000 SES emails                                 |
+| **Amazon ECR**                      | 2 private repos (`cricscoredev-ml-predict`, `cricscore-ml-predict`)      |    **~$0.01**    | `xgboost-cpu` slims each image from `684 MB` to `~309 MB` (`500 MB/mo` free tier + `$0.10/GB-mo` on the remaining `~118 MB`)  |
+| **AWS Lambda, SNS & SQS FIFO**      | 9 functions per env + SNS `match-events` + SQS `storage-buffer.fifo`     |  **Free Tier**   | Covered under permanent monthly allowances (`1M` Lambda invocations, `400K` GB-s, `1M` SNS publishes, `1M` SQS FIFO requests) |
+| **CloudFront, ACM & Cognito**       | Global CDN (`PriceClass_100`), 6 ACM TLS certs, 2 Cognito User Pools     |  **Free Tier**   | `1 TB/mo` CloudFront egress, public ACM TLS certificates, and Cognito User Pool MAUs within permanent free allowances         |
+| **CloudWatch, X-Ray & AWS Budgets** | 7-day log groups, 2 metric alarms per env, 5% X-Ray sampling, Budgets    |  **Free Tier**   | `retention_in_days = 7` keeps logs well under the `5 GB` allowance; `5%` X-Ray trace sampling stays under `100K` traces/mo    |
+| **Total Monthly AWS Cloud Bill**    | **Full Multi-Environment Serverless Platform (Dev + Prod)**              | **~$0.85–$1.00** | **Production-grade serverless architecture running for ~$1/month**                                                            |
 
-- **Standard `.com` Domain (`venkateshsingamsetty.com`)**:
-  - **Annual Renewal Rate**: **$10.00 per year** (standard registry renewal fee via registrars like Porkbun, Spaceship, Cloudflare, or Namecheap).
-  - **Amortized Monthly Rate**: $10.00 / 12 months = **~$0.83 / month**.
-  - **Renewal Cadence**: Domain registrations are billed on an **annual renewal cycle** ($10.00 charged once per year), while the AWS Route 53 Hosted Zone ($0.50/mo) is billed monthly on your AWS invoice.
-- **Budget TLD Alternative (`.site` / `.me`)**:
-  - **Annual Renewal Rate**: **~$2.00 per year** (amortized to **~$0.16 / month**).
+### External Services Breakdown
 
-| Duration    | AWS (Free Tier + R53 $0.50/mo) | Aiven PostgreSQL (Free) | Standard `.com` Domain ($10/yr Renewal) | **Total Platform Cost** |
-| :---------- | :----------------------------- | :---------------------- | :-------------------------------------- | :---------------------- |
-| **6 Hours** | $0.003                         | $0.00                   | $0.002                                  | **~$0.005**             |
-| **1 Day**   | $0.016                         | $0.00                   | $0.027                                  | **~$0.043**             |
-| **1 Month** | $0.500                         | $0.00                   | $0.833                                  | **~$1.333**             |
-| **1 Year**  | $6.000                         | $0.00                   | $10.000                                 | **~$16.000**            |
-
-_Note: Route 53 Hosted Zone is a fixed $0.50/mo ($6.00/yr). Domain renewal ($10.00/yr) is paid once annually upon anniversary renewal. Total base infrastructure is **~$1.33/month ($16.00/year)** without AI chat, or **~$1.73/month ($20.80/year)** with ~1,000 monthly OpenAI queries included. KMS CMK (~$2/mo) and CloudWatch Dashboards ($3/mo) were permanently eliminated._
-
----
-
-## 🏗️ Match Capacity & Scale
-
-For a standard **20-Overs Match** (120 balls per innings = **240 total events/match**), the platform can support the following volume before exceeding the $0 tier.
-
-### 1. **Compute (AWS Lambda / API Gateway)**
-
-- **Limit**: 1,000,000 requests per month.
-- **Conversion**: At three Lambda invocations per ball event, 1,000,000 / (240 events × 3) = **~1,388 full matches per month**, before counting other Lambda invocations or charges.
-- **Usage**: This is a theoretical estimate using the stated request allowance; actual free usage depends on account eligibility and all other invocations and service charges.
-
-### 2. **Storage (Aiven PostgreSQL)**
-
-- **Limit**: 1.0 GB Storage (Free Tier).
-- **Consumption**: One match (including metadata and 240 ball records) consumes ~50KB.
-- **Capacity**: 1,000,000 KB / 50 KB = **~20,000 historical matches**.
-- **Strategy**: Use the **Admin Panel → Database Cleanup** (or Admin AI Chat) periodically to purge old matches and guest data.
-
-### 3. **Identity (AWS Cognito)**
-
-- **Limit**: 50,000 MAUs/month free.
-- **Guest Account Growth**: If guest users are not purged, each guest counts as 1 MAU for the month. With typical usage (10–50 matches/month), guest MAU accumulation is negligible.
-- **Recommendation**: Admins should periodically delete stale guest accounts from the Admin Panel to stay well within the free tier.
+| External Service                     | Tier / Model                             | Cost Footprint     | Notes                                                                                                                           |
+| :----------------------------------- | :--------------------------------------- | :----------------- | :------------------------------------------------------------------------------------------------------------------------------ |
+| **Aiven PostgreSQL 16 + `pgvector`** | Managed Free Tier                        | Included           | `1 vCPU`, `1 GB RAM`, `1 GB storage`; shared across `dev` and `prod` schemas (`SET search_path`), kept warm via `keepalive.yml` |
+| **Open-Meteo Weather API**           | Public Forecast API                      | Included           | Keyless geocoding + hourly precipitation/wind cricket DLS advisories                                                            |
+| **OpenAI-Compatible LLM**            | `gpt-4o-mini` + `text-embedding-3-small` | `~$0.0004` / query | Usage-based API (`~$0.0003` per uploaded rulebook PDF); guarded by `5 req/sec` API Gateway route throttling                     |
 
 ---
 
-## 🤖 AI API Unit Economics (OpenAI)
+## ⚖️ 3. Intentional Architectural Trade-Offs for the ~$1/Month Target
 
-The AI Assistant uses native OpenAI models with extreme cost efficiency:
-
-| Resource              | Model                    | Price Rate                            | Average Consumption / Query               | Cost / Action               |
-| :-------------------- | :----------------------- | :------------------------------------ | :---------------------------------------- | :-------------------------- |
-| **Chat & SQL Agent**  | `gpt-4o-mini`            | $0.15 / 1M input<br>$0.60 / 1M output | ~1,500 input tokens<br>~300 output tokens | **~$0.0004** per query      |
-| **Vector Embeddings** | `text-embedding-3-small` | $0.02 / 1M tokens                     | ~15,000 tokens / PDF                      | **~$0.0003** per PDF upload |
-
-### AI Usage Planning
-
-- **Estimated Capacity**: Divide the available provider balance or usage budget by the estimated average cost per action to approximate the number of chat queries or document uploads it can support.
-- **Actual Usage**: Costs vary with the selected models, input and output sizes, and provider pricing. Check the provider's usage dashboard to monitor actual spend.
+| Architectural Decision                           | Paid Alternative Avoided                           | Monthly Savings | Trade-Off & Mitigation in CricScore                                                                                                                                              |
+| :----------------------------------------------- | :------------------------------------------------- | :-------------: | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Public Serverless Endpoints + JWT/IAM**        | AWS NAT Gateway / VPC Interface Endpoints          |  **~$32.00+**   | Lambdas run outside a private VPC and connect to Aiven PostgreSQL over TLS (`sslmode=require`) with Cognito JWT & IAM authorization.                                             |
+| **AWS-Managed Encryption (`AES256` / Default)**  | KMS Customer-Managed Keys (`aws_kms_key`)          |   **~$2.00+**   | Uses `SSE-S3 (AES256)`, `alias/aws/sns`, and `sqs_managed_sse_enabled` instead of `$1/key/month` custom KMS keys.                                                                |
+| **Auto-Generated Markdown Infrastructure Index** | CloudWatch Dashboards (`aws_cloudwatch_dashboard`) |   **~$3.00+**   | Uses auto-generated [`docs/aws_resources_dashboard.md`](./aws_resources_dashboard.md) and [`docs/platform_dashboard.md`](./platform_dashboard.md) instead of `$3/mo` dashboards. |
+| **Environment & GitHub Secret Injection**        | AWS Secrets Manager                                | **~$0.40/sec**  | Injects sensitive config via Terraform `TF_VAR_*` from GitHub Environment secrets and `.env.local`.                                                                              |
+| **7-Day CloudWatch Log Retention**               | Indefinite (`Never Expire`) Log Storage            |   **~$0.50+**   | Enforces `retention_in_days = 7` on all API Gateway and Lambda log groups so historical logs never accumulate storage fees.                                                      |
+| **Shared Aiven PostgreSQL Instance**             | Dedicated RDS / Multi-AZ PostgreSQL                |  **~$15.00+**   | Isolates `dev` and `prod` via PostgreSQL schemas (`SET search_path`) and keeps the instance warm with a scheduled keepalive workflow.                                            |
 
 ---
 
-## 📉 Cost Optimization Tips
+## 🏗️ 4. AWS Service-by-Service Cost & Sizing Tables (`us-east-1`)
 
-1.  **Match Lifecycle Management**: Set a matches `status` to `COMPLETED` to stop unnecessary WebSocket polling.
-2.  **Log Retention**: Configure CloudWatch logs for 7-day retention to avoid storage creep.
-3.  **Domain Selection**: Use low-cost TLDs (like `.site` or `.me`) via registrars like **Spaceship** or **Porkbun** to keep your yearly overhead under **$2.00**.
-4.  **Review Backup Storage**: Frontend S3 bucket versioning is enabled; DynamoDB point-in-time recovery is not configured in the current Terraform. Review retained versions and backups for storage costs.
-5.  **Avoid Customer Managed KMS Keys (CMKs)**: Each CMK costs $1.00/month regardless of usage. Use free AWS-managed alternatives: `AES256` for S3, `alias/aws/sns` for SNS, `sqs_managed_sse_enabled` for SQS.
-6.  **Purge Guest Cognito Accounts**: Guest shadow accounts (`guest-*@cricscore.local`) each count as 1 Cognito MAU/month. Use the Match Ops Admin Panel (`Purge Guest Accounts`) to remove stale accounts before they accumulate.
-7.  **Match Backup Size**: S3 match backup snapshots are small (~5–15KB each) but grow over time. The Admin Panel cleanup also removes match records; pair it with periodic S3 lifecycle rules if needed.
+### 4.1 Compute: AWS Lambda (9 Functions per Environment)
 
-## ⚖️ Total Monthly Estimated Cost Breakdown
+| Function                      | Package Type | Memory    | Timeout | Avg Warm Duration | GB-s per Ball  | Primary Role                                                       |
+| :---------------------------- | :----------- | :-------- | :------ | :---------------- | :------------- | :----------------------------------------------------------------- |
+| `<project>-match-api`         | ZIP (Node24) | `128 MB`  | `30s`   | `~25 ms`          | —              | Match CRUD, deep-link hydration, admin ops, SES email, S3 backup   |
+| `<project>-score-upd`         | ZIP (Node24) | `256 MB`  | `30s`   | `~15 ms`          | `0.00384 GB-s` | Validates ball events and fans out in parallel to SNS + SQS FIFO   |
+| `<project>-storage-worker`    | ZIP (Node24) | `256 MB`  | `30s`   | `~20 ms`          | `0.00512 GB-s` | Consumes SQS FIFO (`batch_size = 1`) and writes to PostgreSQL      |
+| `<project>-broadcaster`       | ZIP (Node24) | `128 MB`  | `3s`    | `~10 ms`          | `0.00128 GB-s` | Consumes SNS events and pushes WebSocket frames via API Gateway    |
+| `<project>-onconnect`         | ZIP (Node24) | `128 MB`  | `3s`    | `~8 ms`           | —              | Registers active spectator WebSocket `connectionId` in DynamoDB    |
+| `<project>-ondisconnect`      | ZIP (Node24) | `128 MB`  | `3s`    | `~8 ms`           | —              | Removes disconnected spectator `connectionId` from DynamoDB        |
+| `<project>-cognito-presignup` | ZIP (Node24) | `128 MB`  | `3s`    | `~5 ms`           | —              | Auto-confirms `guest-*@cricscore.local` shadow accounts            |
+| `<project>-chat-api`          | ZIP (Node24) | `1024 MB` | `30s`   | `~800 ms`         | —              | Read-only Agentic RAG (`pgvector` + `execute_sql` guard + summary) |
+| `<project>-ml-predict`        | ECR Image    | `1024 MB` | `30s`   | `~1.6 ms`         | `0.00160 GB-s` | XGBoost (`v2.2.0`, S3 versioned model registry) + Markov DP + DLS  |
 
-| Component                          | Service Provider               |    Monthly Cost    | Free-Tier Allowance / Details                                                   |
-| ---------------------------------- | ------------------------------ | :----------------: | ------------------------------------------------------------------------------- |
-| **Serverless Compute**             | AWS Lambda (9 functions)       |     **$0.00**      | 1M free requests + 400,000 GB-seconds/mo (covers ~1,388 full matches)           |
-| **Real-Time WebSockets**           | AWS API Gateway                |     **$0.00**      | 1M free messages + 750,000 connection minutes/mo                                |
-| **Relational Database & Vectors**  | Aiven PostgreSQL 16            |     **$0.00**      | Free tier includes 1 CPU, 1GB RAM, 1GB disk with `pgvector` (~20,000 matches)   |
-| **Static App Hosting & CDN**       | AWS S3 & CloudFront            |     **$0.00**      | S3: 5GB free storage; CloudFront: 1TB free data transfer out/mo                 |
-| **WebSocket Connection Tracking**  | AWS DynamoDB                   |     **$0.00**      | Pay-Per-Request with 25GB free storage & 2.5M reads/writes                      |
-| **Event Fan-Out & Buffering**      | AWS SNS & SQS FIFO             |     **$0.00**      | 1M free publishes/mo; SQS FIFO buffer handles live score surges                 |
-| **Container Image Registry**       | AWS ECR (`ml-predict`)         |     **$0.00**      | 500 MB free private repository storage/mo (image is ~240MB)                     |
-| **User Identity & Auth**           | AWS Cognito User Pool          |     **$0.00**      | Free for ≤50,000 MAUs/month (both regular and guest users)                      |
-| **Observability & Logs**           | AWS CloudWatch & X-Ray         |     **$0.00**      | 5GB free log ingestion (7-day retention) + 100k free X-Ray traces               |
-| **Match Scorecard Email Reports**  | AWS SES                        |     **$0.00**      | 62,000 free emails/mo when sent from Lambda                                     |
-| **MLOps Pipeline & Registry**      | Local Git, DVC & MLflow        |     **$0.00**      | Zero cloud tracking fees (runs locally in `.venv` and GitHub Actions)           |
-| **DNS Routing**                    | AWS Route 53 Hosted Zone       |     **$0.50**      | Fixed $0.50/month per hosted zone for custom domain routing                     |
-| **Custom Domain (`.com` Renewal)** | Porkbun / Spaceship / Route 53 |     **~$0.83**     | Amortized yearly renewal (~$10.00/yr for `.com`; ~$0.16/mo for `$2/yr` `.site`) |
-| **AI Chat & SQL Agent**            | OpenAI (`gpt-4o-mini`)         |     **~$0.40**     | Pay-as-you-go (~$0.0004 per query; ~$0.40 per 1,000 questions)                  |
-| **TOTAL MONTHLY (Standard .com)**  |                                | **~$1.73 / month** | **Complete production platform with .com domain for <$2/month**                 |
-| **TOTAL MONTHLY (Budget .site)**   |                                | **~$1.06 / month** | **Ultra-budget configuration with .site / .me domain for ~$1/month**            |
+> **Fan-Out Compute Math**: Every ball scored triggers `score-upd` + `storage-worker` + `broadcaster` (+ `ml-predict`), consuming **`~0.0118 GB-seconds`** total. Scoring `1,000` full T20 matches (`240,000` deliveries) uses `< 1%` of the monthly `400,000 GB-second` AWS Free Tier allowance.
+
+### 4.2 ML Container, Model Registry & DVC Governance
+
+| Component                                    | Technical Mechanism                                                                                                                                                                                              | Cost / Storage Impact                                                                                                        | Source File                                              |
+| :------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------- |
+| **Private Amazon ECR Requirement**           | AWS Lambda `CreateFunction`/`UpdateFunctionCode` requires container images to reside in a private ECR repository in the same account/region (cannot deploy directly from `public.ecr.aws`)                       | 2 private repos (`cricscoredev-ml-predict`, `cricscore-ml-predict`)                                                          | `infra/terraform/ecr.tf`                                 |
+| **CPU-Only Image Slimming (`xgboost-cpu`)**  | Standard Linux `xgboost` wheels bundle `345 MB` of NVIDIA CUDA libraries; switching to `xgboost-cpu` (and omitting `pytest`/duplicate `boto3`) cuts image size by **55%** (`684 MB` $\rightarrow$ **`~309 MB`**) | Reduces combined Dev+Prod ECR storage from `$0.17/mo` to **`~$0.01/mo`** (`500 MB` Free Tier covers ~81% of total `~618 MB`) | `apps/ml-engine/Dockerfile`                              |
+| **ECR Lifecycle Policy (`countNumber = 1`)** | Automated `aws_ecr_lifecycle_policy` expires untagged images after **1 day** and retains strictly **1 active versioned image** (`countNumber = 1`) per repo                                                      | Prevents old container digests from accumulating `$0.10/GB-month` charges                                                    | `infra/terraform/ecr.tf`                                 |
+| **S3 Versioned Model Registry**              | Stores `live_win_predictor_model.joblib` (`~227 KB`), `model_manifest.json`, and `live_metadata.json` under `s3://<project>-match-backups-.../models/<version>/`                                                 | Enables instant model rollbacks & SHA-256 verification in `/tmp` without rebuilding Docker images                            | `infra/terraform/s3_backups.tf`                          |
+| **DVC Dataset Tracking**                     | Tracks raw `22.7 MB` Cricsheet `t20s_json.zip` via MD5 hash (`31e19c47bdbc05d773938754d8589516`) and reproducible training stages (`compare_models.py`)                                                          | Keeps Git repository fast and lightweight while preserving full ML reproducibility                                           | `dvc.yaml`, `dvc.lock`, `cricket-data/t20s_json.zip.dvc` |
+
+### 4.3 Storage, Edge, DNS & Cost Guardrails
+
+| Resource / Policy                                      | Configuration                                                                            | Retention / Limit                                                    | Terraform Source                          |
+| :----------------------------------------------------- | :--------------------------------------------------------------------------------------- | :------------------------------------------------------------------- | :---------------------------------------- |
+| **Static App Bucket (`<project>-app-*`)**              | Versioned S3 bucket behind CloudFront OAC                                                | Noncurrent versions expire after **7 days**                          | `infra/terraform/frontend.tf`             |
+| **Access Logs Bucket (`<project>-app-logs-*`)**        | S3 server access logging target                                                          | Log objects expire after **30 days**                                 | `infra/terraform/kms_and_logging.tf`      |
+| **Match Backups Bucket (`<project>-match-backups-*`)** | Stores completed match JSON snapshots + ML models                                        | `backups/*` expire after **180 days**; `models/*` kept permanently   | `infra/terraform/s3_backups.tf`           |
+| **DynamoDB (`<project>-connections`)**                 | `billing_mode = "PAY_PER_REQUEST"`                                                       | On-demand WebSocket connection registry (`~$0.01/mo`)                | `infra/terraform/dynamodb.tf`             |
+| **Route 53 + ACM + CloudFront**                        | `PriceClass_100` CDN + DNS-validated ACM TLS certs                                       | `$0.50/mo` hosted zone + `~$0.03/mo` queries; Alias `A` queries free | `infra/terraform/frontend.tf`             |
+| **API Gateway Throttling**                             | Default stage `50 rps` (`100` burst); `/chat` & `/chat/summary` **`5 rps` (`10` burst)** | Caps unauthenticated LLM token spend and API abuse                   | `infra/terraform/apigateway_http.tf`      |
+| **CloudWatch Log Retention**                           | `retention_in_days = 7` on all 9 Lambdas + 2 API Gateways per env                        | Keeps total log storage well under the `5 GB/mo` Free Tier           | `modules/zip_lambda/main.tf`, `lambda.tf` |
+| **AWS Budgets Alert**                                  | `<project>-monthly-budget` (`$5.00/month` cap)                                           | Emails `var.admin_email` if actual monthly spend exceeds `$5.00`     | `infra/terraform/cost_budget.tf`          |
+
+---
+
+## 🧪 5. Runnable Cost & Resource Verification Commands
+
+```bash
+# 1. Inspect current month-to-date AWS spend by service via Cost Explorer
+aws ce get-cost-and-usage \
+  --time-period Start=$(date -u +%Y-%m-01),End=$(date -u +%Y-%m-%d) \
+  --granularity MONTHLY \
+  --metrics "UnblendedCost" \
+  --group-by Type=DIMENSION,Key=SERVICE \
+  --query "ResultsByTime[0].Groups[?Metrics.UnblendedCost.Amount!='0'].[Keys[0],Metrics.UnblendedCost.Amount]" \
+  --output table
+
+# 2. Verify ECR image size (~309 MB) and single-image retention (countNumber = 1)
+aws ecr describe-images \
+  --repository-name cricscoredev-ml-predict \
+  --region us-east-1 \
+  --query "imageDetails[*].[imageTags[0],imageSizeInBytes]" \
+  --output table
+
+# 3. Verify S3 lifecycle expiration policies (7d / 30d / 180d)
+for b in $(aws s3api list-buckets --query "Buckets[?starts_with(Name, 'cricscore')].Name" --output text); do
+  echo "=== $b ==="
+  aws s3api get-bucket-lifecycle-configuration --bucket "$b" \
+    --query "Rules[*].[ID,Status,Expiration.Days,NoncurrentVersionExpiration.NoncurrentDays]" \
+    --output table 2>/dev/null || echo "No lifecycle rules"
+done
+
+# 4. Regenerate the local Markdown AWS Resource & Cost Dashboard
+./infra/scripts/generate_platform_dashboard.sh
+```

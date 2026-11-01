@@ -1,10 +1,8 @@
 # 🤖 Serverless MLOps Tutorial
 
-This guide walks through the end-to-end Machine Learning Operations (MLOps) pipeline integrated into the CricScore project. The goal of this pipeline is to predict the outcome of a T20 match based on historical data.
+This guide walks through the end-to-end **Machine Learning Operations (MLOps)** and **Hybrid Win Prediction** pipeline integrated into CricScore. By combining GitHub Actions for training, **Amazon S3** for versioned model artifacts, **Amazon ECR** (`xgboost-cpu`, `~309 MB`, `countNumber = 1` single-image policy) for the container runtime, and **AWS Lambda** for serverless inference, the entire platform operates within a **~$1/month** AWS footprint across `dev` and `prod`.
 
-The pipeline avoids dedicated GPU instances and always-on inference servers by using GitHub Actions for training and AWS Lambda for inference. Actual costs depend on AWS usage, GitHub plan and usage, and external data or model services.
-
-**Quick Navigation:** [Architecture](#️-1-architecture-overview) · [Data Pipeline](#-2-the-data-pipeline-live_datacsv) · [Training](#-3-model-training-live_trainpy) · [CI/CD Gate](#-4-automated-cicd-gate-mlops-pipelineyml) · [Docker Inference](#️-5-serverless-docker-inference-predictpy) · [Frontend](#️-6-frontend-integration) · [Troubleshooting](#-7-lessons-learned--troubleshooting) · [Win Prediction Spec](#-8-win-prediction-engine-specification) · [DLS Method](#️-9-duckworth-lewis-stern-dls-method)
+**Quick Navigation:** [Architecture](#️-1-architecture-overview) · [Data Pipeline](#-2-the-data-pipeline-live_datacsv) · [Training](#-3-model-training-live_trainpy) · [CI/CD Gate](#-4-automated-cicd-gate-mlops-pipelineyml) · [Docker Inference](#️-5-serverless-docker-inference-predictpy) · [Frontend](#️-6-frontend-integration) · [Troubleshooting](#-7-lessons-learned--troubleshooting) · [Win Prediction Spec](#-8-win-prediction-engine-specification) · [DLS Method](#️-9-duckworth-lewis-stern-dls-method) · [DVC + MLflow](#-10-reproducible-multi-algorithm-mlops-pipeline-dvc--mlflow--manifests)
 
 ---
 
@@ -13,89 +11,113 @@ The pipeline avoids dedicated GPU instances and always-on inference servers by u
 ```mermaid
 graph TD
     %% Define Data Flow
-    subgraph Data Source
-        Cricsheet[Cricsheet JSON Archives]
-        DB[(CricScore PostgreSQL)]
+    subgraph DataSource ["1. Data Source & DVC Lineage"]
+        Cricsheet["Cricsheet T20 JSON Archives (786K+ Deliveries)"]
+        DVC["DVC Tracking (t20s_json.zip.dvc, dvc.yaml, dvc.lock)"]
     end
 
     %% Define Training Pipeline (GitHub Actions)
-    subgraph GitHub Actions [Automated CI/CD Pipeline]
-        DP[data_pipeline.py]
-        LT[live_train.py]
-        TEST[PyTest Validation]
-        GATE{Accuracy >= 60%?}
+    subgraph GitHubActions ["2. Automated CI/CD Pipeline (mlops-pipeline.yml)"]
+        DP["data_pipeline.py (live_data.csv)"]
+        CM["compare_models.py (8-Model Benchmark + MLflow)"]
+        CHAMP["Champion Model: XGBoost v2.2.0 (Val AUC 0.772)"]
+        GATE{"Quality Gate: Acc >= 60% & ROC-AUC >= 65%?"}
     end
 
     %% Define Deployment
-    subgraph AWS Deployment [Serverless AWS]
-        S3REG[Amazon S3 Model Registry]
-        ECR[Amazon ECR Container Registry]
-        LAMBDA[AWS Lambda Inference API]
-        APIGW[Amazon API Gateway]
+    subgraph AWSDeployment ["3. Serverless AWS Registries & Compute"]
+        S3REG["Amazon S3 Model Registry (models/v2.2.0/)"]
+        ECR["Amazon ECR (xgboost-cpu ~309 MB, 1-Image Policy)"]
+        LAMBDA["ml-predict Lambda (XGBoost + Markov DP + DLS)"]
+        APIGW["Amazon API Gateway (POST /match/predict)"]
     end
 
     %% Frontend App
-    subgraph Client
-        UI[React Frontend: LiveScoreboard]
+    subgraph Client ["4. Live Scoreboard UI"]
+        UI["React Frontend: AiMatchPrediction.tsx"]
     end
 
     %% Connections
-    Cricsheet -- Download & Parse --> DP
-    DB -- Future Enhancement --> DP
-    DP -- "live_data.csv" --> LT
-    LT -- "live_win_predictor_model.joblib" --> TEST
-    TEST -- Pass --> GATE
-    GATE -- "Yes (Promote & Hash)" --> S3REG
+    Cricsheet --> DVC --> DP --> CM --> CHAMP --> GATE
+    GATE -- "Yes (Verify SHA-256 & Promote)" --> S3REG
+    GATE -- "Yes (Build CPU Container)" --> ECR
     GATE -- "No (Fail Build)" --> STOP((Stop))
 
-    ECR -- "Lambda Container Runtime" --> LAMBDA
-    S3REG -- "Versioned Model (SHA-256 Verified)" --> LAMBDA
+    ECR -- "Container Runtime" --> LAMBDA
+    S3REG -- "Versioned .joblib (/tmp SHA-256 Verified)" --> LAMBDA
     UI -- "Every ball bowled" --> APIGW
     APIGW -- "POST /match/predict" --> LAMBDA
     LAMBDA -- "Win Probability %" --> APIGW
     APIGW -- "Win Probability %" --> UI
 ```
 
-The MLOps pipeline consists of four main stages:
+### End-to-End MLOps Lifecycle Stages
 
-1. **Data Ingestion & Preprocessing**: Automatically downloads raw ball-by-ball JSON data from [Cricsheet](https://cricsheet.org/) and compiles it into a structured tabular format (`live_data.csv`).
-2. **Model Training & Multi-Algorithm Benchmarking**: Compares 8 candidate models (Logistic Regression, Gaussian Naive Bayes, Decision Trees, Linear SVM with Platt scaling, Random Forest, Extra Trees, HistGradientBoosting, and **XGBoost**). The training pipeline strictly enforces match-grouped data splitting (70% train, 15% validation, 15% test) to prevent **target leakage** (see detailed analysis in [ML Models Handbook](ml_models_handbook.md)). The winning model (**XGBoost**) is tracked in MLflow and written to `model_manifest.json` with SHA-256 integrity checksums.
-3. **Continuous Integration (CI) Quality Gates**: The GitHub Actions workflow (`mlops-pipeline.yml`) runs only when dataset or training scripts change (`cricket-data/**`, `data_pipeline.py`, `compare_models.py`, `train_model.py`, `requirements-train.txt`), monthly on schedule, or by manual dispatch (avoiding redundant retraining on routine PRs). It executes validation quality gates (`accuracy >= 0.60`, `roc_auc >= 0.65`, `size <= 25MB`), tests via `pytest`, and uploads versioned artifacts.
-4. **S3 Versioned Model Registry & Serverless Inference**: Terraform uploads versioned model artifacts (`live_win_predictor_model.joblib`, `model_manifest.json`, `live_metadata.json`) to S3 (`s3://<project>-match-backups-.../models/<ml_model_version>/`) and builds/pushes the `apps/ml-engine` Docker image to ECR tagged with both `:<ml_model_version>` (`:v2.2.0`) and `:latest` (with an automated ECR lifecycle policy that expires untagged layers after 1 day). At runtime (`POST /match/predict`), `predict.py` lazily imports heavy ML libraries during the invoke phase (keeping Lambda init `<70ms`), caches `/tmp/models/<MODEL_VERSION>/` from S3, verifies the SHA-256 hash, and blends the model with the Markov Dynamic Programming (DP) and Duckworth-Lewis-Stern (DLS) resource par engine.
+| Stage | Pipeline Phase                              | Script / Workflow                                 | Key Artifacts & Guarantees                                                                                                             |
+| :---: | :------------------------------------------ | :------------------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------- |
+| **1** | **Data Ingestion & DVC Lineage**            | `apps/ml-engine/data_pipeline.py`                 | Extracts `786K+` Cricsheet T20 ball-by-ball deliveries into `live_data.csv`; tracked by `cricket-data/t20s_json.zip.dvc` & `dvc.yaml`. |
+| **2** | **8-Model Benchmark & Champion Selection**  | `apps/ml-engine/compare_models.py`                | Match-grouped `70/15/15` split (zero leakage); evaluates 8 classifiers in MLflow and promotes **XGBoost (`v2.2.0`)**.                  |
+| **3** | **CI Quality Gate & Checksum Manifest**     | `.github/workflows/mlops-pipeline.yml`            | Enforces `Test Accuracy >= 0.60`, `Test ROC-AUC >= 0.65`, `Size <= 25 MB`, and writes SHA-256 hash to `model_manifest.json`.           |
+| **4** | **Decoupled S3 Model Registry + ECR Image** | `infra/terraform/s3.tf`, `ecr.tf`                 | Uploads `.joblib` (`~227 KB`) to `s3://.../models/v2.2.0/` and pushes `xgboost-cpu` (`~309 MB`) to ECR with `countNumber = 1`.         |
+| **5** | **Hybrid Serverless Inference**             | `apps/ml-engine/predict.py`, `win_probability.py` | Lazy-loads ML libraries on invoke (`<70ms` init), verifies SHA-256 in `/tmp`, and blends **XGBoost + Markov DP + DLS Par**.            |
 
 ---
 
 ## 📊 2. The Data Pipeline (`live_data.csv`)
 
-**Location**: `apps/ml-engine/data/live_data.csv` (Ignored by Git)
+**Location**: `apps/ml-engine/data_pipeline.py` → `apps/ml-engine/data/live_data.csv` (Git-ignored; tracked via DVC)
 
-The data pipeline extracts ball-by-ball match situations instead of just pre-match summaries.
+| Feature Name     | Data Type           | Transformer (`ColumnTransformer`)        | Description & Domain Role                                             |
+| :--------------- | :------------------ | :--------------------------------------- | :-------------------------------------------------------------------- |
+| `batting_team`   | Categorical (`str`) | `OneHotEncoder(handle_unknown="ignore")` | Team currently batting at the crease.                                 |
+| `bowling_team`   | Categorical (`str`) | `OneHotEncoder(handle_unknown="ignore")` | Team currently bowling / defending.                                   |
+| `inning`         | Categorical (`int`) | `OneHotEncoder(handle_unknown="ignore")` | Innings number (`1` for setting target, `2` for chasing).             |
+| `balls_left`     | Numeric (`int`)     | `StandardScaler()`                       | Legal deliveries remaining in the current innings (`0–120`).          |
+| `current_score`  | Numeric (`int`)     | `StandardScaler()`                       | Cumulative runs scored in the current innings so far.                 |
+| `wickets_lost`   | Numeric (`int`)     | `StandardScaler()`                       | Wickets fallen in the current innings (`0–10`).                       |
+| `target_score`   | Numeric (`int`)     | `StandardScaler()`                       | Target runs required to win in 2nd innings (`-1` during 1st innings). |
+| `target` (Label) | Binary (`0` or `1`) | Ground-Truth Supervision Label           | `1` if `winner == batting_team`, `0` if `winner == bowling_team`.     |
 
-**Key Features Extracted:**
-
-- `current_score`: Total runs scored so far.
-- `wickets_lost`: Number of wickets fallen.
-- `balls_left`: Remaining balls in the innings.
-- `target_score`: The target score to win (if in the 2nd innings, otherwise -1).
-- `winner`: The team that ultimately won the match.
-
-The script compiles a highly structured `live_data.csv` into a `.gitignore`'d directory (`apps/ml-engine/data/`) to prevent bloating the Git repository.
+```bash
+# Run the data extraction pipeline locally from raw Cricsheet archives
+python3 apps/ml-engine/data_pipeline.py
+```
 
 ---
 
 ## 🧠 3. Model Training (`live_train.py`)
 
-**Location**: `apps/ml-engine/live_train.py`
+**Locations**: `apps/ml-engine/compare_models.py`, `apps/ml-engine/train_model.py`, and `apps/ml-engine/live_train.py`
 
-We use a robust `LogisticRegression` model trained on in-match dynamic variables.
+CricScore uses `compare_models.py` (invoked by `train_model.py` and `dvc.yaml`) to benchmark **8 candidate classification algorithms** against the `LogisticRegression` baseline using a **match-grouped 70% Train / 15% Validation / 15% Test split** (ensuring balls from the same `match_id` never leak across splits).
 
-**Key ML Concepts Applied:**
+### 8-Model Validation Benchmark & Promoted Champion (`v2.2.0`)
 
-- **Dynamic State Evaluation**: The model assesses win probability based on the _current match situation_ rather than static pre-match attributes.
-- **Categorical Encoding**: Handles string-based features (Team Names).
-- **Artifact Generation**: The pipeline outputs two files:
-  - `live_win_predictor_model.joblib`: The serialized model weights.
-  - `live_metadata.json`: Contains model version, accuracy metrics, and timestamp.
+| Algorithm                | Role / Family                     | Val Accuracy | Val Log Loss | Val Brier Score | Val ROC-AUC  | Latency (100 rows) | Artifact Size |     Status      |
+| :----------------------- | :-------------------------------- | :----------: | :----------: | :-------------: | :----------: | :----------------: | :-----------: | :-------------: |
+| `LogisticRegression`     | Baseline Linear Classifier        |   `0.6559`   |   `0.8069`   |    `0.2379`     |   `0.7550`   |     `1.52 ms`      |   `0.01 MB`   |    Baseline     |
+| `GaussianNB`             | Conditional Independence Bayes    |   `0.6436`   |   `9.5548`   |    `0.3515`     |   `0.6487`   |     `1.81 ms`      |   `0.01 MB`   |    Evaluated    |
+| `DecisionTree`           | Single CART Tree (`max_depth=6`)  |   `0.6998`   |   `0.8488`   |    `0.2014`     |   `0.7558`   |     `1.19 ms`      |   `0.01 MB`   |    Evaluated    |
+| `LinearSVM_SGD`          | L2 Linear SVM (`loss="log_loss"`) |   `0.6755`   |   `0.6526`   |    `0.2148`     |   `0.7704`   |     `1.32 ms`      |   `0.01 MB`   |    Evaluated    |
+| `RandomForest`           | Bagged Trees (`n_estimators=50`)  |   `0.6819`   |   `0.6136`   |    `0.2119`     |   `0.7561`   |     `15.38 ms`     |   `0.70 MB`   |    Evaluated    |
+| `ExtraTrees`             | Randomized Ensemble (`n=50`)      |   `0.6667`   |   `0.6532`   |    `0.2302`     |   `0.7118`   |     `14.96 ms`     |   `0.71 MB`   |    Evaluated    |
+| `HistGradientBoosting`   | Histogram Gradient Boosting       |   `0.6789`   |   `0.5998`   |    `0.2063`     |   `0.7642`   |     `3.84 ms`      |   `0.37 MB`   | Former Champion |
+| **`XGBoost` (`v2.2.0`)** | **Extreme Gradient Boosting**     | **`0.6835`** | **`0.5786`** |  **`0.1992`**   | **`0.7723`** |   **`1.98 ms`**    | **`0.22 MB`** | 🏆 **Promoted** |
+
+### Held-Out Test Set Performance (`XGBoost v2.2.0`)
+
+| Metric                        | Held-Out Test Value | CI Quality Gate Threshold |   Status    |
+| :---------------------------- | :-----------------: | :-----------------------: | :---------: |
+| **Test Accuracy**             |    **`0.6901`**     |        `>= 0.6000`        | ✅ **PASS** |
+| **Test ROC-AUC**              |    **`0.7529`**     |        `>= 0.6500`        | ✅ **PASS** |
+| **Test Log Loss**             |    **`0.6018`**     |    Primary Calibration    | ✅ **PASS** |
+| **Test Brier Score**          |    **`0.2060`**     |    Proper Scoring Rule    | ✅ **PASS** |
+| **Artifact Size (`.joblib`)** |   **`0.217 MB`**    |       `<= 25.0 MB`        | ✅ **PASS** |
+
+```bash
+# Run the 8-model benchmark, log to MLflow, and generate model_manifest.json
+python3 apps/ml-engine/compare_models.py --version v2.2.0
+```
 
 ---
 
@@ -103,36 +125,25 @@ We use a robust `LogisticRegression` model trained on in-match dynamic variables
 
 **Location**: `.github/workflows/mlops-pipeline.yml`
 
-ML models degrade over time (Data Drift). To keep the model fresh, we need a way to safely retrain it.
-
-This GitHub Action runs when changes under `apps/ml-engine/` are pushed to `main`, on its monthly schedule, or by manual dispatch.
-
-1. It installs dependencies (`scikit-learn`, `pandas`).
-2. Runs the data pipeline.
-3. Runs the training script.
-4. **The Gate**: The training script exits with an error code if the model accuracy falls below acceptable thresholds.
-5. The resulting lightweight `.joblib` model artifact is then bundled for deployment.
+| Workflow Trigger / Gate        | Configuration Detail                                                                                                                       |
+| :----------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------- |
+| **Path-Scoped Push Trigger**   | Runs only when `cricket-data/**`, `data_pipeline.py`, `compare_models.py`, `train_model.py`, or `requirements-train.txt` change on `main`. |
+| **Scheduled Drift Retraining** | Runs on the 1st of every month (`cron: '0 0 1 * *'`) or via `workflow_dispatch` so routine code PRs never waste CI minutes retraining.     |
+| **Quality Gate Enforcement**   | Fails the build immediately (`sys.exit(1)`) if held-out test `accuracy < 0.60`, `roc_auc < 0.65`, or `model_size > 25 MB`.                 |
+| **Artifact Output**            | Produces `live_win_predictor_model.joblib`, `model_manifest.json` (with SHA-256 hash), `live_metadata.json`, and `comparison_report.md`.   |
 
 ---
 
 ## ☁️ 5. Serverless Docker Inference (`predict.py`)
 
-**Location**: `apps/ml-engine/predict.py` & `apps/ml-engine/Dockerfile`
+**Locations**: `apps/ml-engine/predict.py`, `apps/ml-engine/Dockerfile`, `infra/terraform/ecr.tf`, `infra/terraform/s3.tf`
 
-Instead of deploying a traditional zipped Lambda package, the live model is containerized using Docker and hosted on **AWS ECR (Elastic Container Registry)**.
-
-**Serverless Container Execution (Firecracker MicroVM):**
-A common misconception is that a Docker image in ECR requires a running server (like ECS or Fargate) to serve requests. However, AWS Lambda natively supports Docker Images under the hood using **Firecracker MicroVMs**.
-
-- ECR stores the image; storage charges depend on image size, retained image versions, region, and current pricing.
-- When an API Gateway request arrives, Lambda invokes the function in a managed execution environment, including a cold start when a warm environment is unavailable.
-- Lambda may reuse an execution environment for later requests; it is not necessarily destroyed immediately after a response. Compute charges depend on invocations and execution duration.
-
-**How it works:**
-
-1. **Containerization**: A `Dockerfile` bundles the `live_win_predictor_model.joblib`, `predict.py`, and dependencies into an AWS Lambda Python base image.
-2. **ECR Storage**: The image is pushed to a private ECR repository. Check current ECR pricing and account eligibility for storage charges. Updating the mutable `latest` tag does not necessarily remove older image versions; configure image lifecycle cleanup if required. Lambda container images support up to 10GB.
-3. **Execution**: The handler accepts a JSON payload of the live match state, executes `model.predict_proba()`, and returns live ball-by-ball win probabilities.
+| Optimization / Policy                 | Implementation Detail                                                                                                                                             | Cost / Performance Impact                                                                |
+| :------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------- |
+| **CPU-Only `xgboost-cpu` Wheel**      | `apps/ml-engine/requirements.txt` installs `xgboost-cpu==2.1.4` instead of default `xgboost` (which bundles ~450 MB of NVIDIA CUDA/NCCL GPU libraries).           | Shrinks compressed ECR image by **62%** (`~810 MB` → **`~309 MB`**), saving `~$0.05/mo`. |
+| **Single-Image ECR Retention**        | `infra/terraform/lambda.tf` pushes only `:${var.ml_model_version}` (never `:latest`), and `ecr.tf` sets `countNumber = 1` expiration across `dev` and `prod`.     | Ensures exactly **1 image** exists per repo (`~$0.03/mo` per environment).               |
+| **Lazy Imports on Invoke**            | `predict.py` imports `joblib`, `pandas`, `numpy`, and `xgboost` inside `_load_model()` on invoke rather than top-level module init.                               | Reduces Lambda `Init Duration` to **`<70ms`** and prevents cold-start timeouts.          |
+| **S3 Model Registry + SHA-256 Check** | Downloads `models/${MODEL_VERSION}/live_win_predictor_model.joblib` to `/tmp`, verifies its SHA-256 checksum against `model_manifest.json`, and caches in memory. | Enables 5-second model rollbacks via `MODEL_VERSION` env var without rebuilding Docker.  |
 
 ---
 
@@ -140,35 +151,37 @@ A common misconception is that a Docker image in ECR requires a running server (
 
 **Location**: `apps/frontend/src/components/AiMatchPrediction.tsx`
 
-The React frontend seamlessly integrates with the Lambda endpoint. Inside the Live Scoreboard view, an `AiMatchPrediction` component issues a `POST` request to the API Gateway after every single ball.
-
-The UI visualizes the probabilities using a compact progress bar nestled right inside the scoreboard header, providing fans and scorers with real-time AI insights.
+| Aspect                   | Frontend Behavior                                                                                                                                |
+| :----------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Trigger Cadence**      | Fires `POST /match/predict` automatically whenever `currentScore`, `wickets`, `balls`, `target`, or `inning` changes on the live scoreboard.     |
+| **Dynamic Team Mapping** | Always maps the active `battingTeam` to `team1` and `bowlingTeam` to `team2` so 1st and 2nd innings probabilities align with the team at crease. |
+| **Visual Presentation**  | Renders a real-time dual-team probability bar (`team1Probability%` vs `team2Probability%`) inside the live scoreboard header.                    |
 
 ---
 
 ## 🛑 7. Lessons Learned & Troubleshooting
 
-During the development of this MLOps pipeline, we faced and resolved several critical infrastructure issues:
-
-- **AWS Lambda Zip Size Limits**: Initially, we deployed the model via standard `.zip` files. However, the combined size of `pandas`, `scikit-learn`, and the `.joblib` model exceeded Lambda's strict 250MB unzipped limit. **Fix**: We migrated the architecture to AWS ECR Docker Container Images, which increased the limit to 10GB.
-- **Out-of-Distribution (OOD) Shortened Matches (e.g. 1-Over Matches)**: Logistic regression models trained on T20 data (`balls_left = 120`) misinterpret shortened match features. Raw linear scaling (`9 runs * 120 / 6 = 180 T20 runs`) falsely projects 9 runs in a 1-over match as an invincible 180 T20 score, inflating win probability to 99%. **Fix**: We introduced Par-Adjusted RPO Scaling (`par_rpo = 8.0 + (20.0 - total_overs) * 0.2`) in `predict.py`, which projects shortened match scores against realistic T20 par benchmarks (calibrating 9 runs in 5 balls to a realistic 87% win probability).
-- **Batting vs. Bowling Team Mapping Alignment**: The frontend `AiMatchPrediction` component initially passed static `teamA` and `teamB` strings to the API, causing inverted win predictions during 2nd innings when `teamB` was batting. **Fix**: `AiMatchPrediction.tsx` now dynamically passes `battingTeam` as `team1` and `bowlingTeam` as `team2`, ensuring backend predictions match who is actively at the crease.
-- **Start of Match Baseline (50% / 50%)**: At the beginning of 1st innings (`currentScore = 0`, `wicketsLost = 0`), the model initially output skewed weights for shortened match configurations. **Fix**: Explicitly enforced a 50% - 50% baseline rule at the start of every match before scoring begins.
-- **Impossible Chase Heuristics**: In 2nd innings chases where the required runs exceed maximum physical possibility (`runsNeeded > ballsLeft * 6`), standard ML models can output nonsensical probabilities. **Fix**: Added explicit hard overrides ensuring 0% win probability for the chasing team and 100% for the defending team.
+|   #   | Engineering Challenge                                       | Root Cause                                                                                                        | Production Fix Implemented                                                                                               |
+| :---: | :---------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------- |
+| **1** | **AWS Lambda 250 MB `.zip` Limit Exceeded**                 | `scikit-learn` + `pandas` + `numpy` + `xgboost` exceeded Lambda's 250 MB unzipped `.zip` ceiling.                 | Migrated `ml-predict` to an **Amazon ECR Container Image** (supports up to 10 GB) using `xgboost-cpu` (`~309 MB`).       |
+| **2** | **810 MB ECR Image Bloat & Duplicate Tags**                 | Standard `pip install xgboost` pulled NVIDIA CUDA libraries, and pushing `:latest` + `:v2.2.0` doubled tag count. | Switched to `xgboost-cpu==2.1.4`, removed `:latest` push, and enforced `countNumber = 1` lifecycle policy in `ecr.tf`.   |
+| **3** | **Out-of-Distribution (OOD) Shortened Matches (1–5 Overs)** | Linear scaling projected `9 runs in 1 ball` of a 1-over game as `180 T20 runs` (`99%` win prob).                  | Built format-agnostic **Ball-by-Ball Markov DP** (`win_probability.py`) + Par-Adjusted RPO scaling (`predict.py`).       |
+| **4** | **2nd-Innings Team Inversion Bug**                          | Frontend originally sent static `teamA`/`teamB` strings even when `teamB` was batting in Innings 2.               | `AiMatchPrediction.tsx` dynamically binds `batting_team = battingTeam` and `bowling_team = bowlingTeam`.                 |
+| **5** | **Start-of-Match (`0/0`) & Impossible Chase Skew**          | Unconstrained ML models output non-50% probabilities at `0/0` or `>0%` when needing 40 off 2 balls.               | Added hard mathematical boundary overrides (`50%/50%` at `0/0` Ball `0.0`; `0%/100%` when `runsNeeded > ballsLeft*6+1`). |
 
 ---
 
 ### 📊 8. Win Prediction Engine Specification
 
-This section details the exact mathematical models, dynamic-programming ball simulation, DLS-aligned chase hybrid blend, and heuristic overrides powering the real-time AI Match Predictor in CricScore (`apps/ml-engine/predict.py` and `apps/ml-engine/win_probability.py`).
+This section details the mathematical models, dynamic-programming ball simulation, DLS-aligned chase hybrid blend, and heuristic overrides powering `apps/ml-engine/predict.py` and `apps/ml-engine/win_probability.py`.
 
 ### 🏗️ Inference Pipeline
 
-The live prediction engine calculates real-time win probabilities after every ball by combining:
-
-1. **Format-Agnostic Ball-by-Ball Dynamic Programming (`win_probability.py`)**: Exact recursion over every remaining legal delivery (`1` to `120` balls) and wickets lost (`0` to `9`), adapting ball outcome profiles (`DEFENSIVE`, `NORMAL`, `AGGRESSIVE`) to required run rate, lower-order tail quality (`TAIL_FACTOR`), and match length.
-2. **DLS Resource Parity Alignment (2nd Innings)**: When the required run rate is physically achievable (`<= 2.3` runs/ball full weight, tapering smoothly to `0` by `3.0` runs/ball), the engine blends the ball-by-ball DP probability with a logistic DLS Par differential so teams ahead of DLS Par (`currentScore > dlsPar`) with wickets in hand are properly favored (`> 50%`).
-3. **T20 Trained ML Model Blend (`10–20` Overs)**: For matches longer than 10 overs, the T20-trained champion model (`live_win_predictor_model.joblib`, XGBoost `v2.2.0`) is blended in with weight rising linearly from `0.0` at `10` overs to `0.5` at `20` overs.
+| Layer | Engine Component                                  | Active Overs / Scope          | Mathematical Role                                                                                                                  |
+| :---: | :------------------------------------------------ | :---------------------------- | :--------------------------------------------------------------------------------------------------------------------------------- |
+| **1** | **Ball-by-Ball Markov DP (`win_probability.py`)** | All match lengths (`1–20` ov) | Exact recursion over remaining balls (`1..120`) and wickets (`0..9`) across `DEFENSIVE`, `NORMAL`, and `AGGRESSIVE` profiles.      |
+| **2** | **DLS Resource Parity Blend (2nd Innings)**       | `2nd Innings` (`RPB < 3.0`)   | Blends Markov DP with a logistic DLS Par differential so teams ahead of `dlsPar` with wickets in hand are favored (`> 50%`).       |
+| **3** | **T20 Champion XGBoost Blend (`v2.2.0`)**         | `10 < total_overs <= 20`      | Blends `live_win_predictor_model.joblib` (`XGBoost v2.2.0`) with weight rising linearly from `0.0` (at 10 overs) to `0.5` (20 ov). |
 
 ```mermaid
 graph TD
@@ -193,8 +206,6 @@ graph TD
 
 ### 🛑 Hard Heuristic Overrides & Clamping
 
-To guarantee mathematical sanity across all match lengths (`1` to `20` overs), the prediction engine applies strict boundary conditions:
-
 | Scenario               | Rule Condition                                                            | Resulting Win Probability     |
 | :--------------------- | :------------------------------------------------------------------------ | :---------------------------- |
 | **Match Start**        | `inning == 1` AND `score == 0` AND `wickets == 0` AND `balls_bowled == 0` | **50% Batting / 50% Bowling** |
@@ -207,22 +218,15 @@ To guarantee mathematical sanity across all match lengths (`1` to `20` overs), t
 
 ## 🌧️ 9. Duckworth-Lewis-Stern (DLS) Method
 
-This section details the exact mathematical formulas, Standard Edition resource decay parameters, par score calculations, and tiebreaker rules for the **Duckworth-Lewis-Stern (DLS)** method implemented in CricScore (`apps/frontend/src/utils/dlsUtils.ts` and `apps/ml-engine/win_probability.py`).
+Implemented identically in `apps/frontend/src/utils/dlsUtils.ts` and `apps/ml-engine/win_probability.py`.
 
-### 📐 The Core Concept: Format-Normalized Resources Remaining ($R$)
+### 📐 Format-Normalized Resources Remaining ($R$)
 
-The DLS method models a batting team's scoring capacity as a function of two fundamental resources:
-
-1. **Overs Remaining** ($u$)
-2. **Wickets Lost** ($w$)
-
-Using the Standard Edition exponential form $Z(u, w) = F(w) \cdot (1 - e^{-b \cdot u / F(w)})$ with $b = 0.027$ and $F(w)$ solved against the published 50-over resource row (`[100, 93.4, 85.1, 74.9, 62.7, 49.0, 34.9, 22.0, 11.9, 4.7]`), resources for a match of $N = \text{totalMatchOvers}$ overs are normalized relative to $Z(N, 0)$:
+Using the Standard Edition exponential decay equation $Z(u, w) = F(w) \cdot (1 - e^{-b \cdot u / F(w)})$ with $b = 0.027$ and $F(w)$ calibrated against the 50-over resource row (`[100, 93.4, 85.1, 74.9, 62.7, 49.0, 34.9, 22.0, 11.9, 4.7]`), resources for an $N$-over match are normalized relative to $Z(N, 0)$:
 
 $$R(u, w, N) = \frac{Z(u, w)}{Z(N, 0)} \times 100\%$$
 
-This guarantees that a 1-over, 5-over, 10-over, or 20-over match always begins with exactly `100%` of its resources available.
-
-#### Standard T20 Resource Table ($R_0$ and $b$ parameters):
+#### Standard T20 Resource Table ($R_0$ and $b$ parameters)
 
 | Wickets Lost ($w$) | $R_0(w)$ (%) | Decay Constant $b(w)$ | Resource at 20 overs ($u=20$) |
 | :----------------: | :----------: | :-------------------: | :---------------------------: |
@@ -237,113 +241,62 @@ This guarantees that a 1-over, 5-over, 10-over, or 20-over match always begins w
 |       **8**        |     8.2%     |        0.1200         |             7.5%              |
 |       **9**        |     2.1%     |        0.1800         |             1.9%              |
 
-### 🎯 DLS Par Score Calculation (Rain / Interruption)
+### 🎯 DLS Par Score & Target Formulas
 
-When rain or weather interruptions stop play during the 2nd innings, DLS calculates the **Par Score** (the target score team 2 needed to reach at that exact ball to tie the match).
+$$\text{DLS Par Score} = \left\lfloor \text{Team 1 Score} \times \left( \frac{R_{\text{Team 2 Used}}}{R_{\text{Team 1 Total}}} \right) \right\rfloor, \qquad \text{DLS Target} = \text{DLS Par Score} + 1$$
 
-#### Formula for DLS Target Score:
+| Comparison Condition                          | Official DLS Match Result                                   |
+| :-------------------------------------------- | :---------------------------------------------------------- |
+| $\text{Team 2 Score} > \text{DLS Par Score}$  | **Team 2 Wins** by $(\text{Score} - \text{Par})$ runs (DLS) |
+| $\text{Team 2 Score} < \text{DLS Par Score}$  | **Team 1 Wins** by $(\text{Par} - \text{Score})$ runs (DLS) |
+| $\text{Team 2 Score} == \text{DLS Par Score}$ | **Match Tied** (DLS Method)                                 |
 
-1. **Calculate Team 1 Resource Used**: $R_1 = R(20, 0) = 100\%$
-2. **Calculate Team 2 Resource Available**: $R_2 = R(\text{overs\_left}, \text{wickets\_lost})$
-3. **Calculate DLS Par Score**:
+### 💡 Worked Example Table (Team 1 = `160/6` in 20 Overs; Rain at `10.0` Overs with Team 2 at `75/2`)
 
-$$\text{DLS Par Score} = \left\lfloor \text{Team 1 Score} \times \left( \frac{R_2}{R_1} \right) \right\rfloor$$
-
-$$\text{DLS Target to Win} = \text{DLS Par Score} + 1$$
-
-#### Winner Decision Rules:
-
-- If $\text{Team 2 Score} > \text{DLS Par Score} \implies$ **Team 2 Wins** by DLS Method.
-- If $\text{Team 2 Score} < \text{DLS Par Score} \implies$ **Team 1 Wins** by DLS Method.
-- If $\text{Team 2 Score} == \text{DLS Par Score} \implies$ **Match Tied** by DLS Method.
-
-### 💡 Step-by-Step Worked Example
-
-**Scenario**: Team 1 scored **160/6** in 20 overs.
-Team 2 is chasing in the 2nd innings. Rain stops play at **10.0 overs** (10 overs left, $u=10$), and Team 2 is at **75/2** (2 wickets down, $w=2$).
-
-1. **Team 1 Resource ($R_1$)**: $100\%$
-2. **Team 2 Resource Remaining ($R_2$)**:
-   $$R(10, 2) = 85.1 \times \left( 1 - e^{-0.0575 \times 10} \right) \approx 37.2\%$$
-   Since Team 2 already used $82.5\% - 37.2\% = 45.3\%$ of their resources.
-3. **DLS Par Score**:
-   $$\text{DLS Par Score} = \lfloor 160 \times 0.453 \rfloor = 72 \text{ runs}$$
-
-4. **Result**:
-   Team 2 is at **75/2**, which is higher than the DLS Par Score of **72**.
-   **Team 2 is leading by 3 runs on DLS!** If the match is abandoned now, Team 2 wins.
-
----
-
-## 🔮 Future Enhancements
-
-As this is an experimental pipeline, there are several ways to scale it up:
-
-- **Player-Level Data**: Aggregating individual player statistics (strike rate, bowling economy) to determine team strength dynamically based on who is currently at the crease.
-- **Deep Learning**: Now that we use ECR Containers, we have the space to include heavier frameworks like PyTorch or TensorFlow if the model complexity increases.
+| Step  | Quantity                                      | Calculation                                          | Value                             |
+| :---: | :-------------------------------------------- | :--------------------------------------------------- | :-------------------------------- |
+| **1** | Team 1 Total Resource ($R_1$)                 | Full 20 overs completed                              | `100.0%`                          |
+| **2** | Team 2 Resource Remaining at `10.0`, `2` wkts | $R(10, 2) = 85.1 \times (1 - e^{-0.0575 \times 10})$ | `37.2%`                           |
+| **3** | Team 2 Resource Used                          | $82.5\% - 37.2\%$                                    | `45.3%`                           |
+| **4** | **DLS Par Score**                             | $\lfloor 160 \times 0.453 \rfloor$                   | **`72` runs**                     |
+| **5** | **Outcome at `75/2`**                         | $75 > 72$ ($\text{Lead} = +3\text{ runs}$)           | **Team 2 leads by 3 runs on DLS** |
 
 ---
 
 ## 🔬 10. Reproducible Multi-Algorithm MLOps Pipeline (DVC + MLflow + Manifests)
 
-The CricScore ML engine includes a reproducible comparison and release pipeline (`apps/ml-engine/compare_models.py`):
+### 10.1 8-Model Algorithm Comparison & Leakage-Free Validation (`compare_models.py`)
 
-### 10.1 Algorithm Comparison & Leakage-Free Validation
+`apps/ml-engine/compare_models.py` evaluates **8 candidate classifiers** (`LogisticRegression`, `GaussianNB`, `DecisionTree`, `LinearSVM_SGD`, `RandomForest`, `ExtraTrees`, `HistGradientBoosting`, and **`XGBoost`**) and selects the model that minimizes validation **Log Loss** (`0.8 * log_loss + 0.2 * (1 - roc_auc)`).
 
-We systematically compare four candidate algorithms against the actual binary classification target ($\text{Target} = 1$ if batting team wins, $0$ if bowling team wins):
+| Governance Guarantee            | Implementation in `compare_models.py`                                                                                                               |
+| :------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Match-Grouped Partitioning**  | Splits unique `match_id`s into **70% Train**, **15% Validation**, and **15% Held-Out Test** so deliveries from the same match never leak.           |
+| **In-Play Observables Only**    | Restricts features to pre-delivery state (`batting_team`, `bowling_team`, `inning`, `balls_left`, `current_score`, `wickets_lost`, `target_score`). |
+| **Calibration-First Promotion** | Promotes **XGBoost (`v2.2.0`)** with the lowest Validation Log Loss (`0.5786`), best Brier Score (`0.1992`), and highest ROC-AUC (`0.7723`).        |
 
-1. **`LogisticRegression` (Baseline)**: Fast, calibrated baseline for live probability curves.
-2. **`HistGradientBoostingClassifier`**: Fast histogram-based gradient boosting capable of capturing non-linear interactions between balls remaining, required run rate, and wickets in hand.
-3. **`RandomForestClassifier`**: Robust ensemble of decision trees with out-of-bag variance reduction.
-4. **`ExtraTreesClassifier`**: Randomized ensemble providing high variance reduction and fast splits.
+### 10.2 MLflow, DVC & Manifest Specifications
 
-#### Data Leakage Prevention Guarantees:
+| Component                          | File / Directory                                         | Tracked Metadata & Purpose                                                                                                         |
+| :--------------------------------- | :------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------- |
+| **MLflow Experiment Store**        | `apps/ml-engine/mlruns` (`mlflow-skinny`)                | Logs hyperparameters, Git SHA, DVC hash, training duration (`0.691s`), latency (`1.98ms`), Log Loss, Brier Score, and ROC-AUC.     |
+| **DVC Dataset & Pipeline Lineage** | `cricket-data/t20s_json.zip.dvc`, `dvc.yaml`, `dvc.lock` | Tracks raw Cricsheet archive MD5 (`dvc:31e19c47bdbc05d773938754d8589516`) and reproducible `prepare` + `train_and_compare` stages. |
+| **Immutable Model Manifest**       | `apps/ml-engine/model_manifest.json`                     | Records `modelVersion: "v2.2.0"`, `algorithm: "XGBoost"`, test metrics, and `sha256: "de9e39513fbac..."` (`227,565` bytes).        |
 
-- **Match-Grouped Split**: Splitting is partitioned strictly by unique `match_id` across Train (70%), Validation (15%), and Test (15%). Balls from the same match never leak across partitions.
-- **In-Play Observables Only**: Features are strictly limited to match state available at prediction time (`batting_team`, `bowling_team`, `inning`, `balls_left`, `current_score`, `wickets_lost`, `target_score`).
-
-### 10.2 MLflow Experiment Tracking
-
-- **Local Tracking**: Tracks runs into `apps/ml-engine/mlruns` using `mlflow-skinny` without requiring paid hosted servers.
-- **Logged Entities**: Hyperparameters, dataset hash, git commit SHA, training duration, model artifact sizes, inference latency per 100 rows, Log Loss, Brier Score, and ROC-AUC.
-
-### 10.3 DVC Dataset Versioning
-
-- **Metadata Tracking**: Raw ball-by-ball archive hashes are versioned in `cricket-data/t20s_json.zip.dvc`.
-- **Reproducible Pipeline**: `dvc.yaml` defines the execution stages (`prepare` and `train_and_compare`).
-- **Reproduce Locally**:
-  ```bash
-  dvc repro
-  ```
-
-### 10.4 Model Manifest & Release Verification
-
-Each model build generates an immutable `model_manifest.json` containing:
-
-- Semantic version (e.g., `v2.1.0`)
-- Promoted algorithm and training hyperparameters
-- Training Git commit SHA and DVC dataset content hash
-- Test-set evaluation metrics (Accuracy, Log Loss, Brier Score, ROC-AUC)
-- SHA-256 checksum of the generated `.joblib` model artifact
-
-### 10.5 Safe Loading & Rollback
-
-`predict.py` safely verifies the SHA-256 checksum against the manifest before loading:
-
-```python
-# Checksum validation before execution
-if actual_sha256 != expected_sha256:
-    raise ValueError("Model checksum verification failed! Rejecting untrusted artifact.")
-```
-
-To deploy or rollback to a specific version tag in S3 & ECR without retraining:
+### 10.3 Reproducibility, Verification & Rollback Commands
 
 ```bash
-# Option A: Full Terraform + S3 + ECR tag deploy/rollback
+# 1. Reproduce the full DVC pipeline (data extraction + 8-model benchmark)
+dvc repro
+
+# 2. Run the ML engine unit & calibration test suite (21 tests)
+./apps/ai-service/.venv/bin/pytest apps/ml-engine/tests -q
+
+# 3. Option A: Full Terraform + S3 + ECR versioned deploy/rollback
 ./infra/scripts/deploy.sh --env dev --use-local-env --model-version v2.2.0
 
-# Option B: Instant Lambda environment variable rollback (fetches models/<version>/ from S3)
+# 4. Option B: Instant ~5s Lambda env-var rollback (pulls models/<version>/ from S3)
 aws lambda update-function-configuration \
   --function-name cricscoredev-ml-predict \
-  --environment "Variables={MODEL_VERSION=v2.1.0,MODEL_S3_BUCKET=<match-backups-bucket>}"
+  --environment "Variables={MODEL_VERSION=v2.1.0,MODEL_S3_BUCKET=cricscore-match-backups-dev}"
 ```

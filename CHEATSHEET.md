@@ -1,295 +1,233 @@
-# 🛠️ CricScore Cheatsheet
+# 🛠️ CricScore Developer & Operations Cheatsheet
 
-This cheatsheet provides a comprehensive, quick reference for all commands needed to manage, develop, and troubleshoot the CricScore repository like an expert. It covers the entire end-to-end developer lifecycle.
+Quick-reference command tutorial for setting up, developing, testing, deploying, and debugging CricScore. Run commands from the repository root unless noted.
+
+| #     | Section                                                                          | Primary Use Case                                                                   |
+| :---- | :------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------- |
+| **1** | [Initial Setup & Infrastructure](#1-initial-setup--infrastructure)               | Install tools, authenticate AWS/GitHub, initialize `.env.local`                    |
+| **2** | [Git Workflow & PR Management](#2-git-workflow--pr-management)                   | Branching, Dependabot consolidation, pre-push validation, PR checks                |
+| **3** | [Node.js & Monorepo Scripts](#3-nodejs--project-scripts-monorepo-root)           | Local Vite server, build, lint, Prettier, dependency audits                        |
+| **4** | [Testing & Validation (376 Unit + E2E)](#4-testing--validation)                  | Vitest (Frontend + Backend), Pytest (AI + ML), Playwright E2E                      |
+| **5** | [MLOps & Win Prediction Training](#5-mlops--machine-learning-local-training)     | Cricsheet extraction, 8-model MLflow benchmark (`compare_models.py`), Docker build |
+| **6** | [Pre-Push Security & DevSecOps Scans](#6-pre-push-security--code-scanning-local) | `npm audit`, GitLeaks, Trivy, Checkov, Syft SPDX SBOM                              |
+| **7** | [Full Cloud Deployment (`dev` & `prod`)](#7-full-cloud-deployment)               | `deploy.sh --use-local-env`, model rollbacks, `terraform.sh` wrapper               |
+| **8** | [AWS CLI Troubleshooting](#8-aws-troubleshooting-expert-cli-commands)            | Tail Lambda logs, inspect SQS FIFO / DynamoDB / ECR, unlock TF state               |
+| **9** | [PostgreSQL (`psql`) Troubleshooting](#9-database-postgresql-troubleshooting)    | Inspect `dev`/`prod` schemas, matches, ball events, and active connections         |
+
+---
 
 ## 1. Initial Setup & Infrastructure
 
+| Step    | Action                                                                          | Command                                                                                |
+| :------ | :------------------------------------------------------------------------------ | :------------------------------------------------------------------------------------- |
+| **1.1** | Authenticate GitHub CLI                                                         | `gh auth login`                                                                        |
+| **1.2** | Clone repository                                                                | `git clone https://github.com/venkatesh-singamsetty/cricscore.git && cd cricscore`     |
+| **1.3** | Install prerequisites (Node 24, Python 3.12, Terraform 1.10, AWS CLI, scanners) | `./infra/scripts/setup.sh`                                                             |
+| **1.4** | Configure AWS credentials                                                       | `aws configure`                                                                        |
+| **1.5** | Initialize local environment files                                              | `cp .env.local.example .env.local && cp apps/frontend/.env.example apps/frontend/.env` |
+| **1.6** | Sync GitHub Environment secrets & variables (`dev` & `prod`)                    | `./infra/scripts/setup_github_envs.sh`                                                 |
+
 ```bash
-# Authenticate with GitHub CLI (Required for cloning private repos or setting up CI/CD)
 gh auth login
-
-# Clone the repository and enter the directory
 git clone https://github.com/venkatesh-singamsetty/cricscore.git && cd cricscore
-
-# Install all prerequisites (Node, Python3, Terraform, AWS CLI, security scanners)
 ./infra/scripts/setup.sh
-
-# Authenticate with AWS CLI (Required for local deployments and troubleshooting)
 aws configure
-
-# Copy environment templates
 cp .env.local.example .env.local
 cp apps/frontend/.env.example apps/frontend/.env
-
-# Configure GitHub Environment Variables & Secrets for CI/CD
 ./infra/scripts/setup_github_envs.sh
 ```
 
+---
+
 ## 2. Git Workflow & PR Management
 
-Follow the standard PR workflow (Never push directly to `main`).
+Direct pushes to `main` are blocked by branch protection. Always use a feature branch and Pull Request:
+
+```mermaid
+flowchart LR
+    A["git checkout -b feat/..."] --> B["./infra/scripts/validate_local.sh --skip-e2e"]
+    B --> C["./infra/scripts/deploy.sh --env dev --use-local-env"]
+    C --> D["git push -u origin HEAD"]
+    D --> E["gh pr create & CI Status Checks"]
+    E --> F["Squash & Merge to main -> Auto Prod Release"]
+```
 
 ```bash
-# Fetch latest changes and update local main
+# 1. Sync main and create a feature branch
 git checkout main && git pull origin main
+git checkout -b feat/your-feature-name
 
-# Create a new feature or fix branch
-git checkout -b feature/your-feature-name
-
-# Consolidate any open Dependabot PRs into the current working branch (Collaborator-guarded)
+# 2. Optional: Consolidate open Dependabot PRs into your branch
 ./infra/scripts/consolidate_dependabot_prs.sh --merge
 
-# After validating and pushing the branch to origin, safely close superseded Dependabot PRs
-./infra/scripts/consolidate_dependabot_prs.sh --close --target-pr <PR_NUMBER>
-
-# Add, sync with origin/main, commit, and push changes
+# 3. Stage, commit (Conventional Commits), and sync with origin/main
 git add .
 git commit -m "feat: your descriptive commit message"
 git fetch origin main && git merge origin/main --no-edit
 
-# Option A (Recommended): git push triggers fast validation automatically once (~25s)
+# 4. Push branch (automatically runs fast pre-push validation hook)
 git push -u origin HEAD
 
-# Option B: Run validation manually AFTER committing, then push (skips hook in <0.1s)
-# ./infra/scripts/validate_local.sh --fast && git push -u origin HEAD
-
-# Option C: Bypass hook if already verified on dev/prod deployment
-# SKIP_PRE_PUSH=1 git push -u origin HEAD
-
-# Create a Pull Request using the GitHub CLI (gh)
-gh pr create --title "feat: added new feature" --body "Detailed description" --base main
-
-# Check PR status checks and inline CodeQL/review comments
+# 5. Open Pull Request and monitor status checks + CodeQL comments
+gh pr create --title "feat: added new feature" --body "Detailed summary" --base main
 gh pr checks
 gh api repos/venkatesh-singamsetty/cricscore/pulls/<PR_NUMBER>/comments
 
-# Auto-merge a Pull Request (Squashes and deletes branch ONLY after approvals & CI status checks pass)
+# 6. Close superseded Dependabot PRs (if consolidated in step 2)
+./infra/scripts/consolidate_dependabot_prs.sh --close --target-pr <PR_NUMBER>
+
+# 7. Auto-merge once all required status checks pass
 gh pr merge --auto --squash --delete-branch
 ```
 
+---
+
 ## 3. Node.js & Project Scripts (Monorepo Root)
 
-We use npm workspaces. You can run these commands from the **root** of the repository:
+| Script               | Scope                             | What It Does                                               |
+| :------------------- | :-------------------------------- | :--------------------------------------------------------- |
+| `npm install`        | Monorepo + Workspaces             | Installs all workspace dependencies                        |
+| `npm run dev`        | `apps/frontend`                   | Starts Vite React 19 dev server on `http://localhost:5173` |
+| `npm run build`      | `apps/frontend`                   | Runs `tsc -b && vite build` production bundle check        |
+| `npm run lint`       | `apps/frontend`                   | Runs ESLint + TypeScript strict type checking              |
+| `npm run deps:check` | All Workspaces + Lambdas + Python | Audits outdated packages before Dependabot opens PRs       |
 
 ```bash
-# Install dependencies for the monorepo
 npm install
-
-# Clean install dependencies (Ideal for CI/CD or fixing broken node_modules)
-npm ci
-
-# Start the Vite React development server locally
 npm run dev
-
-# Build the frontend production bundle locally
 npm run build
-
-# Preview the built production bundle locally (Serves the /dist folder)
-npm run preview
-
-# Run the Linter across the frontend
 npm run lint
-
-# Format code using prettier via npx
 npx prettier --write "apps/**/*.{ts,tsx,js,jsx,json,md}"
-
-# Proactive dependency & Dependabot audit across all workspaces & Lambdas
 npm run deps:check
-# or: ./infra/scripts/check_dependencies.sh
 ```
+
+---
 
 ## 4. Testing & Validation
 
-```bash
-# Run Frontend tests only
-npm run test
+CricScore maintains **376 automated unit/integration tests** (`151` Frontend + `121` Backend + `75` AI Service + `29` ML Engine) plus **Playwright** E2E suites:
 
-# Run all fast Unit and Integration tests (Frontend & Backend)
+| Suite                                  |   Test Count    | Command                                                                     |
+| :------------------------------------- | :-------------: | :-------------------------------------------------------------------------- |
+| **Frontend Unit & Component (Vitest)** |      `151`      | `npm run test`                                                              |
+| **Backend Lambda Unit (Vitest)**       |      `121`      | `npm test --prefix apps/backend`                                            |
+| **All JS/TS Unit Tests (FE + BE)**     |      `272`      | `npm run test:all`                                                          |
+| **Python AI Service Unit (Pytest)**    |      `75`       | `./apps/ml-engine/.venv-train/bin/pytest apps/ai-service -q`                |
+| **Python ML Engine Unit (Pytest)**     |      `29`       | `./apps/ml-engine/.venv-train/bin/pytest apps/ml-engine/test_predict.py -q` |
+| **Playwright E2E (Dev Cloud)**         |  Cross-Browser  | `npm run test:e2e:dev`                                                      |
+| **Playwright Multi-Browser Live Sync** | Scorer + Viewer | `npm run test:e2e:sync:headed`                                              |
+| **Live AI Chat MCP Evaluation**        |    4 Agents     | `npm run test:ai`                                                           |
+
+```bash
+# Run all Frontend + Backend Vitest suites (272 tests)
 npm run test:all
 
-# Install Playwright browser binaries (Required before running E2E tests for the first time)
+# Run Python AI Service (75 tests) + ML Engine (29 tests)
+pytest apps/ai-service apps/ml-engine/test_predict.py -q
+
+# Run Playwright E2E suites against Dev
 npx playwright install --with-deps
-
-# Run End-to-End (E2E) UI Tests
-npm run test:e2e
-
-# Run Live E2E Tests on Dev (Headless)
 npm run test:e2e:dev
-
-# Run Live E2E Tests on Dev (Headed - opens browser so you can watch live)
 npm run test:e2e:dev:headed
-
-# Run Multi-Browser Real-Time Live Sync on Dev (Headed Scorer + Spectator side-by-side)
 npm run test:e2e:sync:headed
-
-# Run 2-Over User Journey Full Match Scoring on Dev (Headed)
 npm run test:e2e:journey:headed
-
-# Run AI Chatbot Evaluation Tests (Validates LLM tool-calling logic)
-npm run test:ai
-
-# Check outdated dependencies across workspaces and lambdas before pushing
-npm run deps:check
-
-# Run Backend tests in Watch mode (Must run from backend folder)
-npm run test:watch --prefix apps/backend
 ```
+
+---
 
 ## 5. MLOps & Machine Learning (Local Training)
 
+| Stage                             | Script / File                     | Output Artifact                                                                                     |
+| :-------------------------------- | :-------------------------------- | :-------------------------------------------------------------------------------------------------- |
+| **1. Extract Cricsheet Data**     | `python data_pipeline.py`         | `apps/ml-engine/data/live_data.csv` (`786K+` deliveries)                                            |
+| **2. 8-Model Benchmark & MLflow** | `python compare_models.py v2.2.0` | `live_win_predictor_model.joblib` (`XGBoost v2.2.0`), `model_manifest.json`, `comparison_report.md` |
+| **3. DVC Pipeline Reproduction**  | `dvc repro`                       | Verifies `dvc.yaml` & updates `dvc.lock` hashes                                                     |
+| **4. CPU Container Build**        | `docker build ...`                | `~309 MB` `xgboost-cpu` Lambda container image                                                      |
+
 ```bash
-# Navigate to the ML Engine directory
 cd apps/ml-engine
+python3 -m venv .venv-train && source .venv-train/bin/activate
+pip install -r requirements-train.txt
 
-# Create and Activate Python Virtual Environment
-python3 -m venv venv
-source venv/bin/activate
-
-# Install Python ML dependencies
-pip install -r requirements.txt
-
-# Run the data pipeline (Fetches Cricsheet JSONs & generates live_data.csv)
+# Extract dataset & run 8-model MLflow benchmark
 python data_pipeline.py
+python compare_models.py v2.2.0
 
-# Train the model (Outputs live_win_predictor_model.joblib)
-python live_train.py
-
-# Run the ML Unit tests
+# Run ML inference unit tests (29 tests)
 pytest test_predict.py -v
 
-# Build the ML Docker Container locally (for deployment debugging)
-docker build --platform linux/amd64 -t cricscore-ml-predict .
+# Build CPU-optimized Lambda container (~309 MB)
+docker build --platform linux/amd64 --provenance=false -t cricscore-ml-predict:v2.2.0 .
 ```
+
+---
 
 ## 6. Pre-Push Security & Code Scanning (Local)
 
-Run these checks to catch issues before pushing to GitHub:
+| Scanner                                    | Target                     | Command                                            |
+| :----------------------------------------- | :------------------------- | :------------------------------------------------- |
+| **Full Local Gate (All Scanners + Tests)** | Entire Repo                | `./infra/scripts/validate_local.sh --skip-e2e`     |
+| **npm audit**                              | Node.js Dependencies       | `npm audit`                                        |
+| **GitLeaks**                               | Secret Detection           | `gitleaks detect -v`                               |
+| **Trivy**                                  | Filesystem & Lockfile CVEs | `trivy fs ./package-lock.json`                     |
+| **Checkov**                                | Terraform IaC Security     | `checkov -d infra/terraform/`                      |
+| **Syft**                                   | SPDX SBOM Generation       | `syft dir:. -o spdx-json=cricscore-sbom.spdx.json` |
 
-```bash
-# Audit Node.js dependencies for security vulnerabilities
-npm audit
-
-# Automatically fix security vulnerabilities in dependencies (if possible)
-npm audit fix
-
-# Scan for accidentally committed secrets (API Keys, tokens, etc.)
-gitleaks detect -v
-
-# Deep scan dependencies & containers for CVE vulnerabilities
-trivy fs ./package-lock.json
-
-# Scan Terraform code for security misconfigurations
-checkov -d infra/terraform/
-
-# Generate an SBOM (Software Bill of Materials) using Syft
-syft dir:. -o spdx-json=cricscore-sbom.spdx.json
-```
+---
 
 ## 7. Full Cloud Deployment
 
-Always use `deploy.sh` with `--use-local-env` (which loads `.env.local`, reconfigures Terraform state for the target environment, and writes the matching `apps/frontend/.env` URLs):
+Always pass `--use-local-env` to `deploy.sh` when deploying from your workstation:
 
 ```bash
-# Pre-flight check (Verifies AWS credentials, Docker daemon, and .env.local without changing anything)
+# Pre-flight check (validates AWS credentials, Docker daemon, and .env.local)
 ./infra/scripts/deploy.sh --env dev --use-local-env --check
 
-# Deploy to Development Environment (add --migrate if DB schema/migrations changed)
+# Deploy full stack to Dev (add --migrate if DB schema changed)
 ./infra/scripts/deploy.sh --env dev --use-local-env
 
-# Deploy to Production Environment (only after verifying dev)
+# Deploy full stack to Prod (after verifying Dev)
 ./infra/scripts/deploy.sh --env prod --use-local-env
 
-# Deploy or Rollback a Specific Tagged ML Model Version in S3 & ECR
+# Deploy or Rollback a specific ML model version in S3 & ECR
 ./infra/scripts/deploy.sh --env dev --use-local-env --model-version v2.2.0
 ./infra/scripts/deploy.sh --env prod --use-local-env --model-version v2.2.0
 
-# Fast Pre-Push Validation (Lint, Vitest, npm audit, build, Terraform fmt/validate, Checkov, GitLeaks, Trivy, Syft)
-./infra/scripts/validate_local.sh --skip-e2e
-
-# Full Validation including live Playwright E2E against dev
-./infra/scripts/validate_local.sh
-
-# --- Terraform Helper Wrapper (Automatically loads .env.local and maps TF_VAR_*) ---
-
-# Format & validate Terraform files
+# Terraform helper wrapper (loads .env.local automatically)
 ./infra/scripts/terraform.sh fmt -check -recursive
 ./infra/scripts/terraform.sh validate
-
-# Plan or apply Terraform infrastructure changes with .env.local loaded
 ./infra/scripts/terraform.sh plan
-./infra/scripts/terraform.sh apply
 ```
+
+---
 
 ## 8. AWS Troubleshooting (Expert CLI Commands)
 
-If the deployment succeeds but the app behaves unexpectedly, use these AWS CLI commands to debug:
+| Task                                                | AWS CLI Command                                                                                                                                                            |
+| :-------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Tail Score Update Lambda Logs**                   | `aws logs tail /aws/lambda/cricscoredev-score-upd --follow --format short`                                                                                                 |
+| **Tail AI Chat / Summary Logs**                     | `aws logs tail /aws/lambda/cricscoredev-chat-api --follow`                                                                                                                 |
+| **Tail Match API Logs**                             | `aws logs tail /aws/lambda/cricscoredev-match-api --follow`                                                                                                                |
+| **Check Active WebSocket Connections**              | `aws dynamodb scan --table-name cricscoredev-connections --select COUNT`                                                                                                   |
+| **Check SQS FIFO Queue Backlog**                    | `aws sqs get-queue-attributes --queue-url https://sqs.us-east-1.amazonaws.com/<ACCOUNT_ID>/cricscoredev-storage-buffer.fifo --attribute-names ApproximateNumberOfMessages` |
+| **Inspect Single Retained ECR Image (`~309 MB`)**   | `aws ecr describe-images --repository-name cricscoredev-ml-predict --query 'imageDetails[*].[imageTags[0],imageSizeInBytes]' --output table`                               |
+| **Unlock Stuck Terraform State via GitHub Actions** | `gh workflow run terraform-unlock.yml -f environment=dev -f lock_id=<LOCK_ID>`                                                                                             |
+| **Trigger Nightly Terraform Drift Check**           | `gh workflow run drift.yml`                                                                                                                                                |
 
-```bash
-# Tailing Lambda Logs for the Backend API
-aws logs tail /aws/lambda/cricscoredev-score-update --follow --format short
-
-# Tailing Lambda Logs for the AI Chat API
-aws logs tail /aws/lambda/cricscoredev-chat-api --follow
-
-# Check CloudFront Invalidation Status (If UI looks stale)
-aws cloudfront list-invalidations --distribution-id <YOUR_DISTRIBUTION_ID>
-
-# List items in DynamoDB Connections Table (to see active WebSockets)
-aws dynamodb scan --table-name cricscoredev-connections --select COUNT
-
-# Verify S3 Static Website Bucket Contents
-aws s3 ls s3://cricscoredev-app-<hash>/
-
-# Check SQS Queue Depth (To see if database storage workers are falling behind)
-aws sqs get-queue-attributes --queue-url https://sqs.<REGION>.amazonaws.com/<ACCOUNT_ID>/cricscoredev-storage-buffer.fifo --attribute-names ApproximateNumberOfMessages
-
-# Purge SQS Queue (Clear stuck backlog - Use with caution!)
-aws sqs purge-queue --queue-url https://sqs.<REGION>.amazonaws.com/<ACCOUNT_ID>/cricscoredev-storage-buffer.fifo
-
-# Force an update to a Lambda function if image was pushed manually
-aws lambda update-function-code --function-name cricscoredev-ml-predict --image-uri <ECR_IMAGE_URI>
-
-# Force unlock Terraform state locally
-terraform -chdir=infra/terraform force-unlock <LOCK_ID>
-
-# Force unlock Terraform state remotely via GitHub Actions (Recommended!)
-gh workflow run terraform-unlock.yml -f environment=dev -f lock_id=<LOCK_ID>
-
-# Trigger remote Terraform drift detection via GitHub Actions
-gh workflow run drift.yml
-```
+---
 
 ## 9. Database (PostgreSQL) Troubleshooting
 
-Since CricScore uses PostgreSQL, you can use standard `psql` commands to debug the database manually.
-
 ```bash
-# Extract your DATABASE_URL from .env.local and connect via psql
+# Connect to Aiven PostgreSQL using TF_DATABASE_URL from .env.local
 psql "postgres://username:password@hostname:port/defaultdb?sslmode=require"
-
-# --- Once connected to PostgreSQL ---
-
-# List all schemas
-\dn
-
-# Switch to your environment schema (e.g. dev or prod)
-SET search_path TO dev;
-
-# List all tables in the current schema
-\dt
-
-# Check if a specific match exists (UUID match ID)
-SELECT * FROM matches WHERE id = 'YOUR_MATCH_ID';
-
-# View the last 5 ball events (to check for missing or stuck live data)
-SELECT * FROM balls ORDER BY created_at DESC LIMIT 5;
-
-# Check active database connections (Useful if AWS Lambdas are exhausting the connection pool)
-SELECT count(*) FROM pg_stat_activity;
-
-# View detailed connection activity to identify hanging queries
-SELECT pid, usename, state, query FROM pg_stat_activity WHERE state = 'active';
-
-# Exit psql
-\q
 ```
+
+| SQL / `psql` Command                                                                                  | Purpose                                                                                   |
+| :---------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------- |
+| `\dn`                                                                                                 | List database schemas (`dev`, `prod`)                                                     |
+| `SET search_path TO dev;`                                                                             | Switch active session to `dev` (or `prod`) schema                                         |
+| `\dt`                                                                                                 | List all tables (`matches`, `innings`, `players`, `bowlers`, `balls`, `tournament_rules`) |
+| `SELECT id, status, match_winner, player_of_the_match FROM matches ORDER BY created_at DESC LIMIT 5;` | Inspect latest matches and deterministic POTM awards                                      |
+| `SELECT * FROM balls ORDER BY id DESC LIMIT 10;`                                                      | Inspect most recent ball-by-ball persistence records                                      |
+| `SELECT count(*), state FROM pg_stat_activity GROUP BY state;`                                        | Check active connection pool usage across Lambdas                                         |

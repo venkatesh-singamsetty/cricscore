@@ -36,7 +36,7 @@ description: Use when changing or deploying CricScore Terraform, AWS resources, 
      - **Prod S3 / CloudFront / API**: `cricscore.venkateshsingamsetty.com` (`s3://cricscore-app-7e93ca64fca840e1639f6fbd71`, CloudFront `E3FVVHMKMZ5G5O`)
    - Never commit `apps/frontend/.env` to Git.
 2. **ML Predict Container (`ml-predict`) ECR Push & Lambda Refresh (`infra/terraform/lambda.tf`)**:
-   - `null_resource.docker_build_push` triggers whenever any file in `apps/ml-engine/*` changes (`dir_sha1`), logs into ECR (`${var.project_name}-ml-predict`), builds `linux/amd64` with `--provenance=false`, pushes `:latest`, and runs `aws lambda update-function-code` + `aws lambda wait function-updated` for `${var.project_name}-ml-predict` (`cricscoredev-ml-predict` or `cricscore-ml-predict`).
+   - `null_resource.docker_build_push` triggers whenever any file in `apps/ml-engine/*` changes (`dir_sha1`), logs into ECR (`${var.project_name}-ml-predict`), builds `linux/amd64` with `--provenance=false`, pushes `:${var.ml_model_version}` (single tag, no `:latest`; ECR retains one image), and runs `aws lambda update-function-code` + `aws lambda wait function-updated` for `${var.project_name}-ml-predict` (`cricscoredev-ml-predict` or `cricscore-ml-predict`).
    - Always ensure Docker Desktop is running (`docker info`) before running `deploy.sh`!
 3. **AWS Provider Version Pin (`infra/terraform/providers.tf`)**:
    - Because `deploy.sh` passes `-upgrade` to `terraform init`, `infra/terraform/providers.tf` **MUST** keep `version = "~> 6.0, != 6.69.0"` on `hashicorp/aws`. Version `6.69.0` has a fatal `bufio.Scanner: token too long` bug when updating Node.js Lambda zip archives.

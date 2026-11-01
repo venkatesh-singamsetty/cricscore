@@ -36,7 +36,7 @@ description: Use when preparing a CricScore branch or pull request, selecting lo
      - OR run `./infra/scripts/validate_local.sh --fast` manually after committing to view test results locally. This records the state receipt in `.git/.local_validation_receipt` keyed to `HEAD`, so your subsequent `git push` skips duplicate runs in `<0.1s`.
      - If you've already deployed and verified dev/prod locally, push with `SKIP_PRE_PUSH=1 git push` or `git push --no-verify`.
    - When UI flows, selectors, or APIs change, deploy to `dev` first and run Playwright E2E against `dev` (`cd apps/e2e && npx playwright test --reporter=list`) so `CI` on `main` never fails or hangs.
-   - When `apps/ml-engine/` changes, run `./apps/ml-engine/venv/bin/pytest apps/ml-engine/test_predict.py`.
+   - When `apps/ml-engine/` changes, run `./apps/ml-engine/venv/bin/pytest apps/ml-engine/test_predict.py` (29 tests).
 
 ## 2. Pull Request Creation & Post-PR Verification
 
@@ -51,7 +51,7 @@ description: Use when preparing a CricScore branch or pull request, selecting lo
 
 ## 3. CI, Semantic Release & CD Pipeline Architecture
 
-- **Pull Requests (`.github/workflows/ci.yml` + `codeql.yml`)**: Run `validate_security` (GitLeaks, Checkov), `validate_frontend` (Trivy, `tsc --noEmit`, Vitest, `npm run build`), `validate_backend` (Vitest, Trivy, Terraform `fmt` & `validate`), and CodeQL analysis.
+- **Pull Requests (`.github/workflows/ci.yml` + `codeql.yml`)**: Run `validate_security` (GitLeaks, Checkov), `validate_frontend` (Trivy, `tsc --noEmit`, Vitest, `npm run build`), `validate_backend` (Vitest, Trivy, Terraform `fmt` & `validate`), `validate_python` (Python AI & ML validation), and CodeQL analysis. These checks are the PR status checks to enforce via branch protection on `main` (see `docs/branch_protection.md`; verify the live settings in GitHub).
 - **Merge to `main` (`.github/workflows/ci.yml` -> `release.yml` -> `cd.yml`)**:
   1. `CI` runs all validation jobs and then `deploy_and_test_dev` (Postgres migrations on `dev`, Terraform apply on `dev`, S3/CloudFront deploy, AI chat eval, Playwright E2E against `dev`, and OWASP ZAP baseline scan).
   2. When `CI` on `main` completes with `success`, `Semantic Release` (`.github/workflows/release.yml`) runs `npx semantic-release`, scanning **all conventional commits since the last `v*` Git tag** to cut the next version tag, update `docs/changelog.md`, and publish the GitHub Release notes.

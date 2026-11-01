@@ -21,26 +21,28 @@ A central single-pane-of-glass directory providing live references across all la
 
 ## 🐙 GitHub Repository Resources, Actions, Vars & Secrets
 
-- **GitHub Repository**: [`venkatesh-singamsetty/cricscore`](https://github.com/venkatesh-singamsetty/cricscore)
-- **Default Branch**: `main` (Protected; all changes merge via pull requests)
-- **Active Feature Branch**: `feat/python-ai-service`
-- **GitHub Environments**: [`dev`](https://github.com/venkatesh-singamsetty/cricscore/deployments/activity_log?environment=dev) and [`prod`](https://github.com/venkatesh-singamsetty/cricscore/deployments/activity_log?environment=prod)
-- **Releases & Version Tags**: [`GitHub Releases`](https://github.com/venkatesh-singamsetty/cricscore/releases) (Automated semantic versioning via `semantic-release`)
+| Property                    | Value / Link                                                                                                                                                                                                    |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **GitHub Repository**       | [`venkatesh-singamsetty/cricscore`](https://github.com/venkatesh-singamsetty/cricscore)                                                                                                                         |
+| **Default Branch**          | `main` (Protected; requires PR status checks before merge)                                                                                                                                                      |
+| **GitHub Environments**     | [`dev`](https://github.com/venkatesh-singamsetty/cricscore/deployments/activity_log?environment=dev) and [`prod`](https://github.com/venkatesh-singamsetty/cricscore/deployments/activity_log?environment=prod) |
+| **Releases & Version Tags** | [`GitHub Releases`](https://github.com/venkatesh-singamsetty/cricscore/releases) (Automated semantic versioning via `semantic-release`)                                                                         |
 
 ### ⚙️ GitHub Actions Workflow Catalog
 
-| Workflow Name                      | File                                   | Trigger Events                                                                                                  | Primary Responsibilities                                                                                | Direct Console Link                                                                                      |
-| ---------------------------------- | -------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| **CI (Continuous Integration)**    | `.github/workflows/ci.yml`             | Pull requests, push to `main`                                                                                   | 4 validation suites: Security, Frontend, Backend, Python AI/ML; deploys and tests `dev` on `main` merge | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/ci.yml)             |
-| **CD (Continuous Delivery)**       | `.github/workflows/cd.yml`             | Release published (`v*`)                                                                                        | Production deployment, Playwright E2E against Prod, OWASP ZAP baseline scan                             | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/cd.yml)             |
-| **Semantic Release**               | `.github/workflows/release.yml`        | CI success on `main`                                                                                            | Analyzes conventional commits, cuts next `v*` tag, publishes release notes & updates changelog          | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/release.yml)        |
-| **CodeQL SAST Analysis**           | `.github/workflows/codeql.yml`         | PRs, push to `main`, weekly schedule                                                                            | Multi-language static application security testing (JS/TS & Python)                                     | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/codeql.yml)         |
-| **Generate SBOM**                  | `.github/workflows/sbom.yml`           | Nightly / release                                                                                               | Generates Syft Software Bill of Materials in SPDX JSON format (`spdx-json` artifact)                    | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/sbom.yml)           |
-| **MLOps Pipeline (Win Predictor)** | `.github/workflows/mlops-pipeline.yml` | Dataset or training script changes (`cricket-data/**`, `train_model.py`, `compare_models.py`), monthly schedule | Model benchmark evaluation, XGBoost champion verification, artifact upload                              | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/mlops-pipeline.yml) |
-| **Terraform Drift Detection**      | `.github/workflows/drift-check.yml`    | Daily schedule                                                                                                  | Verifies Terraform state synchronization with AWS resources                                             | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/drift-check.yml)    |
-| **Database Keep-Alive**            | `.github/workflows/db-keepalive.yml`   | Scheduled (every 4 hrs)                                                                                         | Sends ping query to prevent Aiven PostgreSQL free service hibernation                                   | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/db-keepalive.yml)   |
-| **Terraform Force Unlock**         | `.github/workflows/unlock.yml`         | Manual `workflow_dispatch`                                                                                      | Emergency administrative release of stuck S3 backend locks                                              | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/unlock.yml)         |
-| **Dependabot Updates**             | `.github/dependabot.yml`               | Scheduled / auto                                                                                                | Automated security PRs for npm, pip, and GitHub Actions dependencies                                    | [Open Dependabot](https://github.com/venkatesh-singamsetty/cricscore/security/dependabot)                |
+| Workflow Name                      | File                                     | Trigger Events                                       | Primary Responsibilities                                                                                 | Direct Console Link                                                                                        |
+| ---------------------------------- | ---------------------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| **CI (Continuous Integration)**    | `.github/workflows/ci.yml`               | Pull requests, push to `main`                        | 4 validation suites (Security, Frontend, Backend, Python AI/ML); deploys and tests `dev` on `main` merge | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/ci.yml)               |
+| **CD (Continuous Delivery)**       | `.github/workflows/cd.yml`               | Release published (`v*`)                             | Production deployment, Playwright E2E against Prod, OWASP ZAP baseline scan                              | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/cd.yml)               |
+| **Semantic Release**               | `.github/workflows/release.yml`          | CI success on `main`                                 | Analyzes conventional commits, cuts next `v*` tag, publishes release notes & updates changelog           | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/release.yml)          |
+| **CodeQL SAST Analysis**           | `.github/workflows/codeql.yml`           | PRs, push to `main`, weekly schedule                 | Multi-language static application security testing (JS/TS & Python)                                      | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/codeql.yml)           |
+| **Generate SBOM**                  | `.github/workflows/sbom.yml`             | Push to `main`, release                              | Generates Syft Software Bill of Materials in SPDX JSON format (`spdx-json` artifact)                     | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/sbom.yml)             |
+| **MLOps Pipeline (Win Predictor)** | `.github/workflows/mlops-pipeline.yml`   | Dataset or training script changes, monthly schedule | 8-model benchmark evaluation (`compare_models.py`), XGBoost champion quality gate, artifact upload       | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/mlops-pipeline.yml)   |
+| **ML Model Release & Rollback**    | `.github/workflows/ml-model-release.yml` | Manual `workflow_dispatch`                           | Promotes or rolls back `MODEL_VERSION` on `dev`/`prod` Lambda and runs live smoke test                   | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/ml-model-release.yml) |
+| **Terraform Drift Detection**      | `.github/workflows/drift.yml`            | Daily schedule (`00:00 UTC`)                         | Verifies Terraform state synchronization with AWS resources across `dev` and `prod`                      | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/drift.yml)            |
+| **Database Keep-Alive**            | `.github/workflows/keepalive.yml`        | Scheduled                                            | Sends keep-alive query to prevent Aiven PostgreSQL free-tier service hibernation                         | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/keepalive.yml)        |
+| **Terraform Force Unlock**         | `.github/workflows/terraform-unlock.yml` | Manual `workflow_dispatch`                           | Emergency administrative release of stuck S3 backend `.tflock` locks                                     | [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/terraform-unlock.yml) |
+| **Dependabot Updates**             | `.github/dependabot.yml`                 | Weekly schedule                                      | Automated security PRs for npm, pip, and GitHub Actions dependencies                                     | [Open Dependabot](https://github.com/venkatesh-singamsetty/cricscore/security/dependabot)                  |
 
 ### 📋 GitHub Repository Variables (`vars.*`)
 
@@ -73,106 +75,87 @@ A central single-pane-of-glass directory providing live references across all la
 
 ### 📦 GitHub Pipeline & Build Artifacts
 
-- **Software Bill of Materials (SPDX JSON)**: Downloadable artifact `spdx-json` on every run of [`Generate SBOM`](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/sbom.yml).
-- **CodeQL Analysis Databases & SARIF Reports**: Available under [`Security → Code scanning`](https://github.com/venkatesh-singamsetty/cricscore/security/code-scanning).
-- **Trivy Container & Dependency Scan Reports**: Emitted in the CI step log output of [`ci.yml`](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/ci.yml).
-- **GitLeaks Secrets Scan Audit**: Logged on every PR commit in [`ci.yml`](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/ci.yml).
-- **Playwright E2E Test Reports**: Generated on deployment runs in [`ci.yml`](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/ci.yml) and [`cd.yml`](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/cd.yml).
-- **Semantic Release Changelog**: Automatically published in [`docs/changelog.md`](file:///Users/venkat/workspace/gitRepos/cricscore/docs/changelog.md) and [`GitHub Releases`](https://github.com/venkatesh-singamsetty/cricscore/releases).
+| Artifact                                   | Source Workflow     | Location / Link                                                                                                                       |
+| ------------------------------------------ | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| **Software Bill of Materials (SPDX JSON)** | `sbom.yml`          | Downloadable artifact `spdx-json` in [`Generate SBOM`](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/sbom.yml) |
+| **CodeQL SAST SARIF Reports**              | `codeql.yml`        | [`Security → Code scanning`](https://github.com/venkatesh-singamsetty/cricscore/security/code-scanning)                               |
+| **Trivy & GitLeaks Security Logs**         | `ci.yml`            | Logged on every PR and push in [`ci.yml`](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/ci.yml)                |
+| **Playwright E2E HTML Reports**            | `ci.yml` / `cd.yml` | `playwright-report-dev` and `playwright-report-prod` artifacts                                                                        |
+| **Semantic Release Changelog**             | `release.yml`       | [`docs/changelog.md`](./changelog.md) and [`GitHub Releases`](https://github.com/venkatesh-singamsetty/cricscore/releases)            |
 
 ---
 
 ## 🟢 Development (DEV)
 
-### 🌐 Core Endpoints & Networking
+### 🌐 Core Endpoints, Identity & Storage
 
-- **Frontend Web Application**: [https://cricscoredev.venkateshsingamsetty.com](https://cricscoredev.venkateshsingamsetty.com)
-- **CloudFront CDN Distribution**: [`E1K3FWDNEXFSL0`](https://us-east-1.console.aws.amazon.com/cloudfront/v4/home?region=us-east-1#/distributions/E1K3FWDNEXFSL0)
-- **HTTP API Gateway Endpoint**: [`https://api.cricscoredev.venkateshsingamsetty.com`](https://us-east-1.console.aws.amazon.com/apigateway/main/apis/sx6hhs0yj6/routes?region=us-east-1) (API ID: `sx6hhs0yj6`)
-- **WebSocket API Gateway Endpoint**: [`wss://ws.cricscoredev.venkateshsingamsetty.com`](https://us-east-1.console.aws.amazon.com/apigateway/main/apis/ql2tnw8ls6/routes?region=us-east-1) (API ID: `ql2tnw8ls6`)
-- **Route 53 DNS Hosted Zone**: [Route 53 Console](https://us-east-1.console.aws.amazon.com/route53/v2/hostedzones)
-- **ACM SSL/TLS Certificates**: [ACM Console](https://us-east-1.console.aws.amazon.com/acm/home?region=us-east-1#/certificates)
-
-### 🔐 Identity, Authentication & SSO (Amazon Cognito)
-
-- **User Pool ID**: [`us-east-1_InxzxljX7`](https://us-east-1.console.aws.amazon.com/cognito/v2/idp/user-pools/us-east-1_InxzxljX7/users?region=us-east-1)
-- **App Client ID**: `1n4m9rm96nhkd1vnqpnfsr1eg9`
-- **Cognito Hosted Domain Prefix**: `cricscoredev-auth-dev`
-- **User Pool Console**: [Manage Users & Admin Groups](https://us-east-1.console.aws.amazon.com/cognito/v2/idp/user-pools/us-east-1_InxzxljX7/users?region=us-east-1)
-
-### 📦 Storage, Backups & Event Bus
-
-- **S3 Static Web Hosting**: [`s3://cricscoredev-app-e8d6bb50c5656dc8a2271c54a0`](https://s3.console.aws.amazon.com/s3/buckets/cricscoredev-app-e8d6bb50c5656dc8a2271c54a0?region=us-east-1)
-- **S3 Match Backups**: [`s3://cricscoredev-match-backups-937fe838a46144fff5facd682f`](https://s3.console.aws.amazon.com/s3/buckets/cricscoredev-match-backups-937fe838a46144fff5facd682f?region=us-east-1)
-- **S3 CloudFront Access Logs**: [`s3://cricscoredev-app-logs-a6dc993b498342c8e5800d409e`](https://s3.console.aws.amazon.com/s3/buckets/cricscoredev-app-logs-a6dc993b498342c8e5800d409e?region=us-east-1)
-- **DynamoDB Connection Table**: [`cricscoredev-connections`](https://us-east-1.console.aws.amazon.com/dynamodbv2/home?region=us-east-1#item-explorer?table=cricscoredev-connections)
-- **SQS FIFO Storage Buffer Queue**: [`cricscoredev-storage-buffer.fifo`](https://us-east-1.console.aws.amazon.com/sqs/v3/home?region=us-east-1#/queues/https%3A%2F%2Fsqs.us-east-1.amazonaws.com%2F926789386606%2Fcricscoredev-storage-buffer.fifo)
-- **SNS Match Events Topic**: [`cricscoredev-match-events`](https://us-east-1.console.aws.amazon.com/sns/v3/home?region=us-east-1#/topic/arn:aws:sns:us-east-1:926789386606:cricscoredev-match-events)
-- **SNS Lambda Alerts Topic**: [`cricscoredev-lambda-alerts`](https://us-east-1.console.aws.amazon.com/sns/v3/home?region=us-east-1#/topic/arn:aws:sns:us-east-1:926789386606:cricscoredev-lambda-alerts)
-- **ECR Docker Image Repo**: [`cricscoredev-ml-predict`](https://us-east-1.console.aws.amazon.com/ecr/repositories/private/926789386606/cricscoredev-ml-predict?region=us-east-1)
-  - **Latest Tag Digest**: `sha256:63ae0a61524e23373133f8b7f1ad51cae58edd41617b7283c6af9e6459dd1dc1`
-  - **Image Size**: `652.12 MB` | **Last Pushed**: `2026-10-22 11:22:24`
+| Resource                           | Identifier / Endpoint                                                                         | AWS Console / Direct Link                                                                                                                                                                      |
+| ---------------------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Frontend Web App**               | `https://cricscoredev.venkateshsingamsetty.com`                                               | [Open Web App](https://cricscoredev.venkateshsingamsetty.com)                                                                                                                                  |
+| **CloudFront CDN Distribution**    | `E1K3FWDNEXFSL0`                                                                              | [CloudFront Console](https://us-east-1.console.aws.amazon.com/cloudfront/v4/home?region=us-east-1#/distributions/E1K3FWDNEXFSL0)                                                               |
+| **HTTP API Gateway**               | `https://api.cricscoredev.venkateshsingamsetty.com` (`sx6hhs0yj6`)                            | [HTTP API Console](https://us-east-1.console.aws.amazon.com/apigateway/main/apis/sx6hhs0yj6/routes?region=us-east-1)                                                                           |
+| **WebSocket API Gateway**          | `wss://ws.cricscoredev.venkateshsingamsetty.com` (`ql2tnw8ls6`)                               | [WebSocket API Console](https://us-east-1.console.aws.amazon.com/apigateway/main/apis/ql2tnw8ls6/routes?region=us-east-1)                                                                      |
+| **Route 53 & ACM TLS**             | `cricscoredev.venkateshsingamsetty.com`                                                       | [Route 53](https://us-east-1.console.aws.amazon.com/route53/v2/hostedzones) · [ACM Console](https://us-east-1.console.aws.amazon.com/acm/home?region=us-east-1#/certificates)                  |
+| **Cognito User Pool**              | `us-east-1_InxzxljX7` (Client: `1n4m9rm96nhkd1vnqpnfsr1eg9`, Domain: `cricscoredev-auth-dev`) | [Cognito Users & Groups](https://us-east-1.console.aws.amazon.com/cognito/v2/idp/user-pools/us-east-1_InxzxljX7/users?region=us-east-1)                                                        |
+| **S3 Static Web Bucket**           | `s3://cricscoredev-app-e8d6bb50c5656dc8a2271c54a0` (7d noncurrent lifecycle)                  | [Open S3 Bucket](https://s3.console.aws.amazon.com/s3/buckets/cricscoredev-app-e8d6bb50c5656dc8a2271c54a0?region=us-east-1)                                                                    |
+| **S3 Match Backups & ML Registry** | `s3://cricscoredev-match-backups-937fe838a46144fff5facd682f` (180d backup lifecycle)          | [Open S3 Bucket](https://s3.console.aws.amazon.com/s3/buckets/cricscoredev-match-backups-937fe838a46144fff5facd682f?region=us-east-1)                                                          |
+| **S3 Access Logs Bucket**          | `s3://cricscoredev-app-logs-a6dc993b498342c8e5800d409e` (30d log lifecycle)                   | [Open S3 Bucket](https://s3.console.aws.amazon.com/s3/buckets/cricscoredev-app-logs-a6dc993b498342c8e5800d409e?region=us-east-1)                                                               |
+| **DynamoDB WS Connections**        | `cricscoredev-connections` (`PAY_PER_REQUEST`)                                                | [DynamoDB Explorer](https://us-east-1.console.aws.amazon.com/dynamodbv2/home?region=us-east-1#item-explorer?table=cricscoredev-connections)                                                    |
+| **SQS FIFO Storage Queue**         | `cricscoredev-storage-buffer.fifo`                                                            | [SQS Queue Console](https://us-east-1.console.aws.amazon.com/sqs/v3/home?region=us-east-1#/queues/https%3A%2F%2Fsqs.us-east-1.amazonaws.com%2F926789386606%2Fcricscoredev-storage-buffer.fifo) |
+| **SNS Match Events Topic**         | `cricscoredev-match-events`                                                                   | [SNS Events Topic](https://us-east-1.console.aws.amazon.com/sns/v3/home?region=us-east-1#/topic/arn:aws:sns:us-east-1:926789386606:cricscoredev-match-events)                                  |
+| **SNS Lambda Alerts Topic**        | `cricscoredev-lambda-alerts`                                                                  | [SNS Alerts Topic](https://us-east-1.console.aws.amazon.com/sns/v3/home?region=us-east-1#/topic/arn:aws:sns:us-east-1:926789386606:cricscoredev-lambda-alerts)                                 |
+| **ECR ML Container Repo**          | `cricscoredev-ml-predict` (`294.75 MB`, `countNumber=1`, pushed `2026-10-31 21:11:25`)        | [ECR Repo Console](https://us-east-1.console.aws.amazon.com/ecr/repositories/private/926789386606/cricscoredev-ml-predict?region=us-east-1)                                                    |
 
 ### ⚡ Serverless Compute & Telemetry (AWS Lambda)
 
-| Lambda Function         | Runtime                | Function Console                                                                                                                 | CloudWatch Logs                                                                                                                                                           |
-| ----------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`broadcaster`**       | `Node.js 20.x`         | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredev-broadcaster)       | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredev-broadcaster)       |
-| **`chat-api`**          | `Node.js 20.x`         | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredev-chat-api)          | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredev-chat-api)          |
-| **`cognito-presignup`** | `Node.js 20.x`         | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredev-cognito-presignup) | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredev-cognito-presignup) |
-| **`match-api`**         | `Node.js 20.x`         | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredev-match-api)         | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredev-match-api)         |
-| **`ml-predict`**        | `Docker (Python 3.12)` | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredev-ml-predict)        | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredev-ml-predict)        |
-| **`onconnect`**         | `Node.js 20.x`         | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredev-onconnect)         | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredev-onconnect)         |
-| **`ondisconnect`**      | `Node.js 20.x`         | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredev-ondisconnect)      | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredev-ondisconnect)      |
-| **`score-upd`**         | `Node.js 20.x`         | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredev-score-upd)         | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredev-score-upd)         |
-| **`storage-worker`**    | `Node.js 20.x`         | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredev-storage-worker)    | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredev-storage-worker)    |
+| Lambda Function         | Runtime                             | Function Console                                                                                                                 | CloudWatch Logs (7-Day Retention)                                                                                                                                         |
+| ----------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`broadcaster`**       | `Node.js 24.x`                      | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredev-broadcaster)       | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredev-broadcaster)       |
+| **`chat-api`**          | `Node.js 24.x`                      | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredev-chat-api)          | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredev-chat-api)          |
+| **`cognito-presignup`** | `Node.js 24.x`                      | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredev-cognito-presignup) | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredev-cognito-presignup) |
+| **`match-api`**         | `Node.js 24.x`                      | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredev-match-api)         | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredev-match-api)         |
+| **`ml-predict`**        | `Docker (Python 3.12, xgboost-cpu)` | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredev-ml-predict)        | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredev-ml-predict)        |
+| **`onconnect`**         | `Node.js 24.x`                      | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredev-onconnect)         | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredev-onconnect)         |
+| **`ondisconnect`**      | `Node.js 24.x`                      | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredev-ondisconnect)      | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredev-ondisconnect)      |
+| **`score-upd`**         | `Node.js 24.x`                      | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredev-score-upd)         | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredev-score-upd)         |
+| **`storage-worker`**    | `Node.js 24.x`                      | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscoredev-storage-worker)    | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscoredev-storage-worker)    |
 
 ---
 
 ## 🔵 Production (PROD)
 
-### 🌐 Core Endpoints & Networking
+### 🌐 Core Endpoints, Identity & Storage
 
-- **Frontend Web Application**: [https://cricscore.venkateshsingamsetty.com](https://cricscore.venkateshsingamsetty.com)
-- **CloudFront CDN Distribution**: [`E3FVVHMKMZ5G5O`](https://us-east-1.console.aws.amazon.com/cloudfront/v4/home?region=us-east-1#/distributions/E3FVVHMKMZ5G5O)
-- **HTTP API Gateway Endpoint**: [`https://api.cricscore.venkateshsingamsetty.com`](https://us-east-1.console.aws.amazon.com/apigateway/main/apis/ispht71fh0/routes?region=us-east-1) (API ID: `ispht71fh0`)
-- **WebSocket API Gateway Endpoint**: [`wss://ws.cricscore.venkateshsingamsetty.com`](https://us-east-1.console.aws.amazon.com/apigateway/main/apis/to0pkago8j/routes?region=us-east-1) (API ID: `to0pkago8j`)
-- **Route 53 DNS Hosted Zone**: [Route 53 Console](https://us-east-1.console.aws.amazon.com/route53/v2/hostedzones)
-- **ACM SSL/TLS Certificates**: [ACM Console](https://us-east-1.console.aws.amazon.com/acm/home?region=us-east-1#/certificates)
-
-### 🔐 Identity, Authentication & SSO (Amazon Cognito)
-
-- **User Pool ID**: [`us-east-1_7OssmfCnh`](https://us-east-1.console.aws.amazon.com/cognito/v2/idp/user-pools/us-east-1_7OssmfCnh/users?region=us-east-1)
-- **App Client ID**: `5gn0fv3ha5m7t7ah66quuavhv5`
-- **Cognito Hosted Domain Prefix**: `cricscore-auth-prod`
-- **User Pool Console**: [Manage Users & Admin Groups](https://us-east-1.console.aws.amazon.com/cognito/v2/idp/user-pools/us-east-1_7OssmfCnh/users?region=us-east-1)
-
-### 📦 Storage, Backups & Event Bus
-
-- **S3 Static Web Hosting**: [`s3://cricscore-app-7e93ca64fca840e1639f6fbd71`](https://s3.console.aws.amazon.com/s3/buckets/cricscore-app-7e93ca64fca840e1639f6fbd71?region=us-east-1)
-- **S3 Match Backups**: [`s3://cricscore-match-backups-0dd0d65575f13cfa1e7a7f820d`](https://s3.console.aws.amazon.com/s3/buckets/cricscore-match-backups-0dd0d65575f13cfa1e7a7f820d?region=us-east-1)
-- **S3 CloudFront Access Logs**: [`s3://cricscore-app-logs-b123ba8b0aa118a0a9fee8bbc2`](https://s3.console.aws.amazon.com/s3/buckets/cricscore-app-logs-b123ba8b0aa118a0a9fee8bbc2?region=us-east-1)
-- **DynamoDB Connection Table**: [`cricscore-connections`](https://us-east-1.console.aws.amazon.com/dynamodbv2/home?region=us-east-1#item-explorer?table=cricscore-connections)
-- **SQS FIFO Storage Buffer Queue**: [`cricscore-storage-buffer.fifo`](https://us-east-1.console.aws.amazon.com/sqs/v3/home?region=us-east-1#/queues/https%3A%2F%2Fsqs.us-east-1.amazonaws.com%2F926789386606%2Fcricscore-storage-buffer.fifo)
-- **SNS Match Events Topic**: [`cricscore-match-events`](https://us-east-1.console.aws.amazon.com/sns/v3/home?region=us-east-1#/topic/arn:aws:sns:us-east-1:926789386606:cricscore-match-events)
-- **SNS Lambda Alerts Topic**: [`cricscore-lambda-alerts`](https://us-east-1.console.aws.amazon.com/sns/v3/home?region=us-east-1#/topic/arn:aws:sns:us-east-1:926789386606:cricscore-lambda-alerts)
-- **ECR Docker Image Repo**: [`cricscore-ml-predict`](https://us-east-1.console.aws.amazon.com/ecr/repositories/private/926789386606/cricscore-ml-predict?region=us-east-1)
-  - **Latest Tag Digest**: `sha256:63ae0a61524e23373133f8b7f1ad51cae58edd41617b7283c6af9e6459dd1dc1`
-  - **Image Size**: `652.12 MB` | **Last Pushed**: `2026-10-22 12:40:17`
+| Resource                           | Identifier / Endpoint                                                                       | AWS Console / Direct Link                                                                                                                                                                   |
+| ---------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Frontend Web App**               | `https://cricscore.venkateshsingamsetty.com`                                                | [Open Web App](https://cricscore.venkateshsingamsetty.com)                                                                                                                                  |
+| **CloudFront CDN Distribution**    | `E3FVVHMKMZ5G5O`                                                                            | [CloudFront Console](https://us-east-1.console.aws.amazon.com/cloudfront/v4/home?region=us-east-1#/distributions/E3FVVHMKMZ5G5O)                                                            |
+| **HTTP API Gateway**               | `https://api.cricscore.venkateshsingamsetty.com` (`ispht71fh0`)                             | [HTTP API Console](https://us-east-1.console.aws.amazon.com/apigateway/main/apis/ispht71fh0/routes?region=us-east-1)                                                                        |
+| **WebSocket API Gateway**          | `wss://ws.cricscore.venkateshsingamsetty.com` (`to0pkago8j`)                                | [WebSocket API Console](https://us-east-1.console.aws.amazon.com/apigateway/main/apis/to0pkago8j/routes?region=us-east-1)                                                                   |
+| **Route 53 & ACM TLS**             | `cricscore.venkateshsingamsetty.com`                                                        | [Route 53](https://us-east-1.console.aws.amazon.com/route53/v2/hostedzones) · [ACM Console](https://us-east-1.console.aws.amazon.com/acm/home?region=us-east-1#/certificates)               |
+| **Cognito User Pool**              | `us-east-1_7OssmfCnh` (Client: `5gn0fv3ha5m7t7ah66quuavhv5`, Domain: `cricscore-auth-prod`) | [Cognito Users & Groups](https://us-east-1.console.aws.amazon.com/cognito/v2/idp/user-pools/us-east-1_7OssmfCnh/users?region=us-east-1)                                                     |
+| **S3 Static Web Bucket**           | `s3://cricscore-app-7e93ca64fca840e1639f6fbd71` (7d noncurrent lifecycle)                   | [Open S3 Bucket](https://s3.console.aws.amazon.com/s3/buckets/cricscore-app-7e93ca64fca840e1639f6fbd71?region=us-east-1)                                                                    |
+| **S3 Match Backups & ML Registry** | `s3://cricscore-match-backups-0dd0d65575f13cfa1e7a7f820d` (180d backup lifecycle)           | [Open S3 Bucket](https://s3.console.aws.amazon.com/s3/buckets/cricscore-match-backups-0dd0d65575f13cfa1e7a7f820d?region=us-east-1)                                                          |
+| **S3 Access Logs Bucket**          | `s3://cricscore-app-logs-b123ba8b0aa118a0a9fee8bbc2` (30d log lifecycle)                    | [Open S3 Bucket](https://s3.console.aws.amazon.com/s3/buckets/cricscore-app-logs-b123ba8b0aa118a0a9fee8bbc2?region=us-east-1)                                                               |
+| **DynamoDB WS Connections**        | `cricscore-connections` (`PAY_PER_REQUEST`)                                                 | [DynamoDB Explorer](https://us-east-1.console.aws.amazon.com/dynamodbv2/home?region=us-east-1#item-explorer?table=cricscore-connections)                                                    |
+| **SQS FIFO Storage Queue**         | `cricscore-storage-buffer.fifo`                                                             | [SQS Queue Console](https://us-east-1.console.aws.amazon.com/sqs/v3/home?region=us-east-1#/queues/https%3A%2F%2Fsqs.us-east-1.amazonaws.com%2F926789386606%2Fcricscore-storage-buffer.fifo) |
+| **SNS Match Events Topic**         | `cricscore-match-events`                                                                    | [SNS Events Topic](https://us-east-1.console.aws.amazon.com/sns/v3/home?region=us-east-1#/topic/arn:aws:sns:us-east-1:926789386606:cricscore-match-events)                                  |
+| **SNS Lambda Alerts Topic**        | `cricscore-lambda-alerts`                                                                   | [SNS Alerts Topic](https://us-east-1.console.aws.amazon.com/sns/v3/home?region=us-east-1#/topic/arn:aws:sns:us-east-1:926789386606:cricscore-lambda-alerts)                                 |
+| **ECR ML Container Repo**          | `cricscore-ml-predict` (`652.12 MB`, `countNumber=1`, pushed `2026-10-22 12:40:17`)         | [ECR Repo Console](https://us-east-1.console.aws.amazon.com/ecr/repositories/private/926789386606/cricscore-ml-predict?region=us-east-1)                                                    |
 
 ### ⚡ Serverless Compute & Telemetry (AWS Lambda)
 
-| Lambda Function         | Runtime                | Function Console                                                                                                              | CloudWatch Logs                                                                                                                                                        |
-| ----------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`broadcaster`**       | `Node.js 20.x`         | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-broadcaster)       | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-broadcaster)       |
-| **`chat-api`**          | `Node.js 20.x`         | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-chat-api)          | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-chat-api)          |
-| **`cognito-presignup`** | `Node.js 20.x`         | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-cognito-presignup) | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-cognito-presignup) |
-| **`match-api`**         | `Node.js 20.x`         | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-match-api)         | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-match-api)         |
-| **`ml-predict`**        | `Docker (Python 3.12)` | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-ml-predict)        | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-ml-predict)        |
-| **`onconnect`**         | `Node.js 20.x`         | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-onconnect)         | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-onconnect)         |
-| **`ondisconnect`**      | `Node.js 20.x`         | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-ondisconnect)      | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-ondisconnect)      |
-| **`score-upd`**         | `Node.js 20.x`         | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-score-upd)         | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-score-upd)         |
-| **`storage-worker`**    | `Node.js 20.x`         | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-storage-worker)    | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-storage-worker)    |
+| Lambda Function         | Runtime                             | Function Console                                                                                                              | CloudWatch Logs (7-Day Retention)                                                                                                                                      |
+| ----------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`broadcaster`**       | `Node.js 24.x`                      | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-broadcaster)       | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-broadcaster)       |
+| **`chat-api`**          | `Node.js 24.x`                      | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-chat-api)          | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-chat-api)          |
+| **`cognito-presignup`** | `Node.js 24.x`                      | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-cognito-presignup) | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-cognito-presignup) |
+| **`match-api`**         | `Node.js 24.x`                      | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-match-api)         | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-match-api)         |
+| **`ml-predict`**        | `Docker (Python 3.12, xgboost-cpu)` | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-ml-predict)        | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-ml-predict)        |
+| **`onconnect`**         | `Node.js 24.x`                      | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-onconnect)         | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-onconnect)         |
+| **`ondisconnect`**      | `Node.js 24.x`                      | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-ondisconnect)      | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-ondisconnect)      |
+| **`score-upd`**         | `Node.js 24.x`                      | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-score-upd)         | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-score-upd)         |
+| **`storage-worker`**    | `Node.js 24.x`                      | [Open Function](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/cricscore-storage-worker)    | [View Logs](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fcricscore-storage-worker)    |
 
 ---
 
@@ -180,16 +163,17 @@ A central single-pane-of-glass directory providing live references across all la
 
 ### Active Champion Model Architecture
 
-- **Champion Version**: `v2.2.0` (XGBoost)
-- **S3 Versioned Model Registry (Dev)**: `s3://cricscoredev-match-backups-937fe838a46144fff5facd682f/models/v2.2.0/live_win_predictor_model.joblib` ([Open in S3 Console](https://us-east-1.console.aws.amazon.com/s3/buckets/cricscoredev-match-backups-937fe838a46144fff5facd682f?region=us-east-1&prefix=models/v2.2.0/))
-- **S3 Versioned Model Registry (Prod)**: `s3://cricscore-match-backups-0dd0d65575f13cfa1e7a7f820d/models/v2.2.0/live_win_predictor_model.joblib` ([Open in S3 Console](https://us-east-1.console.aws.amazon.com/s3/buckets/cricscore-match-backups-0dd0d65575f13cfa1e7a7f820d?region=us-east-1&prefix=models/v2.2.0/))
-- **Local Model Artifact**: [`apps/ml-engine/live_win_predictor_model.joblib`](file:///Users/venkat/workspace/gitRepos/cricscore/apps/ml-engine/live_win_predictor_model.joblib)
-- **Baseline Fallback Model**: [`apps/ml-engine/win_predictor_model.joblib`](file:///Users/venkat/workspace/gitRepos/cricscore/apps/ml-engine/win_predictor_model.joblib)
-- **Model Manifest Specification**: [`apps/ml-engine/model_manifest.json`](file:///Users/venkat/workspace/gitRepos/cricscore/apps/ml-engine/model_manifest.json)
-- **Live Metadata Contract**: [`apps/ml-engine/live_metadata.json`](file:///Users/venkat/workspace/gitRepos/cricscore/apps/ml-engine/live_metadata.json)
-- **SHA-256 Checksum**: `de9e39513fbac895df7c86c449ef0a6b687717b5d1f40af08b5a5b13aa37c0cf`
-- **Dataset Tracking (DVC)**: `dvc:31e19c47bdbc05d773938754d8589516` (84,129 train balls, 18,342 test balls from Cricsheet T20s)
-- **Local MLflow Experiment Tracking**: `apps/ml-engine/mlruns/`
+| Artifact / Property              | Value / Location                                                                                                                                                                                                                                                            |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Champion Version & Algorithm** | `v2.2.0` (`XGBoost`)                                                                                                                                                                                                                                                        |
+| **S3 Model Registry (Dev)**      | `s3://cricscoredev-match-backups-937fe838a46144fff5facd682f/models/v2.2.0/live_win_predictor_model.joblib` ([S3 Console](https://us-east-1.console.aws.amazon.com/s3/buckets/cricscoredev-match-backups-937fe838a46144fff5facd682f?region=us-east-1&prefix=models/v2.2.0/)) |
+| **S3 Model Registry (Prod)**     | `s3://cricscore-match-backups-0dd0d65575f13cfa1e7a7f820d/models/v2.2.0/live_win_predictor_model.joblib` ([S3 Console](https://us-east-1.console.aws.amazon.com/s3/buckets/cricscore-match-backups-0dd0d65575f13cfa1e7a7f820d?region=us-east-1&prefix=models/v2.2.0/))       |
+| **Local Model & Manifest**       | [`apps/ml-engine/live_win_predictor_model.joblib`](../apps/ml-engine/live_win_predictor_model.joblib) · [`model_manifest.json`](../apps/ml-engine/model_manifest.json) · [`live_metadata.json`](../apps/ml-engine/live_metadata.json)                                       |
+| **SHA-256 Checksum**             | `de9e39513fbac895df7c86c449ef0a6b687717b5d1f40af08b5a5b13aa37c0cf`                                                                                                                                                                                                          |
+| **DVC Dataset Lineage**          | `dvc:31e19c47bdbc05d773938754d8589516` (`cricket-data/t20s_json.zip.dvc`, `dvc.yaml`, `dvc.lock`)                                                                                                                                                                           |
+| **ECR Container Optimization**   | `public.ecr.aws/lambda/python:3.12` + `xgboost-cpu` (`~309 MB`, `countNumber = 1` single-image retention)                                                                                                                                                                   |
+| **Dev ECR Image (`:v2.2.0`)**    | `294.75 MB` · Digest `sha256:9955c2c256465df582c855f22e2cece637e817e1d54438bce2b27f9623abb440` · Pushed `2026-10-31 21:11:25`                                                                                                                                               |
+| **Prod ECR Image (`:v2.2.0`)**   | `652.12 MB` · Digest `sha256:63ae0a61524e23373133f8b7f1ad51cae58edd41617b7283c6af9e6459dd1dc1` · Pushed `2026-10-22 12:40:17`                                                                                                                                               |
 
 ### Champion vs. Baseline Benchmark Metrics
 
@@ -200,55 +184,22 @@ A central single-pane-of-glass directory providing live references across all la
 | **Validation Accuracy** | **`68.35%`**                | `65.59%`                         | **+2.76% raw gain**                           |
 | **Test Accuracy**       | **`69.01%`**                | —                                | **Consistent match outcome classification**   |
 | **Validation ROC-AUC**  | **`0.7723`**                | `0.755`                          | **+0.0173 discrimination power**              |
+| **Test ROC-AUC**        | **`0.7529`**                | —                                | **Strong unseen match ranking**               |
 | **Brier Score**         | **`0.1992`**                | `0.2379`                         | **-16.3% lower error variance**               |
-
-### Docker Container Images (AWS ECR)
-
-- **Base Image**: `public.ecr.aws/lambda/python:3.12` (Container architecture: `linux/amd64`)
-- **Cost & Retention Policy**: Automated ECR lifecycle policy expires untagged images after 1 day and retains only the active version tag (`:v2.2.0` + `:latest`).
-- **Dev ECR Repository**: [`cricscoredev-ml-predict`](https://us-east-1.console.aws.amazon.com/ecr/repositories/private/926789386606/cricscoredev-ml-predict?region=us-east-1)
-  - **Versioned Image URI**: `926789386606.dkr.ecr.us-east-1.amazonaws.com/cricscoredev-ml-predict:v2.2.0` (also tagged `:latest`)
-  - **Digest**: `sha256:63ae0a61524e23373133f8b7f1ad51cae58edd41617b7283c6af9e6459dd1dc1` | **Size**: `652.12 MB` | **Pushed**: `2026-10-22 11:22:24`
-- **Prod ECR Repository**: [`cricscore-ml-predict`](https://us-east-1.console.aws.amazon.com/ecr/repositories/private/926789386606/cricscore-ml-predict?region=us-east-1)
-  - **Versioned Image URI**: `926789386606.dkr.ecr.us-east-1.amazonaws.com/cricscore-ml-predict:v2.2.0` (also tagged `:latest`)
-  - **Digest**: `sha256:63ae0a61524e23373133f8b7f1ad51cae58edd41617b7283c6af9e6459dd1dc1` | **Size**: `652.12 MB` | **Pushed**: `2026-10-22 12:40:17`
 
 ---
 
 ## 🗄️ Database, Vectors & RAG Architecture (Aiven PostgreSQL)
 
-### Managed PostgreSQL 16 Service
-
-- **Console UI**: [Aiven Web Console](https://console.aiven.io/)
-- **Host**: `cricscore-db-venky-cric-score.b.aivencloud.com` | **Port**: `17727` | **Database Name**: `defaultdb`
-- **Vector Extension**: `pgvector` enabled
-- **SSL Enforcement**: Mandatory `sslmode=require` with connection pooling (`pg.Pool` bounded to 5 clients)
-
-### Schemas & Key Database Tables
-
-- **Relational Match & Inning Engine**: `matches`, `innings`, `balls`, `players`
-- **Security & Identity**: `app_users`, `admin_roles` (Server-side role verification guard)
-- **RAG Vector Knowledge Base**: `cricket_rule_chunks`
-  - Embeddings: 1536-dimensional float vectors (`vector(1536)`)
-  - Index: Cosine distance HNSW index (`USING hnsw (embedding vector_cosine_ops)`)
-- **AI Chat Session Memory**: `chat_history` (Parameterized SQL session tracking)
-- **AI Analysis Cache**: `match_summaries` (Cached LLM post-match breakdowns)
-
-### Multi-Agent AI & MCP Tools
-
-- **Model Context Protocol (MCP)**: Server running in-process inside `chat-api` Lambda (`apps/backend/lambdas/chat-api/mcp/server.js`) and standalone Python stdio server (`apps/ai-service/cricscore_ai/mcp_server.py`).
-- **`execute_sql`**: Read-only Text-to-SQL for live match events, player stats, and historical match summaries.
-- **`search_tournament_rules`**: Vector RAG search across uploaded cricket rulebooks.
-- **`get_match_weather`**: Free Open-Meteo weather agent resolving coordinates via Geocoding API and generating hour-by-hour forecast tables with cricket DLS rain advisories.
-- **`create_github_issue`**: Issue submission agent routing bug reports and feature requests directly to GitHub via server-side token with a 1-issue-per-message rate guard.
-- **Documentation References**: [`docs/weather_report_agent.md`](file:///Users/venkat/workspace/gitRepos/cricscore/docs/weather_report_agent.md), [`docs/github_issue_agent.md`](file:///Users/venkat/workspace/gitRepos/cricscore/docs/github_issue_agent.md), [`docs/ai_architecture.md`](file:///Users/venkat/workspace/gitRepos/cricscore/docs/ai_architecture.md).
-
-### Database Migrations Directory
-
-- `infra/database/schema.sql`: Core relational schemas and indexes
-- `infra/database/migrations/add_ai_summary.sql`: Post-match AI summary cache
-- `infra/database/migrations/add_rule_chunks_table.sql`: MCC Cricket Rulebook embeddings storage
-- `infra/database/migrations/add_pgvector_hnsw_index.sql`: HNSW high-speed vector retrieval index
+| Component                         | Configuration / Schema Details                                                                                                                             |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Managed PostgreSQL 16**         | Host: `cricscore-db-venky-cric-score.b.aivencloud.com` · Port: `17727` · DB: `defaultdb` · [Aiven Console](https://console.aiven.io/)                      |
+| **Schema Isolation & TLS**        | Isolated `dev` and `prod` schemas (`SET search_path`) over `sslmode=require` (`pg.Pool` max 5 connections)                                                 |
+| **Core Relational Tables**        | `matches` (includes `ai_summary`, `player_of_the_match`), `innings`, `players`, `bowlers`, `balls`                                                         |
+| **Vector RAG Table (`pgvector`)** | `tournament_rules` (`vector(1536)` embeddings + HNSW cosine index `vector_cosine_ops`)                                                                     |
+| **Database Migrations**           | [`infra/database/schema.sql`](../infra/database/schema.sql) and [`infra/database/migrations/`](../infra/database/migrations/)                              |
+| **4 MCP Specialist Tools**        | `execute_sql` (Match Stats), `search_tournament_rules` (`pgvector` RAG), `get_match_weather` (Open-Meteo), `create_github_issue` (GitHub API)              |
+| **AI Documentation**              | [`ai_architecture.md`](./ai_architecture.md) · [`weather_report_agent.md`](./weather_report_agent.md) · [`github_issue_agent.md`](./github_issue_agent.md) |
 
 ---
 
@@ -271,22 +222,24 @@ A central single-pane-of-glass directory providing live references across all la
 
 ## 🛡️ Security Posture, SBOM & CI/CD Scans
 
-### Automated Security Scanners
-
-- [**CodeQL SAST Alerts**](https://github.com/venkatesh-singamsetty/cricscore/security/code-scanning): Native GitHub static application security testing for JavaScript, TypeScript, and Python.
-- [**Dependabot SCA Alerts**](https://github.com/venkatesh-singamsetty/cricscore/security/dependabot): Automated dependency vulnerability detection.
-- [**GitLeaks Secrets Guard**](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/ci.yml): Zero secret leaks enforced on every commit and PR.
-- [**Trivy Container & Dependency Scanner**](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/ci.yml): Container image vulnerability scans.
-- [**Checkov IaC Scanner**](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/ci.yml): Terraform configuration security checks (0 failed checks enforced).
-- [**Syft SBOM Pipeline**](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/sbom.yml): Software Bill of Materials (available as downloadable artifact `spdx-json`).
-- [**OWASP ZAP Dynamic Scanner (DAST)**](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/ci.yml): Automated baseline web app security scanning on dev deployments.
+| Scanner / Guardrail  | Scope                                                  | Console / Workflow Link                                                                                                                                                           |
+| -------------------- | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **CodeQL SAST**      | JavaScript, TypeScript & Python static analysis        | [Code Scanning Console](https://github.com/venkatesh-singamsetty/cricscore/security/code-scanning)                                                                                |
+| **Dependabot SCA**   | Automated npm, pip & GitHub Actions dependency updates | [Dependabot Alerts](https://github.com/venkatesh-singamsetty/cricscore/security/dependabot)                                                                                       |
+| **GitLeaks**         | Secret detection on every commit and PR                | [`ci.yml`](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/ci.yml)                                                                                           |
+| **Trivy**            | Filesystem & container HIGH/CRITICAL CVE scans         | [`ci.yml`](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/ci.yml)                                                                                           |
+| **Checkov**          | Terraform IaC security & compliance checks             | [`ci.yml`](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/ci.yml)                                                                                           |
+| **Syft SPDX SBOM**   | Software Bill of Materials (`spdx-json` artifact)      | [`sbom.yml`](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/sbom.yml)                                                                                       |
+| **OWASP ZAP (DAST)** | Live baseline dynamic security scan on `dev` & `prod`  | [`ci.yml`](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/ci.yml) · [`cd.yml`](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/cd.yml) |
 
 ---
 
 ## 📊 Observability, Tracing & Alarms (AWS X-Ray & CloudWatch)
 
-- [**CloudWatch All Log Groups**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups): Direct inspection of all Lambda stdout/stderr logs (retention capped at 7 days).
-- [**CloudWatch Custom Metrics**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#metricsV2): API Gateway request counts, Lambda durations, SQS queue depths.
-- [**AWS X-Ray Service Map**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#xray:service-map/map): Distributed trace visualizer mapping API Gateway → Lambda → SNS → Database.
-- [**AWS X-Ray Traces Dashboard**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#xray:traces/query): Latency breakdowns and HTTP timeline waterfall queries.
-- [**CloudWatch Alarms Dashboard**](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#alarmsV2:): Active alarms for Match API 5xx errors and Score Update failures.
+| Telemetry Surface         | Retention / Sampling                                             | AWS Console Link                                                                                                   |
+| ------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| **CloudWatch Log Groups** | **7-day retention** across all API Gateway & Lambda logs         | [Open Log Groups](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups)     |
+| **CloudWatch Metrics**    | API Gateway requests, Lambda durations, SQS FIFO depth           | [Open Metrics](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#metricsV2)                |
+| **AWS X-Ray Service Map** | **5% trace sampling** (`1 req/s` reservoir) across all 9 Lambdas | [Open Service Map](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#xray:service-map/map) |
+| **AWS X-Ray Traces**      | End-to-end waterfall latency analysis                            | [Open X-Ray Traces](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#xray:traces/query)   |
+| **CloudWatch Alarms**     | `match-api` & `score-upd` error alerts via SNS email             | [Open Alarms](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#alarmsV2:)                 |

@@ -1,85 +1,96 @@
-# GitHub Actions Architecture
+# ⚙️ GitHub Actions CI/CD Architecture
 
-This document describes the workflows currently present in `.github/workflows/`.
+Reference guide for all 10 GitHub Actions workflows in `.github/workflows/`, their execution flow, jobs, secrets, variables, and CLI triggers.
 
-## Workflow files
+```mermaid
+flowchart TD
+    PR["Pull Request to main"] --> CI_VAL["ci.yml: 4 Parallel Validation Jobs\n(Security, Frontend, Backend+TF, Python AI/ML)"]
+    PUSH["Push / Merge to main"] --> CI_VAL
+    CI_VAL -->|main branch only| DEV["ci.yml: deploy_and_test_dev\n(DB Migrate -> TF Apply -> 7d Logs -> S3/CF -> AI Eval + E2E + ZAP)"]
+    DEV -->|workflow_run: success| REL["release.yml: Semantic Release\n(v* Tag + docs/changelog.md + enrich_release_notes.sh)"]
+    REL -->|Release published / v* tag| PROD["cd.yml: deploy_and_test_prod\n(DB Migrate -> TF Apply -> 7d Logs -> S3/CF -> AI Eval + E2E + ZAP)"]
 
-GitHub Actions workflow files are stored directly in `.github/workflows/`:
+    CRON_D["Nightly 00:00 UTC"] --> DRIFT["drift.yml: Read-Only Terraform Drift Check\n(dev & prod matrix: exitcode 2 = alert)"]
+    CRON_K["Daily 12:00 UTC"] --> KEEP["keepalive.yml: Aiven PostgreSQL Ping"]
+    CRON_M["Monthly / ML Paths Changed"] --> MLOPS["mlops-pipeline.yml: 8-Model Benchmark & Quality Gate"]
+    DISPATCH_M["Manual Dispatch"] --> MLREL["ml-model-release.yml: Promote / Rollback ML Model + Smoke Test"]
+```
 
-| Workflow               | Trigger and purpose                                                                                                                                                                                                                                      |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ci.yml`               | Runs on pull requests, pushes to `main`, and manual dispatch. Validates frontend, backend, Python AI/ML services, and infrastructure changes. On `main` pushes and manual dispatches, it also deploys to DEV and runs post-deployment checks.            |
-| `cd.yml`               | Runs for version tags (`v*`) or manual dispatch with a tag input. Deploys to PROD, then runs AI evaluation, E2E tests, and a ZAP baseline scan.                                                                                                          |
-| `release.yml`          | Runs after a successful `CI` workflow on `main`, or by manual dispatch, to create a semantic release.                                                                                                                                                    |
-| `codeql.yml`           | Runs CodeQL analysis on pull requests and pushes to `main`, weekly, and by manual dispatch across both `javascript-typescript` and `python` matrices.                                                                                                    |
-| `drift.yml`            | Runs scheduled Terraform drift checks and can be started manually.                                                                                                                                                                                       |
-| `keepalive.yml`        | Scheduled database keepalive workflow.                                                                                                                                                                                                                   |
-| `mlops-pipeline.yml`   | Trains and benchmarks candidate models (Logistic Regression, Decision Trees, Random Forest, Extra Trees, HistGradientBoosting, XGBoost) when ML engine files change, monthly, or by manual dispatch; enforces quality gates and uploads model manifests. |
-| `ml-model-release.yml` | Manual dispatch workflow for deploying or rolling back a specific model version (`MODEL_VERSION`) with SHA-256 verification and live smoke test.                                                                                                         |
-| `sbom.yml`             | Generates and uploads an SPDX SBOM on pushes to `main`, weekly, or by manual dispatch.                                                                                                                                                                   |
-| `terraform-unlock.yml` | Manual workflow for unlocking Terraform state.                                                                                                                                                                                                           |
+---
 
-Dependabot configuration is separate from workflows and belongs at
-`.github/dependabot.yml`.
+## Workflow Inventory (`.github/workflows/`)
 
-## Validation and deployment flow
+| Workflow File              | Triggers                                                                                                                 | Target Env                   | Purpose & Key Steps                                                                                                                                                                                                                                                                                                |
+| :------------------------- | :----------------------------------------------------------------------------------------------------------------------- | :--------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`ci.yml`**               | `push` (`main`), `pull_request` (`main`), `workflow_dispatch`                                                            | `dev` (on `main` / dispatch) | Runs 4 parallel validation jobs on all PRs and pushes. On `main` or manual dispatch, runs `deploy_and_test_dev` (`migrate.sh`, `terraform init -upgrade`, `terraform apply`, 7-day Lambda log retention, Vite build, S3 sync, CloudFront invalidation, AI eval, 14 Playwright E2E tests, OWASP ZAP baseline scan). |
+| **`release.yml`**          | `workflow_run` (`CI` completed on `main`), `workflow_dispatch`                                                           | Repository (`main`)          | Runs when `github.event.workflow_run.conclusion == 'success'`. Resets to exact tested commit SHA, runs `npx semantic-release` to cut `v*` tag and update `docs/changelog.md`, then runs `./infra/scripts/enrich_release_notes.sh`.                                                                                 |
+| **`cd.yml`**               | `release` (`published`), `push` (`tags: v*`), `workflow_dispatch` (`tag`)                                                | `prod`                       | Checks out the release tag, runs `migrate.sh prod`, `terraform init -upgrade`, `terraform apply`, enforces 7-day Lambda log retention, builds & deploys production SPA to S3/CloudFront, and runs AI eval, Playwright E2E, and OWASP ZAP baseline scan.                                                            |
+| **`drift.yml`**            | `schedule` (`0 0 * * *` daily), `workflow_dispatch`                                                                      | `dev`, `prod` (matrix)       | Autonomous read-only drift check (`terraform init -upgrade` + `terraform plan -input=false -detailed-exitcode`) across `dev` and `prod` without human environment gates. Exits with code `2` and alerts if out-of-band AWS drift is detected.                                                                      |
+| **`mlops-pipeline.yml`**   | `push`/`pull_request` on `cricket-data/**` or `apps/ml-engine/**`, `schedule` (`0 0 1 * *` monthly), `workflow_dispatch` | CI Runner                    | Runs `pytest test_predict.py`, executes `compare_models.py` across candidate models with MLflow tracking, enforces quality gates (`accuracy >= 0.60`, `roc_auc >= 0.65`, `approvalStatus == "approved"`), and uploads model artifacts (`live_win_predictor_model.joblib`, `model_manifest.json`).                  |
+| **`ml-model-release.yml`** | `workflow_dispatch` (`model_version`, `action: release\|rollback`, `target_env: dev\|prod`)                              | `dev` or `prod`              | Verifies SHA-256 artifact checksum against `model_manifest.json`, updates `<project>-ml-predict` Lambda `MODEL_VERSION` environment variable while preserving `MODEL_S3_BUCKET`, and runs a live `POST /match/predict` regression smoke test.                                                                      |
+| **`codeql.yml`**           | `push` (`main`), `pull_request` (`main`), `schedule` (`30 20 * * 4` Thu), `workflow_dispatch`                            | CI Runner                    | Runs GitHub CodeQL static analysis (`security-extended,security-and-quality`) across `javascript-typescript` and `python` matrices.                                                                                                                                                                                |
+| **`sbom.yml`**             | `push` (`main`), `schedule` (`0 0 * * 0` Sun), `workflow_dispatch`                                                       | CI Runner                    | Generates an SPDX JSON Software Bill of Materials (`cricscore-sbom.spdx.json`) using Anchore Syft and uploads it as a 30-day workflow artifact.                                                                                                                                                                    |
+| **`keepalive.yml`**        | `schedule` (`0 12 * * *` daily), `workflow_dispatch`                                                                     | Aiven DB                     | Runs `SELECT 1 AS keep_alive;` via `psql` (up to 3 retries) at 12:00 UTC daily so the Aiven Free Tier PostgreSQL instance never pauses due to inactivity.                                                                                                                                                          |
+| **`terraform-unlock.yml`** | `workflow_dispatch` (`environment: dev\|prod`, `lock_id`)                                                                | `dev` or `prod`              | Emergency manual workflow that runs `terraform init` and `terraform force-unlock -force "<lock_id>"` to clear a stale `.tflock` object in S3.                                                                                                                                                                      |
 
-### Pull requests and pushes to `main`
+> [!NOTE]
+> Automated dependency updates are configured separately in `.github/dependabot.yml`.
 
-`ci.yml` executes four parallel validation gates on every Pull Request:
+---
 
-1. **`validate_security`**: GitLeaks secrets scan and Checkov Terraform IaC scan.
-2. **`validate_frontend`**: TypeScript typecheck (`tsc --noEmit`), Vitest unit/component tests (124 tests across 20 suites), Trivy vulnerability scan, and dry-run production build.
-3. **`validate_backend`**: Node.js Lambda unit tests (97 tests across 16 suites), Trivy vulnerability scan across all Lambda lockfiles, and Terraform format check & validation.
-4. **`validate_python`**: Python 3.12 AI Service tests (65 tests), Python ML Engine tests with XGBoost artifact verification (29 tests), and Trivy vulnerability scan on Python dependencies.
+## `ci.yml` Job Breakdown
 
-Pull requests stop after these four validation jobs complete; they do not deploy or run Playwright E2E tests against live cloud environments.
+| Job ID                    | Runs On                              | Tools & Checks Executed                                                                                                                                                                                                                                                                                                                                                                                        | Runs on PR? | Runs on `main`? |
+| :------------------------ | :----------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------: | :-------------: |
+| **`validate_security`**   | `ubuntu-latest`                      | **GitLeaks** full-history secrets scan + **Checkov** Terraform IaC security scan (`infra/terraform`)                                                                                                                                                                                                                                                                                                           |     ✅      |       ✅        |
+| **`validate_frontend`**   | `ubuntu-latest`                      | Node.js 24 setup, **Trivy** FS scan (`HIGH,CRITICAL`), TypeScript check (`npm run lint`), **Vitest** unit/component tests (124 tests / 20 suites), Vite production dry-run build                                                                                                                                                                                                                               |     ✅      |       ✅        |
+| **`validate_backend`**    | `ubuntu-latest`                      | Node.js 24 Lambda unit tests (97 tests / 16 suites), **Trivy** FS scan across `apps/backend/lambdas`, Terraform `~1.10` `fmt -check -recursive`, `init -backend=false`, and `validate`                                                                                                                                                                                                                         |     ✅      |       ✅        |
+| **`validate_python`**     | `ubuntu-latest`                      | Python 3.12 **AI Service** pytest (65 tests), **ML Engine** pytest & XGBoost artifact verification (29 tests), **Trivy** FS scan on Python dependencies                                                                                                                                                                                                                                                        |     ✅      |       ✅        |
+| **`deploy_and_test_dev`** | `ubuntu-latest` (`environment: dev`) | PostgreSQL `migrate.sh dev` → Lambda `npm install --omit=dev` → `terraform init -upgrade` & `apply` (including ECR `xgboost-cpu` `~309 MB` build with `countNumber = 1`) → **7-day CloudWatch Log Group retention loop** → Vite build with `VITE_*` outputs → S3 sync & CloudFront invalidation → AI evaluation (`npm run test:ai -- --limit 4`) → **Playwright E2E** (14 tests) → **OWASP ZAP** baseline scan |     ❌      |       ✅        |
 
-For pushes to `main` and manual dispatches, the workflow also runs the DEV
-deployment job (`deploy_and_test_dev`) after all four validation jobs pass. That job runs the DEV database migrations,
-plans and applies Terraform, builds the frontend with DEV settings, uploads the
-bundle to S3, and invalidates CloudFront. It then runs AI evaluation, Playwright
-tests against DEV (14 E2E browser and API tests), and the configured ZAP baseline scan.
+---
 
-`release.yml` is a separate workflow triggered after a successful `CI` workflow
-on `main`. It resets to the exact tested commit before running semantic release.
-Although the workflow declares `workflow_dispatch`, its job condition checks for
-a successful `workflow_run`; a manual dispatch by itself does not meet that
-condition and skips the release job.
+## GitHub Secrets & Variables Inventory
 
-### Production releases
+Populated automatically for `dev` and `prod` environments by `./infra/scripts/setup_github_envs.sh`:
 
-`cd.yml` deploys when a `v*` tag is pushed or when manually dispatched with a
-tag input. It runs production database migrations, Terraform plan/apply, builds
-the frontend with production settings, uploads it to S3, invalidates CloudFront,
-then runs AI evaluation, Playwright E2E tests, and a ZAP baseline scan.
+| Name                         | Type     | Scope               | Used By                                                 | Purpose                                                                 |
+| :--------------------------- | :------- | :------------------ | :------------------------------------------------------ | :---------------------------------------------------------------------- |
+| `AWS_ACCESS_KEY_ID`          | Secret   | `dev`, `prod`, Repo | `ci.yml`, `cd.yml`, `drift.yml`, `terraform-unlock.yml` | IAM access key ID for AWS deployment and drift checks                   |
+| `AWS_SECRET_ACCESS_KEY`      | Secret   | `dev`, `prod`, Repo | `ci.yml`, `cd.yml`, `drift.yml`, `terraform-unlock.yml` | IAM secret access key                                                   |
+| `TF_DATABASE_URL`            | Secret   | `dev`, `prod`, Repo | `ci.yml`, `cd.yml`, `drift.yml`, `keepalive.yml`        | Aiven PostgreSQL 16 connection URI (`?sslmode=require`)                 |
+| `TF_SES_SOURCE_EMAIL`        | Secret   | `dev`, `prod`, Repo | `ci.yml`, `cd.yml`, `drift.yml`                         | Verified Amazon SES sender address                                      |
+| `OPENAI_API_KEY`             | Secret   | `dev`, `prod`, Repo | `ci.yml`, `cd.yml`, `drift.yml`                         | OpenAI API key mapped to `TF_VAR_llm_api_key`                           |
+| `GH_PAT`                     | Secret   | Repo                | `release.yml`, `ci.yml`, `cd.yml`                       | Admin PAT for Semantic Release changelog push & MCP GitHub Issue Agent  |
+| `AWS_REGION`                 | Variable | `dev`, `prod`       | `ci.yml`, `cd.yml`, `drift.yml`, `terraform-unlock.yml` | Target AWS region (`us-east-1`)                                         |
+| `TF_STATE_BUCKET`            | Variable | `dev`, `prod`       | `ci.yml`, `cd.yml`, `drift.yml`, `terraform-unlock.yml` | S3 bucket storing `cricscore/<env>/terraform.tfstate`                   |
+| `DOMAIN_NAME`                | Variable | `dev`, `prod`       | `ci.yml`, `cd.yml`                                      | Environment domain (`cricscoredev.<zone>` / `cricscore.<zone>`)         |
+| `ZONE_DOMAIN`                | Variable | `dev`, `prod`       | `ci.yml`, `cd.yml`, `drift.yml`                         | Root Route 53 hosted zone domain                                        |
+| `SUBDOMAIN_PREFIX`           | Variable | `dev`, `prod`       | `ci.yml`, `cd.yml`                                      | `cricscoredev` (`dev`) / `cricscore` (`prod`)                           |
+| `PROJECT_NAME`               | Variable | `dev`, `prod`       | `ci.yml`, `cd.yml`                                      | `cricscoredev` (`dev`) / `cricscore` (`prod`)                           |
+| `ADMIN_EMAIL`                | Variable | `dev`, `prod`       | `ci.yml`, `cd.yml`, `drift.yml`                         | Recipient for SES BCC, CloudWatch alarms, and `$5/mo` AWS Budget alerts |
+| `LLM_BASE_URL` / `LLM_MODEL` | Variable | `dev`, `prod`       | `ci.yml`, `cd.yml`, `drift.yml`                         | Optional LLM endpoint and model name (`gpt-4o-mini`)                    |
 
-Whether a run pauses for approval depends on the protection rules configured
-for the GitHub `prod` environment; the workflow file alone does not guarantee
-manual approval.
+---
 
-### Infrastructure drift detection
+## Useful `gh` CLI Commands
 
-`drift.yml` runs every midnight (and on manual dispatch) across both DEV and PROD
-matrix legs using `terraform plan -detailed-exitcode`. It operates completely
-autonomously without requesting the protected `prod` environment gate, because it
-is strictly read-only and never mutates AWS infrastructure. If out-of-band drift
-is detected, `terraform plan -detailed-exitcode` exits with code `2`, failing the
-job and triggering instant GitHub email alerts.
+```bash
+# 1. Provision and populate 'dev' and 'prod' GitHub Environments from .env.local
+./infra/scripts/setup_github_envs.sh
 
-## Environment-specific frontend builds
+# 2. Trigger CI workflow manually on main
+gh workflow run ci.yml --ref main
 
-Vite embeds `VITE_*` values in the frontend bundle at build time. The CI
-deployment jobs therefore build the frontend separately with the target
-environment's API, WebSocket, and Cognito configuration. The frontend bundle
-is uploaded to S3, and CloudFront is invalidated after upload.
+# 3. Trigger Production CD deployment for a specific release tag
+gh workflow run cd.yml -f tag=v4.19.2
 
-## Security checks
+# 4. Trigger on-demand Terraform drift check across dev and prod
+gh workflow run drift.yml
 
-- `ci.yml` runs GitLeaks and Checkov, Trivy dependency scans across npm and pip,
-  frontend/backend/python tests, and Terraform formatting and validation.
-- `codeql.yml` performs CodeQL static analysis for both `javascript-typescript` and `python`
-  for pull requests, pushes to `main`, scheduled runs, and manual dispatches.
-- `cd.yml` runs the configured OWASP ZAP baseline scan against Production;
-  `ci.yml` runs the corresponding scan against DEV after deployment.
-- `sbom.yml` creates an SPDX-format SBOM and uploads it as a workflow artifact.
+# 5. Promote or roll back an ML model version in dev or prod
+gh workflow run ml-model-release.yml -f model_version=v2.2.0 -f action=release -f target_env=dev
+
+# 6. Force-unlock a stuck Terraform state lock
+gh workflow run terraform-unlock.yml -f environment=dev -f lock_id=e-12345678-abcd
+```

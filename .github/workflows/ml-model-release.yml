@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       model_version:
-        description: 'Semantic model version (e.g. v2.1.0)'
+        description: 'Semantic model version (e.g. v2.2.0)'
         required: true
-        default: 'v2.1.0'
+        default: 'v2.2.0'
       action:
         description: 'Release new version or rollback to previous'
         required: true
@@ -82,10 +82,21 @@ jobs:
 
           echo "🚀 Updating Lambda $FUNCTION_NAME to MODEL_VERSION=$VERSION..."
 
-          # Update the Lambda environment variable MODEL_VERSION
+          # Preserve existing MODEL_S3_BUCKET while updating MODEL_VERSION
+          EXISTING_BUCKET=$(aws lambda get-function-configuration \
+            --function-name "$FUNCTION_NAME" \
+            --query 'Environment.Variables.MODEL_S3_BUCKET' \
+            --output text 2>/dev/null || echo "")
+
+          if [ -n "$EXISTING_BUCKET" ] && [ "$EXISTING_BUCKET" != "None" ]; then
+            ENV_VARS="Variables={MODEL_VERSION=$VERSION,MODEL_S3_BUCKET=$EXISTING_BUCKET}"
+          else
+            ENV_VARS="Variables={MODEL_VERSION=$VERSION}"
+          fi
+
           aws lambda update-function-configuration \
             --function-name "$FUNCTION_NAME" \
-            --environment "Variables={MODEL_VERSION=$VERSION}"
+            --environment "$ENV_VARS"
 
           aws lambda wait function-updated --function-name "$FUNCTION_NAME"
           echo "✅ Lambda updated successfully to MODEL_VERSION=$VERSION"

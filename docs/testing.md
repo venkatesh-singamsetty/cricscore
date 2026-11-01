@@ -1,321 +1,163 @@
-# Testing Strategy for CricScore
+# 🧪 Testing Strategy & Verification Matrix
 
-This repository's tests range from isolated unit tests to integration and deployed-environment checks. The sections below describe what the current test scripts and workflows actually run.
-
----
-
-## 🚀 Quick Start: Running Local Tests
-
-The root script runs the frontend and backend test suites, followed by the HTTP-based chat evaluation. It does not run the Playwright E2E suite.
-
-Run this command from the **root** of the repository:
-
-```bash
-npm run test:all
-```
-
-The chat evaluation requires a reachable chat API. Set `CHAT_API_URL` to the API base URL; without it, the runner defaults to `http://localhost:3000`.
-
-```bash
-CHAT_API_URL=https://api.example.com npm run test:all
-```
+CricScore enforces a multi-layer testing architecture spanning **`376` automated unit and integration tests** (`151` Frontend Vitest + `121` Backend Vitest + `75` AI Service Pytest + `29` ML Engine Pytest), **`15` Playwright End-to-End (E2E) tests** across 5 suites, live **AI Chat evaluations**, and **OWASP ZAP DAST** scans.
 
 ---
 
-## ⚡ Fast Local Pre-Push Validation & Smart Hook Caching
+## 🏗️ 1. Testing Pyramid & CI/CD Verification Pipeline
 
-Before pushing code, run the unified local validation script:
+```mermaid
+flowchart TB
+    subgraph LocalGate ["1. Local Pre-Push Gate (~25s + Signed Receipt)"]
+        FastCmd["./infra/scripts/validate_local.sh --fast"]
+        Receipt[".git/.local_validation_receipt (Skips duplicate push runs in <0.1s)"]
+    end
+
+    subgraph UnitIntegration ["2. Unit & Integration Suite (376 Tests Total)"]
+        FE["Frontend Vitest (151 Tests — 23 Suites)"]
+        BE["Backend Lambda Vitest (121 Tests — 12 Suites)"]
+        AI["Python AI Service Pytest (75 Tests — LangGraph / MCP / Router)"]
+        ML["Python ML Engine Pytest (29 Tests — XGBoost / Markov DP / DLS)"]
+    end
+
+    subgraph SecurityIaC ["3. Static Security & IaC Gates"]
+        Sec["GitLeaks + Checkov + Trivy FS + npm audit + CodeQL + Terraform Validate"]
+    end
+
+    subgraph LivePostDeploy ["4. Live Post-Deploy Verification (Dev & Prod)"]
+        AIEval["AI Chat Eval (evals/run_ai_chat_eval.js)"]
+        E2E["Playwright E2E Suite (15 Tests — Smoke, API, AI, Multi-Browser Sync, 2-Over Journey)"]
+        ZAP["OWASP ZAP Baseline DAST Scan (.zap/rules.tsv)"]
+    end
+
+    FastCmd --> Receipt --> FE & BE & AI & ML --> Sec --> AIEval --> E2E --> ZAP
+```
+
+---
+
+## 📊 2. Complete Test Suite Inventory (`376` Unit/Integration + `15` E2E)
+
+| Layer / Runner                                 |  Test Count   | Suites / Files                                         | What It Verifies                                                                                                                                                                                                                                     | Run Command                                |
+| :--------------------------------------------- | :-----------: | :----------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------- |
+| **Frontend Unit & Component (`Vitest` + RTL)** |   **`151`**   | `apps/frontend/src/test/*.test.{ts,tsx}` (`23` suites) | DLS par score (1–50 overs), partnership math, live WebSocket merge (`applyLiveScoreToMatches`), `LiveScoreboard`, `MatchView`, `MatchSetup`, `AdminPanel`, `ChatComponent`, XSS link sanitization, mobile zero-scroll layout contracts               | `npm run test --prefix apps/frontend`      |
+| **Backend Lambda Unit & API (`Vitest`)**       |   **`121`**   | `apps/backend/lambdas/**/*.test.js` (`12` suites)      | `match-api` CRUD/JWT/Admin auth, HTML SES scorecard formatting, `score-update` SNS+SQS fan-out, `storage-worker` persistence & `undo: true`, `broadcaster` `410` pruning, `cognito-presignup`, `chat-api` read-only SQL/RAG/Weather/GitHub MCP tools | `npm run test --prefix apps/backend`       |
+| **Python AI Service (`Pytest`)**               |   **`75`**    | `apps/ai-service/tests/test_*.py`                      | Deterministic 4-agent router (Weather, RAG, DB, GitHub), LangGraph execution, citation grounding, destructive prompt refusal, MCP stdio server round-trips                                                                                           | `pytest apps/ai-service -q`                |
+| **Python ML Engine (`Pytest`)**                |   **`29`**    | `apps/ml-engine/test_predict.py`                       | Format-agnostic Markov DP (`win_probability.py`), XGBoost (`v2.2.0`) blending, DLS resource parity, lower-order tail factor, S3 model SHA-256 checksum verification                                                                                  | `pytest apps/ml-engine/test_predict.py -q` |
+| **Playwright E2E (`@playwright/test`)**        |   **`15`**    | `apps/e2e/tests/*.spec.ts` (`5` suites)                | Homepage smoke test, live REST API contract, `/chat` & `/chat/summary` AI API checks, simultaneous Scorer + Spectator WebSocket live sync (`multi-browser-live-sync`), full 2-over match lifecycle (`user-journey`)                                  | `npm run test:e2e:dev`                     |
+| **AI Chat Evaluation (`Node.js`)**             | **Live HTTP** | `evals/run_ai_chat_eval.js`                            | Sends benchmark cricket & rulebook prompts from `evals/ai-chat-eval.json` to `/chat` and logs latency/status to `evals/latest-ai-chat-eval-results.json`                                                                                             | `npm run test:ai`                          |
+
+---
+
+## ⚡ 3. Fast Local Pre-Push Validation & Zero-Waste Hook Caching
+
+| Validation Mode                        | Command                                         | Typical Runtime | Checks Executed                                                                                                                                                                                 |
+| :------------------------------------- | :---------------------------------------------- | :-------------: | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Ultra-Fast Pre-Push (Default Hook)** | `./infra/scripts/validate_local.sh --fast`      |    **~25s**     | Frontend `tsc` + `151` Vitest + build, Backend `121` Vitest, Python `75` + `29` Pytest, `npm audit`, Terraform fmt/validate, Checkov, GitLeaks, Trivy, Dependabot check (skips E2E & Syft SBOM) |
+| **Skip E2E Only**                      | `./infra/scripts/validate_local.sh --skip-e2e`  |    **~35s**     | Everything in `--fast` **plus** Syft SPDX SBOM generation (`cricscore-sbom.spdx.json`)                                                                                                          |
+| **Skip SBOM Only**                     | `./infra/scripts/validate_local.sh --skip-sbom` |    **~90s**     | Everything in `--fast` **plus** full Playwright E2E suite                                                                                                                                       |
+| **Dependency & Dependabot Audit**      | `npm run deps:check`                            |     **~8s**     | Checks open GitHub Dependabot PRs and outdated `npm`/`pip` packages across all workspaces                                                                                                       |
+
+### Zero-Waste Receipt Workflow (`.git/.local_validation_receipt`)
+
+1. Commit your changes first (`git commit -m "..."`).
+2. Run `./infra/scripts/validate_local.sh --fast` (or let `git push` trigger `.husky/pre-push` automatically).
+3. `validate_local.sh` stamps a state receipt (`HEAD:clean`) in `.git/.local_validation_receipt`.
+4. When `git push` runs, `.husky/pre-push` verifies the receipt and exits in **< 0.1s**:
+   `⚡ Local validation already passed for <commit>. Skipping duplicate tests!`
 
 ```bash
-# Ultra-fast mode (Frontend + Backend + Python + Terraform + Checkov + GitLeaks + Trivy in ~25s):
+# Run fast local validation and stamp the pre-push receipt
 ./infra/scripts/validate_local.sh --fast
 
-# Or skip E2E while retaining Syft SBOM generation:
-./infra/scripts/validate_local.sh --skip-e2e
-
-# Or skip SBOM only:
-./infra/scripts/validate_local.sh --skip-sbom
+# Emergency bypass (only when deploying hotfixes already verified in CI)
+SKIP_PRE_PUSH=1 git push
 ```
 
-This executes the entire local test battery:
+---
 
-1. **Frontend**: Lint (`tsc --noEmit`), unit & integration tests (`vitest`), high-severity npm audit, and Vite production build.
-2. **Backend**: Unit tests (`vitest`) and npm audit across Lambdas.
-3. **Python AI & ML**: Pytest suites for `apps/ai-service` and `apps/ml-engine`.
-4. **Infrastructure**: Terraform format & validation, and platform dashboard generation.
-5. **Security & SBOM**: Checkov IaC scanning (`--download-external-modules false`), GitLeaks secrets detection, Trivy vulnerability scanning, and Syft SBOM generation (package-lock optimized).
-6. **Proactive Dependency & Dependabot Audit**: Scans GitHub for open Dependabot PRs (alerting to consolidate them) and checks npm/pip packages across root, frontend, backend Lambdas, and ML engine (`npm run deps:check` or `./infra/scripts/check_dependencies.sh`).
+## 🔬 4. Detailed Test Breakdown by Layer
 
-### Zero-Waste Pre-Push Git Hook
+### 4.1 Frontend Unit & Component Integration Tests (`151` Tests)
 
-To prevent duplicate test execution and wasted developer time, `validate_local.sh` records a cryptographically signed state receipt (`.git/.local_validation_receipt`) matching the current commit and working tree state.
+| Test Suite                  | File Path                                                                                   | Key Scenarios Verified                                                                                                                              |
+| :-------------------------- | :------------------------------------------------------------------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Core App & Navigation**   | `apps/frontend/src/test/App.test.tsx`                                                       | Role-based view switching (`VIEWER`, `SCORER`, `ADMIN_PANEL`), cross-session identity guard (`prevEmailRef`), deep-link hydration                   |
+| **Live Score Merge Engine** | `apps/frontend/src/test/applyLiveScoreToMatches.test.ts`                                    | Monotonic 2nd-innings WebSocket updates, `previousInnings` retention, dynamic 2nd-innings creation, instant `COMPLETED` transition on target chase  |
+| **Scorer Console & Modals** | `MatchView.test.tsx`, `MatchViewModals.test.tsx`, `MatchSetup.test.tsx`                     | 6-legal-ball over tracker across wides/no-balls, wicket/batter modals, toss winner & decision persistence, undo sync                                |
+| **Spectator Scoreboard**    | `LiveScoreboard.test.tsx`, `Scoreboard.test.tsx`                                            | Full batting squad status (`🏏 BATTING`, `NOT OUT`, `YET TO BAT`), singular/plural victory margins (`WON BY 1 RUN`), `TEST 🧪` vs `GUEST 👻` badges |
+| **DLS & Partnerships**      | `dlsUtils.test.ts`, `partnershipUtils.test.ts`                                              | Standard Edition DLS par score calculation (1–50 overs), unbroken & retired-hurt partnership ball/run accounting                                    |
+| **AI Chat & Predictions**   | `ChatComponent.test.tsx`, `AiMatchPrediction.test.tsx`, `HighlightedResult.test.tsx`        | Multi-agent prompts, Markdown table rendering, DOM XSS link sanitization, live win-probability bar                                                  |
+| **Admin & Auth Guards**     | `AdminPanel.test.tsx`, `scorerAccess.test.ts`, `authConfig.test.ts`, `useWebSocket.test.ts` | Bulk cleanup triggers (Guest, Incomplete, Test matches), Cognito config, exponential-backoff WebSocket reconnect                                    |
 
-- **Zero-Waste Workflow**: Always commit first (`git commit -m "..."`).
-  - **Path 1 (Automatic)**: Run `git push`. The `.husky/pre-push` hook will run `./infra/scripts/validate_local.sh --fast` once automatically, save the receipt, and push.
-  - **Path 2 (Manual Check)**: Run `./infra/scripts/validate_local.sh --fast` after committing. The receipt is stamped for `HEAD:clean`. When you run `git push`, the hook detects the receipt and exits in **< 0.1s** with:
-    `⚡ Local validation already passed for <commit>. Skipping duplicate tests!`
-- To bypass manually if needed (e.g. after verifying on dev/prod deployments), push with `git push --no-verify` or set `SKIP_PRE_PUSH=1 git push`.
+### 4.2 Backend Lambda Unit & API Authorization Tests (`121` Tests)
+
+| Lambda / Module            | Test File Path                                                                       | Key Scenarios Verified                                                                                                                                                                                                                      |
+| :------------------------- | :----------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **`match-api`**            | `apps/backend/lambdas/match-api/index.test.js`                                       | `POST /match` without JWT $\rightarrow$ `401`, `DELETE /match/{id}` owner/Admin $\rightarrow$ `200` vs non-owner $\rightarrow$ `403`, `GET /admin/users` non-admin $\rightarrow$ `403`, `is_test` auto-detection, HTML SES scorecard layout |
+| **`score-update`**         | `apps/backend/lambdas/score-update/index.test.js`                                    | Parallel SNS (`match-events`) + SQS FIFO (`storage-buffer.fifo`) dispatch, ownership & Admin authorization checks                                                                                                                           |
+| **`storage-worker`**       | `apps/backend/lambdas/storage-worker/index.test.js`                                  | Authoritative `explicitTotalRuns`, `undo: true` ball deletion & player/bowler stat subtraction, `batting_position` upsert, `ai_summary = NULL` cache invalidation                                                                           |
+| **`broadcaster` & WS**     | `broadcaster/index.test.js`, `onconnect/index.test.js`, `ondisconnect/index.test.js` | SNS & direct `HUB_UPDATE` payload parsing, DynamoDB connection scan, `410 GoneException` stale socket cleanup                                                                                                                               |
+| **`cognito-presignup`**    | `apps/backend/lambdas/cognito-presignup/index.test.js`                               | Auto-confirms `guest-*@cricscore.local` accounts while leaving standard users on standard verification                                                                                                                                      |
+| **`chat-api` & MCP Tools** | `chat-api/handlers/*.test.js`, `chat-api/mcp/tools/*.test.js`                        | Read-only SQL enforcement (`execute_sql`), `requireAdmin` on `/rules/*`, Open-Meteo cricket weather advisories (`getMatchWeather`), rate-limited GitHub issue creation (`createGithubIssue`), plain-English overs in `summaryHandler`       |
+
+### 4.3 Python AI Service (`75` Tests) & ML Engine (`29` Tests)
+
+| Python Package                     | Test Files                                                                                                      | Key Scenarios Verified                                                                                                                                                                    |
+| :--------------------------------- | :-------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`apps/ai-service` (`75` tests)** | `tests/test_router.py`, `test_graph.py`, `test_tools.py`, `test_mcp.py`, `test_mcp_stdio.py`, `test_handler.py` | Intent routing across Weather/RAG/DB/GitHub specialists, LangGraph state transitions, citation grounding, destructive prompt refusal, stdio MCP protocol round-trip                       |
+| **`apps/ml-engine` (`29` tests)**  | `apps/ml-engine/test_predict.py`                                                                                | 1-over, 5-over, and 20-over formats, 1st-innings & 2nd-innings chase probabilities, DLS par score alignment, XGBoost (`v2.2.0`) + Markov DP blending, SHA-256 model checksum verification |
+
+### 4.4 Playwright End-to-End Suites (`15` Tests Across 5 Suites)
+
+| Suite File                                       | Target             | What It Automates                                                                                                                                                                       |
+| :----------------------------------------------- | :----------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/e2e/tests/smoke.spec.ts`                   | Browser UI         | Verifies homepage title, navigation bar, and match setup entrypoint                                                                                                                     |
+| `apps/e2e/tests/api.spec.ts`                     | HTTP API           | Tests live `/health`, `/matches`, and `/match/predict` contracts                                                                                                                        |
+| `apps/e2e/tests/ai-api.spec.ts`                  | HTTP API           | Verifies `/chat` and `/chat/summary` validation and error responses                                                                                                                     |
+| `apps/e2e/tests/multi-browser-live-sync.spec.ts` | 2 Browser Contexts | Opens simultaneous **Scorer** + **Spectator** browsers; verifies live ball delivery broadcast and `Undo` synchronization                                                                |
+| `apps/e2e/tests/user-journey.spec.ts`            | Full Browser Flow  | Automates a complete match via Guest Scorer: squad selection, toss, wides/no-balls/wickets (`BOWLED`, `CAUGHT`, `RUN OUT`), innings break, chase completion, and Official Result banner |
 
 ---
 
-## 1. Unit Tests
+## 🚦 5. CI/CD Pull Request Gates (`.github/workflows/ci.yml` & `codeql.yml`)
 
-Unit tests are isolated tests that verify individual functions, utilities, or background cloud logic without spinning up external dependencies.
+Every Pull Request targeting `main` must pass all **5 mandatory gates** before merging:
 
-- **Frontend Unit Tests**: Validate React Types, state handlers, live WebSocket score merge utilities (including `previousInnings` reconciliation, dynamic 2nd-innings creation, monotonic 2nd-innings live WebSocket score continuity without REST polling reversion, multi-inning scorecard retention, and instant `COMPLETED` transition on target chase), Duckworth-Lewis-Stern (DLS) Par Score calculations (1–50 overs), partnership calculations (`partnershipUtils`), scorer access guards, mobile zero-scroll Sign-In, Create Account (identical hero/tab position across tabs) and ChatBot welcome viewport layout contract (verified manually at 390x664 and 390x844), spectator LiveScoreboard above-the-fold batter visibility and responsive header collapse, localStorage safety, summary formatting, result text highlighting (`HighlightedResult`), custom WebSocket reconnection logic (`useWebSocket`), native Markdown table parsing in ChatBot UI, secure link sanitization (preventing DOM XSS), and multi-agent AI prompt/response formatting across Weather, RAG, DB, and GitHub agents.
-  - _Location:_ `apps/frontend/src/test/types.test.ts`, `apps/frontend/src/test/dlsUtils.test.ts`, `apps/frontend/src/test/partnershipUtils.test.ts`, `apps/frontend/src/test/applyLiveScoreToMatches.test.ts`, `apps/frontend/src/test/scorerAccess.test.ts`, `apps/frontend/src/test/storageSafety.test.ts`, `apps/frontend/src/test/summaryFormat.test.ts`, `apps/frontend/src/test/authConfig.test.ts`, `apps/frontend/src/test/HighlightedResult.test.tsx`, `apps/frontend/src/test/useWebSocket.test.ts`, `apps/frontend/src/test/LiveScoreboard.test.tsx`, `apps/frontend/src/test/ChatComponent.test.tsx`
-- **ML Engine & AI Service Unit Tests (PyTest)**:
-  - **Python ML Engine**: Format-agnostic ball-by-ball dynamic-programming win probability (`win_probability.py`), DLS resource parity alignment on achievable chases, lower-order tail factor degradation, 10-to-20 over T20 model blending, decided/impossible chase overrides, and versioned S3 model loading with SHA-256 checksum verification.
-  - **Python AI Service**: Deterministic intent classification across all 4 specialist agent types (Weather, RAG, DB, GitHub), end-to-end LangGraph execution with grounding guards, citation attribution, and destructive prompt refusal.
-  - _Location:_ `apps/ml-engine/test_predict.py`, `apps/ai-service/tests/test_router.py`, `apps/ai-service/tests/test_graph.py`
-- **Backend Event-Driven Unit Tests**: Validate AWS Lambda workers (e.g., `storage-worker` with authoritative `explicitTotalRuns`, `undo: true`, and exact `eventInningNumber` database resolution, `broadcaster`, `score-update`, `cognito-presignup` shadow account auto-confirmation, `chat-api` handlers and MCP tools including `create_github_issue` with per-message rate limiting and repository target guards, and `get_match_weather` with free Open-Meteo geocoding and hourly cricket DLS advisories) using `aws-sdk-client-mock` and Vitest mocks.
-  - _Location:_ `apps/backend/lambdas/storage-worker/index.test.js`, `apps/backend/lambdas/broadcaster/index.test.js`, `apps/backend/lambdas/score-update/index.test.js`, `apps/backend/lambdas/onconnect/index.test.js`, `apps/backend/lambdas/ondisconnect/index.test.js`, `apps/backend/lambdas/cognito-presignup/index.test.js`, `apps/backend/lambdas/chat-api/handlers/*.test.js`, `apps/backend/lambdas/chat-api/mcp/tools/tools.test.js`, `apps/backend/lambdas/chat-api/mcp/tools/createGithubIssue.test.js`, `apps/backend/lambdas/chat-api/mcp/tools/getMatchWeather.test.js`
-
-### Running Unit Tests
-
-- **Frontend:** `npm run test --prefix apps/frontend` (Note: This executes both Unit and Integration tests).
-- **Backend:** `npm run test --prefix apps/backend` (Use `npm run test:watch --prefix apps/backend` for active development).
-- **ML Engine:** `./apps/ml-engine/venv/bin/pytest apps/ml-engine/test_predict.py`
+| PR Gate / Job           | Suites Covered                               | Exact Commands Run                                                                                                                    |
+| :---------------------- | :------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------ |
+| **`validate_security`** | Secrets & Terraform IaC Security             | `gitleaks detect`, `checkov -d infra/terraform/ --framework terraform --download-external-modules false`                              |
+| **`validate_frontend`** | Lint, Unit/Component Tests, Trivy, Build     | `npm run lint` (`tsc --noEmit`), `npm run test` (**`151` tests**), `trivy fs apps/frontend`, `npm run build`                          |
+| **`validate_backend`**  | Lambda Unit Tests, Trivy, Terraform Validate | `npm test` (**`121` tests**), `trivy fs apps/backend/lambdas`, `terraform fmt -check -recursive`, `terraform validate`                |
+| **`validate_python`**   | Python AI Service & ML Engine Tests, Trivy   | `pytest apps/ai-service -q` (**`75` tests**), `pytest apps/ml-engine/test_predict.py -q` (**`29` tests**), `trivy fs apps/ai-service` |
+| **`CodeQL Analysis`**   | Dual-Language AST Static Analysis            | CodeQL security queries across `javascript-typescript` and `python`                                                                   |
 
 ---
 
-## 2. Integration Tests
-
-Integration tests verify that different components and services work together correctly, simulating interactions without rendering in a real browser.
-
-- **Frontend Component Integration**: We use **React Testing Library** to mount React components in a virtual DOM, simulate user clicks, input typing, WebSocket messages, and verify that the components properly validate state transitions and payloads before firing network calls (including Admin Panel bulk deletion for Guest, Incomplete, and Test matches, MatchList/LiveScoreboard test match classification with `TEST 🧪` vs `GUEST 👻` badges, MatchList single-line `.match-card-team-name` truncation and styling, Scoreboard singular/plural victory margins e.g. `WON BY 1 RUN` / `WON BY 1 WICKET`, Innings Total and Extras Total single-row flex-row layout, whitespace-nowrap on partnerships and unbatted squad members, and MatchView over tracker maintaining 6 legal ball placeholders across illegal deliveries).
-  - _Location:_ `apps/frontend/src/test/App.test.tsx`, `apps/frontend/src/test/AdminPanel.test.tsx`, `apps/frontend/src/test/MatchList.test.tsx`, `apps/frontend/src/test/MatchSetup.test.tsx`, `apps/frontend/src/test/MatchView.test.tsx`, `apps/frontend/src/test/MatchViewModals.test.tsx`, `apps/frontend/src/test/LiveScoreboard.test.tsx`, `apps/frontend/src/test/Scoreboard.test.tsx`, `apps/frontend/src/test/AiMatchPrediction.test.tsx`, `apps/frontend/src/test/ChatComponent.test.tsx`
-- **Backend Email & Scoring Integration**: Validates HTML email scorecard report generation with `table-layout: fixed`, non-breaking space `&nbsp;*` preventing batter name wrapping, single-line team and dismissal styling, and singular/plural victory grammar in `apps/backend/lambdas/match-api/index.test.js`.
-
-### Running Integration Tests
-
-Since these share the same Vitest runner as Frontend Unit Tests, running the command below will execute both Unit and Integration tests together:
+## 🧪 6. Runnable Test Commands Cheat Sheet
 
 ```bash
-npm run test --prefix apps/frontend
+# --- 1. Run Individual Unit / Integration Suites ---
+npm run test --prefix apps/frontend                              # 151 Frontend Vitest tests
+npm run test --prefix apps/backend                               # 121 Backend Lambda Vitest tests
+./apps/ai-service/.venv/bin/pytest apps/ai-service -q            # 75 Python AI Service Pytest tests
+./apps/ml-engine/venv/bin/pytest apps/ml-engine/test_predict.py -q # 29 Python ML Engine Pytest tests
+
+# --- 2. Run Playwright E2E Tests Against Dev ---
+npm run test:e2e:dev                                             # All 15 E2E tests (headless)
+npm run test:e2e:dev:headed                                      # All 15 E2E tests (headed browser)
+npm run test:e2e:sync:headed                                     # Multi-browser Scorer + Spectator live sync
+npm run test:e2e:journey:headed                                  # Full 2-over match user journey
+
+# --- 3. Run AI Chat Evaluation & ML Model Comparison ---
+CHAT_API_URL=https://api.cricscoredev.venkateshsingamsetty.com npm run test:ai
+./apps/ml-engine/venv/bin/python apps/ml-engine/compare_models.py v2.2.0
 ```
 
 ---
 
-## 3. API Tests
-
-Backend handler tests validate selected route behavior using API Gateway-style events and mocked dependencies; deployed HTTP API behavior is covered separately by Playwright request tests.
-
-- **REST Handler Tests**: Backend tests call the Lambda handler with API Gateway-style events and mock database interactions. They check selected routes and response codes; they do not send requests through a deployed API Gateway.
-  - _Location:_ `apps/backend/lambdas/match-api/index.test.js`
-- **Auth & Authorization Tests**: Per-endpoint authorization is validated:
-  - `DELETE /match/{id}` by the match owner → 200
-  - `DELETE /match/{id}` by an unauthorized user → 403
-  - `DELETE /match/{id}` by an Admin group member (not owner) → 200 (**admin override**)
-  - `POST /match` without a valid JWT email claim → 401
-  - `DELETE /matches` (bulk purge) by a non-admin → 403
-  - `GET /admin/users` by a non-admin → 403 with `"Admins only"` error message
-
-> [!NOTE]
-> See [auth.md](./auth.md) for the complete authentication and authorization model documentation.
-
-### Running API Tests
-
-Since these share the same Vitest runner as Backend Unit Tests, they are executed together:
-
-```bash
-npm run test --prefix apps/backend
-```
-
----
-
-## 4. Smoke Tests
-
-Smoke tests use Playwright to check that the app at the configured base URL loads and that the create-match form can be opened when its button is visible.
-
-- **Homepage and Match Setup Checks**: Checks the page title and, when the create-match button is visible, opens the form and checks for team-name inputs. The modal check is skipped if the button is not visible.
-  - _Location:_ `apps/e2e/tests/smoke.spec.ts`
-- **AI API Checks**: Sends requests to `/chat` and `/chat/summary` and checks expected responses for missing fields and a non-existent match ID.
-  - _Location:_ `apps/e2e/tests/ai-api.spec.ts`
-
-### Running Smoke Tests
-
-Run the smoke checks via Playwright inside the `e2e/` folder:
-
-```bash
-cd apps/e2e
-npx playwright test tests/smoke.spec.ts
-```
-
----
-
-## 5. End-to-End (E2E) User Journey Tests
-
-E2E tests sit at the very top of the testing pyramid. They utilize **Playwright** to spin up an actual browser instance, navigate to the application, and simulate a real human being performing complex, multi-step actions.
-
-- **Critical User Journey**: Automates a two-over match using the guest scorer flow—creating a match, selecting squads, winning a toss, recording scoring and wicket events, completing both innings, and checking the result.
-  - _Location:_ `apps/e2e/tests/user-journey.spec.ts`
-
-### Running E2E Tests
-
-You can run E2E tests directly from the root repository or inside `apps/e2e`.
-
-#### Quick Commands from Monorepo Root:
-
-```bash
-# Run all E2E tests against Dev environment (Headless)
-npm run test:e2e:dev
-
-# Run all E2E tests against Dev environment (Headed - opens browser window)
-npm run test:e2e:dev:headed
-
-# Run Multi-Browser Live Sync test against Dev (Headed Scorer + Spectator side-by-side)
-npm run test:e2e:sync:headed
-
-# Run Full 2-Over User Journey match scoring test against Dev (Headed)
-npm run test:e2e:journey:headed
-```
-
-#### Running Directly from `apps/e2e`:
-
-1. Navigate to the E2E directory:
-   ```bash
-   cd apps/e2e
-   ```
-2. Install dependencies (First time only):
-   ```bash
-   npm install
-   npx playwright install --with-deps
-   ```
-3. Run all configured Playwright tests (smoke, HTTP API, AI API, user journey, and multi-browser live sync) in headless mode:
-   ```bash
-   npx playwright test
-   ```
-4. Run the **Multi-Browser Real-Time Live Sync** test (verifies simultaneous Scorer + Spectator browser contexts reflecting live deliveries and Undo):
-   ```bash
-   npx playwright test tests/multi-browser-live-sync.spec.ts --headed
-   ```
-5. Run **only** the E2E User Journey test:
-   ```bash
-   npx playwright test tests/user-journey.spec.ts --headed
-   ```
-6. Run tests in UI mode (Interactive visual debugger):
-   ```bash
-   npx playwright test --ui
-   ```
-
-> [!WARNING]
-> By default, `npx playwright test` uses `http://localhost:3000`. Set `BASE_URL` when targeting a deployed environment, and be aware that journey tests can create or modify test data:
->
-> ```bash
-> BASE_URL=http://localhost:3000 npx playwright test
-> ```
-
----
-
-## 6. AI Chat Evaluation
-
-The root `npm run test:ai` script runs `evals/run_ai_chat_eval.js` against the API URL passed with `--url` or `CHAT_API_URL` (default: `http://localhost:3000`). The runner sends prompts from `evals/ai-chat-eval.json` to `/chat` and records HTTP status, latency, and a reply preview in `evals/latest-ai-chat-eval-results.json`.
-
-The current pass/fail check is based on HTTP success. Although evaluation cases include an `expected_tool` field, the runner does not assert tool selection, answer grounding, or safety quality; those need separate review or additional evaluators.
-
----
-
-## 7. Availability & Reliability Testing
-
-The repository includes selected reliability tests, but does not provide a comprehensive high-concurrency or infrastructure-failure test suite.
-
-- **Queue failure handling**: The current Terraform configures a FIFO SQS persistence queue with a one-day message-retention period, but does not configure a dead-letter queue or redrive policy. DLQ recovery is therefore not part of the current automated tests.
-- **Multi-AZ Resilience**: This repository does not include an automated multi-AZ failover test. Availability and recovery depend on the AWS services and deployment configuration.
-
----
-
-## 8. Environment Testing Strategy (Dev and Production)
-
-When operating with multiple environments, consider the impact of test data, especially in production:
-
-### 🔬 Development Environment
-
-The CI workflow deploys to and runs Playwright tests against the development environment on `main` (and on manual dispatch). These tests may create test data in that environment.
-
-- **Full E2E Playwright Suite**: Executes the complete User Journey, creates matches, and interacts with the database.
-- **OWASP ZAP (DAST)**: Runs a baseline scan against the deployed development site URL. The configured ZAP action does not fail the workflow on findings.
-
-### 🌐 Direct Production Environment
-
-The production deployment workflow runs AI evaluation and Playwright tests against the production API and site, followed by a ZAP baseline scan. Playwright tests should be reviewed for their production data impact.
-
-- **Automated Drift Detection (`drift.yml`)**: Nightly cron job (`0 0 * * *`) that executes `terraform plan -detailed-exitcode` autonomously across both Dev and Prod matrices without manual approval gates, alerting immediately if AWS resources drift from code.
-- **Database keep-alive**: `keepalive.yml` runs a database query daily; it is not an application uptime monitor and does not ping the `/health` endpoint.
-- **Passive Observability**: Using AWS CloudWatch Logs and Sentry to monitor real-user traffic for unexpected crashes.
-
----
-
-## Continuous Integration (CI) & Pull Request Verification
-
-Every Pull Request opened or updated against `main` triggers four mandatory, blocking validation jobs in `.github/workflows/ci.yml` and CodeQL analysis in `.github/workflows/codeql.yml`:
-
-| PR Gate / Job           | Suites Covered                                 | Exact Commands Run                                                                                        |
-| ----------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| **`validate_security`** | Secrets & IaC Security                         | `gitleaks detect`, `checkov -d infra/terraform/`                                                          |
-| **`validate_frontend`** | Lint, Unit/Component Tests, Audit, Build       | `npm run lint` (`tsc --noEmit`), `vitest run` (75 tests), `trivy fs`, `npm run build`                     |
-| **`validate_backend`**  | Lambda Unit Tests, Trivy, Terraform Validation | `npm test` (85 Lambda tests), `trivy fs`, `terraform fmt -check`, `terraform validate`                    |
-| **`validate_python`**   | Python AI Service & ML Engine Tests, Pip Trivy | `pytest apps/ai-service -q` (57 tests), `pytest apps/ml-engine/test_predict.py -q` (24 tests), `trivy fs` |
-| **`CodeQL Analysis`**   | Dual-language Static Security Analysis         | CodeQL AST queries across `javascript-typescript` and `python`                                            |
-
-Pull requests must pass **all 5 gates** before merging. They do not deploy or interact with live cloud databases.
-
-### Post-Merge Execution (DEV Deployment & Live Verification)
-
-When merged to `main`, `ci.yml` automatically triggers `deploy_and_test_dev`:
-
-1. Runs database migrations (`migrate.sh`).
-2. Applies Terraform and updates Lambda containers in ECR.
-3. Builds and syncs the frontend to S3 and invalidates CloudFront.
-4. Executes live AI chat evaluation (`npm run test:ai`).
-5. Executes the full **Playwright E2E Test Suite (15 tests across 5 suites)** against `https://cricscoredev.venkateshsingamsetty.com`.
-6. Executes the **OWASP ZAP DAST** baseline vulnerability scan.
-
----
-
-## 9. Test Match Identification & Bulk Database Cleanup
-
-To keep automated testing and manual practice matches separate from real matches:
-
-- **`is_test` Column & Auto-Detection**: Matches created via E2E tests, squad setup with test keywords, or explicit `isTest: true` are stored with `is_test = TRUE` (indexed via `idx_matches_is_test`).
-- **Visual Identity (`TEST 🧪` vs `GUEST 👻`)**: `MatchList` and `LiveScoreboard` render a distinctive purple `TEST 🧪` badge for test fixtures and an amber `GUEST 👻` badge for authentic unauthenticated guest matches, preventing test data from being conflated with user guest fixtures.
-- **Admin Bulk Cleanup**: Admin users can filter to test fixtures via the `TESTS 🧪` toggle in Database Management and execute one-click bulk deletion via `DELETE /admin/matches/test` (`🧪 Delete Test Matches` button in `AdminPanel.tsx`).
-
----
-
-## Python AI service (`apps/ai-service`)
-
-Unit tests (router, tools, LangGraph flows, handler, tracing) use in-memory fakes; no DB, LLM or network.
-
-```bash
-cd apps/ai-service && .venv/bin/pytest -q
-```
-
-Chat read-only guarantees are covered in `apps/backend/lambdas/chat-api/handlers/chatHandler.test.js` and `mcp/tools/tools.test.js` (`npm --prefix apps/backend test`).
-
-MCP server tests (`apps/ai-service/tests/test_mcp.py`, `test_mcp_stdio.py`) cover the approved tool list, valid/invalid IDs, DB errors, unconfigured dependencies, and a real stdio client round-trip.
-
----
-
-## Machine Learning & MLOps Tests (`apps/ml-engine`)
-
-- **Inference Unit & Checksum Tests**:
-  Covers 1-over, 5-over, 20-over formats, first-innings and chase probabilities, DLS par alignment, model SHA-256 verification, and simulation fallback:
-
-  ```bash
-  apps/ml-engine/venv/bin/pytest apps/ml-engine/test_predict.py -v
-  ```
-
-- **Candidate Model Comparison & Pipeline Verification**:
-  Evaluates 8 candidate algorithms (Logistic Regression, GaussianNB, DecisionTree, LinearSVM, RandomForest, ExtraTrees, HistGradientBoosting, and promoted champion XGBoost), checks quality gates (Accuracy >= 0.60, ROC-AUC >= 0.65), logs MLflow metrics, and generates release manifests:
-
-  ```bash
-  python apps/ml-engine/compare_models.py v2.2.0
-  # Or via reproducible DVC pipeline:
-  dvc repro
-  ```
-
-- **Classical ML Regression & Clustering Benchmarks**:
-  - 1st-innings total score regression: `python apps/ml-engine/projected_score_regression.py`
-  - Pitch condition & scoring archetype clustering: `python apps/ml-engine/match_clustering.py`
-  - Complete 14-model reference guide: [`docs/ml_models_handbook.md`](ml_models_handbook.md)
+## 🧹 7. Test Match Isolation (`TEST 🧪` vs `GUEST 👻`)
+
+| Feature                     | Mechanism                                                                                                                                                | How to Clean Up                                                                            |
+| :-------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------- |
+| **`is_test` Auto-Tagging**  | Matches created with `isTest: true`, `test-*` emails, or `TEST`/`SYNC`/`TEAM A` squad names set `is_test = TRUE` (`idx_matches_is_test`)                 | Admin Panel $\rightarrow$ **Database Management** $\rightarrow$ **🧪 Delete Test Matches** |
+| **Visual Badge Separation** | `MatchList` and `LiveScoreboard` display a purple **`TEST 🧪`** badge for automated test fixtures and an amber **`GUEST 👻`** badge for real guest users | `DELETE /admin/matches/test` (Admin JWT required)                                          |

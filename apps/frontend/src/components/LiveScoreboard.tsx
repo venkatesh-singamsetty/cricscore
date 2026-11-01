@@ -174,7 +174,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
           fetch(`${API_URL}/chat/summary`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ matchId, forceRefresh: true }),
+            body: JSON.stringify({ matchId, forceRefresh: false }),
           })
             .then((res) => res.json())
             .then((summaryRes) => {
@@ -941,6 +941,8 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
       if (
         matchMeta?.status === "LIVE" ||
         matchMeta?.status === "INNINGS_BREAK" ||
+        (matchMeta?.status === "COMPLETED" &&
+          (!matchMeta?.aiSummary || !matchMeta?.playerOfTheMatch)) ||
         !matchMeta
       ) {
         fetchMatchDetails(targetMatchId, true);

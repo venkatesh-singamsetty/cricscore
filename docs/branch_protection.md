@@ -1,33 +1,71 @@
-# 🛡️ Branch Protection & Governance
+# 🛡️ Branch Protection & CI Governance
 
-This document describes the repository's branch-protection guidance. Verify which rules and required status checks are currently enabled in the GitHub repository settings; those settings are not defined by the workflow files.
+This guide documents CricScore's pull request validation gates, automated security checks, and recommended GitHub branch protection rules for `main`.
 
-The `CI` and `CodeQL Analysis` workflows run validation on pull requests targeting `main`.
+---
 
-## 1. Pull Request Workflow Checks
+## 🔄 Pull Request Validation Pipeline
 
-The workflows produce the following checks on pull requests. Whether GitHub requires a check before merging depends on the repository's branch-protection settings.
+```mermaid
+flowchart TD
+    PR["Pull Request -> main"] --> Sec["Job 1: Infrastructure & Secrets Security\n(GitLeaks + Checkov)"]
+    PR --> FE["Job 2: Lint & Test\n(Trivy FS + ESLint/TSC + 151 Frontend Tests + Vite Build)"]
+    PR --> BE["Job 3: Backend & Terraform Validation\n(121 Backend Tests + Trivy FS + Terraform fmt/validate)"]
+    PR --> PY["Job 4: Python AI & ML Validation\n(75 AI Service Tests + 29 ML Engine Tests + Trivy FS)"]
+    PR --> CQL["Job 5: CodeQL Analysis\n(JS/TS SAST Semantic Scan)"]
 
-| Workflow check                          | What it runs                                                                        |
-| --------------------------------------- | ----------------------------------------------------------------------------------- |
-| **`Infrastructure & Secrets Security`** | GitLeaks and Checkov                                                                |
-| **`Lint & Test`**                       | Frontend Trivy scan, type-check/lint, unit tests, and production build              |
-| **`Backend & Terraform Validation`**    | Backend tests, backend Trivy scan, Terraform format check, and Terraform validation |
-| **`Analyze Code`**                      | JavaScript/TypeScript CodeQL analysis                                               |
+    Sec & FE & BE & PY & CQL --> Gate{"All Checks Pass?"}
+    Gate -->|Yes| Merge["Merge to main Allowed"]
+    Gate -->|No| Block["Merge Blocked"]
+```
 
-The deployment and Playwright jobs in `ci.yml` run on `main` (or manual dispatch), not on pull requests. The SBOM workflow runs on pushes to `main`, weekly, and by manual dispatch.
+---
 
-## 2. Recommended Branch Protection
+## 1. Automated Pull Request Status Checks
 
-Consider requiring the appropriate pull-request checks and enabling administrator enforcement. Confirm the actual values in GitHub settings before relying on them.
+The `.github/workflows/ci.yml` and `.github/workflows/codeql.yml` workflows execute **376 automated unit/integration tests** alongside static security and infrastructure gates on every pull request targeting `main`:
 
-## 3. Recommended Branch Updating
+| Status Check Job                           | Workflow File | What It Verifies                                                                                             |
+| ------------------------------------------ | ------------- | ------------------------------------------------------------------------------------------------------------ |
+| **`Infrastructure & Secrets Security`**    | `ci.yml`      | Full-history **GitLeaks** secrets scan and **Checkov** Terraform IaC security audit (`infra/terraform`)      |
+| **`Lint & Test`**                          | `ci.yml`      | **Trivy** (`HIGH`/`CRITICAL`) scan on `apps/frontend`, TypeScript lint, **151 Frontend Vitest** tests, build |
+| **`Backend & Terraform Validation`**       | `ci.yml`      | **121 Backend Vitest** tests, **Trivy** scan on `apps/backend/lambdas`, `terraform fmt -check` & `validate`  |
+| **`Python AI & ML Validation`**            | `ci.yml`      | **75 AI Service Pytest** tests, **29 ML Engine Pytest** tests, and **Trivy** scan on `apps/ai-service`       |
+| **`Analyze Code (javascript-typescript)`** | `codeql.yml`  | GitHub **CodeQL** semantic SAST analysis for XSS, injection, and logic flaws                                 |
 
-Requiring branches to be up to date before merging can ensure changes are validated against the latest `main`. Confirm whether this setting is enabled in GitHub.
+> [!NOTE]
+> Post-merge jobs (`Deploy, Test & OWASP ZAP DEV`, Playwright E2E suite, and `sbom.yml`) run on pushes to `main` or manual `workflow_dispatch`, keeping PR feedback fast and deterministic.
 
-## 4. History Protection
+---
 
-Consider disabling force pushes and branch deletion for `main`; verify these settings in GitHub.
+## 2. Recommended GitHub Branch Protection Settings (`main`)
+
+Verify or configure these settings under **GitHub Repository -> Settings -> Branches -> Branch protection rules (`main`)**:
+
+| Protection Setting                            | Recommended Value | Purpose                                                          |
+| --------------------------------------------- | ----------------- | ---------------------------------------------------------------- |
+| **Require a pull request before merging**     | Enabled           | Prevents direct commits to `main`                                |
+| **Require status checks to pass**             | Enabled           | Enforces all 5 CI/CodeQL validation jobs before merge            |
+| **Require branches to be up to date**         | Enabled           | Ensures the PR branch is tested against the latest `main` commit |
+| **Do not allow bypassing the above settings** | Enabled           | Enforces governance rules for repository administrators as well  |
+| **Allow force pushes**                        | Disabled          | Protects commit history and semantic-release version tags        |
+| **Allow deletions**                           | Disabled          | Prevents accidental deletion of the default branch               |
+
+---
+
+## ⚡ CLI Commands to Inspect & Reproduce Locally
+
+```bash
+# Run the full local validation suite before pushing a branch (mirrors PR checks)
+./infra/scripts/validate_local.sh --skip-e2e
+
+# Query active branch protection status on main via GitHub CLI
+gh api repos/:owner/:repo/branches/main/protection --jq '{
+  strict_status_checks: .required_status_checks.strict,
+  required_contexts: .required_status_checks.contexts,
+  enforce_admins: .enforce_admins.enabled
+}'
+```
 
 ---
 

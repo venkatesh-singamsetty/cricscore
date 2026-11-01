@@ -44,6 +44,6 @@
 
 ## 5. Cloud Cost, Security & Code Hygiene
 
-- **Strictly forbidden paid AWS resources**: Never create NAT Gateways (~$32/mo), KMS Customer-Managed Keys ($1/mo), CloudWatch Dashboards ($3/mo), AWS Secrets Manager ($0.40/mo), or DynamoDB Provisioned Capacity.
+- **Strictly forbidden paid AWS resources**: Never create NAT Gateways (~$32/mo), KMS Customer-Managed Keys ($1/mo), CloudWatch Dashboards ($3/mo), AWS Secrets Manager ($0.40/mo), or DynamoDB Provisioned Capacity. Total AWS spend is ~$1/month (Dev + Prod): never claim $0, keep a single `ml-predict` ECR image per env (`xgboost-cpu`, ~309 MB, no `:latest`; Lambda needs private ECR).
 - **Bounded compute, logs & DB pooling**: Keep Lambda timeouts bounded (10–15s max; 30s max for `chat-api`), CloudWatch log retention capped at 7 days (`retention_in_days = 7`), and reuse `pg.Pool` across warm Lambda invocations.
 - **Zero secret leaks & CodeQL clean**: Never commit, print, or expose `.env.local`, API keys, DB URLs, or binary caches (`__pycache__/`, `*.pyc`, `venv/`). Remove unused variables/imports and enforce strictly read-only AI chat, parameterized SQL queries with single-statement SELECT validation guards, SHA-256 model checksum verification, and server-side Cognito/role authorization.

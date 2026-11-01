@@ -46,9 +46,20 @@ Refer to `docs/mlops_tutorial.md`, `docs/ml_models_handbook.md`, `apps/ml-engine
   - `ml_predict` Lambda receives `MODEL_S3_BUCKET` and `MODEL_VERSION = var.ml_model_version` (`v2.2.0`), downloads and caches `/tmp/models/<MODEL_VERSION>/` with SHA-256 verification, and falls back to bundled artifacts if offline.
   - Use `./infra/scripts/deploy.sh --env dev|prod --use-local-env --model-version <tag>` to deploy or roll back to a specific model version tag.
 - **`apps/ml-engine/Dockerfile`**: Uses `public.ecr.aws/lambda/python:3.12`. Upgrades pip (`RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt`) to select pre-compiled Linux x86_64 binary wheels for XGBoost. Copies `predict.py`, `win_probability.py`, `live_win_predictor_model.joblib`, `live_metadata.json`, and `model_manifest.json` into `${LAMBDA_TASK_ROOT}`.
-- **`infra/terraform/lambda.tf` (`null_resource.docker_build_push` & `aws_ecr_lifecycle_policy`)**: Tags images with both `:${var.ml_model_version}` and `:latest`, proactively deletes untagged images after pushing, and enforces an ECR lifecycle policy to expire untagged images after 1 day.
+- **`infra/terraform/lambda.tf` (`null_resource.docker_build_push` & `aws_ecr_lifecycle_policy`)**:
+  - Builds and pushes a single tag, `:${var.ml_model_version}` (no `:latest`), then deletes every other digest so ECR keeps **one** image per environment.
+  - Lifecycle policy: expire untagged images after 1 day; keep at most one `v*`/`latest` tagged image (`countNumber = 1`). Historical model weights live in S3, not ECR.
+- **ECR / Image Rules**:
+
+  | Rule            | Detail                                                                                                                                 |
+  | --------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+  | XGBoost package | Use `xgboost-cpu` in the Dockerfile (avoids ~345 MB of unused NVIDIA CUDA libs); image is ~309 MB                                      |
+  | Registry        | Lambda container images require **private** ECR; public ECR (`public.ecr.aws`) is only the base image and cannot host the Lambda image |
+  | Retention       | Single image (`countNumber = 1`); never add retention for multiple versions                                                            |
+  | Cost            | ECR storage is part of the ~$1/month Dev + Prod total; do not grow it                                                                  |
+
 - **Git Hygiene**: Never commit `apps/ml-engine/__pycache__/`, `*.pyc`, or `apps/ml-engine/venv/`.
 
 ## 5. Validation
 
-- Run `./apps/ml-engine/venv/bin/pytest apps/ml-engine/test_predict.py` and verify all 24 tests pass before pushing.
+- Run `./apps/ml-engine/venv/bin/pytest apps/ml-engine/test_predict.py` and verify all 29 tests pass before pushing.

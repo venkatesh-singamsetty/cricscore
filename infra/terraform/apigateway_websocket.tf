@@ -68,7 +68,7 @@ resource "aws_apigatewayv2_stage" "websocket_stage" {
 # CloudWatch Log Group for WebSocket API access logs
 resource "aws_cloudwatch_log_group" "ws_api_access_logs" {
   name              = "/aws/apigateway/${var.project_name}-ws"
-  retention_in_days = 30
+  retention_in_days = 7
 }
 
 # Attach access logging to websocket stage

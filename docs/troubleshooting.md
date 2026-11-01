@@ -1,397 +1,172 @@
-# 🚀 Troubleshooting & Fix Log
+# 🚨 Troubleshooting Runbook & Incident Fix Log
 
-This engineering trace documents the real-world resolutions for the CricScore backend integration.
-
-### 54. **Viewer and Match List Not Refreshing on Innings Switch or New Match without Manual Reload**
-
-- **Symptom**: In viewer mode or match list, when a new match was started, innings switched, or reset, the viewer page did not reflect the new state until the user performed a hard page refresh. Additionally, unbatted squad members were missing from the viewer scorecard.
-- **Cause**:
-  1. In `infra/terraform/lambda.tf`, `BROADCASTER_LAMBDA` was set to the Terraform module resource name rather than `module.broadcaster.function_name`.
-  2. `broadcaster/index.js` only parsed payloads wrapped in SNS records (`event.Records[0].Sns.Message`), failing to handle direct Lambda invocations (`event.body` or direct object) sent from `match-api` for `HUB_UPDATE`.
-  3. `Scoreboard.tsx` was filtering out squad members who had not faced a delivery (`ballsFaced === 0 && !isOut`), hiding upcoming batters from the batting scorecard.
-- **Fix**:
-  1. Updated `infra/terraform/lambda.tf` to supply `module.broadcaster.function_name` as `BROADCASTER_LAMBDA` to `match-api`.
-  2. Updated `broadcaster/index.js` to extract payloads from SNS records, `event.body`, or direct event objects, forwarding `HUB_UPDATE` frames to all connected WebSockets.
-  3. Updated `broadcaster/index.js` to prune dead connections (`410 GoneException`) to keep the DynamoDB connection pool clean.
-  4. Updated `Scoreboard.tsx` to map over the full effective batting squad in a compact 1-row-per-batter layout with clear statuses (`🏏 BATTING`, `NOT OUT`, `YET TO BAT`, `DID NOT BAT`), dismissal details, and 2nd-innings chase equation banner.
+This runbook provides a **Quick-Navigation Symptom-to-Fix Index**, a **Diagnostic Triage Flowchart**, **Runnable Diagnostic & Remediation Commands**, and the **54 Resolved Engineering Incidents** organized by domain.
 
 ---
 
-### 53. **AI Summary Stuck on "0/0" / "0 Balls" and Fixture Cards Displaying "0/0 (0.0)" Before Ball 1**
+## 🧭 1. Quick-Navigation Symptom-to-Fix Index
 
-- **Symptom**: AI match summaries stayed cached showing `0/0` or `0 balls` even after balls were scored, and match cards in "Latest Fixtures" displayed `0/0 (0.0)` for Team A before any balls had been bowled.
-- **Cause**:
-  1. `summaryHandler.js` only checked for stale cached summaries (`0/0`, `0 balls`, `currently live`, `yet to begin`) when `m.status === "COMPLETED"`. During `LIVE` matches, stale zero-ball summaries were returned from cache and never regenerated.
-  2. `storage-worker` and `match-api` did not set `ai_summary = NULL` when updating score metrics or completing matches, leaving stale cached summaries in the database.
-  3. `MatchList.tsx` rendered `0/0 (0.0)` for `leftTeamInnings` whenever an Innings 1 record existed, even if 0 overs, 0 balls, 0 runs, and 0 wickets were recorded.
-- **Fix**:
-  1. Updated `summaryHandler.js` to invalidate cached summaries containing live/zero-ball markers regardless of whether match status is `LIVE` or `COMPLETED`.
-  2. Updated `storage-worker` and `match-api` PostgreSQL `UPDATE matches m` statements to include `ai_summary = NULL`, invalidating cached summaries on every score update or match completion.
-  3. Updated `MatchList.tsx` to check if `overs > 0 || balls > 0 || total_runs > 0 || total_wickets > 0` before rendering scores; unstarted innings now render `—`.
-
----
-
-### 52. **AI Summary Showing "5 Balls" When Match Ended on Ball 6 (Complete Over)**
-
-- **Symptom**: The AI post-match summary showed "5 balls" for an innings that completed in exactly 1 over (6 legal balls). For example, a team that chased in the 6th ball (last ball of the over) would appear to have batted only 5 balls.
-- **Cause**: When the winning run is hit on the 6th ball, the match concludes immediately. The scoring engine records the ball event but **the over-flip transition** (converting `overs=0, balls=5` → `overs=1, balls=0`) runs on the _next_ state tick, which never happens because the match is already `COMPLETED`. As a result, `matches.team_b_overs` is stored as `0.5` (0 complete overs + index 5, i.e., the 6th ball position in 0-based counting).
-- **Fix**: The `summaryHandler.js` now counts the actual `ball_events` rows per innings directly from the database (`COUNT(be.id) FILTER (WHERE extra_type NOT IN ('WIDE','NO_BALL'))`) and converts to overs using floor division: `Math.floor(totalLegalBalls / 6)` completed overs and `totalLegalBalls % 6` remaining balls. This is always accurate regardless of when the match ended.
+| Symptom Observed                                                      | Likely Layer                            | Primary Root Cause                                                                | Immediate Fix / Command                                                                            |    Incident #     |
+| :-------------------------------------------------------------------- | :-------------------------------------- | :-------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------- | :---------------: |
+| **Viewer / Match List doesn't update on new match or innings switch** | `match-api` $\rightarrow$ `broadcaster` | `BROADCASTER_LAMBDA` env var mismatch or unhandled direct `HUB_UPDATE` payload    | Verify `BROADCASTER_LAMBDA` points to `module.broadcaster.function_name`; check `broadcaster` logs |   **#54, #49**    |
+| **AI Summary stuck on `"0/0"` or `"5 balls"` on 6th-ball win**        | `chat-api` / `storage-worker`           | Cached `ai_summary` not cleared on score update, or `0.5` overs decimal misparsed | `storage-worker` & `match-api` set `ai_summary = NULL`; `summaryHandler` counts `ball_events` rows | **#53, #52, #51** |
+| **Batters displayed out of order on full scorecard**                  | `match-api` / `storage-worker`          | Missing `batting_position` column or missing `ORDER BY batting_position ASC`      | Query `players` with `ORDER BY batting_position ASC NULLS LAST, runs DESC`                         |   **#49, #47**    |
+| **`Error acquiring the state lock` in Terraform**                     | Terraform S3 State                      | Previous Terraform run crashed/cancelled before releasing `.tflock`               | Run `terraform force-unlock -force <LOCK_ID>` (or GitHub Force Unlock workflow)                    |      **#12**      |
+| **Database connection timeout after days of inactivity**              | Aiven PostgreSQL                        | Aiven Free Tier pauses instances after 3 days of zero connections                 | Trigger `.github/workflows/keepalive.yml` (`SELECT 1;`) or hit `GET /health`                       |    **#38, #1**    |
+| **`SELF_SIGNED_CERT_IN_CHAIN` in Node 24 Lambda**                     | `storage-worker` / `match-api`          | Node 24 strict TLS validation against Aiven intermediate CA                       | Configure `ssl: { rejectUnauthorized: false }` in `pg.Pool`                                        |      **#27**      |
+| **`Runtime.ImportModuleError: Cannot find module 'pg'`**              | Lambda ZIP Package                      | Terraform archived Lambda folder before `npm install --omit=dev` ran              | Run `npm install --omit=dev` in each `apps/backend/lambdas/*` directory before `terraform apply`   |      **#15**      |
+| **`npm ci` fails with `EUSAGE` in CI**                                | `package-lock.json`                     | Lockfile out of sync with `package.json`                                          | Run `npm install` in root, `apps/frontend`, `apps/backend`, and each Lambda directory              |      **#39**      |
+| **SES email sent (`MessageId` logged) but never arrives in Gmail**    | Amazon SES / Route 53                   | Using `@gmail.com` as `SES_SOURCE` fails Gmail DMARC alignment                    | Use verified custom domain (`noreply@<domain>`) with Route 53 DKIM CNAME + SPF TXT records         | **#26, #21, #16** |
+| **Playwright E2E test pollutes live match list**                      | `apps/e2e` / `match-api`                | Test matches created against deployed environment                                 | Matches auto-tagged with `is_test = TRUE` (`TEST 🧪`); purge via `DELETE /admin/matches/test`      |      **#44**      |
 
 ---
 
-### 51. **AI Summary Using Decimal Notation for Overs (e.g., "0.5 overs", "1.1 overs")**
+## 🔄 2. Incident Triage Flowchart
 
-- **Symptom**: The AI summary would write "Team B chased in 0.5 overs" instead of "5 balls", and "Team A batted for 1.1 overs" instead of "1 over and 1 ball".
-- **Cause**: The `formatOvers()` helper was building a string that included the raw decimal up front: `"0.5 overs (0 completed overs and 5 balls)"`. The LLM latched onto the decimal at the start of the string and used it in the output, ignoring the plain-English description in the parentheses.
-- **Fix**: Replaced `formatOvers()` with `ballsToOversText()` which takes a raw total ball count (counted from `ball_events`) and returns **only** plain English with zero decimals: `5 balls`, `1 over`, `1 over and 2 balls`. The prompt instruction was also updated from _"Always write out overs in plain English"_ to _"Overs are already pre-calculated in plain English for you below. Use them exactly as written."_
+```mermaid
+flowchart TD
+    Start["🚨 Issue Reported"] --> Type{"Symptom Category?"}
 
----
+    Type -- "API 5xx / DB Timeout" --> Health["curl https://api.<domain>/health"]
+    Health -- "503 Unhealthy" --> Aiven["Check Aiven PostgreSQL Status & keepalive.yml (#38, #27)"]
+    Health -- "200 Healthy" --> Logs["Tail Lambda Logs: aws logs tail /aws/lambda/<prefix>-match-api --follow"]
 
-### 50. **AI Summary Hallucinating or Assuming the Toss Outcome**
+    Type -- "Spectator Score Frozen" --> WSCheck["Test WebSocket: npx wscat -c wss://ws.<domain>"]
+    WSCheck -- "Connect Fails" --> CheckOnConnect["Check onconnect Lambda & DynamoDB <prefix>-connections"]
+    WSCheck -- "No Frames Received" --> CheckFanOut["Check score-upd -> SNS -> broadcaster logs (#54, #49)"]
 
-- **Symptom**: The AI post-match summary would state incorrect toss information, e.g., "Team A won the toss and elected to bat" when in fact Team B won the toss and chose to bowl. Sometimes it would omit the toss entirely.
-- **Cause**: The match setup originally used a simple `batFirstTeam` boolean-style field. The AI had no factual toss data to draw from, so it was hallucinating based on which team batted first.
-- **Fix (1) — DB Schema**: Added `toss_winner VARCHAR` and `toss_decision VARCHAR` columns to the `matches` table via the `add_toss_fields.sql` migration, applied to both `dev` and `prod` schemas.
-- **Fix (2) — Frontend**: `MatchSetup.tsx` now shows two separate fields — a Toss Winner selector (Team A / Team B) and a Decision selector (BAT / BOWL). Both values are sent in the `POST /match` body as `tossWinner` and `tossDecision`.
-- **Fix (3) — Backend**: `match-api/index.js` parses and persists both fields to the DB during match creation.
-- **Fix (4) — AI Prompt**: `summaryHandler.js` reads `m.toss_winner` and `m.toss_decision` directly from the DB row and injects them as a concrete instruction: _"Mention the toss details: [TEAM X] won the toss and elected to [BAT/BOWL]."_
+    Type -- "Scorer DB Not Saving" --> SQSCheck["Check SQS FIFO storage-buffer.fifo & storage-worker logs (#28, #8)"]
 
----
-
-### 49. **Viewer Scoreboard Not Refreshing (Stale Data on Live Matches)**
-
-- **Symptom**: The viewer page showed a frozen/stale scoreboard during a live match. Even after the scorer entered new balls, the viewer's scores and active batters didn't update.
-- **Cause (1 — Missing polling fallback)**: The viewer's `LiveScoreboard.tsx` relied exclusively on WebSocket pushes to trigger a `fetchMatchDetails` re-fetch. If the WebSocket connection briefly dropped and reconnected (which can happen on mobile networks), no refresh was triggered — leaving the scoreboard frozen until the next ball was scored.
-- **Cause (2 — Missing ORDER BY in `/details` endpoint)**: The `GET /match/{matchId}/details` Lambda handler in `match-api/index.js` queried players with a bare `SELECT * FROM players WHERE inning_id = $1` (no `ORDER BY`). Players were returned in unpredictable DB heap order, also breaking the batting-order display on the full scoreboard.
-- **Fix**: Two changes deployed:
-  1. Added `ORDER BY batting_position ASC NULLS LAST, runs DESC` to the player query in the `/details` endpoint (`match-api/index.js` line ~782).
-  2. Added a 5-second polling `setInterval` in `LiveScoreboard.tsx` that background-refreshes match data whenever the status is `LIVE` or `INNINGS_BREAK`, acting as a guaranteed fallback when WebSocket events are missed.
+    Type -- "CI / Terraform Failure" --> TFLock{"State Lock or Scanner?"}
+    TFLock -- "State Lock" --> Unlock["terraform force-unlock -force <LOCK_ID> (#12)"]
+    TFLock -- "Scanner / Test" --> Validate["Run ./infra/scripts/validate_local.sh --fast (#46, #39)"]
+```
 
 ---
 
-### 48. **E2E Test Failing — "Select New Batter" Modal Not Appearing After RUN OUT**
+## 🛠️ 3. Runnable Diagnostic & Fix Commands
 
-- **Symptom**: The CI `playwright-tests` check on PR #99 failed. The `should complete a full match lifecycle` test timed out at `expect(page.getByRole("heading", { name: /Select New Batter/i })).toBeVisible()` during the second innings RUN OUT on ball 6.
-- **Cause**: Ball 6 of a 1-over match is simultaneously the last valid delivery (over ends) AND a wicket. In `MatchView.tsx`, the `isMatchEnding` flag evaluates `isOversDone = finalInnings.overs >= totalOvers` — which is `true` after ball 6. When `isMatchEnding` is true, the code calls `onInningsEnd()` and skips `setModalView("BATTER_SELECT")` entirely, so the batter-select modal never renders.
-- **Fix**: Restructured the second innings ball sequence. Moved the RUN OUT from ball 6 → **ball 5** (0 runs, gabriel run-out), then added ball 6 as a regular scoring delivery (1 run). This way:
-  - Ball 5 (RUN OUT): `isMatchEnding = false`, batter-select modal opens correctly ✓
-  - Ball 6 (1 run): Over ends → innings ends → match ends → "Official Result" appears ✓
-  - Wickets are now distributed across **balls 2 (BOWLED), 4 (CAUGHT), 5 (RUN OUT)** per the user's requirement.
+### CloudWatch, SQS & Database Diagnostics
+
+```bash
+# 1. Probe API & PostgreSQL connectivity
+curl -i "https://api.cricscoredev.venkateshsingamsetty.com/health"
+
+# 2. Tail critical ingestion & persistence Lambda logs in real time
+aws logs tail /aws/lambda/cricscoredev-match-api --follow --format short
+aws logs tail /aws/lambda/cricscoredev-score-upd --follow --format short
+aws logs tail /aws/lambda/cricscoredev-storage-worker --follow --format short
+aws logs tail /aws/lambda/cricscoredev-broadcaster --follow --format short
+
+# 3. Inspect SQS FIFO queue depth (ApproximateNumberOfMessages / NotVisible)
+aws sqs get-queue-attributes \
+  --queue-url "$(aws sqs get-queue-url --queue-name cricscoredev-storage-buffer.fifo --query QueueUrl --output text)" \
+  --attribute-names ApproximateNumberOfMessages ApproximateNumberOfMessagesNotVisible \
+  --output table
+
+# 4. Inspect active WebSocket connections in DynamoDB
+aws dynamodb scan \
+  --table-name cricscoredev-connections \
+  --select COUNT \
+  --region us-east-1
+```
+
+### Common Infrastructure & CI Fixes
+
+```bash
+# 1. Release a stuck Terraform S3 state lock
+cd infra/terraform
+terraform init -backend-config="bucket=venky-2026-terraform-state" -backend-config="key=cricscore/dev/terraform.tfstate"
+terraform force-unlock -force <LOCK_ID>
+
+# 2. Rebuild all Lambda production node_modules before packaging
+for d in apps/backend/lambdas/*; do
+  if [ -f "$d/package.json" ]; then
+    (cd "$d" && npm install --omit=dev --no-audit --no-fund --ignore-scripts)
+  fi
+done
+
+# 3. Run full local validation suite before pushing
+./infra/scripts/validate_local.sh --fast
+```
 
 ---
 
-### 47. **Full Scoreboard Showing Batters in Wrong Order (Sorted by Runs Instead of Batting Order)**
+## 📋 4. Complete Engineering Incident Log (#1 – #54)
 
-- **Symptom**: The full scorecard on both the scorer and viewer pages displayed batters sorted by runs scored (highest first) rather than in the order they came to the crease. Players who batted later but scored more appeared above openers.
-- **Cause**: The `match-api` Lambda was querying players with `ORDER BY runs DESC`. There was no concept of batting order persisted in the database — the frontend maintained a `battingOrder` array in React state, but this was never written to the DB.
-- **Fix**: Full end-to-end solution deployed across all layers:
-  1. **Database**: Added `batting_position INT` column to the `players` table via migration (`infra/database/migrations/add_batting_position.sql`). Migration applied to the live Aiven PostgreSQL instance.
-  2. **Frontend** (`MatchView.tsx`): Both `syncMatchState` and `postScoreUpdate` now include `battingOrderNames` (ordered array of player names) in their API payloads.
-  3. **Storage Worker** (`storage-worker/index.js`): Extracts `battingOrderNames` from each score-update event and upserts `batting_position` for each player: `UPDATE players SET batting_position = $1 WHERE inning_id = $2 AND name = $3`.
-  4. **Match API** (`match-api/index.js`): All three player queries now use `ORDER BY batting_position ASC NULLS LAST, runs DESC`.
+### 📡 Category A: Live Scoring, WebSocket Broadcast & Scoreboard Sync
+
+|   #    | Incident Title                                                       | Symptom                                                                                                    | Root Cause                                                                                                                                                                                                                                   | Resolution Implemented                                                                                                                                                                                                                                     |
+| :----: | :------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **54** | **Viewer & Match List Not Refreshing on Innings Switch / New Match** | Viewer page required manual reload on new match or innings switch; unbatted players missing from scorecard | 1. `BROADCASTER_LAMBDA` set to resource name instead of `module.broadcaster.function_name`<br>2. `broadcaster` only parsed SNS records, ignoring direct `HUB_UPDATE` invokes<br>3. `Scoreboard.tsx` hid `ballsFaced === 0 && !isOut` batters | 1. Passed `module.broadcaster.function_name` in `lambda.tf`<br>2. Updated `broadcaster/index.js` to parse SNS, `event.body`, and direct payloads + prune `410` sockets<br>3. Rendered full squad with `🏏 BATTING`, `NOT OUT`, `YET TO BAT`, `DID NOT BAT` |
+| **49** | **Viewer Scoreboard Stale on Mobile Reconnect**                      | Viewer froze if WebSocket briefly dropped; batters appeared in random heap order                           | 1. `LiveScoreboard.tsx` lacked a polling fallback when WS dropped<br>2. `/details` query lacked `ORDER BY` on `players`                                                                                                                      | 1. Added 5s fallback polling interval during `LIVE` / `INNINGS_BREAK` matches<br>2. Added `ORDER BY batting_position ASC NULLS LAST, runs DESC`                                                                                                            |
+| **47** | **Full Scoreboard Sorted by Runs Instead of Batting Order**          | Lower-order high scorers appeared above openers                                                            | `players` table had no `batting_position` column; queried with `ORDER BY runs DESC`                                                                                                                                                          | Added `batting_position INT` migration; `MatchView` & `storage-worker` persist `battingOrderNames` order                                                                                                                                                   |
+| **28** | **Rapid-Fire Score Tap Desync**                                      | Scorer tapped `"1"` 6 times rapidly; UI showed `6/0` but DB/spectators showed `3/0`                        | Overlapping async React closures sent stale state before prior request finished                                                                                                                                                              | Added synchronous `isProcessingRef.current = true` lock in `MatchView`                                                                                                                                                                                     |
+| **24** | **Match Deletion Desync (Scorer vs Admin)**                          | Scorer kept scoring a match an Admin had already deleted                                                   | Scorer client didn't check if match still existed in DB                                                                                                                                                                                      | Added Cloud-Existence `404` check on ball sync that triggers an autonomous local state reset                                                                                                                                                               |
+| **23** | **Cross-User LocalStorage Ghosting**                                 | User B logged in and saw User A's active match state                                                       | Shared global `cricscore-live-innings` LocalStorage key                                                                                                                                                                                      | Scoped keys by match (`cric-live-match-{matchId}`) and user email (`cric-match-state-{email}`) + `prevEmailRef` guard                                                                                                                                      |
+| **22** | **URL `?matchId=` Haunting**                                         | Refreshing after logout or new match reopened old match                                                    | Stale `?matchId=` query parameter remained in address bar                                                                                                                                                                                    | Scrubbed URL via `window.history.replaceState` after hydration, logout, and new match creation                                                                                                                                                             |
+| **19** | **Scorer Tab-Switch State Loss**                                     | Switching mobile browser tabs lost active view and pending crease selections                               | State was local to child component                                                                                                                                                                                                           | Added ball-by-ball `onStateChange` root sync and persisted active `view` in `localStorage`                                                                                                                                                                 |
+| **14** | **Intrusive Browser `window.prompt` for Overs**                      | Editing match overs opened a native browser prompt dialog                                                  | Quick prototype used `window.prompt()`                                                                                                                                                                                                       | Replaced with inline editable overs input (`Enter` to save, `Escape` to cancel)                                                                                                                                                                            |
+| **11** | **Match Hub Tab Clutter & Unpinned Striker**                         | Separate "Fans Live" and "Old Matches" tabs; non-striker sometimes listed first                            | Split tab state and unsorted crease array                                                                                                                                                                                                    | Unified into a single **Match Hub** with `LIVE`/`COMPLETED` badges and pinned striker at top                                                                                                                                                               |
+| **10** | **"Less Score" Bug on Spectator Screen**                             | Spectators trailed scorer by 1 delivery                                                                    | `postScoreUpdate` omitted explicit `totalRuns` and `totalWickets`                                                                                                                                                                            | Included finalized `InningsState` totals (`explicitTotalRuns`) in every `postScoreUpdate` payload                                                                                                                                                          |
+| **9**  | **"1 Run Extra" Double-Counting Bug**                                | Spectator score was 1 run higher than scorer                                                               | Backend both `SET` total runs and incremented by ball runs                                                                                                                                                                                   | Treated scorer's transmitted `explicitTotalRuns` as single authoritative total                                                                                                                                                                             |
+| **8**  | **Aggregate Player/Bowler Stat Mismatch on Undo**                    | Team total reverted on Undo, but batter/bowler stats stayed inflated                                       | Undo only updated `innings` table                                                                                                                                                                                                            | Updated `storage-worker` undo handler to fetch deleted `ball_events` row and subtract batter/bowler runs, balls, and wickets                                                                                                                               |
+| **7**  | **Undo Ghost Balls in Timeline**                                     | Undone balls remained in DB and shallow-copied React history                                               | Local-only undo + mutable array references                                                                                                                                                                                                   | Sent `undo: true` event to delete last `ball_events` row and enforced immutable React state updates                                                                                                                                                        |
+| **5**  | **New Bowler Showing Global Over Count (`1.1` vs `0.1`)**            | 2nd bowler's first ball displayed `1.1` overs                                                              | Backend derived bowler overs from global innings `overNumber`                                                                                                                                                                                | Sent explicit personal `bowlerOvers` and `bowlerBalls` from `MatchView` to `storage-worker`                                                                                                                                                                |
+| **4**  | **End-of-Over Display Lag (`2.0` vs `3.0`)**                         | 6th ball showed `2.0` overs for several seconds                                                            | Backend used ball's over index instead of post-delivery total                                                                                                                                                                                | Passed post-delivery `totalOvers` & `totalBalls` and added `syncOnly` mode for immediate crease updates                                                                                                                                                    |
+| **3**  | **Fans Live White Screen on Tab Change**                             | Switching views left stale/blank component state                                                           | React reused component instance without remounting                                                                                                                                                                                           | Added `key={hubKey}` on `LiveScoreboard` and hydrated immediately from DB snapshot                                                                                                                                                                         |
+| **2**  | **Empty Match Analytics Modal**                                      | Analytics modal showed 0 players and 0 runs                                                                | `players` and `bowlers` tables weren't initialized on `POST /match`                                                                                                                                                                          | Bulk-inserted full squads during `POST /match` and updated stats on every ball                                                                                                                                                                             |
 
 ---
 
-### 46. **CodeQL Flagging Playwright HTML Reports (XSS)**
-
-- **Symptom**: CodeQL static analysis failed the CI/CD pipeline, citing Cross-Site Scripting (XSS) vulnerabilities inside the `playwright-report/index.html` file.
-- **Cause**: Playwright generates a local HTML report of test results which got accidentally tracked by Git. CodeQL aggressively scans all HTML files in the repo and flags the generated UI templates.
-- **Fix**: Added `playwright-report/` and `test-results/` to the `.gitignore` and removed the tracked files from the repository to prevent SAST scanners from parsing generated test artifacts.
-
-### 45. **Checkov SARIF Upload Permission Denied**
-
-- **Symptom**: The `upload-sarif` step in the Checkov GitHub Action failed with `Resource not accessible by integration`.
-- **Cause**: The GitHub Action was missing the `security-events: write` permission required to publish vulnerabilities to the GitHub Code Scanning dashboard.
-- **Fix**: Injected `permissions: security-events: write` explicitly into the `ci-cd.yml` job.
-
-### 44. **Playwright Polluting Production Database**
-
-- **Symptom**: Dozens of duplicate "CHICAGO SPARTANS vs SHARK BLUE" matches appeared on the live `cricscore.yourdomain.com` viewer dashboard with broken scores (like `4/1` after 0.2 overs).
-- **Cause**: The Playwright configuration defaults to testing against the live production URL. Running `npx playwright test` locally was creating authentic database entries without cleaning them up upon failure or timeout.
-- **Fix**: Connected directly to the Aiven PostgreSQL production database via `psql` and executed a targeted cleanup: `DELETE FROM matches WHERE team_a_name = 'CHICAGO SPARTANS' AND team_b_name = 'SHARK BLUE';`.
-
-### 43. **Optimistic UI Lock Race Condition in E2E Tests**
-
-- **Symptom**: Playwright E2E tests intermittently dropped actions (e.g., failed to register a Wicket) and timed out waiting for the next step.
-- **Cause**: The React frontend uses an optimistic `isProcessingRef` lock during the `/api/live/ball` fetch. Playwright clicked buttons faster than the network could respond, causing subsequent clicks to hit the `return` guard inside the locked function.
-- **Fix**: Added an explicit `waitForTimeout(2000)` to forcefully synchronize Playwright with the backend latency and UI unlock sequence.
-
-### 42. **E2E Playwright Tests Hallucinating UI Elements**
-
-- **Symptom**: End-to-End tests failed with `locator.click: Target closed` when trying to click `"Match Settings"`, `"Toss Details"`, or `"Confirm"` buttons.
-- **Cause**: The test scripts were hallucinating or using legacy UI flows that did not exist in the current application state.
-- **Fix**: Rewrote `user-journey.spec.ts` to strictly follow the true DOM structure, relying on deterministic inputs (`BATTER_A`, `BATTER_B`) and exact `.first()` and `{ force: true }` click targets to bypass React fading animations.
-
-### 41. **React 19 `act(...)` Unmounting Warnings**
-
-- **Symptom**: Vitest logs flooded with `An update to MatchSetup inside a test was not wrapped in act(...)`.
-- **Cause**: React 19 strictly enforces state update wrapping. Asynchronous state changes (like timeouts or promises) resolving after a test completed were triggering state mutations on unmounted components.
-- **Fix**: Ensured all asynchronous test interactions are strictly wrapped inside `await act(async () => { ... })`.
-
-### 40. **GitHub Actions Trigger Path Ignored**
-
-- **Symptom**: You fix a broken file (like `backend/package-lock.json`), commit, and push it, but the GitHub Actions pipeline completely ignores it and doesn't run, leaving your PR in a permanently failed state.
-- **Cause**: The `.github/workflows/*.yml` file has an overly restrictive `paths:` filter (e.g., `- 'apps/backend/lambdas/**'`) which tells GitHub to only trigger if files deep inside the lambdas folder are changed. Since the `package-lock.json` was in the parent folder, it was ignored.
-- **Fix**: Broadened the pipeline trigger path to `- 'backend/**'` so any code, dependency, or configuration change inside the entire backend ecosystem reliably triggers a validation pipeline.
-
-### 39. **`npm ci` Pipeline Crash (`npm error EUSAGE`)**
-
-- **Symptom**: The backend validation pipeline fails instantly during the `Install Lambda dependencies` step. The logs show a wall of `npm error` help text and `Process completed with exit code 1`.
-- **Cause**: `npm ci` (Clean Install) strictly requires that your `package.json` and `package-lock.json` are perfectly synchronized. If dependencies drift, `npm ci` purposefully crashes to prevent deploying non-deterministic dependencies.
-- **Fix**: Executed `npm install` locally inside every folder containing a `package.json` to force the generation of perfectly synchronized lockfiles. Pushed the new `package-lock.json` files to unblock the pipeline.
-
-### 38. **Aiven Free Tier Database Auto-Pause (Inactivity Shutdown)**
-
-- **Symptom**: The CricScore backend suddenly stops working after a few days of inactivity. Logs show database connection timeouts.
-- **Cause**: Aiven's Free Tier automatically pauses PostgreSQL instances if they receive exactly zero connections for 3 consecutive days to save resources.
-- **Fix**: Created `.github/workflows/keepalive.yml` which runs a scheduled CRON job every 24 hours. The GitHub Action connects to the database and executes `SELECT 1;`, permanently preventing the inactivity timeout.
-
-### 37. **DAST Scanner Opening Repetitive Informational Issues**
-
-- **Symptom**: OWASP ZAP runs daily via cron and opens a new GitHub Issue every night for missing security headers (like COEP/COOP) that were intentionally omitted.
-- **Cause**: ZAP is a strict baseline scanner and flags any relaxed security postures, even if they are required for React/Vite functionality or external API connectivity.
-- **Fix**: Created `.zap/rules.tsv` to explicitly instruct ZAP to `IGNORE` specific rule IDs (e.g., `10055`, `90004`). Hooked the rules file into the `zaproxy/action-baseline` execution to permanently silence intentional configuration warnings.
-
-### 36. **Node 20 / Punycode Deprecation Warnings in GitHub Actions**
-
-- **Symptom**: DAST and CI pipelines throw `Node 20 is being deprecated` or `[DEP0040] DeprecationWarning: The punycode module is deprecated` warnings.
-- **Cause**: Legacy actions like `actions/checkout@v4` and the internal dependencies of `zaproxy/action-baseline` rely on older Node modules. Forcing Node 24 causes it to complain about these native internal modules.
-- **Fix**: Upgraded `actions/checkout` directly to `v7` to natively support Node 24. For the ZAP plugin, injected `NODE_OPTIONS: "--no-deprecation"` to globally silence Node 24 from printing internal dependency warnings to the pipeline console.
-
-### 35. **OWASP ZAP Artifact Upload Crash (400 Bad Request)**
-
-- **Symptom**: DAST pipeline fails at the very end with `Create Artifact Container - Error is not retryable`.
-- **Cause**: The `zaproxy/action-baseline@v0.12.0` relies on legacy `upload-artifact@v3` API, which is blocked by GitHub's strict v4 validation schema.
-- **Fix**: Bumped the plugin version to `v0.15.0`, which implements the v4 artifact architecture natively and eliminates Node 20 deprecation warnings.
-
-### 34. **OWASP ZAP Pipeline `Errno 13 Permission denied`**
-
-- **Symptom**: ZAP Docker container fails to generate `zap.yaml` or output HTML reports in GitHub Actions.
-- **Cause**: The ZAP container runs internally as the `zap` user, but the mounted GitHub workspace is owned by `runner`.
-- **Fix**: Inserted an explicit `chmod -R 777 ${{ github.workspace }}` step before the ZAP baseline action runs.
-
-### 33. **GitHub Action `Resource not accessible by integration` (Issue Creation)**
-
-- **Symptom**: Pipeline fails when OWASP ZAP tries to create a GitHub Issue containing the security warnings.
-- **Cause**: Default GitHub Action tokens are read-only and lack `issues: write` permission.
-- **Fix**: Added explicit `permissions: issues: write` and `contents: read` strictly to the DAST job configuration.
-
-### 32. **Local Deployment Failures (Missing Dependencies)**
-
-- **Symptom**: New developers failed to run `./infra/scripts/deploy.sh` locally because fundamental CLI utilities were missing.
-- **Cause**: Lack of an automated bootstrap procedure across Mac and Linux systems.
-- **Fix**: Completely rebuilt `infra/scripts/setup.sh` into an intelligent, OS-aware installer that automatically detects missing tools (`node@24`, `terraform`, `aws-cli`, `jq`) and provisions them natively via `brew` or `apt`.
-
-### 31. **CI/CD Hardcoded Infrastructure Drift**
-
-- **Symptom**: CI/CD pipelines ran correctly but lacked environment portability due to hardcoded AWS domains and buckets.
-- **Cause**: The `.github/workflows/ci-cd.yml` file had hardcoded deployment parameters.
-- **Fix**: Removed hardcoded strings (`cricscore...site`) and injected dynamic GitHub context variables (`${{ vars.DOMAIN_NAME }}`) directly into the pipeline execution paths.
-
-### 30. **Local `.env` Erased on Deploy**
-
-- **Symptom**: Running local deployment scripts wiped out manual environment variables from `apps/frontend/.env`.
-- **Cause**: The deployment script was using a raw `echo ... > .env` operation that completely overwrote the file instead of appending to it.
-- **Fix**: Deleted legacy scripts. Refactored `infra/scripts/deploy.sh` to safely _append_ live AWS API Gateway endpoints to the `apps/frontend/.env` file non-destructively, permanently preserving manual configuration.
-
-### 29. **Terraform Variable Hydration Failure (`TF_VAR_`)**
-
-- **Symptom**: Terraform `apply` failed to pick up variables from the local environment or GitHub Actions, throwing "Missing required variable" errors.
-- **Cause**: Standard environment variable names in `.env.local` were all uppercase (`DOMAIN_NAME`), which broke Terraform's strict lowercase prefix requirement (`TF_VAR_domain_name`).
-- **Fix**: Re-engineered `infra/scripts/deploy.sh` to automatically convert and export standard ALL CAPS variables into the required Terraform format (`export TF_VAR_domain_name=$DOMAIN_NAME`) prior to execution, protecting the developer experience and keeping `.env.local` clean.
-
-### 28. **Rapid-Fire Score Date Loss / Desync (Phase 7)**
-
-- **Symptom**: Scorer taps "1" six times rapidly; the UI says `6/0` locally, but spectators only see `3/0`. DB aggregated only 3 balls.
-- **Cause**: React `useState` closures were capturing identical asynchronous network payloads before the UI had a chance to render the new incremented value.
-- **Fix**: Replaced pure `useState` components with an instantaneous, synchronous `useRef` lock (`isProcessingRef.current = true`). Forced `await postScoreUpdate` to physically stall overlapping asynchronous fetch executions until AWS responds.
-
-### 27. **Aiven DB `SELF_SIGNED_CERT_IN_CHAIN` (Phase 7)**
-
-- **Symptom**: SQS Queue messages were stuck `NotVisible`; Worker triggered `SELF_SIGNED_CERT_IN_CHAIN` on Aiven PG connection.
-- **Cause**: Node v24's strict native TLS validation rejects Aiven's intermediate self-signed certificates, ignoring generic driver `rejectUnauthorized: false` flags.
-- **Fix**: Injected `process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'` at the extreme top of the `storage-worker` bootloader sequence.
-
-### 26. **SES Sandbox Friction / Email Delivery Rejection**
-
-- **Symptom**: User-facing email reports were consistently rejected by AWS SES unless both sender and recipient were manually verified. AWS rejected the limit increase request (Sandbox Exit).
-- **Cause**: SES Sandbox environments strictly enforce dual-verification for every message, making it impossible to send scorecards to arbitrary user emails in a consumer-facing app.
-- **Fix (v1.5.2)**: **Option B Pivot**—Replaced the non-functional "Email Report" system with an **Instant Sharable Match Link** (Match ID based).
-  - Replaced the Gmail input with an "Identity Synchronization" field solely for session persistence.
-  - Integrated a "SHARE SCORECARD 🔗" button in the Match Completion UI.
-  - Redirected SES solely for **Admin-Backend Logging**, where the recipient is already verified.
-  - Resulted in **Zero-Friction Sharing** and viral match-day growth potential.
-
-### 24. **Match Deletion Desync (Scorer vs Admin)**
-
-- **Symptom**: An Admin deletes a match from the Hub, but the Scorer is still recording balls on their screen, leading to failed syncs and confusion.
-- **Cause**: The Scorer view had no awareness of the match's existence in the database once it was loaded.
-- **Fix**:
-  - Implemented a **Cloud-Existence Heartbeat** during Scorer login, page refresh, and every ball update.
-  - If the backend returns a `404`, the client triggers an alert and performs an **Autonomous Force Reset** to clear the dead match from the screen and local cache.
-
-### 23. **Cross-User Data Leakage / Scoring Ghosting**
-
-- **Symptom**: User `xyz` logs out, user `abc` logs in, but `abc` sees `xyz`'s match scoreboard instead of a clean setup.
-- **Cause**: The ball-by-ball scoring state was using a global, shared LocalStorage key (`cricscore-live-innings`).
-- **Fix**:
-  - Refactored the live cache to use a match-specific key: `cric-live-match-{matchId}`.
-  - Implemented **Email-Scoped Persistence** for general match metadata (`cric-match-state-{email}`).
-  - This provides 100% isolation between different users and different matches on the same device.
-
-### 22. **URL "Haunting" / Stale Match Reload**
-
-- **Symptom**: After starting a new match or logging out, refreshing the page would pull the user back into an old match context or a broken state.
-- **Cause**: The `?matchId=...` parameter in the address bar was persisting across sessions and being prioritized by the auto-resume logic.
-- **Fix**: Implemented **URL Sanitation**. The application now scrubs the address bar using `window.history.replaceState` immediately after a match ID is read, on logout, and when a fresh match starts.
-
-### 21. **SES Gmail Phishing Rejection (DMARC)**
-
-- **Symptom**: Lambda logs show `SES Send Success` with a `MessageId`, but the email never arrives in the Inbox or Spam.
-- **Cause**: Using a `@gmail.com` address as the `SES_SOURCE` while sending through AWS servers fails Gmail's DMARC policy. Gmail detects that AWS is not an authorized sender for the `gmail.com` domain and silently drops the message.
-- **Fix**:
-  - Verify your custom domain (e.g., `example.com`) in the SES Console.
-  - Set `TF_SES_SOURCE_EMAIL` in `.env.local` to an address on that domain (e.g., `noreply@example.com`).
-  - This ensures emails carry valid DKIM/SPF signatures for your domain, allowing them to pass Google's security checks.
-
-### 20. **Cascading Delete & DB Purge**
-
-- **Symptom**: Deleting a match left "ghost" records in the innings/players tables; no way to bulk-clear old tests.
-- **Cause**: Lack of foreign key constraints on some tables and no admin-level `TRUNCATE` endpoint.
-- **Fix**:
-  - Verified `ON DELETE CASCADE` across all match-related tables in PostgreSQL.
-  - Implemented `DELETE /matches` (Purge) on the backend using `TRUNCATE ... CASCADE` for a clean slate.
-
-### 19. **Scorer Data Loss (Mobile / Tab Switching)**
-
-- **Symptom**: Scorers lost their pending batter/bowler sync if they switched tabs or refreshed the mobile browser.
-- **Cause**: Match state was local to the component; `localStorage` didn't restore the active tab view.
-- **Fix**:
-  - Implemented a ball-by-ball `onStateChange` sync from `MatchView` to the app root.
-  - Persisted the active `view` ID in `localStorage` to return users directly to the scoring screen after a refresh.
-
-### 16. **`SES MessageRejected` & Missing API Routes**
-
-- **Symptom**: "Fancy" reports were not being received; "DELETE FAILED! Failed to fetch" alerts in the Admin Hub.
-- **Cause**:
-  1. The `match-api` IAM role lacked `ses:SendEmail` permission.
-  2. API Gateway was missing routes for `DELETE /match/{matchId}` and `POST /match/{matchId}/email`.
-  3. SES Gmail "spoofing" filters blocked unverified senders.
-- **Fix**:
-  - Provisioned missing routes via AWS CLI and updated Lambda IAM role permissions.
-  - **Enterprise Fix**: Verified the `cricscore.example.com` domain and configured **3 DKIM CNAME records** and an **SPF TXT record** in Route53.
-  - Switched source to `noreply@example.com`.
-
-### 15. **`Runtime.ImportModuleError` / Missing `pg`**
-
-- **Symptom**: "Cloud Connection Failed" alert in the UI; Lambda logs showed `Error: Cannot find module 'pg'`.
-- **Cause**: Updating the Lambda code via Terraform `zip` lacked the `node_modules` directory required for database connectivity.
-- **Fix**: Added dynamic traversal to `infra/scripts/deploy.sh`. The pipeline now automatically runs `npm install --production` inside every Lambda directory prior to packaging the root modules.
-
-### 14. **Intrusive Browser Prompts**
-
-- **Symptom**: Editing overs opened a clunky browser `prompt()` box which felt non-premium.
-- **Cause**: Use of native `window.prompt` for quick implementation.
-- **Fix**: Replaced with a **Seamless Inline UI**. The overs count now transforms into a stylized input field on-click, supporting Enter-to-save and Escape-to-cancel.
-
-### 13. **Forbidden PATCH / CORS Restriction**
-
-- **Symptom**: The "Edit Overs" feature worked in the scorer's local UI but never saved to the backend.
-- **Cause**: Browser blocked the cross-origin `PATCH` because (1) it wasn't in `Access-Control-Allow-Methods` and (2) the API Gateway route didn't exist in Terraform.
-- **Fix**:
-  - Updated `match-api` and `score-update` lambdas to explicitly allow `PATCH` in the `OPTIONS` pre-flight.
-  - Added the `PATCH /match/{matchId}` route to the `aws_apigatewayv2_api` in Terraform.
-
-### 12. **Terraform State Lock / Acquire Lock Error**
-
-- **Symptom**: `Error: Error acquiring the state lock` during a deployment or drift check execution.
-- **Cause**: A previous Terraform run (local or remote runner) crashed or was cancelled before it could release the S3 `.tflock` object.
-- **Fix**:
-  1. Note the lock ID from the error message.
-  2. Verify no Terraform operation is still using that state.
-  3. Run `terraform force-unlock -force <LOCK_ID>` from the `infra/terraform` directory, or use the Terraform Force Unlock workflow.
-  4. Do not manually delete the `.tflock` object.
-
-### 11. **Match Hub Consolidation & Layout Clarity**
-
-- **Symptom**: Redundant "Fans Live" vs "Old Matches" tabs; missing bowling team name; confused striker position.
-- **Cause**: Tab clutter led to navigation fatigue; UI was missing contextual team labels in the scoring header.
-- **Fix**:
-  - Merged into a unified **Match Hub** sorted by newest matches first with `LIVE` vs `COMPLETED` badges.
-  - Added the bowling team name to all headers and cards.
-  - Implemented a `.sort()` pinned-striker logic to ensure the facing batsman is always at the top for fans.
-
-### 10. **The "Less Score" Bug (Missing Sync Totals)**
-
-- **Symptom**: After fixing double-counting, spectators saw a LOWER score than the scorer (stuck on the previous ball).
-- **Cause**: The `postScoreUpdate` frontend sync was missing the `totalRuns` and `totalWickets` fields, sending `null` to the backend.
-- **Fix**: Refactored `postScoreUpdate` to send the complete, finalized `InningsState` totals in every message.
-
-### 9. **The "1 Run Extra" Bug (Double-Counting)**
-
-- **Symptom**: After a ball or undo, the spectator view consistently showed exactly one more run than the scorer.
-- **Cause**: The backend was performing two overlapping updates: one to `SET` the total score and another to `INCREMENT` it by the ball's runs.
-- **Fix**: Removed the redundant increment logic; the system now treats the scorer's transmitted total as the absolute source of truth.
-
-### 8. **Aggregate Stat Mismatch on Undo**
-
-- **Symptom**: After undoing a ball, the team score reverted, but individual batter/bowler runs and wickets in the "Match Analytics" modal stayed high.
-- **Cause**: The backend only reverted the `innings` table totals but didn't subtract runs from the `players` or `bowlers` aggregate tables.
-- **Fix**: Updated the `score-update` lambda to fetch the last ball before deletion, identify the participating players, and explicitly subtract their personal runs/wickets/balls to restore perfect analytics consistency.
-
-### 7. **Undo Score Mismatch / Ghost Balls**
-
-- **Symptom**: Clicking "Undo" reverted the scorer's screen but left spectators with the old score or "ghost" balls in the timeline.
-- **Cause**: Undo only reverted local state; the DB still held the undone ball record, and shallow-copy mutations leaked into the history logs.
-- **Fix**:
-  - Updated `handleUndo` to send a `DELETE` request to the backend for the last ball event.
-  - Implemented a **Full State Sync** to overwrite DB totals immediately after an undo.
-  - Refactored frontend to use **Strict Immutability** to prevent history log corruption.
-
-### 6. **Match Creation Latency**
-
-- **Symptom**: Starting a new match took several seconds.
-- **Cause**: Sequential `INSERT` statements for 22+ players/bowlers caused multiple round-trips to the DB.
-- **Fix**: Implemented **Bulk SQL Inserts** and Transactions in the `match-api`, reducing round-trips from ~25 to 4.
-
-### 5. **New Bowler Showing High Over Count**
-
-- **Symptom**: A bowler starting the 2nd over was incorrectly showing `1.1` overs instead of `0.1` in the spectator view.
-- **Cause**: Backend was calculating bowler figures based on the global `overNumber` index instead of their individual spell count.
-- **Fix**:
-  - Updated `MatchView` to explicitly track and send `bowlerOvers` and `bowlerBalls` to the backend.
-  - Updated `score-update` lambda to prioritize these explicit personal figures when updating the `bowlers` table.
-
-### 4. **Overs Showing One Less / Active Player Lag**
-
-- **Symptom**: After the 6th ball, the score showed 2.0 instead of 3.0 for several seconds. Also, spectators saw "Waiting for first ball" despite players being selected.
-- **Cause**: Backend relied on the ball's current over ID rather than the resulting total; crease state was only saved during ball events.
-- **Fix**:
-  - Updated `MatchView` to explicitly pass `totalOvers` and `totalBalls` in every sync.
-  - Added `syncOnly` mode to `score-update` lambda to persist player roles immediately upon selection.
-  - Filtered `LiveScoreboard` summary to strictly show currently playing batsmen.
-
-### 3. **Fans Live "White Screen" / Stale Old Matches**
-
-- **Symptom**: "Fans Live" appeared empty/white unless a match was LIVE. Switching to "Old Matches" didn't show new records without a browser refresh.
-- **Cause**: React was reusing component instances without re-fetching; conditional rendering in `App.tsx` was too restrictive.
-- **Fix**:
-  - Added `key={view}` to `LiveScoreboard` to force remount on tab change.
-  - Refactored `LiveScoreboard` to show DB snapshot data (Batters/Bowlers) immediately if WebSocket broadcast is pending.
-
-### 2. **Empty Match Analytics / Missing History**
-
-- **Symptom**: "Old Matches" or "Analytics" modal was empty (0 runs, 0 players).
-- **Cause**: Squad data was only in-memory; `players` and `bowlers` tables in DB were never initialized or updated.
-- **Fix**:
-  - Updated `match-api` to initialize squads in DB during `POST /match`.
-  - Updated `score-update` lambda to `UPDATE` aggregate stats in DB for every ball.
-  - Added `striker_name` / `non_striker_name` tracking to the `innings` table.
-
-### 1. **`Connection Timeout` (Phase 3)**
-
-- **Symptom**: `LambdaTimeout: 30s` exceeded during ball scoring.
-- **Cause**: Initial 3s timeout + 128MB RAM was too slow for (1) PG SSL handshake + (2) SQL write operations.
-- **Fix**:
-  - Increased memory to **256MB** (Giving the Lambda more CPU power for encryption).
-  - Hardened the timeout to **30s**.
+### 🤖 Category B: AI Summary, Agentic Chat & Data Formatting
+
+|   #    | Incident Title                                                            | Symptom                                                                          | Root Cause                                                                                                                                                                                          | Resolution Implemented                                                                                                                                                             |
+| :----: | :------------------------------------------------------------------------ | :------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **53** | **AI Summary Stuck on `"0/0"` & Unstarted Fixture Showing `"0/0 (0.0)"`** | Live AI summaries remained cached at `0/0`; unstarted matches showed `0/0 (0.0)` | 1. `summaryHandler.js` only invalidated zero-ball summaries when `status === "COMPLETED"`<br>2. `storage-worker` didn't clear `ai_summary`<br>3. `MatchList.tsx` rendered `0/0 (0.0)` before ball 1 | 1. Invalidated stale markers for both `LIVE` and `COMPLETED`<br>2. Set `ai_summary = NULL` on every score update<br>3. Rendered `—` in `MatchList.tsx` until first ball/run/wicket |
+| **52** | **AI Summary Showing `"5 Balls"` When Match Ended on Ball 6**             | 1-over chase won on 6th ball was described as `"5 balls"`                        | Immediate match completion skipped next-tick over-flip (`0.5` stored in DB)                                                                                                                         | Counted legal balls directly from `ball_events` (`COUNT(*) FILTER (WHERE extra_type NOT IN ('WIDE','NO_BALL'))`)                                                                   |
+| **51** | **AI Summary Writing Decimal Overs (`"0.5 overs"`)**                      | LLM echoed raw decimal (`0.5 overs`) instead of plain English (`5 balls`)        | `formatOvers()` included `"0.5 overs (...)"` prefix in prompt                                                                                                                                       | Replaced with `ballsToOversText()` emitting strictly plain English (`"5 balls"`, `"1 over and 2 balls"`)                                                                           |
+| **50** | **AI Summary Hallucinating Toss Winner & Decision**                       | Summary guessed toss winner from `batFirstTeam`                                  | DB lacked `toss_winner` and `toss_decision` columns                                                                                                                                                 | Added `add_toss_fields.sql` migration, `MatchSetup.tsx` selectors, and explicit toss prompt injection in `summaryHandler.js`                                                       |
+
+---
+
+### 🗄️ Category C: Database, SES Email, CORS & Lambda Runtime
+
+|   #    | Incident Title                                                | Symptom                                                                    | Root Cause                                                                   | Resolution Implemented                                                                                                              |
+| :----: | :------------------------------------------------------------ | :------------------------------------------------------------------------- | :--------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------- |
+| **38** | **Aiven Free Tier Database Auto-Pause**                       | Backend timed out after 3 days of zero traffic                             | Aiven pauses free-tier PostgreSQL after 72h of inactivity                    | Added daily `.github/workflows/keepalive.yml` cron job executing `SELECT 1;`                                                        |
+| **27** | **Aiven PostgreSQL `SELF_SIGNED_CERT_IN_CHAIN` on Node 24**   | `storage-worker` failed TLS handshake; SQS messages stuck `NotVisible`     | Node 24 rejected Aiven self-signed intermediate CA                           | Configured `ssl: { rejectUnauthorized: false }` in `pg.Pool` and TLS env handling                                                   |
+| **26** | **SES Sandbox Rejection for Unverified Consumer Emails**      | Sending scorecards to arbitrary external user emails failed in SES Sandbox | AWS SES Sandbox requires verified recipient addresses                        | Added instant **Share Scorecard Link (`?matchId=`)** deep-link hydration and scoped SES to verified domains/addresses               |
+| **21** | **SES Gmail DMARC Drop (`SES_SOURCE` Spoofing)**              | SES returned `MessageId`, but Gmail silently dropped the email             | Sending from `@gmail.com` via AWS SES fails Gmail DMARC policy               | Verified custom domain in SES with Route 53 DKIM CNAME + SPF TXT records (`noreply@<domain>`)                                       |
+| **20** | **Orphaned Innings/Player Rows on Match Delete**              | Deleting a match left child records in `innings` and `players`             | Missing foreign-key cascade and admin purge route                            | Enforced `ON DELETE CASCADE` on all foreign keys and added Admin `DELETE /matches` (`TRUNCATE ... CASCADE`)                         |
+| **16** | **`SES MessageRejected` & Missing `DELETE` / `email` Routes** | Admin delete and email report calls failed with `Failed to fetch`          | Missing `ses:SendEmail` IAM policy and API Gateway routes                    | Added `ses:SendEmail` to `iam.tf` and provisioned `DELETE /match/{matchId}` + `POST /match/{matchId}/email` in `apigateway_http.tf` |
+| **15** | **`Runtime.ImportModuleError: Cannot find module 'pg'`**      | Lambda crashed on invocation with missing `pg` driver                      | Lambda `.zip` created without running `npm install --omit=dev`               | Automated `npm install --omit=dev` across `apps/backend/lambdas/*` in `deploy.sh` and `ci.yml`                                      |
+| **13** | **CORS Preflight Blocking `PATCH /match/{matchId}`**          | Editing overs worked locally but failed network save                       | `PATCH` missing from `Access-Control-Allow-Methods` and `apigateway_http.tf` | Added `PATCH` to CORS headers and provisioned `aws_apigatewayv2_route.patch_match`                                                  |
+| **6**  | **Slow Match Creation (`POST /match` Latency)**               | Creating a match took several seconds                                      | 25+ sequential single-row `INSERT` round-trips                               | Consolidated squad initialization into single-query bulk `INSERT` statements inside a `BEGIN/COMMIT` transaction                    |
+| **1**  | **Lambda 3s Timeout on Cold SSL Handshake**                   | `Task timed out after 3.00 seconds` during initial DB writes               | `128 MB` CPU share + `3s` timeout was too tight for cold PG SSL handshake    | Increased `score-upd` and `storage-worker` to `256 MB` RAM and `30s` timeout                                                        |
+
+---
+
+### ⚙️ Category D: CI/CD Pipelines, Terraform, Security Scanners & E2E Testing
+
+|   #    | Incident Title                                                       | Symptom                                                                                | Root Cause                                                                                               | Resolution Implemented                                                                                 |
+| :----: | :------------------------------------------------------------------- | :------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------- |
+| **48** | **Playwright E2E Timeout on 6th-Ball `RUN OUT` Modal**               | `Select New Batter` modal didn't open when `RUN OUT` occurred on final ball of innings | `isOversDone` was `true` on ball 6, immediately ending the innings instead of prompting for a new batter | Moved `RUN OUT` test step to **ball 5** (`isMatchEnding = false`) and scored winning run on **ball 6** |
+| **46** | **CodeQL Flagging Generated Playwright HTML Reports**                | CodeQL SAST failed on `playwright-report/index.html`                                   | Generated Playwright report was tracked in Git                                                           | Added `playwright-report/` and `test-results/` to `.gitignore` and untracked generated artifacts       |
+| **45** | **Checkov SARIF Upload `Resource not accessible by integration`**    | SARIF upload step failed in GitHub Actions                                             | Workflow lacked `security-events: write` permission                                                      | Scoped permissions or disabled external SARIF upload where read-only token is used                     |
+| **44** | **Playwright E2E Polluting Live Match List**                         | Automated E2E runs left test matches visible alongside real matches                    | E2E tests ran against deployed environment without test tagging                                          | Added `is_test BOOLEAN` column (`TEST 🧪` badge) and `DELETE /admin/matches/test` bulk cleanup         |
+| **43** | **Optimistic UI Lock Race Condition in E2E Tests**                   | Rapid Playwright clicks dropped ball events during network round-trip                  | `isProcessingRef` lock ignored clicks while previous ball request was in flight                          | Synchronized Playwright ball actions with network/UI unlock completion                                 |
+| **42** | **Playwright Locators Failing on Legacy Selectors**                  | `locator.click: Target closed` in `user-journey.spec.ts`                               | Outdated test selectors didn't match updated `MatchSetup` / `MatchView` DOM                              | Updated `user-journey.spec.ts` to use deterministic inputs and accessible role locators                |
+| **41** | **React 19 `act(...)` Unmount Warnings in Vitest**                   | Console warnings during async component tests                                          | Async promises resolved after test unmount                                                               | Wrapped async state transitions in `await act(async () => { ... })`                                    |
+| **40** | **GitHub Actions Ignoring `apps/backend/package-lock.json` Changes** | Updating backend root lockfile didn't trigger CI                                       | Overly narrow `paths` filter in workflow                                                                 | Removed restrictive path filters so all workspace changes run CI validation                            |
+| **39** | **`npm ci` Crash (`npm error EUSAGE`)**                              | CI failed immediately on dependency install                                            | `package.json` and `package-lock.json` drift                                                             | Synchronized lockfiles across all workspaces and validated via `check_dependencies.sh`                 |
+| **37** | **OWASP ZAP Opening Duplicate Issues for Intentional Headers**       | Nightly ZAP scan flagged COEP/COOP headers omitted for CDN/WS compatibility            | Default ZAP baseline ruleset alerts on informational header rules                                        | Added `.zap/rules.tsv` to `IGNORE` documented trade-offs (`10055`, `90004`)                            |
+| **36** | **Node 20 / Punycode Deprecation Warnings in GitHub Actions**        | Actions printed Node 20 and `[DEP0040]` deprecation warnings                           | Older action versions (`checkout@v4`) used legacy runtimes                                               | Upgraded to `actions/checkout@v7`, `setup-node@v7`, and Node 24 across workflows                       |
+| **35** | **OWASP ZAP Artifact Upload 400 Error**                              | ZAP failed uploading report artifact                                                   | `zaproxy/action-baseline@v0.12.0` used deprecated `upload-artifact@v3`                                   | Upgraded `zaproxy/action-baseline` to `v0.15.0`                                                        |
+| **34** | **OWASP ZAP `Errno 13 Permission denied`**                           | ZAP Docker container couldn't write `zap.yaml` to runner workspace                     | Container `zap` user lacked write permission on `runner`-owned workspace                                 | Added `chmod -R 777 ${{ github.workspace }}` step prior to ZAP scan                                    |
+| **33** | **OWASP ZAP Issue Creation `Resource not accessible`**               | ZAP failed when attempting to open a GitHub issue                                      | Missing `issues: write` permission in deploy job                                                         | Added `permissions: issues: write` and `contents: read` to `deploy_and_test_dev`                       |
+| **32** | **Local Setup Failures on Fresh Mac / Linux Machines**               | Missing `node@24`, `terraform`, `aws`, or `jq` blocked `deploy.sh`                     | No automated prerequisite installer                                                                      | Created OS-aware `infra/scripts/setup.sh` bootstrap script                                             |
+| **31** | **Hardcoded Domains in CI/CD Workflows**                             | Workflows weren't portable across `dev` and `prod` environments                        | Hardcoded domain strings in YAML                                                                         | Parameterized workflows with GitHub Environment `vars.DOMAIN_NAME` and `vars.PROJECT_NAME`             |
+| **30** | **Local `apps/frontend/.env` Overwritten on Deploy**                 | `deploy.sh` wiped custom `.env` variables                                              | Script used destructive `>` redirect instead of key update                                               | Updated `infra/scripts/deploy.sh` to update/append `VITE_*` endpoints non-destructively                |
+| **29** | **Terraform `TF_VAR_` Hydration Mismatch**                           | `terraform apply` failed with missing required variables                               | `.env.local` used uppercase `DOMAIN_NAME` while Terraform required `TF_VAR_domain_name`                  | Automated `export TF_VAR_*` mapping in `infra/scripts/deploy.sh`                                       |
+| **12** | **Terraform S3 State Lock (`Error acquiring the state lock`)**       | Deployment blocked by stale `.tflock` file in S3                                       | Cancelled or crashed Terraform run didn't release lock                                                   | Added `.github/workflows/unlock.yml` and documented `terraform force-unlock -force <LOCK_ID>`          |

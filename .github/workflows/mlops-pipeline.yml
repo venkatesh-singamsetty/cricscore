@@ -6,7 +6,7 @@ on:
       - 'cricket-data/**'
       - 'apps/ml-engine/data_pipeline.py'
       - 'apps/ml-engine/compare_models.py'
-      - 'apps/ml-engine/train_model.py'
+      - 'apps/ml-engine/live_train.py'
       - 'apps/ml-engine/requirements-train.txt'
       - '.github/workflows/mlops-pipeline.yml'
     branches:
@@ -16,7 +16,7 @@ on:
       - 'cricket-data/**'
       - 'apps/ml-engine/data_pipeline.py'
       - 'apps/ml-engine/compare_models.py'
-      - 'apps/ml-engine/train_model.py'
+      - 'apps/ml-engine/live_train.py'
       - 'apps/ml-engine/requirements-train.txt'
       - '.github/workflows/mlops-pipeline.yml'
   workflow_dispatch:

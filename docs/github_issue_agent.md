@@ -1,26 +1,26 @@
 # 🐙 GitHub Issue Specialist Agent & MCP Setup Guide
 
-CricScore includes a dedicated **GitHub Issue Specialist Agent** integrated into the AI Chat Assistant via the **Model Context Protocol (MCP)**. Fans, scorers, and guests can report application bugs, mobile/desktop UI issues, or feature requests directly from the Chat Bot, and the agent creates a labeled issue in the official GitHub repository (`venkatesh-singamsetty/cricscore`) without ever exposing credentials to the client or LLM.
+CricScore includes a dedicated **GitHub Issue Specialist Agent** integrated into the AI Chat Assistant via the **Model Context Protocol (MCP)**. Fans, scorers, and guests can report bugs, UI issues, or feature requests directly from the Chat Bot, creating a labeled issue in `venkatesh-singamsetty/cricscore` without exposing credentials to the browser or LLM.
 
 ---
 
-## 🎯 1. Overview & User Flow
+## 🎯 1. Overview & 2-Step Conversational Flow
 
-In the **AI Chat Assistant** (`ChatComponent.tsx`), users can either type a bug report / feature request directly or click the suggested prompt:
+In the **AI Chat Assistant** (`ChatComponent.tsx`), users can click the suggested prompt chip **`7. "I want to report a bug or request a new feature"`** or type a report directly. To prevent accidental or blank issues, `chatHandler.js` (`Rule 10`) and `apps/ai-service/cricscore_ai/graph.py` (`github_issue_node`) enforce a strict **2-step confirmation protocol**:
 
-> **`7. "I want to report a bug or request a new feature"`**
+| Step  | User Input Scenario                                                                           | Agent Action                                            | Tool Invoked? | Response / Outcome                                                                                                                    |
+| :---: | :-------------------------------------------------------------------------------------------- | :------------------------------------------------------ | :-----------: | :------------------------------------------------------------------------------------------------------------------------------------ |
+| **1** | Generic intent (e.g. clicks chip _"I want to report a bug or request a new feature"_)         | Prompts user for a concrete **Title** & **Description** |   ❌ **No**   | _"Please provide a brief title and description of the bug or feature request you'd like to raise on GitHub..."_                       |
+| **2** | User provides details (e.g. _"Scoreboard button overlaps on iPhone SE when Undo is clicked"_) | Validates inputs & calls `create_github_issue` via MCP  |  ✅ **Yes**   | Creates GitHub issue with `["via-cricscore-ai", category]` labels and returns the **Issue `#`** and **clickable GitHub URL** in chat. |
 
-### Two-Step Conversational Confirmation Flow
+### Tool Input Schema (`create_github_issue`)
 
-To prevent accidental or empty issues, the agent follows a strict **2-step conversational protocol** (`Rule 10: GITHUB ISSUE AGENT` in `chatHandler.js` and `github_issue_node` in `apps/ai-service/cricscore_ai/graph.py`):
-
-1. **Step 1 — Prompt for Details (When Generic)**:
-   - If a user clicks the default chip (`"I want to report a bug or request a new feature"`) or asks to report a bug/feature without providing details, the agent **does not** call `create_github_issue` yet.
-   - Instead, it replies:
-     > _"Please provide a brief title and description of the bug or feature request you'd like to raise on GitHub, and I'll assist you in creating the issue."_
-2. **Step 2 — Issue Creation & Clickable Link (Once Details Are Provided)**:
-   - Once the user replies with the title and description (or provides full details in their first message), the LLM invokes the `create_github_issue` MCP tool with `title`, `description`, and `category` (`bug` | `feature-request` | `feedback`).
-   - The MCP server calls `POST https://api.github.com/repos/venkatesh-singamsetty/cricscore/issues`, attaches the `["via-cricscore-ai", category]` labels, and returns the created **Issue `#`** and **clickable GitHub URL** in the chat bubble.
+| Parameter     | Type                | Validation Rule                                                        | Description                                                                |
+| :------------ | :------------------ | :--------------------------------------------------------------------- | :------------------------------------------------------------------------- |
+| `title`       | `string` (required) | `5 – 120` characters (trimmed); automatically prefixed `[AI Report]`   | Concise summary of the bug, UI issue, or feature request.                  |
+| `description` | `string` (required) | `10 – 2,000` characters (trimmed)                                      | Steps to reproduce, device/browser context, or requested feature behavior. |
+| `category`    | `string` (optional) | Enum: `"bug"` \| `"feature-request"` \| `"feedback"` (default `"bug"`) | Attached as a GitHub issue label alongside `"via-cricscore-ai"`.           |
+| `matchId`     | `string` (optional) | Optional UUID / identifier                                             | Included in the issue metadata block when reported from an active match.   |
 
 ---
 
@@ -64,7 +64,7 @@ sequenceDiagram
 
 ## 🔒 3. Security & Abuse Guardrails
 
-Because `/chat` is open to both authenticated scorers and guests, the GitHub Issue Agent enforces multiple server-side security boundaries:
+Because `POST /chat` is open to both authenticated scorers and guests, the GitHub Issue Agent enforces 5 server-side security guardrails:
 
 | Guardrail                                | Implementation                                                                                                              | Purpose                                                                                                                                             |
 | :--------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -76,63 +76,45 @@ Because `/chat` is open to both authenticated scorers and guests, the GitHub Iss
 
 ---
 
-## ⚙️ 4. Setup & Configuration Guide
+## ⚙️ 4. Setup & Configuration Matrix
 
-### Step 1: Create a GitHub Personal Access Token (PAT)
-
-1. Go to **GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens** (recommended) or **Tokens (classic)**.
-2. Scope the token to **`venkatesh-singamsetty/cricscore`** with:
-   - **Repository permissions → Issues**: **Read and write**
-   - (If using the same token for `semantic-release` in CI/CD, keep your existing `GH_PAT` scopes).
-
-### Step 2: Configure Local Environment (`.env.local`)
-
-Add `GITHUB_TOKEN` (and optional `GITHUB_REPO`) to your root `.env.local` file:
+| Layer                       | File / Secret Location                                       | Configuration Variable / Secret                            | Required Permission / Value                                               |
+| :-------------------------- | :----------------------------------------------------------- | :--------------------------------------------------------- | :------------------------------------------------------------------------ |
+| **1. GitHub PAT**           | GitHub → Settings → Developer settings → Fine-grained PAT    | `GITHUB_TOKEN` / `secrets.GH_PAT`                          | Scoped to `venkatesh-singamsetty/cricscore` with **Issues: Read & Write** |
+| **2. Local Dev Env**        | `.env.local` (repo root)                                     | `GITHUB_TOKEN`, `GITHUB_REPO` (optional)                   | Automatically exported as `TF_VAR_github_token` by `deploy.sh`            |
+| **3. Terraform IaC**        | `infra/terraform/variables.tf` & `infra/terraform/lambda.tf` | `var.github_token` (`sensitive = true`), `var.github_repo` | Injected into `module "chat_api"` Lambda environment variables            |
+| **4. GitHub Actions CI/CD** | `.github/workflows/ci.yml` & `.github/workflows/cd.yml`      | `TF_VAR_github_token: ${{ secrets.GH_PAT }}`               | Hydrates `chat-api` Lambda across both `dev` and `prod` deployments       |
 
 ```bash
-# GitHub Issue Agent (MCP)
+# Add GitHub Issue Agent token to local .env.local and deploy to dev
+cat << 'EOF' >> .env.local
 GITHUB_TOKEN='ghp_your_personal_access_token_here'
-# Optional (defaults to venkatesh-singamsetty/cricscore):
-# GITHUB_REPO='venkatesh-singamsetty/cricscore'
+GITHUB_REPO='venkatesh-singamsetty/cricscore'
+EOF
+
+./infra/scripts/deploy.sh --env dev --use-local-env
 ```
-
-When you run `./infra/scripts/deploy.sh --env dev --use-local-env` (or `./infra/scripts/terraform.sh`), the script automatically exports:
-
-- `TF_VAR_github_token="$GITHUB_TOKEN"`
-- `TF_VAR_github_repo="${GITHUB_REPO:-venkatesh-singamsetty/cricscore}"`
-
-### Step 3: Terraform & GitHub Actions CI/CD Wiring
-
-- **Terraform (`infra/terraform/variables.tf` & `infra/terraform/lambda.tf`)**:
-  - Declares `variable "github_token" { sensitive = true, default = "" }` and `variable "github_repo" { default = "venkatesh-singamsetty/cricscore" }`.
-  - Injects `GITHUB_TOKEN` and `GITHUB_REPO` into `module "chat_api"`'s Lambda environment variables.
-- **GitHub Actions (`.github/workflows/ci.yml` & `.github/workflows/cd.yml`)**:
-  - Maps the existing repository secret `secrets.GH_PAT` to `TF_VAR_github_token: ${{ secrets.GH_PAT }}` during both `dev` and `prod` deployments.
 
 ---
 
-## 🧪 5. Key Files & Automated Tests
+## 🧪 5. Key Files & Verification Commands
 
-- **Node.js MCP Tool (`chat-api`)**:
-  - Tool Implementation: [`apps/backend/lambdas/chat-api/mcp/tools/createGithubIssue.js`](../apps/backend/lambdas/chat-api/mcp/tools/createGithubIssue.js)
-  - MCP Server Registration: [`apps/backend/lambdas/chat-api/mcp/server.js`](../apps/backend/lambdas/chat-api/mcp/server.js)
-  - Routing & Rate-Limit Guard: [`apps/backend/lambdas/chat-api/handlers/chatHandler.js`](../apps/backend/lambdas/chat-api/handlers/chatHandler.js)
-  - Unit Tests: [`apps/backend/lambdas/chat-api/mcp/tools/createGithubIssue.test.js`](../apps/backend/lambdas/chat-api/mcp/tools/createGithubIssue.test.js) & [`apps/backend/lambdas/chat-api/handlers/chatHandler.test.js`](../apps/backend/lambdas/chat-api/handlers/chatHandler.test.js)
-- **Python LangGraph Multi-Agent Service (`apps/ai-service`)**:
-  - Intent & Tool: [`apps/ai-service/cricscore_ai/router.py`](../apps/ai-service/cricscore_ai/router.py), [`apps/ai-service/cricscore_ai/tools.py`](../apps/ai-service/cricscore_ai/tools.py), [`apps/ai-service/cricscore_ai/graph.py`](../apps/ai-service/cricscore_ai/graph.py), [`apps/ai-service/cricscore_ai/mcp_server.py`](../apps/ai-service/cricscore_ai/mcp_server.py)
-- **Frontend UI (`apps/frontend`)**:
-  - Suggested Prompt & Clickable Link Renderer: [`apps/frontend/src/components/ChatComponent.tsx`](../apps/frontend/src/components/ChatComponent.tsx)
-
-### Run Tests Locally
+| Subsystem                       | File Path                                                                                                                                   | Responsibility                                                     |
+| :------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------ | :----------------------------------------------------------------- |
+| **Node.js MCP Tool**            | [`apps/backend/lambdas/chat-api/mcp/tools/createGithubIssue.js`](../apps/backend/lambdas/chat-api/mcp/tools/createGithubIssue.js)           | Input validation, GitHub REST API `POST`, and audit metadata       |
+| **MCP Server Registry**         | [`apps/backend/lambdas/chat-api/mcp/server.js`](../apps/backend/lambdas/chat-api/mcp/server.js)                                             | Registers `create_github_issue` schema on the in-memory MCP server |
+| **Supervisor & Rate Guard**     | [`apps/backend/lambdas/chat-api/handlers/chatHandler.js`](../apps/backend/lambdas/chat-api/handlers/chatHandler.js)                         | Enforces `Rule 10` 2-step prompt and `githubIssuesCreatedInTurn`   |
+| **Python LangGraph Specialist** | [`apps/ai-service/cricscore_ai/tools.py`](../apps/ai-service/cricscore_ai/tools.py), [`graph.py`](../apps/ai-service/cricscore_ai/graph.py) | `create_github_issue` tool and `github_issue_node` specialist      |
+| **Frontend Chat UI**            | [`apps/frontend/src/components/ChatComponent.tsx`](../apps/frontend/src/components/ChatComponent.tsx)                                       | Renders prompt chip `#7` and clickable GitHub issue links          |
 
 ```bash
-# Backend MCP tool & handler tests
+# 1. Run Backend MCP tool & handler unit tests
 npm --prefix apps/backend test -- --run
 
-# Python LangGraph multi-agent tests
+# 2. Run Python LangGraph multi-agent tests
 ./apps/ai-service/.venv/bin/pytest apps/ai-service -q
 
-# Frontend ChatComponent tests
+# 3. Run Frontend ChatComponent tests
 npm --prefix apps/frontend test -- --run src/test/ChatComponent.test.tsx
 ```
 
@@ -142,5 +124,5 @@ npm --prefix apps/frontend test -- --run src/test/ChatComponent.test.tsx
 
 - [**AI Architecture (Agentic RAG & MCP)**](./ai_architecture.md)
 - [**Weather Report Specialist Agent Guide**](./weather_report_agent.md)
+- [**Architecture & AI/MLOps FAQ**](./architecture_faq.md)
 - [**Full Deployment Guide**](./deployment.md)
-- [**Testing Strategy**](./testing.md)

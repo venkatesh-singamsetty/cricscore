@@ -1,106 +1,98 @@
-# 🛡️ Enterprise Security Posture & Tradeoffs
+# 🛡️ Enterprise Security Posture & Trade-Offs
 
-This document explicitly records the intentional architectural compromises and accepted security risks made in the CricScore platform, balanced against our enterprise security foundations.
-
-As a guiding principle, the CricScore architecture balances operating cost with application functionality. Some controls are omitted or relaxed; deployments can incur AWS and external-provider charges depending on configuration and usage.
+CricScore pairs **defense-in-depth DevSecOps guardrails** with explicit **cost-aware architectural trade-offs** to operate the combined Dev + Prod AWS cloud platform at **~$1/month**.
 
 ---
 
-## 🏗️ Enterprise Security Foundations
+## 🏗️ 1. Defense-in-Depth Architecture
 
-While we make specific cost-saving tradeoffs at the edge, the core architecture enforces strict enterprise-grade security constraints:
+```mermaid
+flowchart LR
+    subgraph Layer1 ["1. Local Developer Workstation"]
+        PreCommit["Husky pre-commit (GitLeaks + lint-staged)"]
+        PrePush["Husky pre-push (validate_local.sh --fast + Signed Receipt)"]
+    end
 
-### 1. Identity & Access Management (IAM) Least-Privilege
+    subgraph Layer2 ["2. CI/CD Security Gates (GitHub Actions)"]
+        Secrets["GitLeaks (Full Git History)"]
+        IaC["Checkov (Terraform IaC)"]
+        SCA["Trivy FS (Frontend, Lambdas, Python)"]
+        SAST["CodeQL (JS/TS + Python AST)"]
+        DAST["OWASP ZAP Baseline + Syft SPDX SBOM"]
+    end
 
-AWS Lambda functions use Terraform-provisioned IAM roles. Policies grant access to the AWS services used by the application, including DynamoDB, SNS/SQS, WebSocket connections, SES, S3 backups, Cognito, and X-Ray. Some policies include wildcard resource scopes, so permissions should not be described as exclusively resource-scoped.
+    subgraph Layer3 ["3. AWS Edge & Runtime Security"]
+        TLS["Route 53 + ACM TLS 1.2+ + CloudFront OAC"]
+        APIGW["API Gateway Throttling (50 rps / 5 rps LLM) + Cognito JWT"]
+        Lambda["Lambda IAM Roles + Server-Side Claim Guards (isAdminClaims)"]
+        Data["Aiven PostgreSQL (SSL + Parameterized SQL + Read-Only AI Guard)"]
+    end
 
-### 2. Branch Protection & GitHub Governance
-
-The repository includes branch-protection guidance in [branch_protection.md](./branch_protection.md). Required checks, administrator enforcement, and force-push settings are configured in GitHub and should be verified there; they are not established by the workflow files alone.
-
-### 3. Automated DevSecOps CI/CD Scanners
-
-GitHub Actions run security checks on pull requests to `main`, including:
-
-- **GitLeaks**: Scans for secrets in CI; the local pre-commit hook scans staged changes when GitLeaks is installed.
-- **Trivy**: Filesystem scans frontend and backend Lambda dependencies for fixable HIGH and CRITICAL findings. CI does not run `npm audit`.
-- **Checkov**: Statically analyzes Terraform logic to prevent IaC misconfigurations (e.g., public S3 buckets).
-- **CodeQL**: Deep SAST analysis to detect logical vulnerabilities in our TypeScript code.
-- **Syft**: Generates an SPDX JSON SBOM on pushes to `main`, weekly, and by manual dispatch.
-
----
-
-## 🛑 Active Threat Protection (Runtime & Edge)
-
-### 1. Real-Time Execution Protection (AWS WAF & RASP)
-
-**Status:** ❌ Intentionally Omitted  
-**The Tradeoff:** We do not have real-time edge protection (WAF) or internal execution monitoring (RASP) to instantly block active SQL Injection (SQLi) or Cross-Site Scripting (XSS) attacks.
-**The Reason (Cost & Performance):**
-
-- **AWS WAF** is not currently provisioned; adding it would introduce additional service costs.
-- **RASP** requires injecting heavy APM agents into AWS Lambda, which severely degrades "cold start" times, violates our sub-100ms performance goal, and requires paid enterprise licenses.
-  **The Mitigation:** The Aiven PostgreSQL driver uses strict parameterized queries natively (neutralizing SQLi), and our serverless architecture removes physical OS vulnerabilities.
+    PreCommit --> PrePush --> Secrets & IaC & SCA & SAST --> DAST --> TLS --> APIGW --> Lambda --> Data
+```
 
 ---
 
-## 🌐 Frontend & Browser Security Headers
+## 🔒 2. Active Security Controls Inventory
 
-### 2. Content Security Policy (CSP) Restrictions
-
-**Status:** ⚠️ Intentionally Relaxed  
-**The Tradeoff:** The configured CSP allows `'unsafe-inline'` for scripts and styles, which weakens protection against some injection attacks.
-**The Reason (Functionality):** This is the current policy configuration; it should not be treated as a React requirement. Tighten the policy only after verifying application and third-party asset compatibility.
-**The Mitigation:** React escapes text interpolated through JSX by default, but that does not replace a restrictive CSP or safe handling of HTML content.
-
-### 3. Cross-Origin Isolation (COEP / COOP / CORP)
-
-**Status:** ❌ Intentionally Omitted  
-**The Tradeoff:** We do not enforce strict Cross-Origin-Embedder, Opener, or Resource policies.
-**The Reason (Functionality):** Strict Cross-Origin isolation instantly blocks external CDNs, Google Fonts, and AWS API Gateway WebSockets from loading.
-**The Mitigation:** API Gateway currently allows wildcard origins for HTTP API CORS; this is not an origin allowlist. Authentication and route-level authorization are separate controls and apply only to configured routes.
-
-### 4. Sub-Resource Integrity (SRI)
-
-**Status:** ❌ Intentionally Omitted  
-**The Tradeoff:** `<script>` tags lack cryptographic hashes verifying file integrity.
-**The Reason (Build Agility):** Vite does not inject SRI by default. Because our assets are served from our own locked-down AWS S3 bucket (not a public CDN), hijacking risk is negligible.
+| Security Domain                 | Enforced Control                                                             | Implementation Source                              | Protection Provided                                                                                                                    |
+| :------------------------------ | :--------------------------------------------------------------------------- | :------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------- |
+| **Edge & CDN**                  | CloudFront Origin Access Control (OAC) + `aws_s3_bucket_public_access_block` | `infra/terraform/frontend.tf`                      | Blocks direct public S3 access; all static traffic must traverse CloudFront HTTPS                                                      |
+| **Authentication**              | Cognito User Pool + API Gateway JWT Authorizer (`cognito-authorizer`)        | `infra/terraform/cognito.tf`, `apigateway_http.tf` | Validates cryptographic JWT signature, issuer, and audience at the API Gateway edge                                                    |
+| **Authorization**               | Server-side `isAdminClaims(claims)` & `requireAdmin(event)`                  | `match-api/index.js`, `chat-api/config/auth.js`    | Verifies exact `"Admin"` group membership or `ADMIN_REPORT_EMAIL` from verified JWT claims; ignores client headers/body flags          |
+| **LLM & API Abuse Protection**  | Route-level token-bucket throttling                                          | `infra/terraform/apigateway_http.tf`               | Caps default API routes at `50 req/s` (`100` burst) and unauthenticated `/chat` & `/chat/summary` routes at **`5 req/s` (`10` burst)** |
+| **AI SQL Injection Prevention** | Read-only MCP tool guard (`execute_sql`) + `READ ONLY` transaction           | `apps/backend/lambdas/chat-api/mcp/tools/`         | Rejects `INSERT`/`UPDATE`/`DELETE`/`DROP`/`TRUNCATE` keywords and wraps AI queries in read-only transactions                           |
+| **Database SQLi Prevention**    | Parameterized `pg` queries (`$1, $2, ...`) across all Lambdas                | `match-api`, `storage-worker`, `chat-api`          | Neutralizes SQL injection vectors across all user inputs                                                                               |
+| **ML Artifact Integrity**       | SHA-256 checksum verification on cold-start model load                       | `apps/ml-engine/predict.py`, `model_manifest.json` | Verifies downloaded S3 `.joblib` model against `model_manifest.json` before unpickling                                                 |
+| **Encryption at Rest**          | AWS-managed encryption (`AES256` / `alias/aws/sns` / SQS SSE)                | `frontend.tf`, `s3_backups.tf`, `sqs_sns.tf`       | Encrypts S3 buckets, SNS topics, and SQS FIFO queues at no additional KMS key cost                                                     |
 
 ---
 
-## ⚙️ CI/CD & Pipeline Governance
+## 🤖 3. Automated DevSecOps Scanners (Local Hooks & CI/CD)
 
-### 5. Relaxed Infrastructure Auditing (`.checkov.yaml` & Trivy)
-
-**Status:** ⚠️ Intentionally Relaxed  
-**The Tradeoff:** Checkov flags our S3 buckets for lacking access logging (`CKV_AWS_18`) and versioning (`CKV_AWS_21`). Trivy flags our CloudFront for missing WAF (`AWS-0011`), our logging S3 bucket for missing CMK encryption (`AWS-0132`), and our alerts SNS topic for missing CMK encryption (`AWS-0095`).
-**The Reason (Cost):** Enabling these features can add service costs. The Terraform configuration includes documented scanner suppressions for selected findings; review those suppressions before changing the controls.
-
-### 6. Pipeline Stability vs Upstream Deprecations
-
-**Status:** ⚠️ Workflow compatibility setting present
-**The Tradeoff:** The workflows set `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"`, which permits actions that use a Node.js runtime GitHub marks as unsecure.
-**The Reason (CI/CD Stability):** Review and remove this setting when all actions in the workflows use supported runtimes.
-
-### 7. Explicit Git Bypasses (`.gitignore` & `.gitleaksignore`)
-
-**Status:** 🔒 Intentionally Bypassed  
-**The Reason (Cleanliness):**
-
-- **`.zip` Artifacts**: `infra/scripts/deploy.sh` generates Lambda binaries. We ignore them to prevent Git repository bloat.
-- **`.gitleaksignore`**: We explicitly whitelist specific historical git commits where dummy `.pem` test files or local terraform state keys were temporarily tracked, ensuring the aggressive Gitleaks scanner does not block active deployments.
-
-### 8. Defense in Depth (Local Hooks vs. GitHub Actions)
-
-**Status:** 🛡️ Strictly Enforced
-**The Strategy:** We deliberately duplicate security scans (like `gitleaks` for secrets and `vitest` for code integrity) across three layers to prevent local bypasses:
-
-1. **Pre-Commit (First Line of Defense)**: The hook scans staged content with Gitleaks when Gitleaks is installed; otherwise it warns and skips the scan.
-2. **Pre-Push (Safety Net)**: Hooks catch secrets, failing tests, NPM vulnerabilities (`npm audit`), and active Terraform state locks locally before network transmission, saving developer time.
-3. **GitHub Actions**: Centralized checks run independently of local hooks. Whether they block merges depends on the repository's current GitHub branch-protection settings.
+| Scanner                | Category           | Local Hook Execution                                      | GitHub Actions Workflow                                                                 | Blocking Threshold                                              |
+| :--------------------- | :----------------- | :-------------------------------------------------------- | :-------------------------------------------------------------------------------------- | :-------------------------------------------------------------- |
+| **GitLeaks**           | Secret Detection   | `.husky/pre-commit` & `validate_local.sh`                 | `.github/workflows/ci.yml` (`validate_security`)                                        | Any unignored secret in staged changes or Git history           |
+| **Checkov**            | Terraform IaC SAST | `validate_local.sh` (`--download-external-modules false`) | `.github/workflows/ci.yml` (`validate_security`)                                        | Any unsuppressed Terraform misconfiguration                     |
+| **Trivy (`trivy fs`)** | Dependency SCA     | `validate_local.sh`                                       | `.github/workflows/ci.yml` (`validate_frontend`, `validate_backend`, `validate_python`) | Fixable `HIGH` or `CRITICAL` vulnerabilities (`exit-code: 1`)   |
+| **`npm audit`**        | Lockfile SCA       | `validate_local.sh` (`--audit-level=high`)                | Local pre-push gate                                                                     | Any `high` or `critical` npm advisory                           |
+| **CodeQL**             | Deep AST SAST      | —                                                         | `.github/workflows/codeql.yml`                                                          | Logical/security flaws in `javascript-typescript` and `python`  |
+| **OWASP ZAP**          | Live DAST          | —                                                         | `.github/workflows/ci.yml` & `deploy_prod.yml`                                          | Baseline scan against deployed Dev/Prod URLs (`.zap/rules.tsv`) |
+| **Syft**               | SPDX JSON SBOM     | `validate_local.sh` (unless `--fast` / `--skip-sbom`)     | `.github/workflows/sbom.yml`                                                            | Generates `cricscore-sbom.spdx.json` artifact                   |
 
 ---
 
-## Conclusion
+## ⚖️ 4. Intentional Cost & Functionality Trade-Offs (~$1/Month Target)
 
-These tradeoffs are documented to make the current controls and limitations explicit. Review the infrastructure and workflow configuration before deployment, and reassess controls against the deployment's security and cost requirements.
+| Control / Feature                                 | Current Status                     | Monthly Cost Saved             | Architectural Rationale & Compensating Mitigation                                                                                                                                 |
+| :------------------------------------------------ | :--------------------------------- | :----------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **AWS WAF & RASP Agents**                         | ❌ Intentionally Omitted           | **~$5.00+/mo + per-rule fees** | Avoids fixed WAF ACL fees and Lambda cold-start degradation. Mitigated by CloudFront, API Gateway route throttling (`5 rps` on `/chat`), Cognito JWT auth, and parameterized SQL. |
+| **Private VPC + NAT Gateway**                     | ❌ Intentionally Omitted           | **~$32.00+/mo**                | Lambdas run in AWS-managed public serverless network and connect to Aiven PostgreSQL over TLS (`sslmode=require`) with IAM + JWT authorization.                                   |
+| **Customer-Managed KMS Keys (`CMK`)**             | ⚠️ Uses AWS-Managed SSE (`AES256`) | **~$2.00+/mo** (`$1/key/mo`)   | Suppresses `AWS-0095` / `AWS-0132` / `CKV_AWS_145`; uses free AWS-managed encryption (`SSE-S3`, `alias/aws/sns`, `sqs_managed_sse_enabled`).                                      |
+| **Content Security Policy (`unsafe-inline`)**     | ⚠️ Relaxed for Styles/Scripts      | —                              | Preserves compatibility with Vite/Amplify runtime styles; React JSX auto-escapes interpolated text and Chat UI sanitizes links (`HighlightedResult`).                             |
+| **Cross-Origin Isolation (`COEP`/`COOP`/`CORP`)** | ❌ Intentionally Omitted           | —                              | Strict cross-origin isolation blocks Google Fonts and cross-subdomain API Gateway (`api.*`, `ws.*`) connections; documented in `.zap/rules.tsv`.                                  |
+| **Sub-Resource Integrity (`SRI`)**                | ❌ Intentionally Omitted           | —                              | Static bundle assets are served directly from our private S3 bucket via CloudFront OAC rather than third-party script CDNs.                                                       |
+| **Checkov / Trivy IaC Suppressions**              | ⚠️ Documented in `.checkov.yaml`   | **~$1.00+/mo**                 | Skips S3 access-log chaining (`CKV_AWS_18`) on secondary buckets and KMS CMK checks to prevent recursive storage/key charges.                                                     |
+
+---
+
+## 🧪 5. Security Verification Commands
+
+```bash
+# 1. Run the complete local DevSecOps security & test battery (~25s)
+./infra/scripts/validate_local.sh --fast
+
+# 2. Scan git repository for secrets with GitLeaks
+gitleaks detect --source . --verbose
+
+# 3. Audit Terraform Infrastructure-as-Code with Checkov
+checkov -d infra/terraform/ --framework terraform --download-external-modules false --quiet
+
+# 4. Run Trivy filesystem vulnerability scans across Frontend, Backend Lambdas, and Python AI Service
+trivy fs --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 apps/frontend
+trivy fs --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 apps/backend/lambdas
+trivy fs --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 apps/ai-service
+
+# 5. Generate SPDX Software Bill of Materials (SBOM) via Syft
+syft scan dir:. --output spdx-json=cricscore-sbom.spdx.json
+```

@@ -19,6 +19,8 @@ Use `apps/backend/lambdas/README.md`, `docs/websocket_tutorial.md`, and `infra/t
   - Consumes SQS FIFO batches and commits ACID transactions to Aiven PostgreSQL.
   - **Authoritative Totals (`explicitTotalRuns` / `explicitTotalWickets`)**: Always prefer `explicitTotalRuns` and `explicitTotalWickets` when updating the `innings` row on both normal deliveries and `undo: true` events so out-of-order or retried events never cause cumulative score drift.
   - **Resolve `inn2_<timestamp>` IDs**: When `ballData.inningId` starts with `inn2_` or is missing, query `SELECT id FROM innings WHERE match_id = $1 AND inning_number = $2` using `eventInningNumber` to avoid UUID cast failures or reverting deliveries into Inning 1.
+- **`chat-api` Player of the Match (`handlers/summaryHandler.js`)**:
+  - POTM is **deterministic**: computed by `computePlayerOfTheMatch` from stored match data, never chosen by the LLM. The LLM may only narrate the computed result; keep it covered by `summaryHandler.test.js`.
 - **WebSocket Session & Fan-Out (`onconnect`, `ondisconnect`, `broadcaster`)**:
   - Tracks connection IDs in DynamoDB (`websocket_connections`) and prunes stale `410 GoneException` connections automatically during broadcast.
 

@@ -2,298 +2,118 @@
 
 [![CI/CD Pipeline](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/ci.yml/badge.svg)](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/ci.yml)
 [![Production Release](https://img.shields.io/github/v/release/venkatesh-singamsetty/cricscore?label=production&color=success)](https://github.com/venkatesh-singamsetty/cricscore/releases)
-[![Automated Tests](https://img.shields.io/badge/Tests-328%20Passing-brightgreen?logo=vitest)](./docs/testing.md)
+[![Automated Tests](https://img.shields.io/badge/Tests-376%20Passing-brightgreen?logo=vitest)](./docs/testing.md)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue?logo=typescript)](https://www.typescriptlang.org/)
 [![Python ML](https://img.shields.io/badge/Python-ML_Engine-blue?logo=python)](https://www.python.org/)
 [![Terraform](https://img.shields.io/badge/Terraform-Managed-purple?logo=terraform)](https://www.terraform.io/)
-[![Zero-Cost AWS](https://img.shields.io/badge/AWS%20Cost-%240%2Fmo%20Target-blue?logo=amazon-aws)](./docs/cost_management.md)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![AWS Cloud Cost](https://img.shields.io/badge/AWS%20Cost-~%241%2Fmo-blue?logo=amazon-aws)](./docs/cost_management.md)
+[![License: MIT](https://img.shields.io/badge/License:MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-🚀 **Production Environment:** **https://cricscore.venkateshsingamsetty.com**
+🚀 **Production Environment:** **https://cricscore.venkateshsingamsetty.com** · 🧪 **Development Environment:** **https://cricscoredev.venkateshsingamsetty.com**
 
-🧪 **Development Environment:** **https://cricscoredev.venkateshsingamsetty.com**
-
-👉 **Deployment Details:** **[Full Deployment Guide](./docs/deployment.md)**
-
-⚡ **Quick Commands:** **[Developer Cheatsheet](./CHEATSHEET.md)**
-
-🛠️ **Developer Workflow:** **[Contributing & PR Guide](./CONTRIBUTING.md)**
+👉 **Quick Links:** **[Full Deployment Guide](./docs/deployment.md)** · ⚡ **[Developer Cheatsheet](./CHEATSHEET.md)** · 🛠️ **[Contributing & PR Guide](./CONTRIBUTING.md)** · 🏆 **[Engineering Milestones & Key PRs](./docs/engineering_milestones.md)**
 
 ---
 
-## 🎯 Project Vision
+## 🎯 Project Overview
 
-CricScore demonstrates how a high-performance, real-time sports platform can be designed using modern **Multi-Cloud**, **Serverless**, and **Event-Driven** architecture. By combining AWS services with Aiven managed databases, the project maintains an enterprise-grade, cost-optimized footprint.
+CricScore is a cloud-native, real-time cricket scoring and match analytics platform built with **AWS Serverless**, **Aiven PostgreSQL 16 (`pgvector`)**, **Agentic AI (MCP + RAG)**, and **Serverless MLOps (XGBoost + Markov DP + DLS)**. Engineered around intentional architectural **trade-offs** (serverless scale-to-zero, AWS-managed encryption, 7-day log retention, and S3/ECR lifecycle rules), it runs both **Dev** and **Prod** environments for **~$1/month** on AWS.
 
-The project models a live cricket platform featuring:
-
-- **Serverless Compute**: Fully managed AWS Lambda backends.
-- **Event-Driven Architecture**: Fan-out messaging via SNS and SQS for fault-tolerant state processing.
-- **AI Chat**: Retrieval-augmented answers with Text-to-SQL and vector search.
-- **Live MLOps**: On-demand win-probability inference using an AWS Lambda container image with versioned model artifacts (`v2.2.0-xgboost`) stored in S3 and ECR.
-- **Multi-Cloud Infrastructure**: Terraform-managed deployments bridging AWS and Aiven PostgreSQL.
-- **Real-Time Streaming**: WebSocket API Gateway for instant, low-latency score updates.
-- **DevSecOps Governance**: End-to-end CI/CD automation with automated security and compliance scanning.
-
-This repository serves as a practical, production-style reference implementation for modern cloud engineering, AI integration, and rigorous operational discipline.
+| Persona / Layer           | Core Capabilities                                                                                                                                                                                                                                         | Key Engineering & Safeguards                                                                                                                                                |
+| :------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 👀 **Fans & Viewers**     | Sub-second live ball-by-ball scoreboard updates, live win-probability bar on every ball, and interactive AI match chat                                                                                                                                    | WebSocket fan-out (`SNS` → `broadcaster` → `API Gateway WS`) + 3s polling recency guard                                                                                     |
+| ✍️ **Scorers**            | **Register**, **Sign In**, or **Continue as Guest**; full match setup (teams, squads, custom overs, toss & Bat/Bowl); 1-tap ball/wicket/extra scoring with **Undo**; live DLS/CRR/RRR equations; AI match summary & deterministic **Player of the Match** | Optimistic UI with ordered `SQS FIFO` persistence + deterministic Cricket MVP Impact Engine (`computePlayerOfTheMatch`) synced across Scorer, Viewer, DB, Email & S3 Backup |
+| 🤖 **AI Match Assistant** | One-click starter prompts and free-form Q&A across live stats, tournament PDF rulebooks, hourly match weather, and GitHub issue filing                                                                                                                    | In-memory Model Context Protocol (`InMemoryTransport`) isolating DB/API credentials from the LLM                                                                            |
+| 🛡️ **Admins**             | Role-Based Access Control (RBAC), tournament rulebook PDF uploads for `pgvector` RAG, guest/test match cleanup, and automated post-match scorecard emails                                                                                                 | AWS Cognito `Admin` group JWT authorizer (`isAdminClaims`) + Amazon SES HTML scorecard delivery                                                                             |
 
 ---
 
 ## 🗺️ Architecture at a Glance
 
-Four pictures explain the whole platform. Each uses official AWS icons, and the coloured boxes group the steps in order. Prefer text? The editable Mermaid versions and sequence diagrams are in **[docs/architecture.md](./docs/architecture.md)**.
+Editable Mermaid counterparts live in **[docs/architecture.md](./docs/architecture.md)**, and diagram generator scripts live in **[docs/diagrams/README.md](./docs/diagrams/README.md)**.
 
 ### ☁️ 1. Platform Overview
 
-![CricScore platform overview: users reach a CloudFront-hosted React app, sign in with Cognito, and call API Gateway, which invokes Lambda functions backed by Aiven PostgreSQL, S3, SES and an LLM provider](./docs/images/architecture/01_platform_overview.png)
+![CricScore platform overview: Route 53, ACM, CloudFront, S3, AWS Amplify, Cognito, IAM, API Gateway, Lambda compute, Aiven PostgreSQL, ECR, SES, CloudWatch, X-Ray, and AWS Budgets](./docs/images/architecture/01_platform_overview.png)
 
-- **Load the app**: Route 53 → CloudFront → S3 serves the React build.
-- **Sign in & call APIs**: Cognito issues JWTs; API Gateway (HTTP + WebSocket) is the only way in.
-- **Compute**: Four Lambda functions handle matches, live balls, AI chat, and win prediction.
-- **Data & Observability**: Aiven PostgreSQL 16 + pgvector stores everything; CloudWatch aggregates 7-day logs & alarm metrics; S3 keeps backups; SES emails match reports.
+| Tier                            | AWS & Managed Services                                                                                        | Architectural Role & Cost Guardrails                                                                                                                                                                                       |
+| :------------------------------ | :------------------------------------------------------------------------------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1. DNS, SSL & CDN Edge**      | **Route 53**, **ACM**, **CloudFront (OAC)**, **S3 Static SPA**                                                | Resolves custom domains (`cricscore`, `api.`, `ws.`), provisions free DNS-validated TLS certs, and serves the React 19 SPA with 7-day noncurrent version & 30-day access-log expiration                                    |
+| **2. Auth & API Gateway**       | **AWS Amplify Auth**, **Cognito User Pool**, `cognito-presignup` Lambda, **API Gateway (HTTP + WS)**, **IAM** | Handles Sign Up / Sign In / Guest sessions, validates RS256 JWTs at the edge, throttles `/chat` routes (`5 rps`), and enforces least-privilege IAM                                                                         |
+| **3. Serverless Compute**       | **AWS Lambda** (`score-update`, `chat-api`, `match-api`, `ml-predict`)                                        | Domain entrypoints for ball ingestion (Diagram 2), Agentic AI (Diagram 3), match CRUD / admin / email / backup ops, and hybrid win probability (Diagram 4)                                                                 |
+| **4. Data, Registries & Email** | **Aiven PostgreSQL 16 + `pgvector`**, **Amazon SES**, **Amazon S3**, **Amazon ECR**                           | Stores relational match data & 1536-d rulebook vectors (`dev`/`prod` schemas), emails HTML scorecards, archives match JSON backups (`180d`) + S3 ML models (`models/v2.2.0/`), and hosts the `~309 MB` `xgboost-cpu` image |
+| **5. Observability & Cost**     | **CloudWatch Logs & Alarms**, **AWS X-Ray**, **AWS Budgets**                                                  | Enforces 7-day log retention across all log groups, samples traces at `5%`, fires SNS error alerts, and monitors the `~$1/month` AWS budget                                                                                |
 
-### ⚡ 2. Live Scoring: One Ball, Two Paths
+### ⚡ 2. Live Scoring: One Ball, Two Parallel Paths
 
-![Live scoring flow: score-update Lambda publishes each ball to SNS for instant WebSocket broadcast and to SQS for guaranteed persistence in PostgreSQL](./docs/images/architecture/02_live_scoring_flow.png)
+![Live scoring flow: score-update Lambda publishes each ball to SNS for instant WebSocket broadcast and to SQS FIFO for guaranteed persistence in PostgreSQL](./docs/images/architecture/02_live_scoring_flow.png)
 
-- **Fast path (blue)**: SNS → broadcaster Lambda → WebSocket push, so fans see the ball in under a second.
-- **Safe path (green)**: SQS → storage-worker Lambda → PostgreSQL 16, so no ball is lost if the database is slow.
+| Execution Path                              | Service Pipeline                                                                                                                                  | Latency & Reliability Guarantee                                                       |
+| :------------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------ | :------------------------------------------------------------------------------------ |
+| **Fast Path (Blue — Spectator Broadcast)**  | `score-update` → **SNS (`match-events`)** → `broadcaster` Lambda → **DynamoDB (`PAY_PER_REQUEST`)** → **API Gateway WebSocket**                   | **`< 1s` real-time push** to all connected viewers without waiting on database writes |
+| **Safe Path (Green — Ordered Persistence)** | `score-update` → **SQS FIFO (`storage-buffer.fifo`, `MessageGroupId = matchId`)** → `storage-worker` (`batch_size = 1`) → **Aiven PostgreSQL 16** | **Strict ball-by-ball ordering** and ACID transactional commits per match             |
 
-### 🤖 3. AI Assistant (Autonomous Multi-Agent System)
+### 🤖 3. AI Assistant (Autonomous Multi-Agent System via MCP)
 
-![Agentic AI architecture: chat-api Lambda applies security guardrails, orchestrates autonomous specialist agents via MCP tools for read-only SQL, pgvector rule search, weather forecast, and rate-guarded GitHub issue reporting](./docs/images/architecture/03_ai_assistant.png)
+![Agentic AI architecture: chat-api Lambda enforces read-only guardrails, injects live match context, and coordinates four specialist MCP agents](./docs/images/architecture/03_ai_assistant.png)
 
-- **Agent Supervisor vs. LLM**: The LLM evaluates user intent and determines _which_ specialist tool to invoke. The LLM sends its structured function call back to the **Agent Supervisor (MCP Client)** in the Lambda. The supervisor enforces security guardrails (strict read-only SELECT validation, rate limit of 1 GitHub issue per message, prompt injection sanitization), dispatches execution to the in-memory MCP tool, and returns the factual evidence to the LLM to synthesize the final cited response. The LLM _never_ interacts directly with the database or external APIs.
-- **Specialist AI Agents & Tools**:
-  | Specialist Agent                          | MCP Tool / Capability        | Underlying Source                                                     |
-  | ----------------------------------------- | ---------------------------- | --------------------------------------------------------------------- |
-  | 📊 **Match Stats Agent**                  | `execute_sql`                | Aiven PostgreSQL 16 (strict read-only SELECT)                         |
-  | 📖 **Tournament Rules (RAG) Agent**       | `search_tournament_rules`    | pgvector store (cosine similarity with `[Source: rulebook]` citation) |
-  | 🌦️ **Weather Specialist Agent**           | `get_match_weather`          | Open-Meteo API (live hourly rain % & DLS forecast, $0 cost)           |
-  | 🐛 **GitHub Issue Reporter Agent**        | `create_github_issue`        | GitHub REST API (2-step confirmation, 1-issue rate guard)             |
-  | 🏏 **Cricket Context & Tactical Agent**   | Live match context injection | Real-time scoreboard telemetry (CRR, RRR, partnerships)               |
-  | 🎯 **Win Probability & Prediction Agent** | `predict_match_outcome`      | XGBoost + Markov DP + DLS hybrid model integration                    |
-- **Direct Lambda vs. AI Agent for Predictions**: The live scoreboard calls the `ml-predict` Lambda directly on every ball for sub-second, low-latency percentage updates. When a user asks conversational or "what-if" questions in chat, the AI Assistant's Prediction Agent analyzes the match state and explains the probabilities with rich tactical commentary.
-- See [AI Architecture](./docs/ai_architecture.md), [Architecture & AI/MLOps FAQ](./docs/architecture_faq.md), [Weather Agent](./docs/weather_report_agent.md), and [GitHub Issue Agent](./docs/github_issue_agent.md) for complete details.
+| Specialist Agent                | MCP Tool                  | Backing Service & Security Guardrails                                                                                                                   |
+| :------------------------------ | :------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 📊 **Match Stats Agent**        | `execute_sql`             | **Aiven PostgreSQL 16** — `BEGIN READ ONLY` transaction, single-statement `SELECT`/`WITH` AST check, `3s` timeout, `scorer_email` PII stripping         |
+| 📖 **Tournament Rules Agent**   | `search_tournament_rules` | **PostgreSQL `pgvector`** — `text-embedding-3-small` cosine similarity search returning top chunks with `[Source: document_name]` citations             |
+| 🌦️ **Weather Specialist Agent** | `get_match_weather`       | **Open-Meteo API** — Geocoding + live hourly temperature, rain probability %, wind speed, and Cricket/DLS interruption advisories (no API key required) |
+| 🐛 **GitHub Issue Agent**       | `create_github_issue`     | **GitHub Issues REST API** — 2-step user confirmation before filing + server-side rate guard of `1` issue per turn                                      |
 
 ### 🧠 4. MLOps & Live Win Probability
 
-![MLOps pipeline: DVC-versioned Cricsheet data trains eight models tracked in MLflow; GitHub Actions gates the XGBoost champion into an S3 registry and ECR image served by the ml-predict Lambda](./docs/images/architecture/04_mlops_win_prediction.png)
+![MLOps pipeline: Cricsheet data and DVC tracking feed an 8-model benchmark in MLflow, promoting the XGBoost v2.2.0 champion through CI quality gates to S3 and ECR for real-time hybrid Lambda inference](./docs/images/architecture/04_mlops_win_prediction.png)
 
-- **Data → Train**: DVC versions 786K+ Cricsheet ball-by-ball deliveries; eight classification models are compared in MLflow.
-- **Gate → Publish**: GitHub Actions promotes the XGBoost champion only if Validation Accuracy $\ge 60\%$ and ROC-AUC $\ge 65\%$, generating an immutable `model_manifest.json` with SHA-256 checksums.
-- **Amazon ECR vs. S3 Model Registry**:
-  - **Amazon ECR** packages the Python 3.12 container runtime and heavy compiled dependencies (XGBoost, Scikit-learn, Pandas, NumPy), tagged with both `:${var.ml_model_version}` and `:latest`.
-  - **Amazon S3** acts as the versioned model registry (`models/${var.ml_model_version}/`), holding the `.joblib` model artifact, manifest, and metadata.
-  - On cold start, the `ml-predict` container Lambda fetches the version-tagged model from S3 into `/tmp`, verifies its SHA-256 checksum against the manifest, and falls back to bundled image artifacts if offline. This allows instant model rollbacks and updates via `./infra/scripts/deploy.sh --model-version <tag>` without rebuilding 500MB+ Docker images.
-- **Serve**: The `ml-predict` container blends XGBoost with a Markov Chain Dynamic Programming (DP) chase simulation and format-scaled Duckworth-Lewis-Stern (DLS) par calculation.
-
-> 🔁 **Regenerate the images** after an architecture change: see [`docs/diagrams/README.md`](./docs/diagrams/README.md).
+| Pipeline Stage                       | Artifact / Component                                                 | Implementation & Cost Optimization                                                                                                                                                                                                                                            |
+| :----------------------------------- | :------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1. Dataset & DVC Lineage**         | `cricket-data/t20s_json.zip.dvc`, `dvc.yaml`, `dvc.lock`             | Tracks raw Cricsheet T20 archives (`~22.7 MB`, `786K+` deliveries) by MD5 hash outside Git history and pins reproducible pipeline stages                                                                                                                                      |
+| **2. 8-Model Benchmark**             | `compare_models.py` + **MLflow**                                     | Evaluates 7 Scikit-Learn baselines + **XGBoost** on leakage-free match-grouped splits (`70/15/15`), promoting **XGBoost (`v2.2.0`)** (`Val ROC-AUC = 0.7723`, `Test ROC-AUC = 0.7529`)                                                                                        |
+| **3. CI Gate & S3 + ECR Registries** | `mlops-pipeline.yml`, **S3 (`models/v2.2.0/`)**, **ECR (`:v2.2.0`)** | Enforces `Accuracy >= 60%` & `ROC-AUC >= 65%`, uploads `.joblib` (`~227 KB`) + SHA-256 manifest to S3, and builds a `~309 MB` `xgboost-cpu` image in private ECR (required by AWS Lambda) with `countNumber = 1` single-image retention (`~$0.01/mo` beyond 500 MB free tier) |
+| **4. Hybrid Lambda Inference**       | `ml-predict` Lambda (`predict.py` + `win_probability.py`)            | Cold-start caches S3 model into `/tmp` with SHA-256 verification (enabling 5-second `--model-version` rollbacks) and blends **XGBoost `v2.2.0`** + **Markov Chain DP** + **DLS Par** on every ball                                                                            |
 
 ---
 
-## 🏆 Featured Engineering Milestones & Key Pull Requests
+## 🛠️ Technology Stack Summary
 
-Below is a curated selection of architectural milestones and pull requests authored by [@venkatesh-singamsetty](https://github.com/venkatesh-singamsetty):
-
-> 🔍 **[👉 View all Pull Requests authored by @venkatesh-singamsetty](https://github.com/venkatesh-singamsetty/cricscore/pulls?q=is%3Apr+author%3Avenkatesh-singamsetty)** _(filters out automated bot activity)_
-
-| Milestone & PR                                                                         | Architectural Domain             | Key Innovations & Engineering Impact                                                                                                                 |
-| -------------------------------------------------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **[PR #307](https://github.com/venkatesh-singamsetty/cricscore/pull/307)** (`v4.17.1`) | **UI & Responsive Architecture** | Responsive chat question layout, tournament rulebook sync, and comprehensive architecture diagram refresh.                                           |
-| **[PR #276](https://github.com/venkatesh-singamsetty/cricscore/pull/276)** (`v4.15.0`) | **Agentic AI & MLOps**           | Integrated autonomous Weather & GitHub Issue specialist agents via MCP, diagrams-as-code, and the Architecture & MLOps FAQ.                          |
-| **[PR #261](https://github.com/venkatesh-singamsetty/cricscore/pull/261)**             | **Dynamic ML Win Prediction**    | Blended XGBoost with Markov Dynamic Programming (DP) and Duckworth-Lewis-Stern (DLS) par calculations for sub-second ball-by-ball win probabilities. |
-| **[PR #248](https://github.com/venkatesh-singamsetty/cricscore/pull/248)**             | **Real-Time Streaming**          | Serverless WebSocket event fan-out with Amazon SNS + SQS dual-path broadcast and storage worker resilience.                                          |
-| **[PR #235](https://github.com/venkatesh-singamsetty/cricscore/pull/235)**             | **Multi-Cloud IaC & Security**   | Automated Terraform infrastructure bridging AWS and Aiven PostgreSQL with zero-cost guardrails and Checkov compliance.                               |
-| **[PR #220](https://github.com/venkatesh-singamsetty/cricscore/pull/220)**             | **DevSecOps Pipeline**           | End-to-end GitHub Actions CI/CD with GitLeaks secrets scanning, Trivy vulnerability audits, and CodeQL SAST.                                         |
+| Layer                      | Technologies Used                                                                                                                                                         |
+| :------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Frontend**               | React 19, TypeScript, Vite, Tailwind CSS, AWS Amplify Auth                                                                                                                |
+| **Backend & Messaging**    | Node.js 24.x on AWS Lambda (8 ZIP functions), Amazon API Gateway (HTTP + WebSocket), Amazon SNS, Amazon SQS FIFO, Amazon SES                                              |
+| **AI & Agentic RAG**       | OpenAI (`gpt-4o-mini`, `text-embedding-3-small`), Model Context Protocol (`@modelcontextprotocol/sdk`), PostgreSQL `pgvector` (HNSW index), LangGraph (`apps/ai-service`) |
+| **MLOps & Win Prediction** | Python 3.12 on AWS Lambda Container (`ml-predict`), `xgboost-cpu` (`v2.2.0`), Scikit-Learn, Pandas, NumPy, MLflow, DVC, Amazon S3 Model Registry, Amazon ECR              |
+| **Data & Identity**        | Aiven PostgreSQL 16 (`dev` & `prod` schemas), Amazon DynamoDB (`PAY_PER_REQUEST`), AWS Cognito User Pool (JWT + RBAC)                                                     |
+| **Cloud & IaC**            | Terraform (`>= 1.10`), Amazon Route 53, AWS Certificate Manager (ACM), Amazon CloudFront (OAC), Amazon S3, CloudWatch Logs & Alarms, AWS X-Ray, AWS Budgets               |
+| **CI/CD & DevSecOps**      | GitHub Actions, GitLeaks, CodeQL (SAST), Trivy (Container & FS), Checkov (Terraform IaC), OWASP ZAP (DAST), Dependabot, Syft SPDX SBOM, Semantic Release                  |
+| **Automated Testing**      | **376 Unit/Integration Tests** — Vitest (`151` Frontend + `121` Backend) & Pytest (`75` AI Service + `29` ML Engine) + **Playwright** Cross-Browser E2E                   |
 
 ---
 
-## 🛠️ Technology Stack
+## ⚡ Essential Commands Quickstart
 
-### Frontend
+```bash
+# 1. Install prerequisites & dependencies
+./infra/scripts/setup.sh && npm install
 
-| Technology   | Purpose                                       |
-| ------------ | --------------------------------------------- |
-| React        | User interface framework                      |
-| TypeScript   | Type-safe application development             |
-| Vite         | Frontend build tooling and development server |
-| HTML5 / CSS3 | UI structure and styling                      |
+# 2. Run local validation (Lint, 376 Unit Tests, Build, Terraform Validate, Checkov, GitLeaks, Trivy, Syft)
+./infra/scripts/validate_local.sh --skip-e2e
 
-### Backend & APIs
-
-| Technology                  | Purpose                              |
-| --------------------------- | ------------------------------------ |
-| AWS Lambda                  | Serverless backend execution         |
-| Amazon API Gateway          | REST API and WebSocket communication |
-| AWS Cognito                 | Identity management and JWT auth     |
-| AWS Amplify Auth            | Frontend auth SDK (sign-up/sign-in)  |
-| Amazon SNS                  | Event fan-out messaging              |
-| Amazon SQS                  | Asynchronous worker queues           |
-| Node.js 24.x                | High performance runtime             |
-| OpenAI-compatible providers | Foundation models for RAG            |
-| MCP SDK                     | Model Context Protocol architecture  |
-
-### Database
-
-| Technology       | Purpose                                              |
-| ---------------- | ---------------------------------------------------- |
-| Aiven PostgreSQL | Managed relational database                          |
-| PostgreSQL       | Match, player, score, and tournament persistence     |
-| pgvector         | Vector similarity search extension for RAG           |
-| HNSW Index       | High-performance approximate nearest-neighbor search |
-| DynamoDB         | NoSQL active connections registry for WebSockets     |
-
-### Machine Learning & MLOps
-
-| Technology         | Purpose                                                                       |
-| ------------------ | ----------------------------------------------------------------------------- |
-| Python 3.12        | MLOps workflow and ML Lambda container runtime                                |
-| XGBoost (`v2.2.0`) | Promoted champion gradient boosting model for live win probability            |
-| Scikit-Learn       | Multi-algorithm benchmarking (8 classification + 5 regression + 2 clustering) |
-| Pandas / NumPy     | High-performance data manipulation and matrices                               |
-| AWS S3 + ECR       | Versioned S3 model registry (`models/<tag>/`) & tagged ECR images             |
-| Joblib + DVC       | Model serialization, SHA-256 checksum verification & data tracking            |
-
-### Infrastructure & Cloud
-
-| Technology | Purpose                        |
-| ---------- | ------------------------------ |
-| Terraform  | Infrastructure as Code         |
-| AWS Cloud  | Cloud infrastructure platform  |
-| CloudFront | Global content delivery        |
-| S3         | Static website hosting         |
-| Route53    | DNS management                 |
-| ACM        | SSL/TLS certificate management |
-| SES        | Simple Email Service reports   |
-| CloudWatch | Logging, Metrics, and Alarms   |
-| AWS X-Ray  | Distributed request tracing    |
-| Budgets    | Automated billing alerts       |
-
-### DevSecOps & Security
-
-| Tool            | Purpose                               |
-| --------------- | ------------------------------------- |
-| GitHub Actions  | CI/CD automation                      |
-| Checkov         | Terraform security scanning           |
-| GitLeaks        | Secret detection                      |
-| Trivy           | Dependency and vulnerability scanning |
-| OWASP ZAP       | Dynamic application security testing  |
-| Dependabot      | Dependency vulnerability monitoring   |
-| SBOM Generation | Software supply chain visibility      |
-
-### Testing
-
-| Tool                  | Purpose                                                        |
-| --------------------- | -------------------------------------------------------------- |
-| Vitest                | Fast JS/TS test runner (124 Frontend + 110 Backend tests)      |
-| Pytest                | Python test runner (65 AI Service + 29 ML Engine tests)        |
-| React Testing Library | Frontend component rendering and user interaction testing      |
-| Playwright            | Cross-browser end-to-end user journey & smoke suite automation |
+# 3. Deploy full stack to Dev or Prod (using .env.local)
+./infra/scripts/deploy.sh --env dev --use-local-env
+./infra/scripts/deploy.sh --env prod --use-local-env
+```
 
 ---
 
-## 🏢 Engineering Practices & Technical Documentation
+## 📚 Living Documentation & Tutorials Index
 
-CricScore is structured to demonstrate production-oriented engineering practices across the nine areas below. The linked guides provide additional technical details and tradeoffs.
-
-### 1. 🛡️ DevSecOps & Security
-
-**Identity, Guardrails & Automated Scanning**
-
-- **Authentication & Exact-Match Authorization**: Authenticated HTTP API routes use **AWS Cognito JWT authorization** with strict, exact-match role parsing (`isAdminClaims`) safeguarding administrative user management, match ops, and database purge endpoints against substring privilege escalation.
-- **AI Chat Defense-in-Depth**: The AI assistant runs on an unauthenticated fan-facing endpoint but enforces server-side read-only guarantees: write tools (`delete_guest_data`, `delete_incomplete_matches`) are permanently disabled, natural language SQL queries are restricted to single-statement `SELECT`/`WITH` with 3-second statement timeouts, and scorer email addresses (PII) are rejected at the query parser and stripped from result rows.
-- **Multi-Scanner Shift-Left Security**: Local validation (`./infra/scripts/validate_local.sh`) and CI/CD pipelines run **GitLeaks** secret detection, **Checkov** IaC security scans, **Trivy** vulnerability audits, **CodeQL** static analysis, **NPM Security Audits**, and automated **Syft** SPDX SBOM generation. Pre-push hooks verify validation state receipts in `<0.1s`.
-
-- 📖 **[Authentication & Authorization](./docs/auth.md)**: Cognito SSO flows, guest mode, admin user management, JWT validation, and cross-session identity guard.
-- 📖 **[Security Posture & Tradeoffs](./docs/security_posture.md)**: Defense in depth strategy, multi-tenant isolation, and encryption layers.
-- 📖 **[Branch Protection & Governance](./docs/branch_protection.md)**: Branch protection rules and repository governance guidance.
-- 📖 **[Contributing & Developer Workflow](./CONTRIBUTING.md)**: Branch workflow, Git hooks, and local validation commands.
-
-### 2. 🔭 Observability & Logging
-
-**System Visibility**
-Lambda logs are sent to CloudWatch Logs. AWS X-Ray sampling is configured with a 5% fixed sampling rate and a one-request-per-second reservoir. CloudWatch alarms send SNS email alerts for errors from the match API and score-update Lambdas.
-
-- 📖 **[Observability Suite](./docs/observability.md)**: CloudWatch Logs, X-Ray tracing, CloudWatch alarms and SNS alerts, plus optional Sentry/Uptime setup.
-- 📖 **[Cost & Performance](./docs/cost_management.md)**: Cost monitoring guidance and architecture scale limits.
-- 📖 **[Central Platform & Artifacts Dashboard](./docs/platform_dashboard.md)**: Automated single-pane-of-glass directory featuring GitHub repository resources, workflows, variables, secrets inventory, live Dev & Prod AWS console deep links, ECR container images, XGBoost ML artifacts, Aiven PostgreSQL vector schemas, and security scan reports.
-
-### 3. ✅ Rigorous Testing
-
-**Multi-Layer Testing (328 Automated Tests + Playwright E2E)**
-Comprehensive testing across all architectural layers ensures zero regressions:
-
-- **Frontend (124 tests / 20 suites)**: Vitest + React Testing Library cover scoreboard state, crease synchronization, responsive viewports, DLS calculations, and WebSocket message handling.
-- **Backend (110 tests / 16 suites)**: Vitest covers REST endpoints (`match-api`), decoupled fan-out (`score-update`), SQS FIFO persistence (`storage-worker`), and MCP agent tools (`chat-api`).
-- **AI Service (65 tests)**: Pytest covers vector similarity retrieval, rule ingestion, and chat orchestration.
-- **ML Engine (29 tests)**: Pytest covers XGBoost model loading, SHA-256 manifest integrity verification, and format-agnostic Markov DP simulation.
-- **Playwright E2E**: End-to-end browser automation validates complete user journeys (match setup, scoring, wicket modals, DLS equations) against deployed environments.
-
-- 📖 **[Testing Guide](./docs/testing.md)**: Vitest and Playwright test commands, Availability Testing (Chaos/DR), and E2E structures.
-- 📖 **[Toolchain & Security Stack](./docs/tools.md)**: Master list of all CI/CD, IaC, and AppSec tools used in the pipeline.
-
-### 4. ♾️ Event-Driven Processing
-
-**Event-Driven Design**
-The score-update flow uses SNS fan-out: updates are broadcast to connected clients and buffered in a FIFO SQS queue for database persistence. The configured queue retains messages for up to one day. A dead-letter queue is not configured in the current Terraform.
-
-- 📖 **[Detailed Architecture](./docs/architecture.md)**: System design, sequence flows, and EDA logic.
-- 📖 **[API Guide](./docs/api.md)**: REST & WebSocket contract specifications.
-- 📖 **[Aiven Managed Services](./docs/aiven.md)**: PostgreSQL database configuration and keep-alive strategy.
-- 📖 **[Node.js Guide](./docs/nodejs_guide.md)**: ESM vs CommonJS standardizations and dependency security.
-
-### 5. 🏗️ Infrastructure as Code (IaC)
-
-**Versioned & Repeatable Environments**
-The AWS infrastructure is codified in Terraform. Changes can be planned, scanned for infrastructure security issues by Checkov, and applied through GitHub Actions or the local deploy script, reducing manual infrastructure changes.
-
-- 📖 **[Full Deployment & Infrastructure](./docs/deployment.md)**: Step-by-step setup of accounts, tools, AWS, Aiven and OpenAI, then Dev and Prod deploys.
-- 📖 **[Troubleshooting](./docs/troubleshooting.md)**: Setup fixes and identity verification help.
-
-### 6. 🚀 CI/CD Automation
-
-**Pull Request Validation & Tagged Releases**
-Pull requests to `main` run validation jobs; deployed-site E2E tests are not part of the pull-request run. A successful CI run on `main` can create a semantic-versioned release when the commits meet the configured release rules. The development workflow deploys and tests Dev on `main`; the separate production workflow deploys on version tags or can be manually dispatched with a selected tag. Redeploying an older tag is possible, but is not an instant rollback and should account for database/schema compatibility.
-
-- 📖 **[GitHub Actions Architecture](./docs/github_actions.md)**: CI/CD Directory structure constraints and pipeline organization.
-- 📖 **[Automated Releases](./docs/release_process.md)**: Semantic release and Conventional Commit specifications.
-- 📖 **[Full Project Log](./docs/changelog.md)**: Release records and development timeline.
-
-### 7. 🤖 Agentic AI & RAG
-
-**AI Chat with Retrieval-Augmented Generation**
-CricScore includes an **AI Chat Assistant** that uses an OpenAI-compatible API; its default inference and embedding model names are `gpt-4o-mini` and `text-embedding-3-small`, and provider/model settings can be configured. MCP tools handle database operations so database credentials are not passed to the model provider. Retrieval uses up to eight pgvector chunks, and responses include cricket rulebook guidance. Model availability, output quality, and request cost depend on the configured provider and settings.
-
-- 📖 **[AI Architecture](./docs/ai_architecture.md)**: RAG design, MCP architecture, provider configuration, quality tuning, and example prompts.
-
-### 8. 🧠 Serverless MLOps & Live Prediction
-
-**Win Probability Inference & S3 Model Registry**
-CricScore includes a multi-algorithm model-training benchmark (`compare_models.py`) and a real-time win-probability inference Lambda (`ml-predict`, 1024 MB, lazy-loaded libraries for <70ms init). The promoted **XGBoost (`v2.2.0`)** champion model is stored in a versioned **Amazon S3 Model Registry** (`s3://<bucket>/models/<version>/`) and tagged in **Amazon ECR** (`:v2.2.0` + `:latest`) with automated ECR lifecycle cleanup to expire untagged layers after 1 day. At runtime, Lambda downloads and caches the versioned model in `/tmp`, verifies its SHA-256 checksum against `model_manifest.json`, and blends it with Markov Dynamic Programming (`win_probability.py`) and DLS resource par. Deploying or rolling back a model version is a single command (`./infra/scripts/deploy.sh --env prod --use-local-env --model-version v2.2.0`).
-
-- 📖 **[MLOps & Prediction Guide](./docs/mlops_tutorial.md)**: Training workflow, S3 versioned model registry, tag-based rollback, [Win Prediction Specification](./docs/mlops_tutorial.md#-8-win-prediction-engine-specification), and [DLS Method](./docs/mlops_tutorial.md#️-9-duckworth-lewis-stern-dls-method).
-- 📖 **[Classical ML Models & Interview Handbook](./docs/ml_models_handbook.md)**: Mathematical formulas, cricket domain mappings, empirical benchmarks, and revision cheat sheets across all 14 classical ML models (8 classification, 5 regression, 2 clustering).
-
-### 9. 🤖 AI Agent Governance & Skills
-
-CricScore includes repository-specific instructions and an **AI Skills Library** to guide coding assistants. The tools' support for automatically loading these files varies.
-
-The `.agents/skills/` directory contains focused, on-demand guidance for:
-
-- Pull-request code review and review findings
-- Secure implementation and validation
-- Branch, PR, CI/CD, and developer-command workflows
-- AWS cost and Terraform/infrastructure changes
-- Frontend, backend, and AI/RAG architecture
-- Node.js, browser, and ML testing
-- ML training and inference compatibility
-- PostgreSQL schema changes and migrations
-
-### 🔌 Agent Guidance Integration
-
-These skills are Markdown files; an agent can use them when its host is configured to load or access repository files. Markdown format alone does not make them load automatically in every AI tool:
-
-- **Cursor**: The repository includes a `.cursorrules` guidance file.
-- **GitHub Copilot**: The repository includes `.github/copilot-instructions.md` guidance.
-- **MCP clients**: An agent with an appropriate filesystem tool can read the files; MCP compatibility by itself does not load or follow them.
+| Domain                          | Core Practices Covered                                                                                     | Step-by-Step Tutorials & Reference Guides                                                                                                                                                                                                                                                                                                       |
+| :------------------------------ | :--------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **🚀 Deployment & IaC**         | Self-deployment from scratch, Terraform state locking, GitHub Actions CI/CD, Semantic Release              | **[Full Deployment Guide](./docs/deployment.md)** · **[Terraform Guide](./docs/terraform_guide.md)** · **[GitHub Actions CI/CD](./docs/github_actions.md)** · **[Release Process](./docs/release_process.md)** · **[Aiven DB Setup](./docs/aiven.md)**                                                                                          |
+| **⚡ Architecture & Streaming** | Event-driven SNS/SQS fan-out, WebSocket connection registry, Node.js 24 Lambda patterns, REST/WS API spec  | **[Detailed Architecture](./docs/architecture.md)** · **[WebSocket Tutorial](./docs/websocket_tutorial.md)** · **[API Reference](./docs/api.md)** · **[Node.js Lambda Guide](./docs/nodejs_guide.md)** · **[Diagrams Guide](./docs/diagrams/README.md)**                                                                                        |
+| **🤖 Agentic AI & MLOps**       | MCP tool isolation, `pgvector` RAG, deterministic POTM, 8-model MLflow benchmark, Markov DP + DLS math     | **[AI & RAG Architecture](./docs/ai_architecture.md)** · **[Architecture & AI FAQ](./docs/architecture_faq.md)** · **[MLOps & DLS Tutorial](./docs/mlops_tutorial.md)** · **[ML Models Handbook](./docs/ml_models_handbook.md)** · **[Weather Agent](./docs/weather_report_agent.md)** · **[GitHub Issue Agent](./docs/github_issue_agent.md)** |
+| **🛡️ Security & Cost (~$1/mo)** | Branch protection, Cognito RBAC, 7-scanner DevSecOps gate, `~$1/month` AWS trade-offs, 7-day log retention | **[Cloud Cost & Trade-Offs](./docs/cost_management.md)** · **[Security Posture](./docs/security_posture.md)** · **[Auth & RBAC](./docs/auth.md)** · **[Branch Protection](./docs/branch_protection.md)** · **[Observability & X-Ray](./docs/observability.md)** · **[Scanners & Tools](./docs/tools.md)**                                       |
+| **✅ Testing & Operations**     | 376 unit tests + Playwright E2E, production bug RCAs, engineering milestones, live resource dashboards     | **[Testing Tutorial](./docs/testing.md)** · **[Engineering Milestones & Key PRs](./docs/engineering_milestones.md)** · **[Troubleshooting & RCAs](./docs/troubleshooting.md)** · **[Platform Dashboard](./docs/platform_dashboard.md)** · **[Full Changelog](./docs/changelog.md)**                                                             |

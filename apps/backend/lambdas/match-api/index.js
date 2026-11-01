@@ -502,15 +502,19 @@ const sendMatchReportEmail = async (
   }
 
   // Re-check matches table for ai_summary if not loaded initially
-  if (!matchRecord.ai_summary) {
+  if (!matchRecord.ai_summary || !matchRecord.player_of_the_match) {
     try {
       const aiRes = await client.query(
         "SELECT ai_summary, player_of_the_match FROM matches WHERE id = $1",
         [matchId],
       );
-      if (aiRes.rows.length > 0 && aiRes.rows[0].ai_summary) {
-        matchRecord.ai_summary = aiRes.rows[0].ai_summary;
-        matchRecord.player_of_the_match = aiRes.rows[0].player_of_the_match;
+      if (aiRes.rows.length > 0) {
+        if (aiRes.rows[0].ai_summary) {
+          matchRecord.ai_summary = aiRes.rows[0].ai_summary;
+        }
+        if (aiRes.rows[0].player_of_the_match) {
+          matchRecord.player_of_the_match = aiRes.rows[0].player_of_the_match;
+        }
       }
     } catch (e) {
       console.warn(
@@ -518,6 +522,14 @@ const sendMatchReportEmail = async (
         e.message,
       );
     }
+  }
+
+  // Allow reportState from Scorer to supply just-generated aiSummary & playerOfTheMatch
+  if (!matchRecord.ai_summary && reportState?.aiSummary) {
+    matchRecord.ai_summary = reportState.aiSummary;
+  }
+  if (!matchRecord.player_of_the_match && reportState?.playerOfTheMatch) {
+    matchRecord.player_of_the_match = reportState.playerOfTheMatch;
   }
 
   if (!matchRecord.ai_summary) {
@@ -1198,6 +1210,99 @@ exports.handler = async (event, context) => {
             );
           }
 
+          // Synchronously flush player & bowler stats if provided in finalInnings/previousInnings
+          for (const [innNum, innSnap] of [
+            [1, previousInnings],
+            [2, finalInnings],
+          ]) {
+            if (!innSnap) continue;
+            const playerList = innSnap.players
+              ? Array.isArray(innSnap.players)
+                ? innSnap.players
+                : Object.values(innSnap.players)
+              : [];
+            const bowlerList = innSnap.bowlers
+              ? Array.isArray(innSnap.bowlers)
+                ? innSnap.bowlers
+                : Object.values(innSnap.bowlers)
+              : [];
+            if (playerList.length === 0 && bowlerList.length === 0) continue;
+
+            let targetInningId = innSnap.id;
+            if (!targetInningId || String(targetInningId).startsWith("inn2_")) {
+              const innRow = await client.query(
+                "SELECT id FROM innings WHERE match_id = $1 AND inning_number = $2",
+                [matchId, innNum],
+              );
+              targetInningId = innRow?.rows?.[0]?.id;
+            }
+            if (!targetInningId) continue;
+
+            for (const p of playerList) {
+              if (!p || !p.name) continue;
+              const pRuns = Number(p.runs || 0);
+              const pBalls = Number(p.ballsFaced ?? p.balls_faced ?? 0);
+              const pFours = Number(p.fours || 0);
+              const pSixes = Number(p.sixes || 0);
+              const pIsOut = Boolean(p.isOut ?? p.is_out);
+              if (pRuns > 0 || pBalls > 0 || pIsOut) {
+                await client.query(
+                  `UPDATE players
+                   SET runs = GREATEST(COALESCE(runs, 0), $1),
+                       balls_faced = GREATEST(COALESCE(balls_faced, 0), $2),
+                       fours = GREATEST(COALESCE(fours, 0), $3),
+                       sixes = GREATEST(COALESCE(sixes, 0), $4),
+                       is_out = COALESCE($5, is_out),
+                       wicket_type = COALESCE($6, wicket_type),
+                       wicket_by = COALESCE($7, wicket_by),
+                       fielder_name = COALESCE($8, fielder_name)
+                   WHERE inning_id = $9 AND UPPER(name) = UPPER($10)`,
+                  [
+                    pRuns,
+                    pBalls,
+                    pFours,
+                    pSixes,
+                    pIsOut,
+                    p.wicketType || p.wicket_type || null,
+                    p.wicketBy || p.wicket_by || null,
+                    p.fielderName || p.fielder_name || null,
+                    targetInningId,
+                    p.name,
+                  ],
+                );
+              }
+            }
+
+            for (const b of bowlerList) {
+              if (!b || !b.name) continue;
+              const bOvers = Number(b.overs ?? b.overs_completed ?? 0);
+              const bBalls = Number(b.balls || 0);
+              const bMaidens = Number(b.maidens || 0);
+              const bRuns = Number(b.runsConceded ?? b.runs_conceded ?? 0);
+              const bWickets = Number(b.wickets || 0);
+              if (bOvers > 0 || bBalls > 0 || bRuns > 0 || bWickets > 0) {
+                await client.query(
+                  `UPDATE bowlers
+                   SET overs_completed = $1,
+                       balls = $2,
+                       maidens = GREATEST(COALESCE(maidens, 0), $3),
+                       runs_conceded = GREATEST(COALESCE(runs_conceded, 0), $4),
+                       wickets = GREATEST(COALESCE(wickets, 0), $5)
+                   WHERE inning_id = $6 AND UPPER(name) = UPPER($7)`,
+                  [
+                    bOvers,
+                    bBalls,
+                    bMaidens,
+                    bRuns,
+                    bWickets,
+                    targetInningId,
+                    b.name,
+                  ],
+                );
+              }
+            }
+          }
+
           await client.query(
             `UPDATE innings SET is_completed = TRUE, updated_at = CURRENT_TIMESTAMP WHERE match_id = $1`,
             [matchId],
@@ -1275,14 +1380,53 @@ exports.handler = async (event, context) => {
       } = JSON.parse(body);
 
       try {
+        // Persist AI summary & POTM to matches if provided in reportState and missing in DB
+        if (reportState?.aiSummary || reportState?.playerOfTheMatch) {
+          await client.query(
+            `UPDATE matches
+             SET ai_summary = COALESCE(ai_summary, $1),
+                 player_of_the_match = COALESCE(player_of_the_match, $2),
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $3`,
+            [
+              reportState.aiSummary || null,
+              reportState.playerOfTheMatch || null,
+              matchId,
+            ],
+          );
+        }
+
         if (process.env.BACKUP_BUCKET && reportState) {
           try {
+            const matchMetaRes = await client.query(
+              `SELECT id, team_a_name, team_b_name, total_overs, toss_winner, toss_decision,
+                      status, match_winner, player_of_the_match, ai_summary,
+                      team_a_score, team_a_wickets, team_a_overs,
+                      team_b_score, team_b_wickets, team_b_overs,
+                      created_at, updated_at
+               FROM matches WHERE id = $1`,
+              [matchId],
+            );
+            const matchMetaRow = matchMetaRes?.rows?.[0] || null;
+            const enrichedBackup = {
+              matchId,
+              backedUpAt: new Date().toISOString(),
+              match: matchMetaRow,
+              playerOfTheMatch:
+                matchMetaRow?.player_of_the_match ||
+                reportState.playerOfTheMatch ||
+                null,
+              aiSummary:
+                matchMetaRow?.ai_summary || reportState.aiSummary || null,
+              ...reportState,
+            };
+
             const s3 = new S3Client({ region: "us-east-1" });
             await s3.send(
               new PutObjectCommand({
                 Bucket: process.env.BACKUP_BUCKET,
                 Key: `backups/match-${matchId}-${new Date().getTime()}.json`,
-                Body: JSON.stringify(reportState),
+                Body: JSON.stringify(enrichedBackup),
                 ContentType: "application/json",
               }),
             );
@@ -1300,6 +1444,9 @@ exports.handler = async (event, context) => {
           client,
           sendToAdmin,
         );
+
+        // Broadcast HUB_UPDATE so any connected viewers refresh the finalized POTM & AI Summary
+        await broadcastHubUpdate(matchId);
         return {
           statusCode: 200,
           body: JSON.stringify({
