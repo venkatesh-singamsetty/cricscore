@@ -11,7 +11,7 @@ resource "aws_s3_bucket" "static_app_logs" {
   }
 }
 
-# S3 access logs are only useful for short-term debugging; expire them.
+# S3 access logs are only useful for short-term debugging; expire them aggressively in Dev (7 days) and 30 days in Prod.
 resource "aws_s3_bucket_lifecycle_configuration" "static_app_logs" {
   bucket = aws_s3_bucket.static_app_logs.id
 
@@ -22,11 +22,11 @@ resource "aws_s3_bucket_lifecycle_configuration" "static_app_logs" {
     filter {}
 
     expiration {
-      days = 30
+      days = var.environment == "prod" ? 30 : 7
     }
 
     abort_incomplete_multipart_upload {
-      days_after_initiation = 7
+      days_after_initiation = var.environment == "prod" ? 7 : 1
     }
   }
 }

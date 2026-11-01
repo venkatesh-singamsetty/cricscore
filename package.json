@@ -39,9 +39,19 @@
   "overrides": {
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "minimatch": {
-      "brace-expansion": "^1.1.21"
+    "eslint-plugin-react": {
+      "minimatch": "^11.0.3"
     },
+    "eslint": {
+      "minimatch": "^11.0.3"
+    },
+    "@eslint/config-array": {
+      "minimatch": "^11.0.3"
+    },
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "^11.0.3"
+    },
+    "minimatch": "^11.0.3",
     "brace-expansion": "^5.0.12"
   },
   "optionalDependencies": {

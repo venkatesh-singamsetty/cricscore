@@ -13,6 +13,7 @@ concurrency:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   prod-keepalive-e2e:
@@ -140,10 +141,31 @@ jobs:
              OR scorer_email LIKE 'test-%';
           SQL
 
-      - name: Upload Playwright Keep-Alive Report
+      - name: Upload Playwright Keep-Alive Report (GitHub Artifact)
         uses: actions/upload-artifact@v7
         if: always()
         with:
           name: playwright-keepalive-prod
           path: apps/e2e/playwright-report/
           retention-days: 7
+
+      - name: Configure AWS Credentials (OIDC)
+        if: always()
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN || secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_DEFAULT_REGION || vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Sync Keep-Alive Playwright Report to AWS S3
+        if: always()
+        run: |
+          if [ -d "apps/e2e/playwright-report" ]; then
+            BUCKET=$(aws s3api list-buckets --query "Buckets[?starts_with(Name, 'cricscore-match-backups-')].Name | [0]" --output text)
+            if [ -n "$BUCKET" ] && [ "$BUCKET" != "None" ]; then
+              echo "📦 Updating keepalive latest Playwright report at s3://${BUCKET}/reports/playwright/keepalive/latest/..."
+              aws s3 sync apps/e2e/playwright-report/ "s3://${BUCKET}/reports/playwright/keepalive/latest/" --delete
+              echo "✅ Keep-Alive Playwright report successfully synced to S3."
+            else
+              echo "⚠️ Could not locate cricscore-match-backups bucket in AWS account."
+            fi
+          fi

@@ -229,7 +229,11 @@ A central single-pane-of-glass directory providing live references across all la
 
 ---
 
-## 📦 Storage, S3 Buckets & Terraform State
+## 📦 Storage, S3 Buckets & Lifecycle Policies
+
+> 📘 **Full Architecture & Runbook:** [`docs/s3_storage_lifecycle.md`](./s3_storage_lifecycle.md) defines the storage topology, retention rules, and emergency procedures.
+
+### Bucket Inventory & Console Links
 
 - **Static Web Hosting (DEV):** [`cricscoredev-app-e8d6bb50c5656dc8a2271c54a0`](https://s3.console.aws.amazon.com/s3/buckets/cricscoredev-app-e8d6bb50c5656dc8a2271c54a0?region=us-east-1)
 - **Static Web Hosting (PROD):** [`cricscore-app-7e93ca64fca840e1639f6fbd71`](https://s3.console.aws.amazon.com/s3/buckets/cricscore-app-7e93ca64fca840e1639f6fbd71?region=us-east-1)
@@ -240,6 +244,24 @@ A central single-pane-of-glass directory providing live references across all la
 - **Terraform Remote State (GLOBAL):** [`venky-2026-terraform-state`](https://s3.console.aws.amazon.com/s3/buckets/venky-2026-terraform-state?region=us-east-1)
   - **Dev State Key:** `s3://venky-2026-terraform-state/cricscore/dev/terraform.tfstate`
   - **Prod State Key:** `s3://venky-2026-terraform-state/cricscore/prod/terraform.tfstate`
+
+### Tiered S3 Cleanup Lifecycle Rules (5 GB Free-Tier Protection)
+
+| Resource Category                | S3 Prefix / Path      | Dev Retention (Aggressive) | Prod Retention (Lenient) | Rationale                                                                            |
+| :------------------------------- | :-------------------- | :------------------------- | :----------------------- | :----------------------------------------------------------------------------------- |
+| **Playwright E2E Reports**       | `reports/playwright/` | **7 Days**                 | **30 Days**              | Fast cleanup for CI runs; `latest/` continually updated in-place.                    |
+| **Match Event Backups**          | `backups/`            | **14 Days**                | **90 Days**              | Dev test matches are disposable; Prod matches retained quarterly.                    |
+| **Dev Post-Deploy SBOMs**        | `sboms/dev/`          | **30 Days**                | _N/A_                    | Generated only after successful DEV deployment in `ci.yml`.                          |
+| **Prod Release SBOMs**           | `sboms/releases/`     | _N/A_                      | **Permanent**            | Formal security audit compliance records attached to GitHub releases (~300 KB each). |
+| **ML Model Registry**            | `models/`             | **Permanent**              | **Permanent**            | Serialized XGBoost model weights (`.joblib`), manifests, and metadata.               |
+| **Access Logs**                  | `*` (logs bucket)     | **7 Days**                 | **30 Days**              | Short-term CloudFront/S3 access debugging logs.                                      |
+| **Noncurrent App Versions**      | `*` (app bucket)      | **3 Days**                 | **7 Days**               | Rollback safety window following frontend build deployments.                         |
+| **Incomplete Multipart Uploads** | _All Buckets_         | **1 Day**                  | **7 Days**               | Eliminates orphaned byte storage billing.                                            |
+
+### CloudWatch 4.5 GB Quota Alarms (90% Ceiling)
+
+- **Match Backups Limit Alarm:** [`cricscoredev-s3-match-backups-storage-limit`](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#alarmsV2:alarm/cricscoredev-s3-match-backups-storage-limit) & [`cricscore-s3-match-backups-storage-limit`](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#alarmsV2:alarm/cricscore-s3-match-backups-storage-limit) — Alerts `admin_email` if storage crosses `4.5 GiB` (`4,831,838,208` bytes).
+- **Static App Limit Alarm:** [`cricscoredev-s3-static-app-storage-limit`](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#alarmsV2:alarm/cricscoredev-s3-static-app-storage-limit) & [`cricscore-s3-static-app-storage-limit`](https://us-east-1.console.aws.amazon.com/cloudwatch/home?region=us-east-1#alarmsV2:alarm/cricscore-s3-static-app-storage-limit) — Alerts `admin_email` if static site assets cross `4.5 GiB`.
 
 ---
 

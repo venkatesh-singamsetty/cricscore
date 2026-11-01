@@ -23,7 +23,7 @@ resource "aws_s3_bucket_versioning" "static_app_versioning" {
 }
 
 # `aws s3 sync --delete` on every deploy leaves the previous build behind as a
-# noncurrent version; expire them so versioned storage does not grow forever.
+# noncurrent version; expire them aggressively in Dev (3 days) and 7 days in Prod.
 resource "aws_s3_bucket_lifecycle_configuration" "static_app" {
   bucket = aws_s3_bucket.static_app.id
 
@@ -34,11 +34,11 @@ resource "aws_s3_bucket_lifecycle_configuration" "static_app" {
     filter {}
 
     noncurrent_version_expiration {
-      noncurrent_days = 7
+      noncurrent_days = var.environment == "prod" ? 7 : 3
     }
 
     abort_incomplete_multipart_upload {
-      days_after_initiation = 7
+      days_after_initiation = var.environment == "prod" ? 7 : 1
     }
   }
 }

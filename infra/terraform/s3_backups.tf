@@ -29,14 +29,16 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "match_backups_sse
   }
 }
 
-# Raw match backups (backups/*) are expired after 180 days.
-# Commit-level SBOMs (sboms/commits/*) are expired after 180 days.
-# Release SBOMs (sboms/releases/*) and ML models (models/*) are deliberately NOT expired for permanent audit compliance.
+# Tiered S3 Lifecycle Rules based on Resource Criticality:
+# - Match Backups (backups/): Prod 90 days, Dev 14 days (aggressive)
+# - Playwright E2E Reports (reports/): Prod 30 days, Dev 7 days (aggressive)
+# - Dev Deployment SBOMs (sboms/dev/): 30 days (aggressive)
+# - Release SBOMs (sboms/releases/) & ML models (models/): Deliberately NOT expired for audit & rollbacks.
 resource "aws_s3_bucket_lifecycle_configuration" "match_backups" {
   bucket = aws_s3_bucket.match_backups.id
 
   rule {
-    id     = "expire-old-match-backups"
+    id     = "expire-match-backups"
     status = "Enabled"
 
     filter {
@@ -44,20 +46,33 @@ resource "aws_s3_bucket_lifecycle_configuration" "match_backups" {
     }
 
     expiration {
-      days = 180
+      days = var.environment == "prod" ? 90 : 14
     }
   }
 
   rule {
-    id     = "expire-old-commit-sboms"
+    id     = "expire-playwright-reports"
     status = "Enabled"
 
     filter {
-      prefix = "sboms/commits/"
+      prefix = "reports/"
     }
 
     expiration {
-      days = 180
+      days = var.environment == "prod" ? 30 : 7
+    }
+  }
+
+  rule {
+    id     = "expire-dev-sboms"
+    status = "Enabled"
+
+    filter {
+      prefix = "sboms/dev/"
+    }
+
+    expiration {
+      days = 30
     }
   }
 
@@ -68,8 +83,45 @@ resource "aws_s3_bucket_lifecycle_configuration" "match_backups" {
     filter {}
 
     abort_incomplete_multipart_upload {
-      days_after_initiation = 7
+      days_after_initiation = var.environment == "prod" ? 7 : 1
     }
+  }
+}
+
+# --- CloudWatch Metric Alarms for 4.5 GB S3 Storage Quota (5 GB Free Tier Protection) ---
+resource "aws_cloudwatch_metric_alarm" "s3_match_backups_storage_limit" {
+  alarm_name          = "${var.project_name}-s3-match-backups-storage-limit"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "1"
+  metric_name         = "BucketSizeBytes"
+  namespace           = "AWS/S3"
+  period              = "86400" # S3 storage metrics are emitted daily
+  statistic           = "Average"
+  threshold           = "4831838208" # 4.5 GiB (4.5 * 1024^3 bytes, 90% of 5 GB free tier)
+  alarm_description   = "Triggers when S3 match backups bucket storage crosses 4.5 GiB, approaching the 5 GB AWS Free Tier limit."
+  alarm_actions       = [aws_sns_topic.lambda_alerts.arn]
+
+  dimensions = {
+    BucketName  = aws_s3_bucket.match_backups.id
+    StorageType = "StandardStorage"
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "s3_static_app_storage_limit" {
+  alarm_name          = "${var.project_name}-s3-static-app-storage-limit"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "1"
+  metric_name         = "BucketSizeBytes"
+  namespace           = "AWS/S3"
+  period              = "86400"
+  statistic           = "Average"
+  threshold           = "4831838208" # 4.5 GiB
+  alarm_description   = "Triggers when S3 static website hosting bucket crosses 4.5 GiB."
+  alarm_actions       = [aws_sns_topic.lambda_alerts.arn]
+
+  dimensions = {
+    BucketName  = aws_s3_bucket.static_app.id
+    StorageType = "StandardStorage"
   }
 }
 
