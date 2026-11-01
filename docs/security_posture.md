@@ -63,15 +63,15 @@ flowchart TD
 
 ## 🤖 3. Automated DevSecOps Scanners (Local Hooks & CI/CD)
 
-| Scanner       | Layer             | Blocking Gate                           |
-| :------------ | :---------------- | :-------------------------------------- |
-| **GitLeaks**  | Secret Detection  | Unignored secrets in commits or history |
-| **Checkov**   | Terraform IaC     | Unsuppressed IaC misconfigurations      |
-| **Trivy FS**  | Dependency SCA    | Fixable `HIGH` or `CRITICAL` CVEs       |
-| **npm audit** | Lockfile SCA      | Any `high` or `critical` npm advisory   |
-| **CodeQL**    | Deep AST SAST     | JS/TS and Python security/logic flaws   |
-| **OWASP ZAP** | Live DAST         | Baseline scan against Dev & Prod URLs   |
-| **Syft**      | Supply Chain SBOM | Generates `cricscore-sbom.spdx.json`    |
+| Scanner       | Layer             | Blocking Gate                                                                                               |
+| :------------ | :---------------- | :---------------------------------------------------------------------------------------------------------- |
+| **GitLeaks**  | Secret Detection  | Unignored secrets in commits or history                                                                     |
+| **Checkov**   | Terraform IaC     | Unsuppressed IaC misconfigurations                                                                          |
+| **Trivy FS**  | Dependency SCA    | Fixable `HIGH` or `CRITICAL` CVEs                                                                           |
+| **npm audit** | Lockfile SCA      | Any `high` or `critical` npm advisory                                                                       |
+| **CodeQL**    | Deep AST SAST     | JS/TS and Python security/logic flaws                                                                       |
+| **OWASP ZAP** | Live DAST         | Baseline scan against Dev & Prod URLs                                                                       |
+| **Syft**      | Supply Chain SBOM | Generates `cricscore-sbom.spdx.json` → synced to durable AWS S3 registry (`sboms/`) & GitHub release assets |
 
 - **Execution Pipelines:**
   - **Local Pre-Commit & Pre-Push**: Runs GitLeaks, Checkov (`--download-external-modules false`), Trivy FS, and `npm audit --audit-level=high` via `.husky/pre-commit` and `./infra/scripts/validate_local.sh`.
