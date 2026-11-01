@@ -804,6 +804,8 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                             {balls.map((ball: any, idx: number) => {
                               const isRetHurt =
                                 ball.wicketType === "RETIRED_HURT";
+                              const isRetOut =
+                                ball.wicketType === "RETIRED_OUT";
                               const isWicket = Boolean(ball.isWicket);
                               const isExtra = Boolean(ball.isExtra);
                               const runs = Number(ball.runs || 0);
@@ -817,7 +819,12 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                                 label = "RH";
                                 badgeStyle =
                                   "bg-amber-500/25 text-amber-300 border-2 border-amber-400 shadow-md shadow-amber-500/20";
-                                deliveryDesc = "Retired Hurt";
+                                deliveryDesc = "Retired Hurt (Non-Delivery)";
+                              } else if (isRetOut) {
+                                label = "RO";
+                                badgeStyle =
+                                  "bg-purple-500/25 text-purple-300 border-2 border-purple-400 shadow-md shadow-purple-500/20 font-black";
+                                deliveryDesc = "Retired Out (Non-Delivery)";
                               } else if (isWicket && (runs > 0 || isExtra)) {
                                 label = `W+${runs}`;
                                 badgeStyle =
