@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   deploy_and_test_prod:
@@ -29,7 +29,7 @@ jobs:
     environment: prod
     permissions:
       issues: write
-      contents: read
+      contents: write
       id-token: write
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
@@ -224,13 +224,14 @@ jobs:
           path: ./
           format: spdx-json
           output-file: cricscore-sbom-prod.spdx.json
+          upload-release-assets: false
 
       - name: Sync Prod Release SBOM to S3 & GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GH_PAT || github.token }}
         run: |
           BUCKET=$(aws s3api list-buckets --query "Buckets[?starts_with(Name, 'cricscore-match-backups-')].Name | [0]" --output text)
-          TAG_NAME="${{ github.ref_name || github.sha }}"
+          TAG_NAME="${{ github.event.release.tag_name || github.ref_name || github.sha }}"
           if [ -n "$BUCKET" ] && [ "$BUCKET" != "None" ]; then
             echo "📦 Uploading Prod Release SBOM to s3://${BUCKET}/sboms/releases/${TAG_NAME}.spdx.json..."
             aws s3 cp cricscore-sbom-prod.spdx.json "s3://${BUCKET}/sboms/releases/${TAG_NAME}.spdx.json" --content-type "application/json"
@@ -239,7 +240,13 @@ jobs:
             echo "✅ Prod Release post-deploy SBOM synced to S3."
           fi
 
-          if [ "${{ github.ref_type }}" = "tag" ]; then
-            echo "Attaching SBOM to GitHub release $TAG_NAME..."
-            gh release upload "$TAG_NAME" cricscore-sbom-prod.spdx.json --clobber 2>/dev/null || echo "ℹ️ Release $TAG_NAME not yet published or upload skipped."
+          if [ -n "${{ github.event.release.tag_name }}" ]; then
+            RELEASE_TAG="${{ github.event.release.tag_name }}"
+          elif [ "${{ github.ref_type }}" = "tag" ]; then
+            RELEASE_TAG="${{ github.ref_name }}"
+          fi
+
+          if [ -n "$RELEASE_TAG" ]; then
+            echo "Attaching SBOM to GitHub release $RELEASE_TAG..."
+            gh release upload "$RELEASE_TAG" cricscore-sbom-prod.spdx.json --clobber || echo "ℹ️ Release $RELEASE_TAG upload skipped."
           fi
