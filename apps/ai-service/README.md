@@ -22,16 +22,16 @@ flowchart LR
 
 ## 📁 Module Inventory
 
-| File                         | Responsibility                                                                                                                                 |
-| :--------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------- |
-| `cricscore_ai/router.py`     | Zero-latency deterministic intent classifier (`match_info`, `rules`, `weather`, `github_issue`, `analysis`, `prediction`, `clarify`, `refuse`) |
-| `cricscore_ai/graph.py`      | Acyclic LangGraph supervisor (`classify → specialist → synthesize`, max 3 tool calls, recursion limit 12)                                      |
-| `cricscore_ai/tools.py`      | Parameterized PostgreSQL queries, `pgvector` cosine search, Open-Meteo weather, GitHub issue filing, and win-prediction feature validation     |
-| `cricscore_ai/repository.py` | Read-only PostgreSQL access (`BEGIN READ ONLY`, `3s` statement timeout, row limits, `scorer_email` PII stripping)                              |
-| `cricscore_ai/mcp_server.py` | Local stdio MCP 2.x (`MCPServer`) exposing read-only tools for Claude Desktop, Cursor, and MCP Inspector                                       |
-| `cricscore_ai/providers.py`  | OpenAI-compatible chat/embedding client and `ml-predict` Lambda client                                                                         |
-| `cricscore_ai/tracing.py`    | Opt-in LangSmith tracing (`LANGSMITH_TRACING=true`) with redacted payloads                                                                     |
-| `cricscore_ai/handler.py`    | AWS Lambda invoke entrypoint                                                                                                                   |
+| File                         | Responsibility                                                                                                                                   |
+| :--------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cricscore_ai/router.py`     | • Zero-latency deterministic intent classifier (`match_info`, `rules`, `weather`, `github_issue`, `analysis`, `prediction`, `clarify`, `refuse`) |
+| `cricscore_ai/graph.py`      | • Acyclic LangGraph supervisor (`classify → specialist → synthesize`)<br/>• Enforces max 3 tool calls & recursion limit 12                       |
+| `cricscore_ai/tools.py`      | • Parameterized PostgreSQL queries & `pgvector` cosine search<br/>• Open-Meteo weather, GitHub issue filing & win-prediction validation          |
+| `cricscore_ai/repository.py` | • Read-only PostgreSQL access (`BEGIN READ ONLY`, `3s` timeout, row limits)<br/>• Automatic `scorer_email` PII stripping                         |
+| `cricscore_ai/mcp_server.py` | • Local stdio MCP 2.x (`MCPServer`) exposing read-only tools for Claude Desktop, Cursor & MCP Inspector                                          |
+| `cricscore_ai/providers.py`  | • OpenAI-compatible chat/embedding client<br/>• `ml-predict` Lambda client                                                                       |
+| `cricscore_ai/tracing.py`    | • Opt-in LangSmith tracing (`LANGSMITH_TRACING=true`) with redacted payloads                                                                     |
+| `cricscore_ai/handler.py`    | • AWS Lambda invoke entrypoint                                                                                                                   |
 
 ---
 

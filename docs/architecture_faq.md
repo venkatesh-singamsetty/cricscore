@@ -18,11 +18,11 @@ This document answers the most frequently asked architectural questions regardin
 
 ### Decision vs. Execution Responsibility Matrix
 
-| Actor                                      | Role in Tool Calling                                             |          Network / DB Credentials?          | Security Boundary Enforced                                                                                                   |
-| :----------------------------------------- | :--------------------------------------------------------------- | :-----------------------------------------: | :--------------------------------------------------------------------------------------------------------------------------- |
-| **LLM (`gpt-4o-mini` / Configured)**       | Decides **which** tool to request and **what arguments** to pass |                  ❌ **No**                  | Emits structured JSON `tool_calls` only; cannot open sockets, read env vars, or touch PostgreSQL/GitHub directly.            |
-| **Agent Supervisor (`chatHandler.js`)**    | Decides **whether** and **how** a requested tool is executed     |            ❌ **No** (delegates)            | Hardcodes `isAdmin = false` on `/chat`, caps history to 10 turns, and enforces the `1-issue-per-turn` GitHub rate limit.     |
-| **In-Memory MCP Server (`mcp/server.js`)** | Executes verified tool logic against external systems            | ✅ **Yes** (`DATABASE_URL`, `GITHUB_TOKEN`) | Wraps SQL in `BEGIN READ ONLY` + `3000ms` timeout, strips PII (`scorer_email`), and locks GitHub issues to allowlisted repo. |
+| Actor                    | Role in Tool Calling                                             |          Network / DB Credentials?          | Security Boundary Enforced                                                                                                                    |
+| :----------------------- | :--------------------------------------------------------------- | :-----------------------------------------: | :-------------------------------------------------------------------------------------------------------------------------------------------- |
+| **LLM (`gpt-4o-mini`)**  | Decides **which** tool to request and **what arguments** to pass |                  ❌ **No**                  | • Emits structured JSON `tool_calls` only<br/>• Cannot open network sockets or read env vars<br/>• Cannot touch PostgreSQL or GitHub directly |
+| **Agent Supervisor**     | Decides **whether** and **how** a requested tool is executed     |            ❌ **No** (delegates)            | • Hardcodes `isAdmin = false` on `/chat`<br/>• Caps conversation history to `10` turns<br/>• Enforces `1-issue-per-turn` GitHub rate limit    |
+| **In-Memory MCP Server** | Executes verified tool logic against external systems            | ✅ **Yes** (`DATABASE_URL`, `GITHUB_TOKEN`) | • Wraps SQL in `BEGIN READ ONLY` + `3000ms` timeout<br/>• Strips PII (`scorer_email`)<br/>• Locks GitHub issues to allowlisted repository     |
 
 ### Sequence Diagram: End-to-End Tool Call Lifecycle
 
@@ -48,14 +48,14 @@ sequenceDiagram
 
 ### Step-by-Step Communication Table
 
-| Step  | Sender → Receiver                  | Payload / Action                                                                                                              | Implementation File                                     |
-| :---: | :--------------------------------- | :---------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------ |
-| **1** | `ChatComponent.tsx` → `chat-api`   | `POST /chat` with `{ message, matchId, history }`                                                                             | `apps/frontend/src/components/ChatComponent.tsx`        |
-| **2** | `chatHandler.js` → `mcp/server.js` | Initializes `InMemoryTransport` and discovers registered MCP tools                                                            | `apps/backend/lambdas/chat-api/handlers/chatHandler.js` |
-| **3** | `chatHandler.js` → `LLM`           | Sends system guardrails, active match telemetry, and tool schemas                                                             | `apps/backend/lambdas/chat-api/config/llm.js`           |
-| **4** | `LLM` → `chatHandler.js`           | Returns structured `tool_calls` JSON (no direct execution by LLM)                                                             | `apps/backend/lambdas/chat-api/handlers/chatHandler.js` |
-| **5** | `chatHandler.js` → `MCP Tool`      | Validates per-turn limits and invokes `execute_sql` / `get_match_weather` / `search_tournament_rules` / `create_github_issue` | `apps/backend/lambdas/chat-api/mcp/tools/*.js`          |
-| **6** | `MCP Tool` → `LLM` → `User`        | Returns raw JSON evidence to LLM, which formats Markdown + citations                                                          | `apps/backend/lambdas/chat-api/handlers/chatHandler.js` |
+| Step  | Sender → Receiver                  | Payload / Action                                                                                                                       | Implementation File                                     |
+| :---: | :--------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------ |
+| **1** | `ChatComponent.tsx` → `chat-api`   | • Sends `POST /chat` request<br/>• Includes `{ message, matchId, history }`                                                            | `apps/frontend/src/components/ChatComponent.tsx`        |
+| **2** | `chatHandler.js` → `mcp/server.js` | • Initializes `InMemoryTransport`<br/>• Discovers registered MCP tool schemas                                                          | `apps/backend/lambdas/chat-api/handlers/chatHandler.js` |
+| **3** | `chatHandler.js` → `LLM`           | • Sends system prompt guardrails<br/>• Injects active match telemetry and tool schemas                                                 | `apps/backend/lambdas/chat-api/config/llm.js`           |
+| **4** | `LLM` → `chatHandler.js`           | • Returns structured `tool_calls` JSON<br/>• Performs zero direct execution                                                            | `apps/backend/lambdas/chat-api/handlers/chatHandler.js` |
+| **5** | `chatHandler.js` → `MCP Tool`      | • Validates per-turn rate limits<br/>• Invokes `execute_sql`, `get_match_weather`, `search_tournament_rules`, or `create_github_issue` | `apps/backend/lambdas/chat-api/mcp/tools/*.js`          |
+| **6** | `MCP Tool` → `LLM` → `User`        | • Returns sanitized JSON evidence to LLM<br/>• Synthesizes final Markdown answer with citations                                        | `apps/backend/lambdas/chat-api/handlers/chatHandler.js` |
 
 ---
 
@@ -63,13 +63,13 @@ sequenceDiagram
 
 ### Raw SQL Tool vs. Cricket Context & Tactical Agent
 
-| Dimension                | Raw SQL Query (`execute_sql`)                                                 | Cricket Context & Tactical Agent (`matchContext` + `analysis_node`)                             |
-| :----------------------- | :---------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------- |
-| **Example Input**        | `"We need 45 runs in 4 overs with 6 wickets left. How do we pace?"`           | `"We need 45 runs in 4 overs with 6 wickets left. How do we pace?"`                             |
-| **Data Returned**        | `{ "overs": 16, "balls": 0, "total_runs": 135, "wickets": 4, "target": 180 }` | Live CRR (`8.4`), RRR (`11.25`), balls left (`24`), wickets in hand (`6`), and match phase.     |
-| **Cricket Phase Logic**  | ❌ None (raw numbers only)                                                    | ✅ Identifies **Death Overs (16–20)**, strike rotation vs boundary risk, and bowler quotas.     |
-| **DLS & Rule Awareness** | ❌ None                                                                       | ✅ Combines scoreboard telemetry with tournament rules (`search_tournament_rules`) and DLS par. |
-| **Extra DB Roundtrips**  | Requires LLM to write & run a new SQL query                                   | Injects live match context on turn start (`1` indexed PK lookup when `matchId` is active).      |
+| Dimension                | Raw SQL Query (`execute_sql`)                                                 | Cricket Context & Tactical Agent (`matchContext` + `analysis_node`)                                                    |
+| :----------------------- | :---------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------- |
+| **Example Input**        | `"We need 45 runs in 4 overs with 6 wickets left. How do we pace?"`           | `"We need 45 runs in 4 overs with 6 wickets left. How do we pace?"`                                                    |
+| **Data Returned**        | `{ "overs": 16, "balls": 0, "total_runs": 135, "wickets": 4, "target": 180 }` | • Live CRR (`8.4`) and RRR (`11.25`)<br/>• Balls left (`24`) and wickets in hand (`6`)<br/>• Active match phase        |
+| **Cricket Phase Logic**  | ❌ None (raw numbers only)                                                    | • Identifies **Death Overs (16–20)**<br/>• Balances strike rotation vs boundary risk<br/>• Tracks bowler over quotas   |
+| **DLS & Rule Awareness** | ❌ None                                                                       | • Combines scoreboard telemetry with tournament rules (`search_tournament_rules`)<br/>• Evaluates DLS par score buffer |
+| **Extra DB Roundtrips**  | Requires LLM to write & run a new SQL query                                   | • Injects live match context on turn start<br/>• Uses `1` indexed PK lookup when `matchId` is active                   |
 
 ### Tactical Reasoning Pipeline
 
@@ -81,11 +81,11 @@ flowchart LR
     Rules -->|4. Synthesize Strategy| Output["Target Pacing + Matchup & Risk Advisory"]
 ```
 
-| Stage | Component                                         | Responsibility                                                                                                                   |
-| :---: | :------------------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------- |
-| **1** | **Telemetry Injection (`chatHandler.js`)**        | Reconstructs 1st & 2nd innings score, overs, `CRR`, `target`, `runsNeeded`, and `ballsLeft` from `matches` row.                  |
-| **2** | **LangGraph Specialist Node (`analysis_node`)**   | Coordinates `get_match_details`, `get_match_statistics` (bowler economy, batter SR), and `search_tournament_rules` (`graph.py`). |
-| **3** | **Tactical Synthesis (`synthesizer_node` / LLM)** | Produces actionable pacing recommendations (which overs to attack, wicket preservation, and DLS par buffer awareness).           |
+| Stage | Component                             | Responsibility                                                                                                                                             |
+| :---: | :------------------------------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1** | **Telemetry Injection**               | • Reconstructs 1st & 2nd innings score and overs from `matches` row (`chatHandler.js`)<br/>• Computes live `CRR`, `target`, `runsNeeded`, and `ballsLeft`  |
+| **2** | **LangGraph Specialist (`graph.py`)** | • Runs `analysis_node` specialist<br/>• Coordinates `get_match_details`, `get_match_statistics` (bowler economy, batter SR), and `search_tournament_rules` |
+| **3** | **Tactical Synthesis**                | • Produces actionable pacing recommendations (`synthesizer_node` / LLM)<br/>• Highlights which overs to attack, wicket preservation, and DLS par awareness |
 
 ---
 
@@ -93,19 +93,19 @@ flowchart LR
 
 ### Decoupled Runtime vs. Model Artifact Architecture
 
-| Component             | Hosted Location                         | Contents                                                                                                                                                              | Retention & Cost Policy                                                                              | Update Trigger                                                    |
-| :-------------------- | :-------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------- |
-| **Inference Runtime** | **Amazon ECR** (`cricscore-ml-predict`) | Python 3.12 base image + Linux `x86_64` CPU-only wheels (`xgboost-cpu`, `scikit-learn`, `pandas`, `numpy`, `joblib`, `~309 MB`) + `predict.py` / `win_probability.py` | Tagged `:${var.ml_model_version}` only (no `:latest`); ECR lifecycle `countNumber = 1` (`~$0.03/mo`) | Only when Python dependencies, OS image, or handler code changes  |
-| **Model Registry**    | **Amazon S3** (`match-backups/models/`) | `live_win_predictor_model.joblib` (`~227 KB`), `model_manifest.json` (SHA-256 hash), and `live_metadata.json` under `models/v2.2.0/`                                  | Stored alongside 180-day match backups in S3 (`<$0.01/mo`)                                           | Every model training run, benchmark promotion, or version release |
+| Component             | Hosted Location                         | Contents                                                                                                                                                  | Retention & Cost Policy                                                                                     | Update Trigger                                                                     |
+| :-------------------- | :-------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------- |
+| **Inference Runtime** | **Amazon ECR** (`cricscore-ml-predict`) | • Python 3.12 base image (`~309 MB`)<br/>• Linux `x86_64` CPU-only wheels (`xgboost-cpu`, `scikit-learn`, `pandas`, `numpy`, `joblib`)<br/>• `predict.py` | • Tagged `:${var.ml_model_version}` only (no `:latest`)<br/>• ECR lifecycle `countNumber = 1` (`~$0.03/mo`) | • Only when Python dependencies change<br/>• When OS image or handler code changes |
+| **Model Registry**    | **Amazon S3** (`match-backups/models/`) | • `live_win_predictor_model.joblib` (`~227 KB`)<br/>• `model_manifest.json` (SHA-256 hash)<br/>• `live_metadata.json` under `models/v2.2.0/`              | • Stored alongside 180-day match backups in S3<br/>• Storage cost `<$0.01/mo`                               | • Every model training run<br/>• Benchmark promotion or version release            |
 
 ### Dynamic Cold-Start Loading & SHA-256 Verification Flow
 
-| Step  | Phase                          | Action in `apps/ml-engine/predict.py`                                                                                                | Failure / Fallback Behavior                                                             |
-| :---: | :----------------------------- | :----------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------- |
-| **1** | **Lazy Import on Invoke**      | Defers importing `joblib`, `pandas`, `numpy`, and `xgboost` until `lambda_handler` runs so Lambda init stays `<70ms`.                | Avoids cold-start init timeouts on 1024 MB Firecracker MicroVMs.                        |
-| **2** | **S3 Registry Pull to `/tmp`** | Reads `MODEL_S3_BUCKET` and `MODEL_VERSION` (`v2.2.0`) and downloads `model_manifest.json` + `.joblib` to `/tmp/models/v2.2.0/`.     | If S3 is unreachable, falls back to the baseline model bundled inside the Docker image. |
-| **3** | **SHA-256 Integrity Check**    | Computes `hashlib.sha256()` on `/tmp/models/v2.2.0/live_win_predictor_model.joblib` and compares against `manifest.artifact.sha256`. | **Security Guarantee**: Rejects tampered/corrupted `.joblib` files with `ValueError`.   |
-| **4** | **Warm Container Reuse**       | Caches the verified pipeline in memory (`_cached_model`) for all subsequent warm invocations (`~1.98 ms` per 100 rows).              | If no ML artifact is available, serves exact Markov DP + DLS probabilities seamlessly.  |
+| Step  | Phase                          | Action in `apps/ml-engine/predict.py`                                                                                                          | Failure / Fallback Behavior                                                               |
+| :---: | :----------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------- |
+| **1** | **Lazy Import on Invoke**      | • Defers importing `joblib`, `pandas`, `numpy`, and `xgboost` until `lambda_handler` runs<br/>• Keeps Lambda container init duration `<70ms`   | • Avoids cold-start init timeouts on 1024 MB Firecracker MicroVMs                         |
+| **2** | **S3 Registry Pull to `/tmp`** | • Reads `MODEL_S3_BUCKET` and `MODEL_VERSION` (`v2.2.0`)<br/>• Downloads `model_manifest.json` + `.joblib` to `/tmp/models/v2.2.0/`            | • If S3 is unreachable, falls back to the baseline model bundled inside the Docker image  |
+| **3** | **SHA-256 Integrity Check**    | • Computes `hashlib.sha256()` on `/tmp/models/v2.2.0/live_win_predictor_model.joblib`<br/>• Compares digest against `manifest.artifact.sha256` | • **Security Guarantee**: Rejects tampered or corrupted `.joblib` files with `ValueError` |
+| **4** | **Warm Container Reuse**       | • Caches verified pipeline in memory (`_cached_model`)<br/>• Serves all subsequent warm invocations in `~1.98 ms` per 100 rows                 | • If no ML artifact is available, serves exact Markov DP + DLS probabilities seamlessly   |
 
 ### Instant Zero-Downtime Model Rollback Commands
 
@@ -125,14 +125,14 @@ aws lambda update-function-configuration \
 
 ### Comparison: Path A (Scoreboard UI) vs. Path B (AI Chat Assistant)
 
-| Dimension              | Path A: High-Frequency Direct Lambda (`POST /match/predict`)        | Path B: Conversational Prediction Agent (`predict_match_outcome`)                    |
-| :--------------------- | :------------------------------------------------------------------ | :----------------------------------------------------------------------------------- |
-| **Primary Consumer**   | Live Scoreboard Win Probability Bar (`AiMatchPrediction.tsx`)       | AI Chat Assistant (`ChatComponent.tsx` / `apps/ai-service`)                          |
-| **Trigger Event**      | Automatically after **every single ball** bowled or WebSocket frame | On-demand when a fan asks _"Who is likely to win and why?"_ or _"What if..."_        |
-| **End-to-End Latency** | **`<100ms`** (warm invocation `~15–40ms`)                           | **`1.2s – 2.5s`** (includes LLM synthesis of tactical commentary)                    |
-| **LLM Token Cost**     | **`$0.00`** (zero LLM calls; pure Python/C++ numerical inference)   | Standard chat completion tokens (`gpt-4o-mini` / configured provider)                |
-| **Underlying Engine**  | `ml-predict` Lambda: **XGBoost (`v2.2.0`) + Markov DP + DLS Par**   | Invokes the exact same **XGBoost (`v2.2.0`) + Markov DP + DLS** engine + LLM wrapper |
-| **Output Format**      | Compact JSON (`{ team1Probability: 64.2, team2Probability: 35.8 }`) | Conversational Markdown explaining RRR pressure, wickets in hand, and turning points |
+| Dimension              | Path A: High-Frequency Direct Lambda (`POST /match/predict`)             | Path B: Conversational Prediction Agent (`predict_match_outcome`)                                         |
+| :--------------------- | :----------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------- |
+| **Primary Consumer**   | Live Scoreboard Win Probability Bar (`AiMatchPrediction.tsx`)            | AI Chat Assistant (`ChatComponent.tsx` / `apps/ai-service`)                                               |
+| **Trigger Event**      | Automatically after **every single ball** bowled or WebSocket frame      | On-demand when a fan asks _"Who is likely to win and why?"_ or _"What if..."_                             |
+| **End-to-End Latency** | • **`<100ms`** end-to-end<br/>• Warm Lambda invocation `~15–40ms`        | • **`1.2s – 2.5s`** end-to-end<br/>• Includes LLM synthesis of tactical commentary                        |
+| **LLM Token Cost**     | • **`$0.00`** (zero LLM calls)<br/>• Pure Python/C++ numerical inference | • Uses standard chat completion tokens (`gpt-4o-mini` / configured provider)                              |
+| **Underlying Engine**  | • `ml-predict` Lambda<br/>• **XGBoost (`v2.2.0`) + Markov DP + DLS Par** | • Invokes the exact same **XGBoost (`v2.2.0`) + Markov DP + DLS** engine<br/>• Adds LLM narrative wrapper |
+| **Output Format**      | Compact JSON (`{ team1Probability: 64.2, team2Probability: 35.8 }`)      | • Conversational Markdown<br/>• Explains RRR pressure, wickets in hand, and turning points                |
 
 ```bash
 # Test Path A directly against the local or deployed prediction engine
@@ -171,24 +171,24 @@ graph TD
 
 ### Detailed Agent & Tool Specification
 
-|   #   | Specialist Agent                          | Capability / MCP Tool                   | Source & Technology         | Key Features & Guardrails                                                                                                                                                            |
-| :---: | :---------------------------------------- | :-------------------------------------- | :-------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **1** | 📊 **Match Stats Agent**                  | `execute_sql`                           | Aiven PostgreSQL 16         | • Strict read-only `SELECT` / `WITH` enforcement<br/>• Blocks write/DDL keywords (`DROP`, `DELETE`, `UPDATE`)<br/>• `3000ms` statement timeout & strips `scorer_email`               |
-| **2** | 📖 **Tournament Rules (RAG) Agent**       | `search_tournament_rules`               | `pgvector` store (Aiven PG) | • Cosine similarity search (`<=>`) on 1536-d PDF chunks<br/>• Proportional powerplay scaling for shortened overs<br/>• Strict citation: `[Source: document_name]`                    |
-| **3** | 🌦️ **Weather Specialist Agent**           | `get_match_weather`                     | Open-Meteo API              | • Global geocoding + hourly forecasts<br/>• Rain probability %, temp, wind speed<br/>• Cricket & DLS rain advisories (`buildCricketAdvisory`)<br/>• Public API (no API key required) |
-| **4** | 🐛 **GitHub Issue Reporter Agent**        | `create_github_issue`                   | GitHub REST API             | • Creates labeled issues (`via-cricscore-ai`, category)<br/>• 2-step confirmation to capture title & description<br/>• Rate-limited: max `1` issue per turn                          |
-| **5** | 🏏 **Cricket Context & Tactical Agent**   | Live match context injection            | Real-time scoreboard state  | • Analyzes CRR vs RRR equations<br/>• Match phase analysis (Powerplay / Middle / Death)<br/>• Evaluates bowler overs and matchup strategy without extra DB queries                   |
-| **6** | 🎯 **Win Probability & Prediction Agent** | `predict_match_outcome` / direct Lambda | XGBoost + Markov DP + DLS   | • Validates situational match features<br/>• Blends **XGBoost (`v2.2.0`)** with Markov DP + DLS par<br/>• Produces calibrated win percentages and tactical commentary                |
+|   #   | Specialist Agent              | Capability / MCP Tool                   | Source & Technology         | Key Features & Guardrails                                                                                                                                                            |
+| :---: | :---------------------------- | :-------------------------------------- | :-------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1** | 📊 **Match Stats Agent**      | `execute_sql`                           | Aiven PostgreSQL 16         | • Strict read-only `SELECT` / `WITH` enforcement<br/>• Blocks write/DDL keywords (`DROP`, `DELETE`, `UPDATE`)<br/>• `3000ms` statement timeout & strips `scorer_email`               |
+| **2** | 📖 **Tournament Rules Agent** | `search_tournament_rules`               | `pgvector` store (Aiven PG) | • Cosine similarity search (`<=>`) on 1536-d PDF chunks<br/>• Proportional powerplay scaling for shortened overs<br/>• Strict citation: `[Source: document_name]`                    |
+| **3** | 🌦️ **Weather Agent**          | `get_match_weather`                     | Open-Meteo API              | • Global geocoding + hourly forecasts<br/>• Rain probability %, temp, wind speed<br/>• Cricket & DLS rain advisories (`buildCricketAdvisory`)<br/>• Public API (no API key required) |
+| **4** | 🐛 **GitHub Issue Agent**     | `create_github_issue`                   | GitHub REST API             | • Creates labeled issues (`via-cricscore-ai`, category)<br/>• 2-step confirmation to capture title & description<br/>• Rate-limited: max `1` issue per turn                          |
+| **5** | 🏏 **Tactical Context Agent** | Live match context injection            | Real-time scoreboard state  | • Analyzes CRR vs RRR equations<br/>• Match phase analysis (Powerplay / Middle / Death)<br/>• Evaluates bowler overs and matchup strategy without extra DB queries                   |
+| **6** | 🎯 **Win Prediction Agent**   | `predict_match_outcome` / direct Lambda | XGBoost + Markov DP + DLS   | • Validates situational match features<br/>• Blends **XGBoost (`v2.2.0`)** with Markov DP + DLS par<br/>• Produces calibrated win percentages and tactical commentary                |
 
 ---
 
 ## 🔗 Related Documentation
 
-| Guide                                                          | Focus Area                                                                       |
-| :------------------------------------------------------------- | :------------------------------------------------------------------------------- |
-| [AI Architecture & Agentic RAG](./ai_architecture.md)          | In-memory MCP server, Text-to-SQL guardrails, `pgvector` RAG, deterministic POTM |
-| [Weather Report Agent Guide](./weather_report_agent.md)        | Open-Meteo geocoding, hourly forecast windows, and DLS rain advisory thresholds  |
-| [GitHub Issue Specialist Agent Guide](./github_issue_agent.md) | 2-step confirmation protocol, SSRF/spam guardrails, and `GITHUB_TOKEN` wiring    |
-| [MLOps Tutorial & Model Benchmarking](./mlops_tutorial.md)     | DVC lineage, 8-model MLflow benchmark, XGBoost `v2.2.0`, Markov DP, and DLS math |
-| [ML Models Handbook](./ml_models_handbook.md)                  | Mathematical formulas and empirical CricScore benchmarks for 14 ML algorithms    |
-| [Architecture & Diagrams Overview](./architecture.md)          | Multi-cloud system diagrams, WebSocket fan-out sequences, and RBAC matrix        |
+| Guide                                                          | Focus Area                                                                                                           |
+| :------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------- |
+| [AI Architecture & Agentic RAG](./ai_architecture.md)          | • In-memory MCP server & Text-to-SQL guardrails<br/>• `pgvector` RAG & deterministic Player of the Match (POTM)      |
+| [Weather Report Agent Guide](./weather_report_agent.md)        | • Open-Meteo geocoding & hourly forecast windows<br/>• Cricket & DLS rain advisory thresholds                        |
+| [GitHub Issue Specialist Agent Guide](./github_issue_agent.md) | • 2-step confirmation protocol<br/>• SSRF/spam guardrails & `GITHUB_TOKEN` wiring                                    |
+| [MLOps Tutorial & Model Benchmarking](./mlops_tutorial.md)     | • DVC lineage & 8-model MLflow benchmark<br/>• **XGBoost `v2.2.0`**, `xgboost-cpu ~309 MB`, `countNumber = 1`, & DLS |
+| [ML Models Handbook](./ml_models_handbook.md)                  | • Mathematical formulas for 14 ML algorithms<br/>• Empirical CricScore benchmarks across Classification/Regression   |
+| [Architecture & Diagrams Overview](./architecture.md)          | • Multi-cloud system diagrams (`~$1/month` footprint)<br/>• WebSocket fan-out sequences, RBAC matrix, & `376` tests  |

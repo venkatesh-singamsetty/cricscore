@@ -2,17 +2,17 @@
 
 Quick-reference command tutorial for setting up, developing, testing, deploying, and debugging CricScore. Run commands from the repository root unless noted.
 
-| #     | Section                                                                          | Primary Use Case                                                                   |
-| :---- | :------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------- |
-| **1** | [Initial Setup & Infrastructure](#1-initial-setup--infrastructure)               | Install tools, authenticate AWS/GitHub, initialize `.env.local`                    |
-| **2** | [Git Workflow & PR Management](#2-git-workflow--pr-management)                   | Branching, Dependabot consolidation, pre-push validation, PR checks                |
-| **3** | [Node.js & Monorepo Scripts](#3-nodejs--project-scripts-monorepo-root)           | Local Vite server, build, lint, Prettier, dependency audits                        |
-| **4** | [Testing & Validation (376 Unit + E2E)](#4-testing--validation)                  | Vitest (Frontend + Backend), Pytest (AI + ML), Playwright E2E                      |
-| **5** | [MLOps & Win Prediction Training](#5-mlops--machine-learning-local-training)     | Cricsheet extraction, 8-model MLflow benchmark (`compare_models.py`), Docker build |
-| **6** | [Pre-Push Security & DevSecOps Scans](#6-pre-push-security--code-scanning-local) | `npm audit`, GitLeaks, Trivy, Checkov, Syft SPDX SBOM                              |
-| **7** | [Full Cloud Deployment (`dev` & `prod`)](#7-full-cloud-deployment)               | `deploy.sh --use-local-env`, model rollbacks, `terraform.sh` wrapper               |
-| **8** | [AWS CLI Troubleshooting](#8-aws-troubleshooting-expert-cli-commands)            | Tail Lambda logs, inspect SQS FIFO / DynamoDB / ECR, unlock TF state               |
-| **9** | [PostgreSQL (`psql`) Troubleshooting](#9-database-postgresql-troubleshooting)    | Inspect `dev`/`prod` schemas, matches, ball events, and active connections         |
+| #     | Section                                                                          | Primary Use Case                                                                                       |
+| :---- | :------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------- |
+| **1** | [Initial Setup & Infrastructure](#1-initial-setup--infrastructure)               | • Install prerequisites<br/>• Authenticate AWS & GitHub CLI<br/>• Initialize `.env.local`              |
+| **2** | [Git Workflow & PR Management](#2-git-workflow--pr-management)                   | • Feature branching<br/>• Dependabot consolidation<br/>• Pre-push validation & PR status checks        |
+| **3** | [Node.js & Monorepo Scripts](#3-nodejs--project-scripts-monorepo-root)           | • Local Vite server<br/>• Production bundle build & ESLint<br/>• Prettier & dependency audits          |
+| **4** | [Testing & Validation (376 Unit + E2E)](#4-testing--validation)                  | • Vitest (`151` FE + `121` BE)<br/>• Pytest (`75` AI + `29` ML)<br/>• Playwright E2E suites            |
+| **5** | [MLOps & Win Prediction Training](#5-mlops--machine-learning-local-training)     | • Cricsheet extraction<br/>• 8-model MLflow benchmark (`compare_models.py`)<br/>• Docker `~309 MB` CPU |
+| **6** | [Pre-Push Security & DevSecOps Scans](#6-pre-push-security--code-scanning-local) | • `npm audit` & GitLeaks<br/>• Trivy & Checkov IaC<br/>• Syft SPDX SBOM generation                     |
+| **7** | [Full Cloud Deployment (`dev` & `prod`)](#7-full-cloud-deployment)               | • `deploy.sh --use-local-env`<br/>• Model version rollbacks<br/>• `terraform.sh` wrapper               |
+| **8** | [AWS CLI Troubleshooting](#8-aws-troubleshooting-expert-cli-commands)            | • Tail Lambda logs<br/>• Inspect SQS FIFO, DynamoDB & single-image ECR<br/>• Unlock Terraform state    |
+| **9** | [PostgreSQL (`psql`) Troubleshooting](#9-database-postgresql-troubleshooting)    | • Inspect `dev` / `prod` schemas<br/>• Query matches, deterministic POTM & balls<br/>• Pool activity   |
 
 ---
 
@@ -76,8 +76,8 @@ gh api repos/venkatesh-singamsetty/cricscore/pulls/<PR_NUMBER>/comments
 # 6. Close superseded Dependabot PRs (if consolidated in step 2)
 ./infra/scripts/consolidate_dependabot_prs.sh --close --target-pr <PR_NUMBER>
 
-# 7. Auto-merge once all required status checks pass
-gh pr merge --auto --squash --delete-branch
+# 7. Once all required CI & CodeQL status checks pass, review and merge the PR on GitHub
+gh pr checks
 ```
 
 ---

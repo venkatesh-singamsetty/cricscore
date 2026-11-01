@@ -19,27 +19,27 @@ flowchart TD
 
 ## 🎨 Core Design Tokens
 
-| Token Category         | Specification                                         | Purpose                                                                 |
-| ---------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------- |
-| **Primary Background** | `#0B0E17` (Deep Navy Glassmorphic)                    | Reduces eye strain and maximizes neon accent contrast on mobile screens |
-| **Accent Highlights**  | Cyan (`#06B6D4`) & Purple (`#A855F7`)                 | Distinguishes active striker, current bowler, and live win-prob gauges  |
-| **Touch Target Size**  | Minimum `44x44px` (`min-h-11 min-w-11`)               | Prevents mis-taps during rapid ball-by-ball outdoor scoring             |
-| **Secondary Contrast** | `65%–70%` opacity (`text-slate-300` / ≥ `4.5:1` WCAG) | Ensures muted labels remain legible under direct outdoor sunlight       |
-| **Iconography**        | Vector SVG icons (Lucide-React / inline SVG)          | Consistent cross-platform rendering instead of OS-dependent emojis      |
+| Token Category                  | Specification                                        | Purpose                                                                                         |
+| ------------------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| **Primary&nbsp;Background**     | `#0B0E17` (Deep Navy Glassmorphic)                   | • Reduces eye strain during live matches<br/>• Maximizes neon accent contrast on mobile screens |
+| **Accent&nbsp;Highlights**      | • Cyan (`#06B6D4`)<br/>• Purple (`#A855F7`)          | • Distinguishes active striker and current bowler<br/>• Highlights live win-probability gauges  |
+| **Touch&nbsp;Target&nbsp;Size** | Minimum `44x44px` (`min-h-11 min-w-11`)              | • Prevents mis-taps during rapid ball-by-ball outdoor scoring                                   |
+| **Secondary&nbsp;Contrast**     | `65%–70%` opacity (`text-slate-300`, ≥ `4.5:1` WCAG) | • Ensures muted labels remain legible under direct outdoor sunlight                             |
+| **Iconography**                 | Vector SVG icons (`Lucide-React` / inline SVG)       | • Ensures consistent cross-platform rendering instead of OS-dependent emojis                    |
 
 ---
 
 ## ✅ Component Refinement Checklist
 
-| Area                           | Requirement                                                                                      | Implementation Pattern                                                                               |
-| ------------------------------ | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| **1. Mobile Touch & Layout**   | Keep the Batter Strike Swap trigger aligned inline within the batter card row.                   | Right-aligned `44x44px` icon button inside the batter flex row; zero overlapping floating badges.    |
-| **2. Header Bar Density**      | Prevent horizontal crowding on narrow portrait screens (`320px–390px`).                          | Collapse secondary controls into the slide-out drawer (`≡`) or stack mode pills cleanly.             |
-| **3. Long Team/Player Names**  | Never clip team or player names with unreadable single-line ellipses on scorecards.              | Use `break-words`, multi-line stacking (`flex-col`), or responsive font scaling (`clamp()`).         |
-| **4. Responsive Data Views**   | Avoid rigid horizontal table cutoffs in System Access and Scorecards on mobile viewports.        | Render mobile-first stacked cards on `< 640px` or wrap wide stat tables in `overflow-x-auto`.        |
-| **5. Match Ops Safety**        | Guard destructive admin actions (`delete_guest_data`, `delete_incomplete_matches`) visually.     | Style with high-danger red borders (`border-red-500/60`) and require an explicit confirmation modal. |
-| **6. ChatBot Mobile Viewport** | Keep initial ChatBot view compact on short mobile screens so the input bar is never pushed down. | Render a compact welcome header with wrapping quick-question chips (`PR #307`, `PR #327`).           |
-| **7. Post-Match Summary**      | Display the deterministic Player of the Match award alongside AI commentary.                     | Rendered from `computePlayerOfTheMatch` (`summaryHandler.js`) so the award badge is always accurate. |
+| Area                                 | Requirement                                                                                       | Implementation Pattern                                                                                                   |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| **1.&nbsp;Mobile Touch & Layout**    | • Keep the Batter Strike Swap trigger aligned inline within the batter card row                   | • Right-aligned `44x44px` icon button inside the batter flex row<br/>• Zero overlapping floating badges                  |
+| **2.&nbsp;Header Bar Density**       | • Prevent horizontal crowding on narrow portrait screens (`320px–390px`)                          | • Collapse secondary controls into the slide-out drawer (`≡`)<br/>• Stack mode pills cleanly on compact viewports        |
+| **3.&nbsp;Long Team/Player Names**   | • Never clip team or player names with unreadable single-line ellipses on scorecards              | • Use `break-words` and multi-line stacking (`flex-col`)<br/>• Apply responsive font scaling (`clamp()`)                 |
+| **4.&nbsp;Responsive Data Views**    | • Avoid rigid horizontal table cutoffs in System Access and Scorecards on mobile viewports        | • Render mobile-first stacked cards on `< 640px`<br/>• Wrap wide statistical tables in `overflow-x-auto`                 |
+| **5.&nbsp;Match Ops Safety**         | • Guard destructive admin actions (`delete_guest_data`, `delete_incomplete_matches`) visually     | • Style with high-danger red borders (`border-red-500/60`)<br/>• Require an explicit double-confirmation modal           |
+| **6.&nbsp;ChatBot Mobile Viewport**  | • Keep initial ChatBot view compact on short mobile screens so the input bar is never pushed down | • Render a compact welcome header<br/>• Use wrapping quick-question chips (`PR #307`, `PR #327`)                         |
+| **7.&nbsp;Post&#8209;Match Summary** | • Display the deterministic Player of the Match award alongside AI commentary                     | • Rendered from `computePlayerOfTheMatch` (`summaryHandler.js`)<br/>• Guarantees the POTM award badge is always accurate |
 
 ---
 

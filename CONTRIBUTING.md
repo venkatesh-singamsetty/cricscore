@@ -28,7 +28,7 @@ flowchart LR
 | **4** | **Commit with Conventional Commits** | `git add . && git commit -m "feat(scope): concise summary"`                           |
 | **5** | **Sync `origin/main` & push**        | `git fetch origin main && git merge origin/main --no-edit && git push -u origin HEAD` |
 | **6** | **Open PR & verify status checks**   | `gh pr create --base main` and `gh pr checks`                                         |
-| **7** | **Squash & merge into `main`**       | `gh pr merge --auto --squash --delete-branch`                                         |
+| **7** | **Squash & merge into `main`**       | Merge on GitHub once all status checks pass                                           |
 
 ---
 
@@ -44,14 +44,14 @@ git checkout -b feat/your-feature-name
 
 `./infra/scripts/validate_local.sh` runs the exact same checks enforced by GitHub Actions CI:
 
-| Check                     | Tool / Runner                                   | What It Verifies                                                       |
-| :------------------------ | :---------------------------------------------- | :--------------------------------------------------------------------- |
-| **Frontend Lint & Build** | ESLint + `tsc -b` + Vite                        | Zero TypeScript/ESLint errors and clean production bundle              |
-| **Frontend Unit Tests**   | Vitest (`apps/frontend`)                        | **151** component, hook, DLS, and state sync tests                     |
-| **Backend Unit Tests**    | Vitest (`apps/backend`)                         | **121** Lambda handler, SQL guard, MCP, and deterministic POTM tests   |
-| **Python AI & ML Tests**  | Pytest (`apps/ai-service`, `apps/ml-engine`)    | **75** LangGraph/MCP agent tests + **29** hybrid win-probability tests |
-| **IaC & Secret Scans**    | Terraform `fmt`/`validate` + Checkov + GitLeaks | Valid HCL formatting, AWS security policies, and zero leaked secrets   |
-| **CVE & Supply Chain**    | `npm audit` + Trivy FS + Syft SPDX SBOM         | Zero high/critical fixable CVEs and updated dependency manifest        |
+| Check                                        | Tool / Runner                                                | What It Verifies                                                                        |
+| :------------------------------------------- | :----------------------------------------------------------- | :-------------------------------------------------------------------------------------- |
+| **Frontend&nbsp;Lint&nbsp;&&nbsp;Build**     | • ESLint & `tsc -b`<br/>• Vite production build              | • Zero TypeScript or ESLint errors<br/>• Clean production bundle output                 |
+| **Frontend&nbsp;Unit&nbsp;Tests**            | • Vitest (`apps/frontend`)                                   | • **151** component, hook, DLS & state sync tests                                       |
+| **Backend&nbsp;Unit&nbsp;Tests**             | • Vitest (`apps/backend`)                                    | • **121** Lambda handler, SQL guard, MCP & deterministic POTM tests                     |
+| **Python&nbsp;AI&nbsp;&&nbsp;ML&nbsp;Tests** | • Pytest (`apps/ai-service`)<br/>• Pytest (`apps/ml-engine`) | • **75** LangGraph & MCP agent tests<br/>• **29** hybrid win-probability tests          |
+| **IaC&nbsp;&&nbsp;Secret&nbsp;Scans**        | • Terraform `fmt` & `validate`<br/>• Checkov & GitLeaks      | • Valid HCL formatting & AWS security policies<br/>• Zero leaked secrets in git history |
+| **CVE&nbsp;&&nbsp;Supply&nbsp;Chain**        | • `npm audit` & Trivy FS<br/>• Syft SPDX SBOM                | • Zero high/critical fixable CVEs<br/>• Updated dependency manifest                     |
 
 ```bash
 # Fast pre-push validation (~25s, skips live Playwright E2E)
@@ -120,9 +120,9 @@ gh api repos/venkatesh-singamsetty/cricscore/pulls/<PR_NUMBER>/comments
 
 Once all required PR checks are green, squash-merge into `main`. GitHub Actions automatically executes:
 
-1. **`CI` (`deploy_and_test_dev`)**: Deploys `dev`, runs DB migrations, AI evaluation, Playwright E2E, and OWASP ZAP DAST.
-2. **`Semantic Release` (`release.yml`)**: Cuts the next `v*` tag, updates `docs/changelog.md`, and publishes enriched GitHub Release notes.
-3. **`CD` (`cd.yml`)**: Deploys the tagged release to `prod` (`https://cricscore.venkateshsingamsetty.com`), runs Playwright E2E, and runs OWASP ZAP against `prod`.
+- **`CI` (`deploy_and_test_dev`)**: Deploys `dev`, runs DB migrations, AI evaluation, Playwright E2E, and OWASP ZAP DAST.
+- **`Semantic Release` (`release.yml`)**: Cuts the next `v*` tag, updates `docs/changelog.md`, and publishes enriched GitHub Release notes.
+- **`CD` (`cd.yml`)**: Deploys the tagged release to `prod` (`https://cricscore.venkateshsingamsetty.com`), runs Playwright E2E, and runs OWASP ZAP against `prod`.
 
 ---
 

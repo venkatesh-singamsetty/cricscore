@@ -44,10 +44,11 @@ description: Use when preparing a CricScore branch or pull request, selecting lo
   - Summary of changes & user-visible behavior
   - Architectural & backend/ML/UI details
   - Validation & test suites executed
-- **Inspect Checks & CodeQL Alerts After Pushing**:
+- **Inspect Checks & CodeQL Alerts After Pushing (Never Merge Without Explicit User Request)**:
   - Check status with `gh pr checks <PR_NUMBER>`.
   - Fetch inline review/CodeQL comments with `gh api repos/venkatesh-singamsetty/cricscore/pulls/<PR_NUMBER>/comments`.
   - Immediately fix any CodeQL warnings (e.g., unused variables/imports) or failing checks.
+  - **Do NOT run `gh pr merge` yourself unless the user explicitly asks you to merge the PR. Only push the branch, open the PR, and verify checks pass so the user can take care of merging.**
 
 ## 3. CI, Semantic Release & CD Pipeline Architecture
 

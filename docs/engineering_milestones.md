@@ -21,26 +21,26 @@ flowchart LR
 
 ## 📋 Architectural Milestones Catalog
 
-| Milestone & PR                                                                         | Architectural Domain             | Key Innovations & Verified Engineering Impact                                                                                                                                           |
-| -------------------------------------------------------------------------------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **[PR #327](https://github.com/venkatesh-singamsetty/cricscore/pull/327)** (`v4.21.2`) | **Mobile UI & Chat Polish**      | Stable Create Account layout, compact ChatBot welcome interface on short mobile screens, and deterministic `computePlayerOfTheMatch` in `summaryHandler.js`.                            |
-| **[PR #307](https://github.com/venkatesh-singamsetty/cricscore/pull/307)** (`v4.17.1`) | **UI & Responsive Architecture** | Responsive chat question layout, tournament rulebook sync, and comprehensive architecture diagram refresh.                                                                              |
-| **[PR #276](https://github.com/venkatesh-singamsetty/cricscore/pull/276)** (`v4.15.0`) | **Agentic AI & MLOps**           | Integrated autonomous Weather & GitHub Issue specialist agents via MCP, diagrams-as-code, and the Architecture & MLOps FAQ.                                                             |
-| **[PR #261](https://github.com/venkatesh-singamsetty/cricscore/pull/261)**             | **Dynamic ML Win Prediction**    | Blended champion **XGBoost (`v2.2.0`)** (`Validation ROC-AUC = 0.7723`, `Test ROC-AUC = 0.7529`) with Markov DP and DLS par calculations in a lean `xgboost-cpu` (`~309 MB`) container. |
-| **[PR #248](https://github.com/venkatesh-singamsetty/cricscore/pull/248)**             | **Real-Time Streaming**          | Serverless WebSocket event fan-out with Amazon SNS + SQS dual-path broadcast and storage worker resilience.                                                                             |
-| **[PR #235](https://github.com/venkatesh-singamsetty/cricscore/pull/235)**             | **Multi-Cloud IaC & Cost Ops**   | Automated Terraform bridging AWS and Aiven PostgreSQL with strict cost guardrails (**`~$1/month`** Dev + Prod combined, ECR `countNumber = 1` retention) and Checkov compliance.        |
-| **[PR #220](https://github.com/venkatesh-singamsetty/cricscore/pull/220)**             | **DevSecOps & Test Suite**       | End-to-end GitHub Actions CI/CD with GitLeaks, Trivy, CodeQL SAST, Playwright E2E, and **376 automated tests** (`151` FE + `121` BE + `75` AI + `29` ML).                               |
+| Milestone & PR                                                                              | Architectural Domain                      | Key Innovations & Verified Engineering Impact                                                                                                                                                                        |
+| ------------------------------------------------------------------------------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **[PR&nbsp;#327](https://github.com/venkatesh-singamsetty/cricscore/pull/327)** (`v4.21.2`) | **Mobile&nbsp;UI & Chat&nbsp;Polish**     | • Stable Create Account layout<br/>• Compact ChatBot welcome interface on short mobile screens<br/>• Deterministic `computePlayerOfTheMatch` in `summaryHandler.js`                                                  |
+| **[PR&nbsp;#307](https://github.com/venkatesh-singamsetty/cricscore/pull/307)** (`v4.17.1`) | **UI & Responsive Architecture**          | • Responsive chat question layout<br/>• Tournament rulebook synchronization<br/>• Comprehensive architecture diagram refresh                                                                                         |
+| **[PR&nbsp;#276](https://github.com/venkatesh-singamsetty/cricscore/pull/276)** (`v4.15.0`) | **Agentic&nbsp;AI & MLOps**               | • Autonomous Weather & GitHub Issue specialist agents via MCP<br/>• Diagrams-as-code automation<br/>• Comprehensive Architecture & MLOps FAQ                                                                         |
+| **[PR&nbsp;#261](https://github.com/venkatesh-singamsetty/cricscore/pull/261)**             | **Dynamic&nbsp;ML Win&nbsp;Prediction**   | • Champion **XGBoost (`v2.2.0`)** (`Validation ROC-AUC = 0.7723`, `Test ROC-AUC = 0.7529`)<br/>• Blended with Markov DP and DLS par calculations<br/>• Packaged in a lean `xgboost-cpu` (`~309 MB`) Lambda container |
+| **[PR&nbsp;#248](https://github.com/venkatesh-singamsetty/cricscore/pull/248)**             | **Real&#8209;Time Streaming**             | • Serverless WebSocket event fan-out<br/>• Amazon SNS + SQS dual-path broadcast<br/>• Storage worker fault resilience                                                                                                |
+| **[PR&nbsp;#235](https://github.com/venkatesh-singamsetty/cricscore/pull/235)**             | **Multi&#8209;Cloud IaC & Cost&nbsp;Ops** | • Automated Terraform bridging AWS and Aiven PostgreSQL<br/>• Strict cost guardrails (**`~$1/month`** Dev + Prod combined, ECR `countNumber = 1` retention)<br/>• Full Checkov IaC security compliance               |
+| **[PR&nbsp;#220](https://github.com/venkatesh-singamsetty/cricscore/pull/220)**             | **DevSecOps & Test&nbsp;Suite**           | • End-to-end GitHub Actions CI/CD with GitLeaks, Trivy, and CodeQL SAST<br/>• Playwright E2E browser suite<br/>• **376 automated tests** (`151` FE + `121` BE + `75` AI + `29` ML)                                   |
 
 ---
 
 ## 📊 Key Platform Metrics at a Glance
 
-| Metric Category              | Verified Benchmark                                                                                         |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| **Total Monthly Cloud Cost** | **`~$1/month`** combined for Dev + Prod on AWS (Route 53 `$0.50/mo` + S3/ECR/CloudWatch pennies)           |
-| **ML Inference Image**       | `ml-predict` built on lightweight `xgboost-cpu` (`~309 MB`) with ECR `countNumber = 1` single-image policy |
-| **Champion Win-Prob Model**  | `XGBoost (v2.2.0)` — `Validation ROC-AUC = 0.7723`, `Test ROC-AUC = 0.7529`                                |
-| **Automated Test Coverage**  | **376 unit/integration tests** (`151` Frontend + `121` Backend + `75` AI Service + `29` ML Engine) + E2E   |
+| Metric Category                        | Verified Benchmark                                                                                                                                |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Total&nbsp;Monthly Cloud&nbsp;Cost** | • **`~$1/month`** combined for Dev + Prod on AWS<br/>• Route 53 Hosted Zone (`$0.50/mo`) + S3/ECR/CloudWatch pennies                              |
+| **ML&nbsp;Inference Image**            | • `ml-predict` built on lightweight `xgboost-cpu` (`~309 MB`)<br/>• Enforced by ECR `countNumber = 1` single-image retention policy               |
+| **Champion&nbsp;Win&#8209;Prob Model** | • `XGBoost (v2.2.0)` champion model<br/>• `Validation ROC-AUC = 0.7723` and `Test ROC-AUC = 0.7529`                                               |
+| **Automated&nbsp;Test Coverage**       | • **376 unit/integration tests** (`151` Frontend + `121` Backend + `75` AI Service + `29` ML Engine)<br/>• Full Playwright E2E browser test suite |
 
 ---
 
