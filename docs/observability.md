@@ -25,12 +25,18 @@ flowchart TD
         Workers["Fan-Out & AI/ML Lambdas (broadcaster, storage-worker, chat-api, ml-predict, WS/Auth)"]
     end
 
-    subgraph AWSObservability ["3. AWS Telemetry & Alerting"]
+    subgraph AWSObservability ["3. AWS Live Runtime Telemetry & Alerting"]
         CWLogs["CloudWatch Log Groups (7-Day Retention)"]
         XRay["AWS X-Ray Tracer (1 req/s reservoir + 5% rate)"]
         Alarms["CloudWatch Metric Alarms (match-api-errors, score-update-errors)"]
         SNSAlert{{"AWS SNS Topic (lambda-alerts)"}}
-        Email(["Admin Email Alert (var.admin_email)"])
+        AdminEmail(["Admin Email Alert (var.admin_email)"])
+    end
+
+    subgraph SyntheticCI ["4. Synthetic Monitoring & Drift Detection"]
+        KeepAlive["keepalive.yml (Daily Prod E2E Match)"]
+        Drift["drift.yml (Nightly Prod Terraform Drift)"]
+        GHEmail(["GitHub Actions Failure Email Alert"])
     end
 
     SPA -.->|"Unhandled JS exceptions"| Sentry
@@ -39,7 +45,10 @@ flowchart TD
     Critical & Workers -->|"stdout / stderr"| CWLogs
     Critical & Workers -.->|"Active tracing segments"| XRay
     Critical -->|"Errors > 0 in 5m"| Alarms
-    Alarms --> SNSAlert --> Email
+    Alarms --> SNSAlert --> AdminEmail
+
+    KeepAlive -->|"Synthetic E2E Fail / DB Down"| GHEmail
+    Drift -->|"Exit Code 2 (Drift Detected)"| GHEmail
 ```
 
 ---
@@ -143,7 +152,35 @@ filter @type = "REPORT"
 
 ---
 
-## 🧪 5. Runnable Telemetry Verification Commands
+## 5. 🤖 Automated CI/CD Synthetic Health & Infrastructure Drift Alerting
+
+In addition to live AWS runtime monitoring, CricScore uses autonomous scheduled workflows to monitor infrastructure state integrity and synthetic end-to-end production health.
+
+### Alerting Channels Matrix
+
+| Alert Category            | Monitored Layer                    | Trigger Condition                             | Notification Channel     | Recipient                              |
+| :------------------------ | :--------------------------------- | :-------------------------------------------- | :----------------------- | :------------------------------------- |
+| **Infrastructure Drift**  | AWS Terraform State vs. Live Cloud | `terraform plan -detailed-exitcode` exits `2` | **GitHub Actions Email** | Repository Watcher Email               |
+| **Synthetic E2E Failure** | Production User Journey & Database | Playwright E2E match or PostgreSQL ping fails | **GitHub Actions Email** | Repository Watcher Email               |
+| **Lambda Errors**         | `match-api`, `score-upd` Runtime   | > 0 Lambda Errors in 5 minutes                | **AWS CloudWatch + SNS** | `ADMIN_EMAIL` (`venky.2k57@gmail.com`) |
+| **AWS Spend Guardrail**   | Monthly Cloud Costs                | Forecasted / actual spend > $5.00             | **AWS Budgets Email**    | `ADMIN_EMAIL` (`venky.2k57@gmail.com`) |
+
+### Workflow Observability Details
+
+- **Nightly Infrastructure Drift Detection (`.github/workflows/drift.yml`):**
+  - **Schedule:** Nightly at `00:00 UTC` exclusively against `prod`.
+  - **Release Pinning:** Resolves and checks out the **latest published production release tag** (`v*`), preventing unreleased `main` branch changes from causing false drift alarms.
+  - **Dev Isolation:** Excludes `dev` from scheduled runs so active development and experimental branches in dev never trigger spurious alerts.
+  - **Alerting Mechanism:** When out-of-band cloud drift is detected, `terraform plan -detailed-exitcode` exits with code `2`, causing the workflow to fail and GitHub to immediately dispatch a failure alert email.
+- **Daily Production E2E Synthetic Keep-Alive (`.github/workflows/keepalive.yml`):**
+  - **Schedule:** Daily at `12:00 UTC` against Production (`cricscore.venkateshsingamsetty.com`).
+  - **Release Pinning:** Resolves and checks out the **latest published production release tag** (`v*`), ensuring Playwright selectors and match assertions match the frontend and API version actually running in Production.
+  - **Autonomous Execution:** Executes with repository-level database credentials without environment review approval gates.
+  - **Alerting Mechanism:** If Aiven PostgreSQL cannot be reached or the 2-over Playwright user journey fails, the step exits with code `1`, causing the workflow to fail and GitHub to immediately dispatch a failure alert email.
+
+---
+
+## 🧪 6. Runnable Telemetry Verification Commands
 
 ```bash
 # 1. Verify all Lambda & API Gateway log groups enforce 7-day retention
@@ -172,7 +209,7 @@ curl -s "https://api.cricscoredev.venkateshsingamsetty.com/health" | jq .
 
 ---
 
-## 💸 6. Cost-First Observability Decisions
+## 💸 7. Cost-First Observability Decisions
 
 - **CloudWatch Dashboards (`$3.00/dashboard/mo` Avoided):**
   - Not provisioned in Terraform; replaced by the auto-generated [`aws_resources_dashboard.md`](./aws_resources_dashboard.md) with direct console deep links.

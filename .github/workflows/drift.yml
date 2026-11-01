@@ -2,8 +2,21 @@ name: Terraform Drift Detection
 
 on:
   schedule:
-    - cron: "0 0 * * *" # Runs every midnight
-  workflow_dispatch: # Allows manual triggering from the GitHub UI
+    - cron: "0 0 * * *" # Runs every midnight against Production
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment for drift detection"
+        required: true
+        default: "prod"
+        type: choice
+        options:
+          - prod
+          - dev
+
+permissions:
+  contents: read
+  id-token: write
 
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
@@ -11,32 +24,57 @@ env:
 
 jobs:
   drift-check:
-    name: Drift Check (${{ matrix.environment }})
+    name: Drift Check (${{ github.event.inputs.environment || 'prod' }})
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - environment: dev
-            project_name: cricscoredev
-            domain_name: cricscoredev.venkateshsingamsetty.com
-            subdomain_prefix: cricscoredev
-          - environment: prod
-            project_name: cricscore
-            domain_name: cricscore.venkateshsingamsetty.com
-            subdomain_prefix: cricscore
     defaults:
       run:
         working-directory: ./infra/terraform
     steps:
+      - name: Resolve Environment Configuration and Ref
+        id: resolve-config
+        working-directory: ${{ github.workspace }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_ENV: ${{ github.event.inputs.environment || 'prod' }}
+        run: |
+          echo "environment=$TARGET_ENV" >> "$GITHUB_OUTPUT"
+          if [ "$TARGET_ENV" = "prod" ]; then
+            echo "project_name=cricscore" >> "$GITHUB_OUTPUT"
+            echo "domain_name=cricscore.venkateshsingamsetty.com" >> "$GITHUB_OUTPUT"
+            echo "subdomain_prefix=cricscore" >> "$GITHUB_OUTPUT"
+
+            if [ "${{ github.ref_type }}" = "tag" ]; then
+              echo "Using explicitly dispatched tag: ${{ github.ref_name }}"
+              echo "target_ref=${{ github.ref }}" >> "$GITHUB_OUTPUT"
+            else
+              LATEST_TAG=$(gh release view -R "${{ github.repository }}" --json tagName -q .tagName 2>/dev/null || echo "")
+              if [ -n "$LATEST_TAG" ]; then
+                echo "Targeting latest production release tag for prod drift check: $LATEST_TAG"
+                echo "target_ref=$LATEST_TAG" >> "$GITHUB_OUTPUT"
+              else
+                echo "No release tag found; falling back to ${{ github.ref }}"
+                echo "target_ref=${{ github.ref }}" >> "$GITHUB_OUTPUT"
+              fi
+            fi
+          else
+            echo "project_name=cricscoredev" >> "$GITHUB_OUTPUT"
+            echo "domain_name=cricscoredev.venkateshsingamsetty.com" >> "$GITHUB_OUTPUT"
+            echo "subdomain_prefix=cricscoredev" >> "$GITHUB_OUTPUT"
+            echo "Targeting ${{ github.ref }} for dev drift check"
+            echo "target_ref=${{ github.ref }}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout code
         uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.resolve-config.outputs.target_ref }}
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ vars.AWS_ROLE_ARN || secrets.AWS_ROLE_ARN }}
+          aws-access-key-id: ${{ (vars.AWS_ROLE_ARN || secrets.AWS_ROLE_ARN) == '' && secrets.AWS_ACCESS_KEY_ID || '' }}
+          aws-secret-access-key: ${{ (vars.AWS_ROLE_ARN || secrets.AWS_ROLE_ARN) == '' && secrets.AWS_SECRET_ACCESS_KEY || '' }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Set up Node.js
@@ -67,23 +105,23 @@ jobs:
       - name: Terraform Init
         env:
           TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET || 'venky-2026-terraform-state' }}
-        run: terraform init -upgrade -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=cricscore/${{ matrix.environment }}/terraform.tfstate"
+        run: terraform init -upgrade -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=cricscore/${{ steps.resolve-config.outputs.environment }}/terraform.tfstate"
 
       - name: Terraform Plan (Detailed Exitcode)
         # -detailed-exitcode returns 0 if no changes, 1 if error, 2 if there are changes (drift)
         env:
           TF_IN_AUTOMATION: "true"
-          TF_VAR_environment: ${{ matrix.environment }}
+          TF_VAR_environment: ${{ steps.resolve-config.outputs.environment }}
           TF_VAR_aws_region: ${{ vars.AWS_REGION || 'us-east-1' }}
-          TF_VAR_domain_name: ${{ matrix.domain_name }}
+          TF_VAR_domain_name: ${{ steps.resolve-config.outputs.domain_name }}
           TF_VAR_zone_domain: ${{ vars.ZONE_DOMAIN || 'venkateshsingamsetty.com' }}
-          TF_VAR_subdomain_prefix: ${{ matrix.subdomain_prefix }}
-          TF_VAR_project_name: ${{ matrix.project_name }}
+          TF_VAR_subdomain_prefix: ${{ steps.resolve-config.outputs.subdomain_prefix }}
+          TF_VAR_project_name: ${{ steps.resolve-config.outputs.project_name }}
           TF_VAR_ses_source_email: ${{ secrets.TF_SES_SOURCE_EMAIL }}
           TF_VAR_database_url: ${{ secrets.TF_DATABASE_URL }}
+          TF_VAR_aiven_ca_cert: ${{ secrets.AIVEN_CA_CERT }}
           TF_VAR_admin_email: ${{ vars.ADMIN_EMAIL || 'venky.2k57@gmail.com' }}
           TF_VAR_llm_api_key: ${{ secrets.OPENAI_API_KEY }}
           TF_VAR_llm_base_url: ${{ vars.LLM_BASE_URL }}
           TF_VAR_llm_model: ${{ vars.LLM_MODEL }}
-        run: terraform plan -input=false -detailed-exitcode -var-file="environments/${{ matrix.environment }}.tfvars" -var="domain_name=$TF_VAR_domain_name" -var="zone_domain=$TF_VAR_zone_domain" -var="subdomain_prefix=$TF_VAR_subdomain_prefix" -var="project_name=$TF_VAR_project_name"
-
+        run: terraform plan -input=false -detailed-exitcode -var-file="environments/${{ steps.resolve-config.outputs.environment }}.tfvars" -var="domain_name=$TF_VAR_domain_name" -var="zone_domain=$TF_VAR_zone_domain" -var="subdomain_prefix=$TF_VAR_subdomain_prefix" -var="project_name=$TF_VAR_project_name"

@@ -19,8 +19,6 @@ env:
   AWS_REGION: us-east-1
 
 jobs:
-
-
   validate_security:
     name: Infrastructure & Secrets Security
     runs-on: ubuntu-latest
@@ -49,20 +47,20 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: '24'
-          cache: 'npm'
+          node-version: "24"
+          cache: "npm"
           cache-dependency-path: package-lock.json
       - name: Install dependencies
         run: npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
       - name: Run Trivy vulnerability scanner (fs)
         uses: aquasecurity/trivy-action@master
         with:
-          scan-type: 'fs'
-          scan-ref: 'apps/frontend'
+          scan-type: "fs"
+          scan-ref: "apps/frontend"
           ignore-unfixed: true
-          format: 'table'
-          exit-code: '1'
-          severity: 'HIGH,CRITICAL'
+          format: "table"
+          exit-code: "1"
+          severity: "HIGH,CRITICAL"
       - name: TypeScript type-check & lint
         working-directory: apps/frontend
         run: npm run lint
@@ -82,8 +80,8 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: '24'
-          cache: 'npm'
+          node-version: "24"
+          cache: "npm"
           cache-dependency-path: |
             package-lock.json
             apps/backend/package-lock.json
@@ -108,16 +106,16 @@ jobs:
       - name: Run Trivy vulnerability scanner (fs)
         uses: aquasecurity/trivy-action@master
         with:
-          scan-type: 'fs'
-          scan-ref: 'apps/backend/lambdas'
+          scan-type: "fs"
+          scan-ref: "apps/backend/lambdas"
           ignore-unfixed: true
-          format: 'table'
-          exit-code: '1'
-          severity: 'HIGH,CRITICAL'
+          format: "table"
+          exit-code: "1"
+          severity: "HIGH,CRITICAL"
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v4
         with:
-          terraform_version: '~1.10'
+          terraform_version: "~1.10"
       - name: Terraform Format Check
         run: terraform fmt -check -recursive
         working-directory: infra/terraform
@@ -168,13 +166,15 @@ jobs:
 
   deploy_and_test_dev:
     name: Deploy, Test & OWASP ZAP DEV
-    needs: [validate_frontend, validate_backend, validate_security, validate_python]
+    needs:
+      [validate_frontend, validate_backend, validate_security, validate_python]
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: dev
     permissions:
       issues: write
       contents: read
+      id-token: write
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
       TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET || 'venky-2026-terraform-state' }}
@@ -186,6 +186,7 @@ jobs:
       TF_VAR_project_name: ${{ vars.PROJECT_NAME }}
       TF_VAR_ses_source_email: ${{ secrets.TF_SES_SOURCE_EMAIL }}
       TF_VAR_database_url: ${{ secrets.TF_DATABASE_URL }}
+      TF_VAR_aiven_ca_cert: ${{ secrets.AIVEN_CA_CERT }}
       TF_VAR_admin_email: ${{ vars.ADMIN_EMAIL }}
       TF_VAR_llm_api_key: ${{ secrets.OPENAI_API_KEY }}
       TF_VAR_llm_base_url: ${{ vars.LLM_BASE_URL }}
@@ -202,8 +203,9 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ vars.AWS_ROLE_ARN || secrets.AWS_ROLE_ARN }}
+          aws-access-key-id: ${{ (vars.AWS_ROLE_ARN || secrets.AWS_ROLE_ARN) == '' && secrets.AWS_ACCESS_KEY_ID || '' }}
+          aws-secret-access-key: ${{ (vars.AWS_ROLE_ARN || secrets.AWS_ROLE_ARN) == '' && secrets.AWS_SECRET_ACCESS_KEY || '' }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Set up Node.js

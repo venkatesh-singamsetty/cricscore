@@ -10,8 +10,8 @@ flowchart TD
     DEV -->|workflow_run: success| REL["release.yml: Semantic Release\n(v* Tag + docs/changelog.md + enrich_release_notes.sh)"]
     REL -->|Release published / v* tag| PROD["cd.yml: deploy_and_test_prod\n(DB Migrate -> TF Apply -> 7d Logs -> S3/CF -> AI Eval + 15 E2E + ZAP)"]
 
-    CRON_D["Nightly 00:00 UTC"] --> DRIFT["drift.yml: Read-Only Terraform Drift Check\n(dev & prod matrix: exitcode 2 = alert)"]
-    CRON_K["Daily 12:00 UTC"] --> KEEP["keepalive.yml: 1 Full Prod E2E Match\n+ Retain Latest 7 E2E Matches"]
+    CRON_D["Nightly 00:00 UTC"] --> DRIFT["drift.yml: Read-Only Terraform Drift Check\n(prod pinned to latest release tag: exitcode 2 = alert)"]
+    CRON_K["Daily 12:00 UTC"] --> KEEP["keepalive.yml: 1 Full Prod E2E Match\n(prod pinned to latest release tag + Retain Latest 7)"]
     CRON_M["Monthly / ML Paths Changed"] --> MLOPS["mlops-pipeline.yml: 8-Model Benchmark & Quality Gate"]
     DISPATCH_M["Manual Dispatch"] --> MLREL["ml-model-release.yml: Promote / Rollback ML Model + Smoke Test"]
 ```
@@ -30,9 +30,11 @@ flowchart TD
 - **`cd.yml` — Production Continuous Deployment (`prod`):**
   - **Triggers:** `release` (`published`), `push` (`tags: v*`), `workflow_dispatch` (`tag`).
   - Checks out the release tag, runs `migrate.sh prod`, `terraform init -upgrade` & `apply`, enforces 7-day Lambda log retention, syncs S3/CloudFront, and runs AI evals, `15` Playwright E2E tests, and OWASP ZAP.
-- **`drift.yml` — Nightly Infrastructure Drift Detection (`dev` & `prod` matrix):**
-  - **Triggers:** `schedule` (`0 0 * * *` daily), `workflow_dispatch`.
-  - Runs autonomous read-only `terraform init -upgrade` and `terraform plan -detailed-exitcode` across `dev` and `prod` without human environment gates; alerts immediately on exit code `2`.
+- **`drift.yml` — Nightly Infrastructure Drift Detection (`prod` pinned to latest release tag):**
+  - **Triggers:** `schedule` (`0 0 * * *` daily against `prod`), `workflow_dispatch` (choice of `prod` or `dev`).
+  - Pins checkout to the **latest published production release tag** (`v*`) to prevent unreleased Terraform changes on `main` from triggering false positive drift alerts against Production.
+  - Excludes `dev` from scheduled runs so active development and experimental branches in `dev` never trigger noisy alerts.
+  - Runs autonomous read-only `terraform init -upgrade` and `terraform plan -detailed-exitcode` without human environment gates; exits with code `2` on out-of-band AWS drift, which immediately triggers a GitHub failure email notification.
 - **`mlops-pipeline.yml` — ML Training, Benchmarking & Quality Gate:**
   - **Triggers:** `push`/`pull_request` (`cricket-data/**`, `apps/ml-engine/**`), `schedule` (`0 0 1 * *` monthly), `workflow_dispatch`.
   - Runs `pytest test_predict.py` and `compare_models.py` across 8 candidate models with MLflow, enforcing quality gates (`accuracy >= 0.60`, `roc_auc >= 0.65`, `approvalStatus == "approved"`) and uploading `XGBoost v2.2.0` artifacts.
@@ -45,9 +47,11 @@ flowchart TD
 - **`sbom.yml` — Software Bill of Materials Generation:**
   - **Triggers:** `push` (`main`), `schedule` (`0 0 * * 0` Sun), `workflow_dispatch`.
   - Generates an SPDX JSON SBOM (`cricscore-sbom.spdx.json`) using Anchore Syft and uploads it as a 30-day artifact.
-- **`keepalive.yml` — Daily Production E2E Match & Aiven PostgreSQL Keep-Alive:**
+- **`keepalive.yml` — Daily Production E2E Match & Aiven PostgreSQL Keep-Alive (`prod` pinned to latest release tag):**
   - **Triggers:** `schedule` (`0 12 * * *` daily), `workflow_dispatch`.
+  - Automatically resolves and checks out the **latest published production release tag** (`v*`), ensuring Playwright locators and specs match the deployed frontend version without false failures from unreleased PRs or changes on `main`.
   - Runs 1 full 2-over Playwright E2E match (`tests/user-journey.spec.ts`) against Production (`cricscore.venkateshsingamsetty.com`) to generate real WAL write activity (`INSERT`/`UPDATE`/`DELETE`) in Aiven Free Tier PostgreSQL while verifying live production health, and prunes older E2E test matches in `prod` (`OFFSET 7`) so only the **latest 7 E2E test matches** are retained.
+  - Runs autonomously with repo-level database secrets, completely free of manual environment review approvals. If an E2E test or database wake ping fails, GitHub triggers an immediate workflow failure email alert.
 - **`terraform-unlock.yml` — Emergency State Force-Unlock (`dev` or `prod`):**
   - **Triggers:** `workflow_dispatch` (`environment: dev|prod`, `lock_id`).
   - Runs `terraform init` and `terraform force-unlock -force "<lock_id>"` to clear a stale `.tflock` object in S3.
@@ -77,22 +81,49 @@ flowchart TD
 
 Populated automatically for `dev` and `prod` environments by `./infra/scripts/setup_github_envs.sh`:
 
-| Name                         | Type     | Scope               | Purpose                                               |
-| :--------------------------- | :------- | :------------------ | :---------------------------------------------------- |
-| `AWS_ACCESS_KEY_ID`          | Secret   | `dev`, `prod`, Repo | IAM access key ID for AWS deploy & drift              |
-| `AWS_SECRET_ACCESS_KEY`      | Secret   | `dev`, `prod`, Repo | IAM secret access key                                 |
-| `TF_DATABASE_URL`            | Secret   | `dev`, `prod`, Repo | Aiven PostgreSQL 16 URI (`?sslmode=require`)          |
-| `TF_SES_SOURCE_EMAIL`        | Secret   | `dev`, `prod`, Repo | Verified Amazon SES sender email                      |
-| `OPENAI_API_KEY`             | Secret   | `dev`, `prod`, Repo | OpenAI API key (`TF_VAR_llm_api_key`)                 |
-| `GH_PAT`                     | Secret   | Repo                | Admin PAT for `release.yml` & MCP GitHub Agent        |
-| `AWS_REGION`                 | Variable | `dev`, `prod`       | Target AWS region (`us-east-1`)                       |
-| `TF_STATE_BUCKET`            | Variable | `dev`, `prod`       | S3 bucket for `cricscore/<env>/terraform.tfstate`     |
-| `DOMAIN_NAME`                | Variable | `dev`, `prod`       | Environment domain (`cricscoredev.*` / `cricscore.*`) |
-| `ZONE_DOMAIN`                | Variable | `dev`, `prod`       | Root Route 53 hosted zone domain                      |
-| `SUBDOMAIN_PREFIX`           | Variable | `dev`, `prod`       | `cricscoredev` (`dev`) / `cricscore` (`prod`)         |
-| `PROJECT_NAME`               | Variable | `dev`, `prod`       | `cricscoredev` (`dev`) / `cricscore` (`prod`)         |
-| `ADMIN_EMAIL`                | Variable | `dev`, `prod`       | Recipient for SES BCC & `$5/mo` Budget alerts         |
-| `LLM_BASE_URL` / `LLM_MODEL` | Variable | `dev`, `prod`       | Optional LLM endpoint & model (`gpt-4o-mini`)         |
+| Name                         | Type     | Scope               | Purpose                                                |
+| :--------------------------- | :------- | :------------------ | :----------------------------------------------------- |
+| `AWS_ROLE_ARN`               | Variable | `dev`, `prod`, Repo | IAM Role ARN for Keyless GitHub Actions OIDC (AWS STS) |
+| `AIVEN_CA_CERT`              | Secret   | `dev`, `prod`, Repo | Aiven PostgreSQL Project Root CA for strict SSL        |
+| `TF_DATABASE_URL`            | Secret   | `dev`, `prod`, Repo | Aiven PostgreSQL 16 URI (`?sslmode=require`)           |
+| `TF_SES_SOURCE_EMAIL`        | Secret   | `dev`, `prod`, Repo | Verified Amazon SES sender email                       |
+| `OPENAI_API_KEY`             | Secret   | `dev`, `prod`, Repo | OpenAI API key (`TF_VAR_llm_api_key`)                  |
+| `GH_PAT`                     | Secret   | Repo                | Scoped PAT for `release.yml` & Chat Bot MCP Issue Tool |
+| `AWS_REGION`                 | Variable | `dev`, `prod`       | Target AWS region (`us-east-1`)                        |
+| `TF_STATE_BUCKET`            | Variable | `dev`, `prod`       | S3 bucket for `cricscore/<env>/terraform.tfstate`      |
+| `DOMAIN_NAME`                | Variable | `dev`, `prod`       | Environment domain (`cricscoredev.*` / `cricscore.*`)  |
+| `ZONE_DOMAIN`                | Variable | `dev`, `prod`       | Root Route 53 hosted zone domain                       |
+| `SUBDOMAIN_PREFIX`           | Variable | `dev`, `prod`       | `cricscoredev` (`dev`) / `cricscore` (`prod`)          |
+| `PROJECT_NAME`               | Variable | `dev`, `prod`       | `cricscoredev` (`dev`) / `cricscore` (`prod`)          |
+| `ADMIN_EMAIL`                | Variable | `dev`, `prod`       | Recipient for SES BCC & `$5/mo` Budget alerts          |
+| `LLM_BASE_URL` / `LLM_MODEL` | Variable | `dev`, `prod`       | Optional LLM endpoint & model (`gpt-4o-mini`)          |
+
+> [!NOTE]
+> Static AWS credentials (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`) and obsolete legacy secrets (`VITE_ADMIN_PIN`) have been permanently removed from GitHub Secrets. Deployments authenticate exclusively via keyless GitHub Actions OIDC (`AWS_ROLE_ARN`).
+
+### 🛡️ Repository Security Settings & Guardrails ($0.00 Free)
+
+1. **Least-Privilege Actions Token (`default_workflow_permissions: "read"`)**:
+   - The default `GITHUB_TOKEN` across all workflows is restricted to read-only. Workflows must declare explicit permissions (`permissions: id-token: write, contents: read`).
+2. **Pull Request Approval Protection (`can_approve_pull_request_reviews: false`)**:
+   - GitHub Actions workflows are forbidden from approving pull requests, enforcing human and policy approval gates.
+3. **Secret Scanning Push Protection**:
+   - Active on repository commits and pull requests to block accidental secret leaks.
+4. **Chat Bot MCP Issue Agent Access (`GH_PAT`)**:
+   - Required permissions for the AI Chat Assistant to file issues on user request:
+     - **Fine-Grained PAT**: Target `venkatesh-singamsetty/cricscore`, **Issues**: `Read and Write`, **Contents**: `Read and Write`.
+     - Automatically logs issues with labels: `via-cricscore-ai`, `bug`, `feature-request`, or `feedback`.
+
+---
+
+## 🔔 Alerting & Failure Notifications Architecture
+
+| Failure Domain                               | Trigger Mechanism                                                    | Notification Channel                    | Recipient                              |
+| :------------------------------------------- | :------------------------------------------------------------------- | :-------------------------------------- | :------------------------------------- |
+| **Infrastructure Drift** (`drift.yml`)       | `terraform plan -detailed-exitcode` exits `2`                        | **GitHub Actions Email**                | Repository Watcher / Account Email     |
+| **E2E Keep-Alive Failure** (`keepalive.yml`) | Playwright test or database ping exits non-zero                      | **GitHub Actions Email**                | Repository Watcher / Account Email     |
+| **Live Lambda Runtime Errors**               | CloudWatch Metric Alarms (`match-api-errors`, `score-update-errors`) | **AWS SNS (`cricscore-lambda-alerts`)** | `ADMIN_EMAIL` (`venky.2k57@gmail.com`) |
+| **AWS Monthly Budget Breach**                | AWS Budgets (`cricscore-monthly-cost-budget`)                        | **AWS Budgets Email**                   | `ADMIN_EMAIL` (`venky.2k57@gmail.com`) |
 
 ---
 

@@ -1,13 +1,23 @@
 const { Pool, Client } = require("pg");
 
+const getSslConfig = () => {
+  const caCert = process.env.AIVEN_CA_CERT || process.env.DATABASE_CA_CERT;
+  if (caCert) {
+    return { rejectUnauthorized: true, ca: caCert };
+  }
+  // codeql[js/disabling-certificate-validation] Aiven DB requires this unless explicit CA bundle is provided
+  return { rejectUnauthorized: false };
+};
+
 const cleanDbUrl = (process.env.DATABASE_URL || "").split("?")[0];
 const pool = new Pool({
   connectionString: cleanDbUrl,
-  // codeql[js/disabling-certificate-validation] Aiven DB requires this unless explicit CA bundle is provided
-  ssl: { rejectUnauthorized: false },
+  ssl: getSslConfig(),
   max: 1,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
+  statement_timeout: 10000,
+  query_timeout: 10000,
 });
 pool.on("error", (err) => console.error("Idle PostgreSQL client error:", err));
 
@@ -24,8 +34,7 @@ exports.handler = async (event, context) => {
     if (useClient) {
       client = new Client({
         connectionString: cleanDbUrl,
-        // codeql[js/disabling-certificate-validation] Aiven DB requires this unless explicit CA bundle is provided
-        ssl: { rejectUnauthorized: false },
+        ssl: getSslConfig(),
       });
       await client.connect();
     } else {

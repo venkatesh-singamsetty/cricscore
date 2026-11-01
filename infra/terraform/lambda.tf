@@ -16,6 +16,7 @@ module "match_api" {
 
   environment_variables = {
     DATABASE_URL         = var.database_url
+    AIVEN_CA_CERT        = var.aiven_ca_cert
     DB_SCHEMA            = var.environment
     SES_SOURCE           = var.ses_source_email
     ADMIN_REPORT_EMAIL   = var.admin_email
@@ -47,6 +48,7 @@ module "score_update" {
     MATCH_EVENTS_TOPIC   = aws_sns_topic.match_events.arn
     STORAGE_BUFFER_QUEUE = aws_sqs_queue.storage_buffer.url
     DATABASE_URL         = var.database_url
+    AIVEN_CA_CERT        = var.aiven_ca_cert
     DB_SCHEMA            = var.environment
     ADMIN_REPORT_EMAIL   = var.admin_email
   }
@@ -127,8 +129,9 @@ module "storage_worker" {
   timeout          = 30
 
   environment_variables = {
-    DATABASE_URL = var.database_url
-    DB_SCHEMA    = var.environment
+    DATABASE_URL  = var.database_url
+    AIVEN_CA_CERT = var.aiven_ca_cert
+    DB_SCHEMA     = var.environment
   }
 }
 
@@ -203,6 +206,7 @@ module "chat_api" {
 
   environment_variables = {
     DATABASE_URL         = var.database_url
+    AIVEN_CA_CERT        = var.aiven_ca_cert
     DB_SCHEMA            = var.environment
     LLM_API_KEY          = var.llm_api_key
     OPENAI_API_KEY       = var.openai_api_key != "" ? var.openai_api_key : var.llm_api_key

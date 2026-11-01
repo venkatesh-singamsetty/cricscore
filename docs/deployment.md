@@ -9,7 +9,7 @@ Step-by-step self-deployment tutorial to run CricScore (`dev` + `prod`) on your 
 flowchart TD
     S0["Step 0: Accounts & Keys"] --> S1["Step 1: Clone & Tools"]
     S1 --> S2["Step 2: .env.local & Pre-Flight Check"]
-    S2 --> S3["Step 3: Bootstrap DNS & SES"]
+    S2 --> S3["Step 3: Bootstrap S3, Route 53 & OIDC"]
     S3 --> S4["Step 4: Deploy Dev & Prod"]
     S4 --> S5["Step 5: Grant Admin User"]
     S5 --> S6["Step 6: GitHub Actions CI/CD"]
@@ -22,10 +22,16 @@ flowchart TD
 ./infra/scripts/setup.sh
 
 # Step 2: Validate local environment configuration and secrets
-./infra/scripts/deploy.sh --check
+./infra/scripts/deploy.sh --env dev --use-local-env --check
 
-# Step 3: Bootstrap AWS S3 state bucket and Route 53 (run once per account)
+# Step 3a: Bootstrap AWS S3 state bucket and Route 53 (run once per account)
 ./infra/scripts/deploy.sh --env dev --use-local-env --bootstrap-only
+
+# Step 3b: Point registrar nameservers to Route 53 and verify SES domain in AWS Console
+
+# Step 3c: Bootstrap keyless GitHub Actions OIDC (run once per account/repo)
+gh auth login
+./infra/scripts/bootstrap_oidc.sh
 
 # Step 4: Deploy full stack with database migrations to Dev
 ./infra/scripts/deploy.sh --env dev --use-local-env --migrate
@@ -35,7 +41,6 @@ flowchart TD
 
 # Step 6: Synchronize secrets and variables to GitHub Environments
 ./infra/scripts/setup_github_envs.sh
-
 ```
 
 ---
@@ -50,6 +55,7 @@ flowchart TD
   - **Cost Tier:** Registrar fee + `$0.50/mo` Route 53 hosted zone.
 - **PostgreSQL 16 ([Aiven Console](https://console.aiven.io/signup)):**
   - Create a free PostgreSQL 16 service (`pgvector` included) and copy the Service URI (`postgres://avnadmin:...`).
+  - **Strict SSL CA (Optional but Recommended):** Download the Project CA certificate (Overview → CA Certificate → Download) and save it to `infra/database/certs/aiven-ca.pem` for zero-cost strict TLS verification.
   - **Cost Tier:** Free Tier (`keepalive.yml` runs 1 daily Production E2E match + 7-match retention to prevent inactivity sleep).
 - **Sender Email — Amazon SES ([AWS SES Console](https://console.aws.amazon.com/ses/home#/identities)):**
   - Choose a sender email address on your custom domain (`noreply@yourdomain.com`), verified in Step 3b.
@@ -154,18 +160,18 @@ Every check (`node`, `terraform`, `aws`, `jq`, `docker`, `psql`, AWS credentials
 
 ---
 
-## Step 3: Bootstrap AWS (once only)
+## Step 3: One-Time AWS Account Bootstrap (once per account)
 
 > [!WARNING]
-> Run bootstrap **once** per AWS account. Preserve `infra/terraform/bootstrap/terraform.tfstate` locally.
+> Run bootstrap **once** per AWS account using local administrator AWS credentials (`user/venky`). This provisions foundational account singletons: the remote Terraform state bucket, DynamoDB lock table, Route 53 hosted zone, and GitHub Actions OIDC IAM federation.
 
-### 3a. Provision S3 Terraform state bucket and Route 53 Hosted Zone
+### 3a. Provision S3 State Bucket, DynamoDB Lock Table & Route 53 Hosted Zone
 
 ```bash
 ./infra/scripts/deploy.sh --env dev --use-local-env --bootstrap-only
 ```
 
-### 3b. Delegate DNS and verify SES
+### 3b. Delegate DNS Nameservers and Verify SES
 
 1. **Point Nameservers:**
    - Copy the 4 Route 53 nameservers printed by `--bootstrap-only` and set them as custom nameservers at your domain registrar.
@@ -176,6 +182,26 @@ Every check (`node`, `terraform`, `aws`, `jq`, `docker`, `psql`, AWS credentials
 3. **Verify Sandbox User (or Request Production Access):**
    - While your AWS SES account is in sandbox mode, verify your `ADMIN_EMAIL` address in SES, or request SES production access for open delivery.
    - **Verify:** Recipient email status shows **Verified**.
+
+### 3c. Bootstrap Keyless GitHub Actions OIDC (IAM Role & STS Federation)
+
+To eliminate long-lived static `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` credentials in GitHub Actions, bootstrap the IAM OpenID Connect Provider and GitHub deployment role:
+
+1. **Authenticate GitHub CLI:**
+   ```bash
+   gh auth login
+   ```
+2. **Run OIDC Bootstrapper:**
+   ```bash
+   ./infra/scripts/bootstrap_oidc.sh
+   ```
+
+What `bootstrap_oidc.sh` executes:
+
+1. Idempotently creates the AWS IAM OpenID Connect Provider for `https://token.actions.githubusercontent.com`.
+2. Automatically detects your GitHub repository via `gh repo view` and creates the IAM Role `cricscore-github-actions-role` with a trust policy restricting role assumption strictly to your repository (`repo:<your-github-username>/<your-repo-name>:*`).
+3. Attaches `AdministratorAccess` policy to the role.
+4. Automatically populates `vars.AWS_ROLE_ARN` in GitHub across repository and environment scopes (`dev` and `prod`).
 
 ---
 
@@ -241,8 +267,8 @@ gh auth login
 ./infra/scripts/setup_github_envs.sh
 ```
 
-> [!CAUTION]
-> Run `setup_github_envs.sh` once during initial setup, or whenever rotating secrets in `.env.local`. It creates the `dev` and `prod` GitHub Environments and populates all environment secrets and variables. Also add `GH_PAT` (with `repo` and `workflow` scopes) as a repository secret for Semantic Release.
+> [!TIP]
+> If you bootstrapped OIDC in Step 3c (`./infra/scripts/bootstrap_oidc.sh`), `AWS_ROLE_ARN` is already configured in GitHub. You can safely delete legacy static `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` secrets from GitHub Settings!
 
 ### 6b. Automated CI/CD Pipeline Behavior
 
@@ -258,7 +284,7 @@ gh auth login
   - Runs `deploy_and_test_prod` against the `prod` environment (supports optional manual approval gate).
   - Enforces 7-day Lambda log retention, deploys SPA to S3/CloudFront, and runs live AI evals, `15` Playwright E2E tests, and OWASP ZAP scan.
 - **Nightly `00:00 UTC` (`drift.yml`):**
-  - Runs read-only `terraform plan -detailed-exitcode` across `dev` and `prod` without human gates and alerts immediately on exit code `2` (out-of-band AWS drift).
+  - Runs read-only `terraform plan -detailed-exitcode` exclusively against `prod` pinned to the latest release tag without human gates, alerting immediately via GitHub Actions on exit code `2` (out-of-band AWS drift). Excludes `dev` from scheduled runs to avoid false positives during active feature development.
 
 ---
 
