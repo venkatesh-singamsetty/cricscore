@@ -141,7 +141,7 @@ A central single-pane-of-glass directory providing live references across all la
 | **SQS FIFO Storage Queue**         | `cricscore-storage-buffer.fifo`                                                                              | [SQS Queue Console](https://us-east-1.console.aws.amazon.com/sqs/v3/home?region=us-east-1#/queues/https%3A%2F%2Fsqs.us-east-1.amazonaws.com%2F926789386606%2Fcricscore-storage-buffer.fifo) |
 | **SNS Match Events Topic**         | `cricscore-match-events`                                                                                     | [SNS Events Topic](https://us-east-1.console.aws.amazon.com/sns/v3/home?region=us-east-1#/topic/arn:aws:sns:us-east-1:926789386606:cricscore-match-events)                                  |
 | **SNS Lambda Alerts Topic**        | `cricscore-lambda-alerts`                                                                                    | [SNS Alerts Topic](https://us-east-1.console.aws.amazon.com/sns/v3/home?region=us-east-1#/topic/arn:aws:sns:us-east-1:926789386606:cricscore-lambda-alerts)                                 |
-| **ECR ML Container Repo**          | `cricscore-ml-predict` (`294.74 MB`, `countNumber=1`, pushed `2026-10-31 22:40:37`)                          | [ECR Repo Console](https://us-east-1.console.aws.amazon.com/ecr/repositories/private/926789386606/cricscore-ml-predict?region=us-east-1)                                                    |
+| **ECR ML Container Repo**          | `cricscore-ml-predict` (`294.75 MB`, `countNumber=1`, pushed `2026-10-31 23:23:23`)                          | [ECR Repo Console](https://us-east-1.console.aws.amazon.com/ecr/repositories/private/926789386606/cricscore-ml-predict?region=us-east-1)                                                    |
 
 ### ⚡ Serverless Compute & Telemetry (AWS Lambda)
 
@@ -173,7 +173,7 @@ A central single-pane-of-glass directory providing live references across all la
 | **DVC Dataset Lineage**          | `dvc:31e19c47bdbc05d773938754d8589516` (`cricket-data/t20s_json.zip.dvc`, `dvc.yaml`, `dvc.lock`)                                                                                                                                                                           |
 | **ECR Container Optimization**   | `public.ecr.aws/lambda/python:3.12` + `xgboost-cpu` (`~309 MB`, `countNumber = 1` single-image retention)                                                                                                                                                                   |
 | **Dev ECR Image (`:v2.2.0`)**    | • Size: `294.75 MB`<br/>• Digest: `sha256:c1723ea5521349d856a0246704689110d6e70ea99d02d6dfaac2aa15a342f0b0`<br/>• Pushed: `2026-10-31 22:39:31`                                                                                                                             |
-| **Prod ECR Image (`:v2.2.0`)**   | • Size: `294.74 MB`<br/>• Digest: `sha256:a86e86135aa0e93950d7ebd4489fc996cde4c6f16fc7327520091b6f09bcbcbf`<br/>• Pushed: `2026-10-31 22:40:37`                                                                                                                             |
+| **Prod ECR Image (`:v2.2.0`)**   | • Size: `294.75 MB`<br/>• Digest: `sha256:f51eafbe8b57d802746c067068c953f58892721272b5ca09fbf8daa92b552632`<br/>• Pushed: `2026-10-31 23:23:23`                                                                                                                             |
 
 ### Champion vs. Baseline Benchmark Metrics
 
