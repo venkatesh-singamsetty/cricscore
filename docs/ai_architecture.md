@@ -107,6 +107,17 @@ sequenceDiagram
     APIGW-->>App: Display Response to Viewer
 ```
 
+### Sequence Flow Breakdown (What the Execution Steps & Tool Branches Do)
+
+- **Steps 1–3 (Ingress & Throttling):** Viewer types a prompt into the chat widget; React sends `POST /chat` with `message`, `matchId`, and conversation history to API Gateway, which checks the `5 rps` throttle and invokes `chat-api`.
+- **Steps 4–8 (In-Memory MCP Initialization & Live Telemetry):** `chat-api` launches an ephemeral in-process MCP server via `InMemoryTransport` with zero network overhead, registers the 4 specialist tools, and fetches live match state from Aiven PostgreSQL.
+- **Step 9 (LLM Intent & Tool Selection):** `chat-api` sends the user prompt, live match telemetry, and tool schemas to `gpt-4o-mini`. The model decides whether to respond directly or call a specialist tool:
+  - **Branch 1 (`execute_sql`):** Dispatches to Match Stats Agent; runs parameterized read-only `SELECT` queries with a `3s` statement timeout and automatic `scorer_email` PII stripping.
+  - **Branch 2 (`search_tournament_rules`):** Dispatches to Rules Agent; generates a `1536-d` vector via `text-embedding-3-small`, runs HNSW cosine search (`<=>`) against PostgreSQL `pgvector`, and mandates `[Source: document_name]` citations.
+  - **Branch 3 (`get_match_weather`):** Dispatches to Weather Agent; calls Open-Meteo for geocoding, rain probability %, and temperature, returning automated Cricket & DLS interruption advisories.
+  - **Branch 4 (`create_github_issue`):** Dispatches to GitHub Issue Agent; enforces a 2-step confirmation with the user and rate limits to `1` issue per turn before filing via GitHub REST API.
+- **Steps 10–12 (Evidence Synthesis & Delivery):** `chat-api` feeds tool evidence back into `gpt-4o-mini`, synthesizes a user-friendly markdown response, and returns `HTTP 200 OK`.
+
 ---
 
 ## 🌐 Model Context Protocol (MCP) Integration

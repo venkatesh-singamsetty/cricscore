@@ -31,6 +31,13 @@ flowchart TD
     MatchAPI -->|"Direct Invoke: HUB_UPDATE"| Broadcaster
 ```
 
+### Sequence of Operations (What the Numbered Arrows Mean)
+
+- **Arrow 1 (`Scorer UI ➔ API Gateway ➔ score-update`):** Authenticated scorer records a delivery, triggering an HTTPS `POST /match/{id}/score` request to API Gateway, which immediately invokes `score-update`.
+- **Arrow 2a (`score-update ➔ AWS SNS ➔ broadcaster` — Fast Path):** Synchronously publishes to `match-events`. SNS invokes `broadcaster`, which looks up active sockets in DynamoDB and pushes the live update to viewers over WebSockets in `< 1s` without touching PostgreSQL.
+- **Arrow 2b (`score-update ➔ AWS SQS FIFO ➔ storage-worker` — Safe Path):** Simultaneously enqueues the ball into `storage-buffer.fifo`. SQS triggers `storage-worker` with `batch_size = 1` and `MessageGroupId = matchId`, strictly ordering writes into Aiven PostgreSQL 16.
+- **Arrow 3 (`Scorer UI ➔ match-api ➔ broadcaster` — Lifecycle Hub Sync):** Match operations (toss, innings switches, POTM calculations, resets) are handled directly by `match-api`, which updates PostgreSQL and directly invokes `broadcaster` with a `{ type: "HUB_UPDATE" }` frame.
+
 ---
 
 ## 🚀 Dual-Path Event Architecture

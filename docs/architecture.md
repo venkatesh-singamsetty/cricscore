@@ -118,6 +118,25 @@ flowchart TD
     ChatAPI -.-> GitHubAPI
 ```
 
+#### Platform Tiers & Request Data Flow (What the Arrows Mean)
+
+- **1. Edge & CDN Tier (`Route 53` + `ACM` + `CloudFront OAC` + `S3`):**
+  - **`Client ➔ Route 53 ➔ ACM ➔ CloudFront ➔ S3`:** DNS queries resolve custom domains (`cricscore`, `api.`, `ws.`), terminate TLS 1.3 certificates, and serve the React 19 SPA via Origin Access Control (OAC) from S3, cached at CloudFront edge locations globally.
+- **2. Identity & Access Tier (`Amplify Auth` + `Cognito` + `API Gateway HTTP/WS` + `IAM`):**
+  - **`Client ➔ Amplify ➔ Cognito ➔ cognito-presignup`:** Scorer authentication or shadow guest auto-confirmation issues RS256 JWT tokens. API Gateway's JWT authorizer validates tokens before Lambda compute invocation.
+- **3. API Ingress & Serverless Compute Tier (`API Gateway ➔ AWS Lambdas`):**
+  - **`APIGW_HTTP ➔ MatchAPI / ScoreUpdate / ChatAPI / MLPredict`:** Dispatches authenticated REST requests (`POST /update-score`, `POST /chat`, `POST /match/predict`, `/match/*`) with `50 rps` stage and `5 rps` `/chat` throttling.
+  - **`APIGW_WS ➔ onconnect / ondisconnect ➔ DynamoDB`:** Registers active WebSocket client connections in DynamoDB and prunes stale connections on socket termination.
+- **4. Event-Driven Messaging & Parallel Ingestion Tier (`score-update ➔ SNS + SQS FIFO`):**
+  - **`ScoreUpdate ➔ Fast Path Broadcast ➔ SNS_Score ➔ Broadcaster ➔ DynamoDB ➔ APIGW_WS`:** In-memory fan-out to spectator browsers in `< 1s` without touching relational database locks.
+  - **`ScoreUpdate ➔ Ordered Persistence ➔ SQS_Queue ➔ StorageWorker ➔ AivenPG`:** Strictly ordered FIFO queuing (`batch_size = 1`, `MessageGroupId = matchId`) for ACID database transactions.
+  - **`MatchAPI ➔ Direct Invoke: HUB_UPDATE ➔ Broadcaster`:** Syncs match creation, innings turnover, and match completion across all active viewers without manual browser refreshes.
+- **5. Multi-Cloud Persistence, Registries & Observability Tier (`Aiven PostgreSQL 16 + pgvector`, `SES`, `S3`, `ECR`, `CloudWatch`, `X-Ray`):**
+  - **`MatchAPI / StorageWorker ➔ AivenPG`:** Persists relational match, innings, player, and ball records in schema-isolated `dev`/`prod` PostgreSQL databases.
+  - **`ChatAPI ➔ Read-Only SQL & pgvector RAG ➔ AivenPG`:** Executes read-only queries with a `3s` timeout and performs 1536-d cosine similarity search (`<=>`).
+  - **`ECR / S3_Backups ➔ MLPredict`:** Provides the container runtime image (`~309 MB`) and versioned model artifact (`v2.2.0`).
+  - **`Compute ➔ CloudWatch / X-Ray / Budgets`:** Enforces 7-day log retention, 5% trace sampling, real-time SNS error alerts, and `~$1/month` budget alarms.
+
 ---
 
 ### 🤖 2. Agentic AI, MCP & Specialist Multi-Agent Architecture
@@ -228,6 +247,22 @@ flowchart TD
   - **Source & Tech:** **XGBoost (`v2.2.0`)** + Ball-by-Ball Markov DP + DLS Par.
   - **Key Guardrails:** Validates 8 situational features and blends gradient boosting with exact dynamic programming to produce calibrated win probabilities.
 
+#### Multi-Agent Routing & Data Flow (What the Arrows Mean)
+
+- **1. Ingress & Context Injection (`User ➔ LiveContext ➔ APIGW_Chat ➔ NodeAdapter`):**
+  - Viewer submits a query or clicks a prompt chip. The React frontend bundles live match state (current score, overs, wickets, active batter/bowler, target) and sends `POST /chat`. API Gateway enforces `5 rps` rate limits before invoking the `chat-api` Lambda.
+- **2. Intent Classification & Security Boundary (`NodeAdapter ➔ Classifier`):**
+  - Sanitizes chat history (last 10 turns), strips PII (scorer email), and routes the request with zero LLM latency based on intent keywords or LLM function signatures.
+- **3. Specialist Agent Dispatch (`Classifier ➔ Specialized Agents ➔ Backing Stores`):**
+  - **`Classifier ➔ MatchAgent ➔ PG_Relational`:** Executes parameterized read-only `SELECT` queries with a `3s` timeout.
+  - **`Classifier ➔ RAGAgent ➔ PG_Vector`:** Performs HNSW cosine similarity search (`<=>`) over tournament PDF chunks using `text-embedding-3-small`.
+  - **`Classifier ➔ WeatherAgent ➔ WeatherAPI`:** Queries Open-Meteo for geocoded venue coordinates, hourly rain %, and wind speeds.
+  - **`Classifier ➔ IssueAgent ➔ GitHubAPI_Tool`:** Files structured bug or feature issues on GitHub after mandatory 2-step confirmation.
+  - **`Classifier ➔ AnalysisAgent ➔ PG_Relational / PG_Vector / LiveContext`:** Evaluates tactical cricket pacing, required run rate, and bowler quota constraints.
+  - **`Classifier ➔ PredictionAgent ➔ ML_Model`:** Evaluates situational match features against the XGBoost + Markov DP inference Lambda.
+- **4. Evidence Synthesis & Client Delivery (`Specialized Agents ➔ Synthesizer ➔ User`):**
+  - The Synthesizer aggregates tool facts, formats markdown tables or bulleted points, attaches mandatory source citations (`[Source: document_name]`), and streams the verified response back to the viewer.
+
 ---
 
 ### 🧠 3. Serverless MLOps & Hybrid Win Prediction Architecture
@@ -273,6 +308,22 @@ flowchart TD
         LambdaContainer --> HybridEngine
     end
 ```
+
+#### MLOps Lifecycle & Real-Time Serving Flow (What the Arrows Mean)
+
+- **Phase 1: Dataset Pipeline & DVC Lineage (`Cricsheet ➔ Extractor ➔ DVC_Track`):**
+  - **`Cricsheet ➔ Extractor ➔ DVC_Track`:** Ingests raw ball-by-ball JSON archives (`786K+` deliveries), extracts normalized feature sets into `live_data.csv`, and locks dataset versions via `cricket-data/t20s_json.zip.dvc` outside Git.
+- **Phase 2: Multi-Model Training & Champion Selection (`DVC_Track ➔ Splitter ➔ Benchmark ➔ MLflowStore ➔ Winner`):**
+  - **`DVC_Track ➔ Splitter`:** Splits matches on a `70% Train / 15% Val / 15% Test` match-grouped basis with zero data leakage across innings.
+  - **`Splitter ➔ Benchmark ➔ MLflowStore ➔ Winner`:** Trains 7 Scikit-Learn baselines and XGBoost in parallel, logs metrics to MLflow, and crowns **XGBoost `v2.2.0`** as champion (`Val ROC-AUC = 0.7723`, `Test ROC-AUC = 0.7529`).
+- **Phase 3: CI Quality Gate & Artifact Registries (`Winner ➔ Gate ➔ Manifest ➔ S3Registry + ECR`):**
+  - **`Winner ➔ Gate`:** GitHub Actions (`mlops-pipeline.yml`) validates the model against the quality gate (`Accuracy >= 60%`, `ROC-AUC >= 65%`).
+  - **`Gate ➔ Manifest ➔ S3Registry`:** Serializes model to `.joblib` (`~227 KB`), generates SHA-256 `model_manifest.json`, and uploads to `models/v2.2.0/`.
+  - **`Gate ➔ Manifest ➔ ECR`:** Builds the lightweight `xgboost-cpu` image (`~309 MB`) and pushes to Amazon ECR with a 1-image retention rule (`countNumber = 1`, `~$0.01/mo`).
+- **Phase 4: Real-Time Hybrid Inference (`S3Registry + ECR ➔ LambdaContainer ➔ HybridEngine`):**
+  - **`S3Registry ➔ LambdaContainer`:** On cold start, downloads `.joblib` into `/tmp` and validates its SHA-256 checksum (enabling 5-second zero-downtime rollbacks via `--model-version`).
+  - **`ECR ➔ LambdaContainer`:** Runs Python 3.12 with pre-warmed ML dependencies.
+  - **`LambdaContainer ➔ HybridEngine`:** Blends XGBoost probability + Markov Chain DP state transitions + DLS Par scaling into a calibrated real-time win probability returned in `< 150ms`.
 
 ---
 
@@ -335,6 +386,22 @@ sequenceDiagram
         Consumer->>Aiven_Hub: Pg SQL Save
     end
 ```
+
+#### Step-by-Step Live Scoring Sequence (Why Both Paths Run in Parallel)
+
+- **Step 1 (`Scorer ➔ Producer`):** Scorer inputs ball event; browser sends authenticated `POST /update-score` to `score-update` Lambda.
+- **Steps 2 & 3 (`Producer ➔ SNS & SQS`):** `score-update` concurrently dispatches the ball to:
+  - **Amazon SNS (`match-events`):** For immediate spectator fan-out via Fast Path (sub-second delivery).
+  - **Amazon SQS FIFO (`storage-buffer.fifo`):** For ordered database persistence via Safe Path (`MessageGroupId = matchId`).
+- **Step 4 (`Producer ➔ Scorer`):** Returns `HTTP 200` to the scorer as soon as SNS publish and SQS enqueue succeed (`~30ms`), without waiting for database disk transactions.
+- **Steps 5–9 (`Fast Path: SNS ➔ Broadcaster ➔ DynamoDB ➔ API Gateway WebSocket ➔ Viewer`):**
+  - SNS triggers `broadcaster` synchronously.
+  - `broadcaster` scans DynamoDB for active spectator connection IDs subscribed to this match.
+  - `broadcaster` pushes live payload via `@connections` API.
+  - API Gateway streams live scoreboard frame directly into fan browsers (`< 1s` total latency from scorer tap).
+- **Steps 10–11 (`Safe Path: SQS FIFO ➔ Consumer ➔ Aiven PostgreSQL`):**
+  - SQS FIFO triggers `storage-worker` with `batch_size = 1`.
+  - `storage-worker` executes transactional SQL updates for `matches`, `innings`, `players`, `bowlers`, and `ball_events` in strict chronological order, guaranteeing zero lost balls and durable undo rollbacks.
 
 ---
 

@@ -61,6 +61,14 @@ Editable Mermaid diagrams live in **[docs/architecture.md](./docs/architecture.m
 - **5. Observability & Cost Guardrails (`CloudWatch 7d` + `X-Ray 5%` + `SNS Alarms` + `AWS Budgets`):**
   - Enforces 7-day log retention across all Lambda/API log groups, 5% X-Ray trace sampling, real-time error alert emails, and `~$1/month` budget alarms.
 
+- **🔄 Step-by-Step Platform Request & Data Flow (What the Arrows Mean):**
+  - **Static Asset Delivery (`Client ➔ Route 53 ➔ ACM ➔ CloudFront ➔ S3`):** Resolves custom domains, terminates TLS 1.3, and serves the static React 19 SPA cached globally at edge points of presence.
+  - **Identity & Access (`Client ➔ Amplify ➔ Cognito ➔ API Gateway`):** Authenticates users via SRP or auto-confirms guest scorers (`cognito-presignup`), attaching RS256 JWTs validated at the API Gateway edge.
+  - **API Ingress & Compute Routing (`API Gateway HTTP ➔ Lambdas`):** Routes authenticated REST calls to the targeted serverless Lambda (`match-api` for match CRUD, `score-update` for ball scoring, `chat-api` for AI assistant, and `ml-predict` for win probabilities).
+  - **Live WebSocket Ingress & Egress (`Client ⮂ API Gateway WebSocket ⮂ Lambdas`):** Handles connection handshakes via `onconnect` / `ondisconnect` (persisting active connection IDs to DynamoDB) and streams live score frames back to fans.
+  - **Multi-Cloud Persistence & Delivery (`Lambdas ➔ PostgreSQL, DynamoDB, S3, SES, ECR`):** Commits transactional data to Aiven PostgreSQL 16, sends automated HTML scorecards via SES, backs up match JSON snapshots to S3, and loads versioned ML models from S3 and ECR.
+  - **Observability & Cost Telemetry (`Lambdas ➔ CloudWatch, X-Ray, Budgets`):** Emits structured logs with 7-day expiration, samples 5% of traces for AWS X-Ray, triggers SNS email alerts on function errors, and monitors the `~$1/month` budget ceiling.
+
 ### ⚡ 2. Live Scoring: One Ball, Two Parallel Paths
 
 ![Live scoring flow: score-update Lambda publishes each ball to SNS for instant WebSocket broadcast and to SQS FIFO for guaranteed persistence in PostgreSQL](./docs/images/architecture/02_live_scoring_flow.png)
@@ -73,9 +81,24 @@ When a scorer taps a ball, CricScore decouples **live broadcast speed** from **d
 - **🟢 Safe Path (Guaranteed Ordered ACID Persistence to Database):**
   - `score-update` → **Amazon SQS FIFO (`storage-buffer.fifo`, `MessageGroupId = matchId`)** → `storage-worker` Lambda (`batch_size = 1`) → commits delivery, player stats, and undo rollbacks to **Aiven PostgreSQL 16**.
   - **Why it exists:** Ensures strict chronological ordering (one ball at a time per match) and durable ACID history so browser refreshes, scorecards, and player career averages are never corrupted.
-- **💡 Why Two Paths Instead of One?**
-  - If we wrote to PostgreSQL first before broadcasting, database latency and connection pool spikes would slow down live fans.
-  - If we only broadcasted without FIFO queuing, network glitches or rapid scoring taps could write balls out of order or lose deliveries entirely on page refresh. Parallel fan-out gives both sub-second fan updates and 100% data integrity.
+
+- **🔢 Step-by-Step Data Flow (What Arrows 1 to 7 Mean):**
+  - **Arrow `1. Ball` (`Scorer ➔ HTTP API`):** Scorer taps a delivery (runs, extras, wicket, or undo) on the web/mobile UI.
+  - **Arrow `2. Invoke` (`HTTP API ➔ score-update`):** API Gateway validates the JWT, checks route throttling, and invokes the `score-update` Lambda.
+  - **Arrow `3a. Publish` (`score-update ➔ SNS` — Fast Path):** `score-update` immediately publishes the delivery event payload to the Amazon SNS `match-events` topic in memory (`~15ms`).
+  - **Arrow `4a. Trigger` (`SNS ➔ broadcaster` — Fast Path):** Amazon SNS synchronously triggers the `broadcaster` Lambda with zero queue lag.
+  - **Arrow `5a. Lookup` (`broadcaster ➔ DynamoDB` — Fast Path):** `broadcaster` queries the DynamoDB connection registry for active spectators subscribed to this `matchId`.
+  - **Arrow `6a. Push` (`broadcaster ➔ WebSocket API` — Fast Path):** `broadcaster` calls API Gateway's `@connections` endpoint in parallel for all active sockets.
+  - **Arrow `7a. Stream` (`WebSocket API ➔ Live Viewers` — Fast Path):** API Gateway flushes live delivery frames directly to viewer screens in under 1 second.
+  - **Arrow `3b. Enqueue` (`score-update ➔ SQS FIFO` — Safe Path):** Simultaneously with step 3a, `score-update` enqueues the exact same ball payload into Amazon SQS FIFO (`storage-buffer.fifo`).
+  - **Arrow `4b. Poll` (`SQS FIFO ➔ storage-worker` — Safe Path):** SQS FIFO triggers `storage-worker` with `batch_size = 1` and `MessageGroupId = matchId`, strictly guaranteeing one delivery at a time in chronological order.
+  - **Arrow `5b. Persist` (`storage-worker ➔ Aiven PostgreSQL 16` — Safe Path):** `storage-worker` opens an ACID transaction, saves the ball record, updates player/bowler/match statistics, and safely handles undo events.
+
+- **💡 Why Two Paths Instead of One? (Why They Diverge at Step 3a & 3b):**
+  - **They look similar because they handle the same ball data, but their targets and latency requirements are completely opposite:**
+    - **Fast Path (Blue, Steps 3a–7a) is ephemeral memory-to-screen fan-out:** It bypasses database disk I/O entirely so live spectators see boundaries and wickets instantly (`< 1s`) without waiting on relational database lock queues or connection pools.
+    - **Safe Path (Green, Steps 3b–5b) is permanent disk persistence:** It serializes writes through SQS FIFO to guarantee strict chronological ordering and durable ACID transactions in Aiven PostgreSQL 16, ensuring career averages, scorecards, and undos are never corrupted.
+  - Decoupling them is what allows `score-update` to return `HTTP 200` to the scorer in `~30ms` while providing both sub-second live streaming and 100% data integrity.
 
 ### 🤖 3. AI Assistant (Autonomous Multi-Agent System via MCP)
 
@@ -90,6 +113,19 @@ When a scorer taps a ball, CricScore decouples **live broadcast speed** from **d
 - **🐛 GitHub Issue Agent (`create_github_issue` → GitHub REST API):**
   - Files structured bug reports and feature requests on `venkatesh-singamsetty/cricscore` after a mandatory 2-step user confirmation (`1` issue/turn rate guard).
 
+- **🔄 Step-by-Step AI Request & Synthesis Flow (What the Arrows Mean):**
+  - **`Fan ➔ Ask ➔ API Gateway ➔ Invoke ➔ chat-api`:** Viewer sends a natural language question via the React chat widget. API Gateway throttles requests (`5 rps`) and invokes `chat-api`.
+  - **`chat-api ➔ Enforce ➔ Security Guardrails`:** Strips any PII (such as scorer emails), checks rate limits (`max 1 GitHub issue/turn`), enforces read-only SQL patterns, and formats conversation history.
+  - **`Guardrails ➔ Context ➔ Agent Supervisor`:** Injects live match telemetry (current score, overs, run rate, target, and active batter/bowler) into the system prompt.
+  - **`Supervisor ⮂ Reason & Synthesize ⮂ OpenAI LLM`:** Supervisor exchanges messages with `gpt-4o-mini` to determine user intent, select specialist tools, or format the final response.
+  - **`Supervisor ➔ Dispatch Tool ➔ In-Memory MCP Hub`:** Decouples reasoning from tool execution. The supervisor dispatches tool calls across `InMemoryTransport`, keeping database passwords and GitHub tokens isolated from LLM context.
+  - **`MCP Hub ➔ Specialist Agents ➔ Backing Stores`:**
+    - **`SQL Tool ➔ Match Stats Agent ➔ 3s Read-Only Txn ➔ PostgreSQL`:** Runs parameterized `SELECT` queries with a `3s` timeout to answer player/match record queries.
+    - **`RAG Tool ➔ Rules Agent ➔ Top-K Chunks ➔ pgvector`:** Generates `text-embedding-3-small` embeddings and performs HNSW cosine search (`<=>`) across tournament rulebook PDFs with mandatory `[Source: document]` citations.
+    - **`Weather Tool ➔ Weather Agent ➔ Hourly Weather ➔ Open-Meteo`:** Geocodes the match venue and fetches hourly rain %, wind speed, and temperature to calculate Cricket & DLS rain delay probabilities.
+    - **`Issue Tool ➔ GitHub Issue Agent ➔ File Issue ➔ GitHub REST API`:** Files structured bug reports or feature requests on GitHub after mandatory 2-step user confirmation.
+  - **`Supervisor ➔ Return Response ➔ Viewer`:** Synthesizes tool evidence into clear markdown with citations and returns it to the user's chat interface.
+
 ### 🧠 4. MLOps & Live Win Probability
 
 ![MLOps pipeline: Cricsheet data and DVC tracking feed an 8-model benchmark in MLflow, promoting the XGBoost v2.2.0 champion through CI quality gates to S3 and ECR for real-time hybrid Lambda inference](./docs/images/architecture/04_mlops_win_prediction.png)
@@ -102,6 +138,18 @@ When a scorer taps a ball, CricScore decouples **live broadcast speed** from **d
   - Enforces CI quality gates (`Accuracy >= 60%`, `ROC-AUC >= 65%`), uploads `.joblib` (`~227 KB`) + SHA-256 `model_manifest.json` to S3 (`models/v2.2.0/`), and retains a single `~309 MB` `xgboost-cpu` image in ECR (`countNumber = 1`, `~$0.01/mo`).
 - **4. Hybrid Lambda Inference (`ml-predict` → `predict.py` + `win_probability.py`):**
   - Cold-start caches the S3 model in `/tmp` with SHA-256 verification (enabling 5-second `--model-version` rollbacks) and blends **XGBoost `v2.2.0`** + **Markov Chain DP** + **DLS Par** on every ball.
+
+- **🔄 Step-by-Step MLOps Pipeline & Serving Flow (What the Arrows Mean):**
+  - **`Cricsheet Data ➔ Extract ➔ DVC Tracking` (Phase 1):** Extracts `786K+` ball deliveries from Cricsheet archives into `live_data.csv`, tracked by MD5 hash via `t20s_json.zip.dvc` outside Git.
+  - **`DVC Tracking ➔ Train 8 Models ➔ 8-Model Benchmark` (Phase 2):** Runs match-grouped `70/15/15` train/val/test splits (zero data leakage) across 7 Scikit-Learn baselines and XGBoost.
+  - **`Benchmark ➔ Log Metrics ➔ MLflow Tracking ➔ Select Best ➔ Champion XGBoost v2.2.0`:** Tracks ROC-AUC, Log Loss, and Brier Score, promoting **XGBoost `v2.2.0`** (`Val ROC-AUC = 0.7723`, `Test ROC-AUC = 0.7529`).
+  - **`Champion XGBoost ➔ Validate ➔ CI Quality Gate` (Phase 3):** GitHub Actions (`mlops-pipeline.yml`) validates candidate model against strict performance thresholds (`Accuracy >= 60%`, `ROC-AUC >= 65%`).
+  - **`Quality Gate ➔ Upload Artifact ➔ Amazon S3 Registry`:** Serialized `.joblib` model (`~227 KB`) and SHA-256 `model_manifest.json` are uploaded to S3 (`models/v2.2.0/`).
+  - **`Quality Gate ➔ Push Image ➔ Amazon ECR Registry`:** Builds and pushes the lightweight `xgboost-cpu` image (`~309 MB`, `countNumber = 1` lifecycle policy keeping ECR cost at `~$0.01/mo`).
+  - **`Viewer UI ➔ API Gateway ➔ Ball State ➔ ml-predict Lambda` (Phase 4):** On every delivery, the frontend posts live match state (`runs`, `wickets`, `overs`, `target`, `CRR`, `RRR`) to `POST /match/predict`.
+  - **`S3 Registry ➔ Fetch + SHA-256 ➔ ml-predict Lambda`:** On cold start, the Lambda downloads the versioned model into `/tmp`, verifies its SHA-256 hash, and caches it in memory for subsequent balls (enabling 5-second zero-downtime rollbacks via `--model-version`).
+  - **`ECR Registry ➔ Container Image ➔ ml-predict Lambda`:** Provides the containerized Python 3.12 runtime with XGBoost and Scikit-Learn binaries.
+  - **`ml-predict Lambda ➔ Blend ➔ Hybrid Win Engine ➔ Live Win % ➔ Live Viewers`:** Evaluates XGBoost predictions, validates against dynamic programming transition matrices (Markov Chain DP) and DLS par target curves, and returns calibrated win percentages to the live scoreboard.
 
 ### 🧩 5. Multi-Host AI Coding Agent Skills (`.agents/skills/`)
 
