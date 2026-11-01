@@ -1,3 +1,9 @@
+## [4.22.3](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.22.2...v4.22.3) (2026-11-01)
+
+### 🐛 Bug Fixes
+
+* **frontend:** render RETIRED_OUT as RO badge in full scorecard timeline ([#336](https://github.com/venkatesh-singamsetty/cricscore/issues/336)) ([b6ffbf8]())
+
 ## [4.22.2](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.22.1...v4.22.2) (2026-11-01)
 
 ### 🐛 Bug Fixes
