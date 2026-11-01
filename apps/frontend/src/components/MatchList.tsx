@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import HighlightedResult from "./HighlightedResult";
 import { fetchAuthSession } from "aws-amplify/auth";
 import type { WebSocketMessage } from "../hooks/useWebSocket";
@@ -72,6 +72,8 @@ const MatchList: React.FC<MatchListProps> = ({
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const API_URL = import.meta.env.VITE_API_URL || "";
   const activeMessage = lastMessage;
+  const lastWsScoreUpdateAtRef = useRef<number>(0);
+  const lastWsUndoAtRef = useRef<number>(0);
 
   const fetchMatches = useCallback(
     async (background = false) => {
@@ -96,6 +98,9 @@ const MatchList: React.FC<MatchListProps> = ({
         });
         setMatches((prev) => {
           if (!background || prev.length === 0) return sorted;
+          const isRecentWsUpdate =
+            Date.now() - lastWsScoreUpdateAtRef.current < 3000;
+          const isRecentWsUndo = Date.now() - lastWsUndoAtRef.current < 3000;
           return sorted.map((incoming) => {
             const existing = prev.find((m) => m.id === incoming.id);
             if (!existing) return incoming;
@@ -117,32 +122,26 @@ const MatchList: React.FC<MatchListProps> = ({
                 Number(incInn.overs || 0) * 6 + Number(incInn.balls || 0);
               const exBalls =
                 Number(exInn.overs || 0) * 6 + Number(exInn.balls || 0);
-              if (exBalls >= incBalls) {
+              const useExForward =
+                isRecentWsUpdate &&
+                (exBalls > incBalls ||
+                  Number(exInn.total_runs || 0) >
+                    Number(incInn.total_runs || 0));
+              const useExUndo =
+                isRecentWsUndo &&
+                (incBalls > exBalls ||
+                  Number(incInn.total_runs || 0) >
+                    Number(exInn.total_runs || 0));
+              if (useExForward || useExUndo) {
                 return {
                   ...incInn,
-                  overs: exBalls > incBalls ? exInn.overs : incInn.overs,
-                  balls: exBalls > incBalls ? exInn.balls : incInn.balls,
-                  total_runs: Math.max(
-                    Number(exInn.total_runs || 0),
-                    Number(incInn.total_runs || 0),
-                  ),
-                  total_wickets: Math.max(
-                    Number(exInn.total_wickets || 0),
-                    Number(incInn.total_wickets || 0),
-                  ),
+                  overs: exInn.overs,
+                  balls: exInn.balls,
+                  total_runs: Number(exInn.total_runs || 0),
+                  total_wickets: Number(exInn.total_wickets || 0),
                 };
               }
-              return {
-                ...incInn,
-                total_runs: Math.max(
-                  Number(exInn.total_runs || 0),
-                  Number(incInn.total_runs || 0),
-                ),
-                total_wickets: Math.max(
-                  Number(exInn.total_wickets || 0),
-                  Number(incInn.total_wickets || 0),
-                ),
-              };
+              return incInn;
             });
             // Preserve any 2nd innings already tracked via WebSocket if background DB read hasn't seen it yet
             for (const exInn of exInnings) {
@@ -198,6 +197,13 @@ const MatchList: React.FC<MatchListProps> = ({
       }
 
       if (isScoreEventType(type)) {
+        if (payload.undo) {
+          lastWsScoreUpdateAtRef.current = 0;
+          lastWsUndoAtRef.current = Date.now();
+        } else if (!payload.syncOnly) {
+          lastWsScoreUpdateAtRef.current = Date.now();
+          lastWsUndoAtRef.current = 0;
+        }
         setMatches((prev) => {
           const result = applyLiveScoreToMatches(prev, payload);
           if (!result.applied) {

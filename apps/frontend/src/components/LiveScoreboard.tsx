@@ -67,6 +67,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
   const [isGeneratingAiSummary, setIsGeneratingAiSummary] = useState(false);
   const previousScorecardDismissRequest = useRef(scorecardDismissRequest);
   const lastWsScoreUpdateAtRef = useRef<number>(0);
+  const lastWsUndoAtRef = useRef<number>(0);
 
   const closeScorecard = useCallback(() => {
     setShowFullScorecard(false);
@@ -331,9 +332,10 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
             return { innings: mappedInnings };
           }
           // Only keep optimistic WebSocket state during the brief (<3s) window
-          // before storage-worker writes a newly broadcast ball to PostgreSQL.
+          // before storage-worker writes a newly broadcast ball or undo to PostgreSQL.
           const isRecentWsUpdate =
             Date.now() - lastWsScoreUpdateAtRef.current < 3000;
+          const isRecentWsUndo = Date.now() - lastWsUndoAtRef.current < 3000;
           const merged = mappedInnings.map((inn: any) => {
             const old = prev.innings.find(
               (p: any) =>
@@ -345,42 +347,105 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
               Number(old.overs || 0) * 6 + Number(old.balls || 0);
             const newBalls =
               Number(inn.overs || 0) * 6 + Number(inn.balls || 0);
-            const useOldBalls = isRecentWsUpdate && oldBalls > newBalls;
-            const mergedPlayers = { ...inn.players, ...old.players };
-            const mergedBattingOrder = [
-              ...(inn.battingOrder || []),
-              ...(old.battingOrder || []).filter(
-                (id: string) => !(inn.battingOrder || []).includes(id),
+            const useOldForwardState =
+              isRecentWsUpdate &&
+              (oldBalls > newBalls ||
+                Number(old.totalRuns || 0) > Number(inn.totalRuns || 0));
+            const useOldUndoState =
+              isRecentWsUndo &&
+              (newBalls > oldBalls ||
+                Number(inn.totalRuns || 0) > Number(old.totalRuns || 0));
+            const useOldBalls = useOldForwardState || useOldUndoState;
+
+            if (useOldBalls) {
+              const mergedPlayers = { ...inn.players, ...old.players };
+              const mergedBattingOrder = [
+                ...(inn.battingOrder || []),
+                ...(old.battingOrder || []).filter(
+                  (id: string) => !(inn.battingOrder || []).includes(id),
+                ),
+              ];
+              const mergedBowlers = { ...inn.bowlers, ...old.bowlers };
+              const mergedBowlingOrder = [
+                ...(inn.bowlingOrder || []),
+                ...(old.bowlingOrder || []).filter(
+                  (id: string) => !(inn.bowlingOrder || []).includes(id),
+                ),
+              ];
+              return {
+                ...inn,
+                totalRuns: Number(old.totalRuns || 0),
+                totalWickets: Number(old.totalWickets || 0),
+                overs: old.overs,
+                balls: old.balls,
+                currentOver: old.currentOver,
+                allBalls: old.allBalls,
+                strikerId: old.strikerId || inn.strikerId,
+                nonStrikerId: old.nonStrikerId || inn.nonStrikerId,
+                currentBowlerId: old.currentBowlerId || inn.currentBowlerId,
+                players: mergedPlayers,
+                battingOrder: mergedBattingOrder,
+                bowlers: mergedBowlers,
+                bowlingOrder: mergedBowlingOrder,
+              };
+            }
+
+            const dbPlayerNames = new Set(
+              Object.values(inn.players || {}).map((p: any) =>
+                String(p.name || "")
+                  .trim()
+                  .toLowerCase(),
               ),
-            ];
-            const mergedBowlers = { ...inn.bowlers, ...old.bowlers };
-            const mergedBowlingOrder = [
-              ...(inn.bowlingOrder || []),
-              ...(old.bowlingOrder || []).filter(
-                (id: string) => !(inn.bowlingOrder || []).includes(id),
+            );
+            const mergedPlayers: Record<string, any> = {
+              ...(inn.players || {}),
+            };
+            const mergedBattingOrder: string[] = [...(inn.battingOrder || [])];
+            for (const [id, p] of Object.entries(old.players || {}) as [
+              string,
+              any,
+            ][]) {
+              const pName = String(p?.name || "")
+                .trim()
+                .toLowerCase();
+              if (pName && !dbPlayerNames.has(pName)) {
+                mergedPlayers[id] = p;
+                dbPlayerNames.add(pName);
+                if (!mergedBattingOrder.includes(id)) {
+                  mergedBattingOrder.push(id);
+                }
+              }
+            }
+
+            const dbBowlerNames = new Set(
+              Object.values(inn.bowlers || {}).map((b: any) =>
+                String(b.name || "")
+                  .trim()
+                  .toLowerCase(),
               ),
-            ];
+            );
+            const mergedBowlers: Record<string, any> = {
+              ...(inn.bowlers || {}),
+            };
+            const mergedBowlingOrder: string[] = [...(inn.bowlingOrder || [])];
+            for (const [id, b] of Object.entries(old.bowlers || {}) as [
+              string,
+              any,
+            ][]) {
+              const bName = String(b?.name || "")
+                .trim()
+                .toLowerCase();
+              if (bName && !dbBowlerNames.has(bName)) {
+                mergedBowlers[id] = b;
+                dbBowlerNames.add(bName);
+                if (!mergedBowlingOrder.includes(id)) {
+                  mergedBowlingOrder.push(id);
+                }
+              }
+            }
+
             return {
               ...inn,
-              totalRuns: Math.max(
-                Number(old.totalRuns || 0),
-                Number(inn.totalRuns || 0),
-              ),
-              totalWickets: Math.max(
-                Number(old.totalWickets || 0),
-                Number(inn.totalWickets || 0),
-              ),
-              overs: useOldBalls ? old.overs : inn.overs,
-              balls: useOldBalls ? old.balls : inn.balls,
-              currentOver:
-                useOldBalls &&
-                (old.currentOver?.length || 0) > (inn.currentOver?.length || 0)
-                  ? old.currentOver
-                  : inn.currentOver,
-              allBalls:
-                (old.allBalls?.length || 0) > (inn.allBalls?.length || 0)
-                  ? old.allBalls
-                  : inn.allBalls,
               players: mergedPlayers,
               battingOrder: mergedBattingOrder,
               bowlers: mergedBowlers,
@@ -468,8 +533,10 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
 
         if (payload.undo) {
           lastWsScoreUpdateAtRef.current = 0;
+          lastWsUndoAtRef.current = Date.now();
         } else if (!payload.syncOnly) {
           lastWsScoreUpdateAtRef.current = Date.now();
+          lastWsUndoAtRef.current = 0;
         }
 
         // OPTIMISTIC UPDATE: Eliminate lag and eventual consistency issues
@@ -787,7 +854,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                 inn.totalWickets = Number(totalWickets);
               updatedInnings[targetInningIndex] = inn;
               if (targetMatchId) {
-                setTimeout(() => fetchMatchDetails(targetMatchId, true), 350);
+                setTimeout(() => fetchMatchDetails(targetMatchId, true), 1500);
               }
               return { ...prev, innings: updatedInnings };
             }
