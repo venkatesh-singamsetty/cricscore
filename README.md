@@ -270,6 +270,7 @@ cricscore/
   - [Agent Skills Guide](./docs/agent_skills.md) — How `.agents/AGENTS.md` and the 12 domain `SKILL.md` playbooks work across Copilot, Cursor, Claude, and Gemini.
 - **🛡️ Security, Auth, Observability & `~$1/Month` Cost:**
   - [Cloud Cost & Trade-Offs (`~$1/mo`)](./docs/cost_management.md) — Service-by-service cost breakdown and intentional architectural trade-offs keeping AWS spend at `~$1/month`.
+  - [S3 Storage Lifecycle & Quota Management](./docs/s3_storage_lifecycle.md) — Complete S3 inventory, tiered retention rules (Dev aggressive vs. Prod lenient), 4.5 GB Free Tier CloudWatch alarms, and artifact runbooks.
   - [Security Posture & DevSecOps](./docs/security_posture.md) — Defense-in-depth controls, keyless GitHub Actions OIDC identity federation, strict Root CA TLS, and intentional ~$1/month cost trade-offs.
   - [Security Fixes & Remediation Log](./docs/security_fixes.md) — Case studies of remediated vulnerabilities (JWT group spoofing, SQL injection, SSRF, and throttling).
   - [Authentication & RBAC](./docs/auth.md) — Cognito User Pools, Guest Scorer shadow accounts (`cognito-presignup`), and `Admin` group authorization.

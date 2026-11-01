@@ -19,7 +19,7 @@ flowchart TD
 |  **1**  | **Architecture, APIs & Real-Time Streaming**     |  `5`   |
 |  **2**  | **Agentic AI (MCP + RAG) & Serverless MLOps**    |  `6`   |
 |  **3**  | **Self-Deployment, Terraform & CI/CD**           |  `7`   |
-|  **4**  | **Security, Cloud Cost (`~$1/mo`), Tests & Ops** |  `15`  |
+|  **4**  | **Security, Cloud Cost (`~$1/mo`), Tests & Ops** |  `16`  |
 
 ---
 
@@ -121,3 +121,5 @@ flowchart TD
   - Auto-generated AWS resource ARN and console link directory across `dev` and `prod`.
 - **15. [Full Changelog](./changelog.md):**
   - Automated Semantic Release history of all versions and commits.
+- **16. [S3 Storage Lifecycle & Quota Management](./s3_storage_lifecycle.md):**
+  - Complete S3 inventory, tiered retention rules (Dev aggressive vs. Prod lenient), 4.5 GB Free Tier CloudWatch alarms, and artifact runbooks.
