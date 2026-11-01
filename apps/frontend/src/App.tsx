@@ -1466,7 +1466,7 @@ const App: React.FC = () => {
                 onClick={() => handleViewClick("VIEWER")}
                 className={`px-3 py-1.5 md:px-5 md:py-2 font-black text-xs md:text-sm tracking-wide transition-all whitespace-nowrap rounded-full ${
                   view === "VIEWER"
-                    ? "text-cyan-400 bg-cyan-500/15 border border-cyan-500/30 shadow-[0_0_12px_rgba(6,182,212,0.25)]"
+                    ? "text-cyan-400 bg-cyan-500/25 border border-cyan-400/60 shadow-[0_0_14px_rgba(6,182,212,0.4)]"
                     : "text-slate-400 hover:text-cyan-300 hover:bg-white/5 border border-transparent font-semibold"
                 }`}
               >
@@ -1476,7 +1476,7 @@ const App: React.FC = () => {
                 onClick={() => handleViewClick("SCORER")}
                 className={`px-3 py-1.5 md:px-5 md:py-2 font-black text-xs md:text-sm tracking-wide transition-all whitespace-nowrap rounded-full ${
                   view === "SCORER"
-                    ? "text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.25)]"
+                    ? "text-emerald-400 bg-emerald-500/25 border border-emerald-400/60 shadow-[0_0_14px_rgba(16,185,129,0.4)]"
                     : "text-slate-400 hover:text-emerald-300 hover:bg-white/5 border border-transparent font-semibold"
                 }`}
               >
@@ -1486,7 +1486,7 @@ const App: React.FC = () => {
                 onClick={() => handleViewClick("CHAT")}
                 className={`px-3 py-1.5 md:px-5 md:py-2 font-black text-xs md:text-sm tracking-wide transition-all whitespace-nowrap rounded-full ${
                   view === "CHAT"
-                    ? "text-amber-400 bg-amber-500/15 border border-amber-500/30 shadow-[0_0_12px_rgba(245,158,11,0.25)]"
+                    ? "text-amber-400 bg-amber-500/25 border border-amber-400/60 shadow-[0_0_14px_rgba(245,158,11,0.4)]"
                     : "text-slate-400 hover:text-amber-300 hover:bg-white/5 border border-transparent font-semibold"
                 }`}
               >

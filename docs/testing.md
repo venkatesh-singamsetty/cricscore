@@ -42,14 +42,29 @@ flowchart TD
 
 ## 📊 2. Complete Test Suite Inventory (`376` Unit/Integration + `15` E2E)
 
-| Layer / Runner                 |  Test Count   | Suites / Files | Run Command                                |
-| :----------------------------- | :-----------: | :------------: | :----------------------------------------- |
-| **Frontend (`Vitest` + RTL)**  |   **`151`**   |  `23` suites   | `npm run test --prefix apps/frontend`      |
-| **Backend Lambdas (`Vitest`)** |   **`121`**   |  `12` suites   | `npm run test --prefix apps/backend`       |
-| **Python AI (`Pytest`)**       |   **`75`**    |   `6` files    | `pytest apps/ai-service -q`                |
-| **Python ML (`Pytest`)**       |   **`29`**    |   `1` suite    | `pytest apps/ml-engine/test_predict.py -q` |
-| **Playwright E2E**             |   **`15`**    |   `5` suites   | `npm run test:e2e:dev`                     |
-| **AI Chat Eval (`Node.js`)**   | **Live HTTP** | `1` benchmark  | `npm run test:ai`                          |
+```bash
+# Run Frontend Vitest suite (151 unit tests)
+npm run test --prefix apps/frontend
+
+# Run Backend Lambda Vitest suite (121 unit tests)
+npm run test --prefix apps/backend
+
+# Run Python AI Service pytest suite (75 tests)
+pytest apps/ai-service -q
+
+# Run Python ML Engine inference pytest suite (29 tests)
+pytest apps/ml-engine/test_predict.py -q
+
+# Run all 376 unit tests together across Frontend, Backend, AI, and ML
+npm run test:all
+
+# Run full Playwright E2E suite against Dev environment (15 tests)
+npm run test:e2e:dev
+
+# Run live AI chat MCP tools and response evaluation benchmark
+npm run test:ai
+
+```
 
 ### What Each Layer Verifies
 
@@ -80,12 +95,20 @@ flowchart TD
 
 ## ⚡ 3. Fast Local Pre-Push Validation & Zero-Waste Hook Caching
 
-| Validation Mode           | Command                                         | Runtime  |
-| :------------------------ | :---------------------------------------------- | :------: |
-| **Ultra-Fast Pre-Push**   | `./infra/scripts/validate_local.sh --fast`      | **~25s** |
-| **Skip E2E Only**         | `./infra/scripts/validate_local.sh --skip-e2e`  | **~35s** |
-| **Skip SBOM Only**        | `./infra/scripts/validate_local.sh --skip-sbom` | **~90s** |
-| **Dependency & PR Audit** | `npm run deps:check`                            | **~8s**  |
+```bash
+# Ultra-fast local validation gate (~25s — Default .husky/pre-push gate)
+./infra/scripts/validate_local.sh --fast
+
+# Local validation including Syft SPDX SBOM generation (~35s)
+./infra/scripts/validate_local.sh --skip-e2e
+
+# Local validation including live Playwright E2E suite against Dev (~90s)
+./infra/scripts/validate_local.sh --skip-sbom
+
+# Audit open Dependabot PRs and outdated npm/pip dependencies (~8s)
+npm run deps:check
+
+```
 
 ### Checks Executed by Mode
 

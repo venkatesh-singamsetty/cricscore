@@ -8,6 +8,7 @@ import { InningsState, ExtraType, WicketType } from "../types";
 import { getCurrentPartnership } from "../utils/partnershipUtils";
 import { calculateDlsParScore } from "../utils/dlsUtils";
 import { stripPlayerOfMatchLine } from "../utils/summaryFormat";
+import { getTeamBrandColor } from "../utils/teamColorUtils";
 import {
   isHubRefreshType,
   isScoreEventType,
@@ -1202,7 +1203,16 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                         <span className="text-[10px] text-slate-500 italic">
                           vs
                         </span>
-                        <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest truncate">
+                        <span
+                          style={{
+                            color: getTeamBrandColor(
+                              currentInnings.bowlingTeamName,
+                              matchMeta?.teamA,
+                              matchMeta?.teamB,
+                            ),
+                          }}
+                          className="text-xs font-black uppercase tracking-wider truncate drop-shadow-sm"
+                        >
                           {currentInnings.bowlingTeamName}
                         </span>
                       </div>
@@ -1230,7 +1240,16 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                     <div className="flex justify-between items-center gap-3 pt-1 pb-0.5 min-w-0">
                       <div className="flex items-center gap-2 min-w-0 flex-1">
                         <span className="text-xl sm:text-2xl shrink-0">🏏</span>
-                        <h2 className="text-lg sm:text-2xl font-black text-emerald-400 uppercase tracking-tight truncate whitespace-nowrap">
+                        <h2
+                          style={{
+                            color: getTeamBrandColor(
+                              currentInnings.battingTeamName,
+                              matchMeta?.teamA,
+                              matchMeta?.teamB,
+                            ),
+                          }}
+                          className="text-lg sm:text-2xl font-black uppercase tracking-tight truncate whitespace-nowrap"
+                        >
                           {currentInnings.battingTeamName}
                         </h2>
                       </div>

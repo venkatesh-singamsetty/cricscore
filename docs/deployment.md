@@ -17,15 +17,26 @@ flowchart TD
 
 ## Steps at a glance
 
-| #     | Step                  | Command                                                                | Time   |
-| :---- | :-------------------- | :--------------------------------------------------------------------- | :----- |
-| **0** | **Get accounts**      | Provision AWS, Aiven, SES & OpenAI keys                                | 10 min |
-| **1** | **Clone & tools**     | `./infra/scripts/setup.sh`                                             | 5 min  |
-| **2** | **Configure `.env`**  | `./infra/scripts/deploy.sh --check`                                    | 3 min  |
-| **3** | **Bootstrap AWS**     | `./infra/scripts/deploy.sh --env dev --use-local-env --bootstrap-only` | 10 min |
-| **4** | **Deploy Dev & Prod** | `./infra/scripts/deploy.sh --env dev --use-local-env --migrate`        | 6 min  |
-| **5** | **Grant Admin**       | `./infra/scripts/make_admin.sh --env dev you@email.com`                | 2 min  |
-| **6** | **GitHub Actions CI** | `./infra/scripts/setup_github_envs.sh`                                 | 2 min  |
+```bash
+# Step 1: Clone repository and install prerequisite tools
+./infra/scripts/setup.sh
+
+# Step 2: Validate local environment configuration and secrets
+./infra/scripts/deploy.sh --check
+
+# Step 3: Bootstrap AWS S3 state bucket and Route 53 (run once per account)
+./infra/scripts/deploy.sh --env dev --use-local-env --bootstrap-only
+
+# Step 4: Deploy full stack with database migrations to Dev
+./infra/scripts/deploy.sh --env dev --use-local-env --migrate
+
+# Step 5: Grant Admin role to your registered user in Dev
+./infra/scripts/make_admin.sh --env dev you@email.com
+
+# Step 6: Synchronize secrets and variables to GitHub Environments
+./infra/scripts/setup_github_envs.sh
+
+```
 
 ---
 

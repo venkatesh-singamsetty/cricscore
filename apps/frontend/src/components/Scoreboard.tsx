@@ -9,6 +9,7 @@ import {
   calculateEconomyNumber,
   resolvePOTM,
 } from "../utils/scorecardUtils";
+import { getTeamBrandColor } from "../utils/teamColorUtils";
 
 interface ScoreboardProps {
   currentInnings: InningsState;
@@ -476,7 +477,7 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
         <div className="absolute bottom-0 left-0 w-80 h-80 bg-blue-500/10 blur-3xl pointer-events-none -z-10"></div>
 
         {/* Header */}
-        <div className="bg-slate-950/70 backdrop-blur-md px-4 py-2.5 sm:px-6 sm:py-4 flex justify-between items-center shrink-0 border-b border-white/10">
+        <div className="bg-slate-800/60 backdrop-blur-md px-4 py-2.5 sm:px-6 sm:py-4 flex justify-between items-center shrink-0 border-b border-white/10">
           <div className="flex items-center gap-2.5">
             <div className="w-1.5 h-6 sm:h-7 bg-gradient-to-b from-indigo-500 to-blue-500 rounded-full shadow-md shadow-indigo-500/50"></div>
             <h2 className="text-base sm:text-xl font-black uppercase tracking-tighter italic text-white flex items-center gap-2">
@@ -496,7 +497,7 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
         </div>
 
         {/* Tabs */}
-        <div className="flex bg-slate-950/50 backdrop-blur-md p-1 sm:p-2 shrink-0 border-b border-white/10 gap-1 sm:gap-2">
+        <div className="flex bg-slate-900/60 backdrop-blur-md p-1 sm:p-2 shrink-0 border-b border-white/10 gap-1 sm:gap-2">
           {previousInnings && (
             <button
               onClick={() => setActiveTab("previous")}
@@ -506,7 +507,16 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                   : "bg-slate-800/50 border border-white/5 text-slate-400 hover:text-slate-200 hover:bg-slate-800/80"
               }`}
             >
-              <span className="flex-1 min-w-0 text-left truncate whitespace-nowrap block mr-1.5">
+              <span
+                style={{
+                  color: getTeamBrandColor(
+                    previousInnings.battingTeamName,
+                    previousInnings.battingTeamName,
+                    currentInnings.battingTeamName,
+                  ),
+                }}
+                className="flex-1 min-w-0 text-left truncate whitespace-nowrap block mr-1.5 font-black drop-shadow-sm"
+              >
                 {previousInnings.battingTeamName} (Inns 1)
               </span>
               <span
@@ -528,7 +538,16 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                 : "bg-slate-800/50 border border-white/5 text-slate-400 hover:text-slate-200 hover:bg-slate-800/80"
             }`}
           >
-            <span className="flex-1 min-w-0 text-left truncate whitespace-nowrap block mr-1.5">
+            <span
+              style={{
+                color: getTeamBrandColor(
+                  currentInnings.battingTeamName,
+                  previousInnings?.battingTeamName,
+                  currentInnings.battingTeamName,
+                ),
+              }}
+              className="flex-1 min-w-0 text-left truncate whitespace-nowrap block mr-1.5 font-black drop-shadow-sm"
+            >
               {currentInnings.battingTeamName} (Inns{" "}
               {currentInnings.inningNumber})
             </span>

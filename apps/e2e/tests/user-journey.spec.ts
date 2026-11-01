@@ -220,7 +220,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       page.getByRole("heading", { name: /Additional Runs/i }),
     ).toBeVisible();
     await page
-      .locator(".backdrop-blur-md")
+      .locator(".fixed.inset-0")
       .getByRole("button", { name: "0", exact: true })
       .click({ force: true });
     await page.waitForTimeout(1000);
@@ -266,7 +266,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       page.getByRole("heading", { name: /Additional Runs/i }),
     ).toBeVisible();
     await page
-      .locator(".backdrop-blur-md")
+      .locator(".fixed.inset-0")
       .getByRole("button", { name: "0", exact: true })
       .click({ force: true });
     await page.waitForTimeout(1000);
@@ -280,7 +280,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       page.getByRole("heading", { name: /Additional Runs/i }),
     ).toBeVisible();
     await page
-      .locator(".backdrop-blur-md")
+      .locator(".fixed.inset-0")
       .getByRole("button", { name: "1", exact: true })
       .click({ force: true });
     await page.waitForTimeout(1000);
@@ -355,7 +355,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       page.getByRole("heading", { name: /Additional Runs/i }),
     ).toBeVisible({ timeout: 10000 });
     await page
-      .locator(".backdrop-blur-md")
+      .locator(".fixed.inset-0")
       .getByRole("button", { name: "1", exact: true })
       .click({ force: true });
     await page.waitForTimeout(1000);
@@ -483,7 +483,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       timeout: 10000,
     });
     await page
-      .locator(".backdrop-blur-md")
+      .locator(".fixed.inset-0")
       .getByRole("button", { name: "1", exact: true })
       .click({ force: true });
     await expect(page.getByText(/Who was Run Out/i)).toBeVisible({
@@ -533,7 +533,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       .click({ force: true });
     // Wait for modal overlay to fully dismiss (CSS animate-in fade-in 300ms)
     await page
-      .waitForSelector(".backdrop-blur-md", {
+      .waitForSelector(".fixed.inset-0", {
         state: "hidden",
         timeout: 5000,
       })
@@ -610,7 +610,7 @@ test.describe("User Journey - Full Match Scoring", () => {
       .click({ force: true });
     // Wait for modal overlay to fully dismiss
     await page
-      .waitForSelector(".backdrop-blur-md", {
+      .waitForSelector(".fixed.inset-0", {
         state: "hidden",
         timeout: 5000,
       })

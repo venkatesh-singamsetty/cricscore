@@ -89,38 +89,39 @@ sequenceDiagram
 
 ## 🛠️ 4. Command Reference (Frontend, Backend & Root Workspace)
 
-### Root Monorepo Commands (`package.json`)
-
-| Command              | Action                                          |
-| :------------------- | :---------------------------------------------- |
-| `npm run dev`        | Start Vite dev server (`http://localhost:5173`) |
-| `npm run build`      | Compile production bundle into `dist/`          |
-| `npm run preview`    | Serve production `dist/` bundle locally         |
-| `npm run lint`       | Run TypeScript compiler check (`tsc --noEmit`)  |
-| `npm test`           | Run Frontend Vitest suite (`151` unit tests)    |
-| `npm run test:all`   | Run Frontend (`151`) + Backend (`121`) + eval   |
-| `npm run deps:check` | Audit npm, pip, & Dependabot via script         |
-
-### Runnable Development & Packaging Commands
-
 ```bash
-# 1. Start Frontend Vite Dev Server
+# 1. Start Frontend Vite Dev Server (http://localhost:5173)
 npm run dev
 
-# 2. Type-Check & Lint Frontend (TypeScript + ESLint)
+# 2. Compile production bundle into dist/
+npm run build
+
+# 3. Serve production dist/ bundle locally
+npm run preview
+
+# 4. Type-Check and Lint Frontend (TypeScript + ESLint)
 npm run lint --prefix apps/frontend
 npm run lint:eslint --prefix apps/frontend
 
-# 3. Run Frontend & Backend Unit Tests
+# 5. Run Frontend Vitest suite (151 unit tests)
 npm run test --prefix apps/frontend
+
+# 6. Run Backend Lambda Vitest suite (121 unit tests)
 npm run test --prefix apps/backend
 
-# 4. Install Production-Only Dependencies Across All Backend Lambdas (Matches CI Deploy Step)
+# 7. Run all Frontend and Backend unit tests
+npm run test:all
+
+# 8. Audit npm, pip, and Dependabot dependencies across workspaces
+npm run deps:check
+
+# 9. Install Production-Only Dependencies Across All Backend Lambdas (Matches CI Deploy Step)
 for d in apps/backend/lambdas/*; do
   if [ -f "$d/package.json" ]; then
     (cd "$d" && npm install --omit=dev --no-audit --no-fund --ignore-scripts)
   fi
 done
+
 ```
 
 ---

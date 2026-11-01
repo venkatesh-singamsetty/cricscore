@@ -9,12 +9,11 @@
 [![AWS Cloud Cost](https://img.shields.io/badge/AWS%20Cost-~%241%2Fmo-blue?logo=amazon-aws)](./docs/cost_management.md)
 [![License: MIT](https://img.shields.io/badge/License:MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-- 🚀 **Production Environment:** [https://cricscore.venkateshsingamsetty.com](https://cricscore.venkateshsingamsetty.com)
-- 🧪 **Development Environment:** [https://cricscoredev.venkateshsingamsetty.com](https://cricscoredev.venkateshsingamsetty.com)
-- 📖 **Full Self-Deployment Guide:** [docs/deployment.md](./docs/deployment.md)
-- ⚡ **Developer Command Cheatsheet:** [CHEATSHEET.md](./CHEATSHEET.md)
-- 🛠️ **Contributing & PR Workflow:** [CONTRIBUTING.md](./CONTRIBUTING.md)
-- 🏆 **Engineering Milestones & Key PRs:** [docs/engineering_milestones.md](./docs/engineering_milestones.md)
+- 🚀 **Production Environment:** https://cricscore.venkateshsingamsetty.com
+- 🧪 **Development Environment:** https://cricscoredev.venkateshsingamsetty.com
+- 📖 **Full Self-Deployment Guide:** [docs/deployment.md](https://github.com/venkatesh-singamsetty/cricscore/blob/feat/scoring-ui-and-docs-polish/docs/deployment.md)
+- ⚡ **Developer Command Cheatsheet:** [CHEATSHEET.md](https://github.com/venkatesh-singamsetty/cricscore/blob/feat/scoring-ui-and-docs-polish/CHEATSHEET.md)
+- 📊 **Platform & Infrastructure Dashboard:** [docs/platform_dashboard.md](https://github.com/venkatesh-singamsetty/cricscore/blob/feat/scoring-ui-and-docs-polish/docs/platform_dashboard.md)
 
 ---
 

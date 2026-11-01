@@ -126,19 +126,33 @@ CricScore isolates `dev` and `prod` using **separate S3 state keys, separate `.t
 
 ### Prerequisites
 
-| Requirement          | Verification Command            | Expected Result                             |
-| :------------------- | :------------------------------ | :------------------------------------------ |
-| **Terraform CLI**    | `terraform version`             | `Terraform v1.10.x` or newer                |
-| **AWS Credentials**  | `aws sts get-caller-identity`   | Returns IAM User ARN & Account ID           |
-| **Docker Daemon**    | `docker info`                   | Running (for `ml-predict` image build)      |
-| **Local Env Config** | `test -f .env.local && echo OK` | `OK` (per [deployment.md](./deployment.md)) |
+```bash
+# Verify Terraform CLI is installed (v1.10.x or newer)
+terraform version
+
+# Verify AWS CLI credentials and active caller identity
+aws sts get-caller-identity
+
+# Verify Docker daemon is running (required for ml-predict container build)
+docker info
+
+# Verify local environment file exists (.env.local)
+test -f .env.local && echo OK
+
+```
 
 ### Step 1: Validate syntax and formatting (no AWS calls)
 
 ```bash
+# Format Terraform configuration files recursively
 terraform fmt -check -recursive
+
+# Initialize Terraform root module without remote backend state
 terraform -chdir=infra/terraform init -backend=false
+
+# Validate syntax and configuration integrity
 terraform -chdir=infra/terraform validate
+
 ```
 
 ### Step 2: Generate an environment-specific execution plan (`dev` or `prod`)

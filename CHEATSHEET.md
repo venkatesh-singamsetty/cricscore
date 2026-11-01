@@ -2,35 +2,40 @@
 
 Quick-reference command tutorial for setting up, developing, testing, deploying, and debugging CricScore. Run commands from the repository root unless noted.
 
-- **[1. Initial Setup & Infrastructure](#1-initial-setup--infrastructure)** — Install prerequisites, authenticate AWS & GitHub CLI, and initialize `.env.local`.
+- **[1. Initial Setup & Prerequisites](#1-initial-setup--prerequisites)** — Install prerequisites, authenticate AWS & GitHub CLI, and initialize `.env.local`.
 - **[2. Git Workflow & PR Management](#2-git-workflow--pr-management)** — Feature branching, Dependabot consolidation, pre-push validation, and PR checks.
 - **[3. Node.js & Monorepo Scripts](#3-nodejs--project-scripts-monorepo-root)** — Local Vite dev server, production bundle build, ESLint, Prettier, and dependency audits.
-- **[4. Testing & Validation (376 Unit + 15 E2E)](#4-testing--validation)** — Vitest (`151` FE + `121` BE), Pytest (`75` AI + `29` ML), and Playwright E2E suites.
+- **[4. Testing & Validation Suites](#4-testing--validation-suites)** — Vitest (`151` FE + `121` BE), Pytest (`75` AI + `29` ML), and Playwright E2E suites.
 - **[5. MLOps & Win Prediction Training](#5-mlops--machine-learning-local-training)** — Cricsheet extraction, 8-model MLflow benchmark (`compare_models.py`), and `~309 MB` CPU Docker build.
 - **[6. Pre-Push Security & DevSecOps Scans](#6-pre-push-security--code-scanning-local)** — `npm audit`, GitLeaks, Trivy, Checkov IaC, and Syft SPDX SBOM generation.
 - **[7. Full Cloud Deployment (`dev` & `prod`)](#7-full-cloud-deployment)** — `deploy.sh --use-local-env`, `--model-version` rollbacks, and `terraform.sh` wrapper.
 - **[8. AWS CLI Troubleshooting](#8-aws-troubleshooting-expert-cli-commands)** — Tail Lambda logs, inspect SQS FIFO, DynamoDB, single-image ECR, and Terraform state.
-- **[9. PostgreSQL (`psql`) Troubleshooting](#9-database-postgresql-troubleshooting)** — Inspect `dev`/`prod` schemas, query matches, deterministic POTM, and pool activity.
+- **[9. Database (PostgreSQL) Troubleshooting](#9-database-postgresql-troubleshooting)** — Inspect `dev`/`prod` schemas, query matches, deterministic POTM, and pool activity.
 
 ---
 
-## 1. Initial Setup & Infrastructure
-
-- **Step 1.1 (Authenticate GitHub CLI):** `gh auth login`
-- **Step 1.2 (Clone Repository):** `git clone https://github.com/venkatesh-singamsetty/cricscore.git && cd cricscore`
-- **Step 1.3 (Install Prerequisites — Node 24, Python 3.12, Terraform 1.10, AWS CLI, Scanners):** `./infra/scripts/setup.sh`
-- **Step 1.4 (Configure AWS Credentials):** `aws configure`
-- **Step 1.5 (Initialize Local Env Files):** `cp .env.local.example .env.local && cp apps/frontend/.env.example apps/frontend/.env`
-- **Step 1.6 (Sync GitHub Environment Secrets & Variables):** `./infra/scripts/setup_github_envs.sh`
+## 1. Initial Setup & Prerequisites
 
 ```bash
+# 1. Authenticate with GitHub CLI
 gh auth login
+
+# 2. Clone the CricScore repository and enter project directory
 git clone https://github.com/venkatesh-singamsetty/cricscore.git && cd cricscore
+
+# 3. Install prerequisites (Node 24, Python 3.12, Terraform 1.10, AWS CLI, DevSecOps scanners)
 ./infra/scripts/setup.sh
+
+# 4. Configure AWS CLI credentials and default region (us-east-1)
 aws configure
+
+# 5. Initialize local environment variable files for root and frontend
 cp .env.local.example .env.local
 cp apps/frontend/.env.example apps/frontend/.env
+
+# 6. Synchronize required GitHub repository secrets and environment variables
 ./infra/scripts/setup_github_envs.sh
+
 ```
 
 ---
@@ -49,121 +54,163 @@ flowchart TD
 ```
 
 ```bash
-# 1. Sync main and create a feature branch
+# 1. Synchronize main branch and create an isolated feature branch
 git checkout main && git pull origin main
 git checkout -b feat/your-feature-name
 
-# 2. Optional: Consolidate open Dependabot PRs into your branch
+# 2. Optional: Consolidate and merge open Dependabot PRs into your feature branch
 ./infra/scripts/consolidate_dependabot_prs.sh --merge
 
-# 3. Stage, commit (Conventional Commits), and sync with origin/main
+# 3. Stage changes, commit following Conventional Commits, and sync with latest main
 git add .
 git commit -m "feat: your descriptive commit message"
 git fetch origin main && git merge origin/main --no-edit
 
-# 4. Push branch (automatically runs fast pre-push validation hook)
-git push -u origin HEAD
+# 4. Push feature branch to GitHub (automatically runs fast pre-push validation hook)
+git push -u origin feat/your-feature-name
 
-# 5. Open Pull Request and monitor status checks + CodeQL comments
+# 5. Open Pull Request targeting main and monitor CI status checks
 gh pr create --title "feat: added new feature" --body "Detailed summary" --base main
+
+# 6. Check status of running GitHub Actions CI checks on the PR
 gh pr checks
+
+# 7. Review any automated inline review comments (CodeQL, Dependabot)
 gh api repos/venkatesh-singamsetty/cricscore/pulls/<PR_NUMBER>/comments
 
-# 6. Close superseded Dependabot PRs (if consolidated in step 2)
+# 8. Close superseded Dependabot PRs if consolidated in step 2
 ./infra/scripts/consolidate_dependabot_prs.sh --close --target-pr <PR_NUMBER>
 
-# 7. Once all required CI & CodeQL status checks pass, review and merge the PR on GitHub
-gh pr checks
 ```
 
 ---
 
 ## 3. Node.js & Project Scripts (Monorepo Root)
 
-- **`npm install` (Monorepo + Workspaces):** Installs all workspace dependencies.
-- **`npm run dev` (`apps/frontend`):** Starts Vite React 19 dev server on `http://localhost:5173`.
-- **`npm run build` (`apps/frontend`):** Runs `tsc -b && vite build` production bundle check.
-- **`npm run lint` (`apps/frontend`):** Runs ESLint + TypeScript strict type checking.
-- **`npm run deps:check` (All Workspaces + Lambdas + Python):** Audits outdated packages before Dependabot opens PRs.
-
 ```bash
+# Install all dependencies across root, workspaces (frontend, backend), and CDK
 npm install
+
+# Start local Vite development server for React 19 frontend (http://localhost:5173)
 npm run dev
+
+# Run TypeScript compilation and Vite production bundle build check
 npm run build
+
+# Run ESLint and strict TypeScript type check across frontend codebase
 npm run lint
+
+# Auto-format codebase using Prettier
 npx prettier --write "apps/**/*.{ts,tsx,js,jsx,json,md}"
+
+# Audit outdated dependencies across all npm workspaces, Lambda functions, and Python services
 npm run deps:check
+
 ```
 
 ---
 
-## 4. Testing & Validation
+## 4. Testing & Validation Suites
 
 CricScore maintains **376 automated unit/integration tests** (`151` Frontend + `121` Backend + `75` AI Service + `29` ML Engine) plus **15 Playwright E2E tests**:
 
-| Suite                        | Tests | Command                                 |
-| :--------------------------- | :---: | :-------------------------------------- |
-| **Frontend Vitest**          | `151` | `npm run test`                          |
-| **Backend Vitest**           | `121` | `npm test --prefix apps/backend`        |
-| **All JS/TS Unit (FE + BE)** | `272` | `npm run test:all`                      |
-| **Python AI Pytest**         | `75`  | `pytest apps/ai-service -q`             |
-| **Python ML Pytest**         | `29`  | `pytest apps/ml-engine/test_predict.py` |
-| **Playwright E2E (Dev)**     | `15`  | `npm run test:e2e:dev`                  |
-| **Multi-Browser Live Sync**  | `E2E` | `npm run test:e2e:sync:headed`          |
-| **Live AI Chat MCP Eval**    | `MCP` | `npm run test:ai`                       |
-
 ```bash
-# Run all Frontend + Backend Vitest suites (272 tests)
+# Run all Frontend and Backend Vitest unit test suites (272 tests total)
 npm run test:all
 
-# Run Python AI Service (75 tests) + ML Engine (29 tests)
+# Run Frontend Vitest suite only (151 tests)
+npm run test
+
+# Run Backend Vitest suite only (121 tests)
+npm test --prefix apps/backend
+
+# Run Python AI Service pytest suite (75 tests)
+pytest apps/ai-service -q
+
+# Run Python ML Engine inference pytest suite (29 tests)
+pytest apps/ml-engine/test_predict.py -q
+
+# Run all Python test suites together (104 tests)
 pytest apps/ai-service apps/ml-engine/test_predict.py -q
 
-# Run Playwright E2E suites against Dev
+# Install Playwright browser binaries with system dependencies
 npx playwright install --with-deps
+
+# Run full Playwright E2E suite against Dev environment (15 tests headless)
 npm run test:e2e:dev
+
+# Run Playwright E2E tests with headed browser UI
 npm run test:e2e:dev:headed
+
+# Run multi-browser real-time WebSocket live sync validation (headed)
 npm run test:e2e:sync:headed
+
+# Run end-to-end full match journey test (headed)
 npm run test:e2e:journey:headed
+
+# Evaluate live AI chat MCP tools and response generation
+npm run test:ai
+
 ```
 
 ---
 
 ## 5. MLOps & Machine Learning (Local Training)
 
-- **1. Extract Cricsheet Data (`python data_pipeline.py`):** Extracts `786K+` deliveries into `apps/ml-engine/data/live_data.csv`.
-- **2. 8-Model Benchmark & MLflow (`python compare_models.py v2.2.0`):** Produces `live_win_predictor_model.joblib` (`XGBoost v2.2.0`), `model_manifest.json`, and `comparison_report.md`.
-- **3. DVC Pipeline Reproduction (`dvc repro`):** Verifies `dvc.yaml` stages and updates `dvc.lock` hashes.
-- **4. CPU Container Build (`docker build ...`):** Builds the `~309 MB` `xgboost-cpu` Lambda container image.
-
 ```bash
+# Navigate to ML engine directory
 cd apps/ml-engine
+
+# Create and activate dedicated Python virtual environment for model training
 python3 -m venv .venv-train && source .venv-train/bin/activate
+
+# Install training dependencies (XGBoost, MLflow, Scikit-learn, Pandas, DVC)
 pip install -r requirements-train.txt
 
-# Extract dataset & run 8-model MLflow benchmark
+# Extract Cricsheet ball-by-ball dataset (786K+ deliveries) to data/live_data.csv
 python data_pipeline.py
+
+# Run 8-model MLflow benchmark, produce XGBoost model artifact and comparison report
 python compare_models.py v2.2.0
+
+# Reproduce DVC pipeline stages and verify stage hashes
+dvc repro
 
 # Run ML inference unit tests (29 tests)
 pytest test_predict.py -v
 
-# Build CPU-optimized Lambda container (~309 MB)
+# Build CPU-optimized Lambda container image (~309 MB single image)
 docker build --platform linux/amd64 --provenance=false -t cricscore-ml-predict:v2.2.0 .
+
+# Return to repository root directory
+cd ../..
+
 ```
 
 ---
 
-## 6. Pre-Push Security & Code Scanning (Local)
+## 6. Pre-Push Security & DevSecOps Scans
 
-| Scanner       | Target            | Command                                            |
-| :------------ | :---------------- | :------------------------------------------------- |
-| **Full Gate** | All Checks        | `./infra/scripts/validate_local.sh --skip-e2e`     |
-| **npm audit** | Node Dependencies | `npm audit`                                        |
-| **GitLeaks**  | Secret Detection  | `gitleaks detect -v`                               |
-| **Trivy**     | Lockfile CVEs     | `trivy fs ./package-lock.json`                     |
-| **Checkov**   | Terraform IaC     | `checkov -d infra/terraform/`                      |
-| **Syft**      | SPDX SBOM         | `syft dir:. -o spdx-json=cricscore-sbom.spdx.json` |
+```bash
+# Run complete local validation gate (tests, formatting, lint, and security scanners)
+./infra/scripts/validate_local.sh --skip-e2e
+
+# Scan Node.js dependencies for known vulnerabilities and security advisories
+npm audit
+
+# Detect hardcoded secrets, tokens, and private keys across repository history
+gitleaks detect -v
+
+# Scan project filesystem and lockfile for package vulnerabilities and CVEs
+trivy fs ./package-lock.json
+
+# Run static analysis and DevSecOps compliance checks on Terraform IaC configurations
+checkov -d infra/terraform/
+
+# Generate an SPDX software bill of materials (SBOM) in JSON format
+syft dir:. -o spdx-json=cricscore-sbom.spdx.json
+
+```
 
 ---
 
@@ -175,42 +222,59 @@ Always pass `--use-local-env` to `deploy.sh` when deploying from your workstatio
 # Pre-flight check (validates AWS credentials, Docker daemon, and .env.local)
 ./infra/scripts/deploy.sh --env dev --use-local-env --check
 
-# Deploy full stack to Dev (add --migrate if DB schema changed)
+# Deploy full stack to Dev environment (pass --migrate if DB schema changed)
 ./infra/scripts/deploy.sh --env dev --use-local-env
 
-# Deploy full stack to Prod (after verifying Dev)
+# Deploy full stack to Prod environment (run only after verifying Dev)
 ./infra/scripts/deploy.sh --env prod --use-local-env
 
-# Deploy or Rollback a specific ML model version in S3 & ECR
+# Deploy or rollback a specific ML model version in S3 and ECR for Dev
 ./infra/scripts/deploy.sh --env dev --use-local-env --model-version v2.2.0
+
+# Deploy or rollback a specific ML model version in S3 and ECR for Prod
 ./infra/scripts/deploy.sh --env prod --use-local-env --model-version v2.2.0
 
-# Terraform helper wrapper (loads .env.local automatically)
+# Format Terraform configuration files recursively
 ./infra/scripts/terraform.sh fmt -check -recursive
+
+# Validate Terraform IaC syntax and configuration
 ./infra/scripts/terraform.sh validate
+
+# Preview planned cloud infrastructure changes for active environment
 ./infra/scripts/terraform.sh plan
+
 ```
 
 ---
 
-## 8. AWS Troubleshooting (Expert CLI Commands)
+## 8. AWS CLI Troubleshooting
 
-- **Tail Score Update Lambda Logs:**
-  `aws logs tail /aws/lambda/cricscoredev-score-upd --follow --format short`
-- **Tail AI Chat / Summary Logs:**
-  `aws logs tail /aws/lambda/cricscoredev-chat-api --follow`
-- **Tail Match API Logs:**
-  `aws logs tail /aws/lambda/cricscoredev-match-api --follow`
-- **Check Active WebSocket Connections:**
-  `aws dynamodb scan --table-name cricscoredev-connections --select COUNT`
-- **Check SQS FIFO Queue Backlog:**
-  `aws sqs get-queue-attributes --queue-url https://sqs.us-east-1.amazonaws.com/<ACCOUNT_ID>/cricscoredev-storage-buffer.fifo --attribute-names ApproximateNumberOfMessages`
-- **Inspect Single Retained ECR Image (`~309 MB`):**
-  `aws ecr describe-images --repository-name cricscoredev-ml-predict --query 'imageDetails[*].[imageTags[0],imageSizeInBytes]' --output table`
-- **Unlock Stuck Terraform State via GitHub Actions:**
-  `gh workflow run terraform-unlock.yml -f environment=dev -f lock_id=<LOCK_ID>`
-- **Trigger Nightly Terraform Drift Check:**
-  `gh workflow run drift.yml`
+```bash
+# Tail live logs for the Score Update Lambda function (Dev)
+aws logs tail /aws/lambda/cricscoredev-score-upd --follow --format short
+
+# Tail live logs for the AI Chat and match summary Lambda function (Dev)
+aws logs tail /aws/lambda/cricscoredev-chat-api --follow
+
+# Tail live logs for the Match REST API Lambda function (Dev)
+aws logs tail /aws/lambda/cricscoredev-match-api --follow
+
+# Check the count of active WebSocket client connections in DynamoDB
+aws dynamodb scan --table-name cricscoredev-connections --select COUNT
+
+# Check backlog and approximate number of messages waiting in SQS FIFO storage buffer
+aws sqs get-queue-attributes --queue-url https://sqs.us-east-1.amazonaws.com/<ACCOUNT_ID>/cricscoredev-storage-buffer.fifo --attribute-names ApproximateNumberOfMessages
+
+# Inspect single retained ECR container image tag and size (~309 MB CPU image)
+aws ecr describe-images --repository-name cricscoredev-ml-predict --query 'imageDetails[*].[imageTags[0],imageSizeInBytes]' --output table
+
+# Unlock stuck Terraform state lock ID via GitHub Actions workflow dispatch
+gh workflow run terraform-unlock.yml -f environment=dev -f lock_id=<LOCK_ID>
+
+# Trigger manual cloud infrastructure drift detection workflow
+gh workflow run drift.yml
+
+```
 
 ---
 
@@ -219,14 +283,28 @@ Always pass `--use-local-env` to `deploy.sh` when deploying from your workstatio
 ```bash
 # Connect to Aiven PostgreSQL using TF_DATABASE_URL from .env.local
 psql "postgres://username:password@hostname:port/defaultdb?sslmode=require"
+
 ```
 
-- **List Database Schemas (`dev`, `prod`):** `\dn`
-- **Switch Active Session Schema:** `SET search_path TO dev;`
-- **List All Tables (`matches`, `innings`, `players`, `bowlers`, `balls`, `tournament_rules`):** `\dt`
-- **Inspect Latest Matches & Deterministic POTM Awards:**
-  `SELECT id, status, match_winner, player_of_the_match FROM matches ORDER BY created_at DESC LIMIT 5;`
-- **Inspect Recent Ball-by-Ball Records:**
-  `SELECT * FROM balls ORDER BY id DESC LIMIT 10;`
-- **Check Active Connection Pool Usage:**
-  `SELECT count(*), state FROM pg_stat_activity GROUP BY state;`
+Interactive `psql` meta-commands and queries:
+
+```sql
+-- List database schemas (dev, prod)
+\dn
+
+-- Switch active session schema to development
+SET search_path TO dev;
+
+-- List all tables in current schema (matches, innings, players, bowlers, balls, tournament_rules)
+\dt
+
+-- Inspect 5 latest matches and deterministic Player of the Match awards
+SELECT id, status, match_winner, player_of_the_match FROM matches ORDER BY created_at DESC LIMIT 5;
+
+-- Inspect 10 most recent ball-by-ball delivery records
+SELECT * FROM balls ORDER BY id DESC LIMIT 10;
+
+-- Check active PostgreSQL connection pool usage and state distribution
+SELECT count(*), state FROM pg_stat_activity GROUP BY state;
+
+```
