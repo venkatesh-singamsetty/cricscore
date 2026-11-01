@@ -1,3 +1,9 @@
+## [4.24.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.23.2...v4.24.0) (2026-11-01)
+
+### 🚀 Features
+
+* **storage:** S3 tiered lifecycle policies, Playwright report sync, 4.5GB quota alarms & security fixes ([#343](https://github.com/venkatesh-singamsetty/cricscore/issues/343)) ([1869889]()), closes [#267]() [#85]()
+
 ## [4.23.2](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.23.1...v4.23.2) (2026-11-01)
 
 ### 🐛 Bug Fixes
