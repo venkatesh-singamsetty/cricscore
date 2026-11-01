@@ -365,6 +365,7 @@ jobs:
           path: ./
           format: spdx-json
           output-file: cricscore-sbom-dev.spdx.json
+          upload-release-assets: false
 
       - name: Sync Dev SBOM to S3
         run: |
