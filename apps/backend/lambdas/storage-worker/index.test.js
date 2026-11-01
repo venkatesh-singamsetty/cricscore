@@ -291,7 +291,7 @@ describe("Storage Worker Lambda", () => {
     },
   );
 
-  it("batches battingOrderNames into a single multi-row INSERT and guards against lagging ball regressions", async () => {
+  it("batches battingOrderNames into a single multi-row INSERT, guards against lagging ball regressions, and writes authoritative post-ball snapshots idempotently", async () => {
     await handler({
       Records: [
         {
@@ -303,9 +303,17 @@ describe("Storage Worker Lambda", () => {
             currentBalls: 2,
             explicitTotalRuns: 18,
             explicitTotalWickets: 1,
+            runs: 13,
+            ballsFaced: 4,
+            fours: 0,
+            sixes: 2,
+            bowlerRuns: 15,
+            bowlerWickets: 1,
+            bowlerOvers: 1,
+            bowlerBalls: 2,
             battingOrderNames: ["P1", "P2", "P3"],
             ballData: {
-              runs: 2,
+              runs: 6,
               isExtra: false,
               isWicket: false,
               batterName: "P1",
@@ -332,5 +340,34 @@ describe("Storage Worker Lambda", () => {
     expect(String(inningsUpdate?.[0])).toContain(
       "WHEN (COALESCE($4, overs, 0) * 6 + COALESCE($5, balls, 0)) >= (COALESCE(overs, 0) * 6 + COALESCE(balls, 0))",
     );
+
+    const batterSnapshotUpdate = mockQuery.mock.calls.find(
+      ([query, params]) =>
+        String(query).includes("UPDATE players") &&
+        String(query).includes("runs = $1") &&
+        params?.[9] === "P1",
+    );
+    expect(batterSnapshotUpdate).toBeDefined();
+    expect(batterSnapshotUpdate?.[1]).toEqual([
+      13,
+      4,
+      0,
+      2,
+      false,
+      null,
+      null,
+      null,
+      "inn_123",
+      "P1",
+    ]);
+
+    const bowlerSnapshotUpdate = mockQuery.mock.calls.find(
+      ([query, params]) =>
+        String(query).includes("UPDATE bowlers") &&
+        String(query).includes("runs_conceded = $1") &&
+        params?.[5] === "B1",
+    );
+    expect(bowlerSnapshotUpdate).toBeDefined();
+    expect(bowlerSnapshotUpdate?.[1]).toEqual([15, 1, 1, 2, "inn_123", "B1"]);
   });
 });

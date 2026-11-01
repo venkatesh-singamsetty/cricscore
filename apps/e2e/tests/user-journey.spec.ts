@@ -691,10 +691,11 @@ test.describe("User Journey - Full Match Scoring", () => {
       .click({ force: true });
     await page.waitForTimeout(2000);
 
-    // Assert Team A won after chasing Team B's 25/4 total.
+    // Assert Team A won after chasing Team B's 25/4 total (26/3, never double-counted as 32/3).
     await page.screenshot({ path: "match-end.png" });
     await expect(
       page.getByRole("heading", { name: /TEAM A WON BY 7 WICKETS/i }),
     ).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/32\/3/)).toHaveCount(0);
   });
 });

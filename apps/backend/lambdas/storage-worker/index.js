@@ -358,9 +358,52 @@ exports.handler = async (event, context) => {
         const isWicket = ballData.isWicket;
         const isBatterFacedBall = !isWide && !isRetirement;
 
-        // Batter Update
-        await client.query(
-          `UPDATE players SET 
+        const explicitBatterRuns =
+          matchEvent.runs !== undefined && matchEvent.runs !== null
+            ? Number(matchEvent.runs)
+            : null;
+        const explicitBatterBalls =
+          matchEvent.ballsFaced !== undefined && matchEvent.ballsFaced !== null
+            ? Number(matchEvent.ballsFaced)
+            : null;
+        const explicitBatterFours =
+          matchEvent.fours !== undefined && matchEvent.fours !== null
+            ? Number(matchEvent.fours)
+            : null;
+        const explicitBatterSixes =
+          matchEvent.sixes !== undefined && matchEvent.sixes !== null
+            ? Number(matchEvent.sixes)
+            : null;
+
+        // Batter Update (uses authoritative snapshot when provided so final-ball PATCH + SQS never double-adds)
+        if (explicitBatterRuns !== null) {
+          await client.query(
+            `UPDATE players SET 
+                        runs = $1, 
+                        balls_faced = COALESCE($2, balls_faced),
+                        fours = COALESCE($3, fours),
+                        sixes = COALESCE($4, sixes),
+                        is_out = $5,
+                        wicket_by = $6,
+                        wicket_type = $7,
+                        fielder_name = $8
+                     WHERE inning_id = $9 AND name = $10`,
+            [
+              explicitBatterRuns,
+              explicitBatterBalls,
+              explicitBatterFours,
+              explicitBatterSixes,
+              isWicket && ballData.wicketType !== "RETIRED_HURT",
+              isWicket ? ballData.bowlerName : null,
+              isWicket ? ballData.wicketType : null,
+              ballData.fielderName || null,
+              inningId,
+              ballData.batterName,
+            ],
+          );
+        } else {
+          await client.query(
+            `UPDATE players SET 
                         runs = runs + $1, 
                         balls_faced = balls_faced + $2,
                         fours = fours + $3,
@@ -370,19 +413,20 @@ exports.handler = async (event, context) => {
                         wicket_type = $7,
                         fielder_name = $8
                      WHERE inning_id = $9 AND name = $10`,
-          [
-            batterRunsToAdd,
-            isBatterFacedBall ? 1 : 0,
-            ballData.runs === 4 ? 1 : 0,
-            ballData.runs === 6 ? 1 : 0,
-            isWicket && ballData.wicketType !== "RETIRED_HURT",
-            isWicket ? ballData.bowlerName : null,
-            isWicket ? ballData.wicketType : null,
-            ballData.fielderName || null,
-            inningId,
-            ballData.batterName,
-          ],
-        );
+            [
+              batterRunsToAdd,
+              isBatterFacedBall ? 1 : 0,
+              ballData.runs === 4 ? 1 : 0,
+              ballData.runs === 6 ? 1 : 0,
+              isWicket && ballData.wicketType !== "RETIRED_HURT",
+              isWicket ? ballData.bowlerName : null,
+              isWicket ? ballData.wicketType : null,
+              ballData.fielderName || null,
+              inningId,
+              ballData.batterName,
+            ],
+          );
+        }
 
         const isBowlerWicket =
           isWicket &&
@@ -394,23 +438,52 @@ exports.handler = async (event, context) => {
             (isWide &&
               ["STUMPED", "HIT_WICKET"].includes(ballData.wicketType)));
 
+        const explicitBowlerRunsConceded =
+          matchEvent.bowlerRuns !== undefined && matchEvent.bowlerRuns !== null
+            ? Number(matchEvent.bowlerRuns)
+            : null;
+        const explicitBowlerWicketsTaken =
+          matchEvent.bowlerWickets !== undefined &&
+          matchEvent.bowlerWickets !== null
+            ? Number(matchEvent.bowlerWickets)
+            : null;
+
         // Bowler Update
-        await client.query(
-          `UPDATE bowlers SET 
+        if (explicitBowlerRunsConceded !== null) {
+          await client.query(
+            `UPDATE bowlers SET 
+                        runs_conceded = $1, 
+                        wickets = COALESCE($2, wickets),
+                        overs_completed = COALESCE($3, overs_completed),
+                        balls = COALESCE($4, balls)
+                     WHERE inning_id = $5 AND name = $6`,
+            [
+              explicitBowlerRunsConceded,
+              explicitBowlerWicketsTaken,
+              explicitBowlerOvers,
+              explicitBowlerBalls,
+              inningId,
+              ballData.bowlerName,
+            ],
+          );
+        } else {
+          await client.query(
+            `UPDATE bowlers SET 
                         runs_conceded = runs_conceded + $1, 
                         wickets = wickets + $2,
                         overs_completed = $3,
                         balls = $4
                      WHERE inning_id = $5 AND name = $6`,
-          [
-            bowlerRunsToAdd,
-            isBowlerWicket ? 1 : 0,
-            explicitBowlerOvers,
-            explicitBowlerBalls,
-            inningId,
-            ballData.bowlerName,
-          ],
-        );
+            [
+              bowlerRunsToAdd,
+              isBowlerWicket ? 1 : 0,
+              explicitBowlerOvers,
+              explicitBowlerBalls,
+              inningId,
+              ballData.bowlerName,
+            ],
+          );
+        }
       }
     }
 

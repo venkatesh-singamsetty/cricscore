@@ -78,6 +78,33 @@ Editable Mermaid diagrams live in **[docs/architecture.md](./docs/architecture.m
 | **3.&nbsp;S3&nbsp;+&nbsp;ECR&nbsp;Registries** | • `mlops-pipeline.yml`<br/>• **S3 (`models/v2.2.0/`)**<br/>• **ECR (`:v2.2.0`)** | • CI quality gate enforces `Accuracy >= 60%` & `ROC-AUC >= 65%`<br/>• Uploads `.joblib` (`~227 KB`) & SHA-256 `model_manifest.json` to S3<br/>• Builds `~309 MB` `xgboost-cpu` image in private ECR (required by Lambda) with `countNumber = 1` single-image retention (`~$0.01/mo` beyond 500 MB free tier) |
 | **4.&nbsp;Hybrid&nbsp;Inference**              | • `ml-predict` Lambda<br/>• `predict.py` & `win_probability.py`                  | • Cold-start caches S3 model in `/tmp` & verifies SHA-256 checksum (enabling 5s `--model-version` rollbacks)<br/>• Blends **XGBoost `v2.2.0`** + **Markov Chain DP** + **DLS Par** on every ball                                                                                                             |
 
+### 🧩 5. Multi-Host AI Coding Agent Skills (`.agents/skills/`)
+
+CricScore ships with a vendor-neutral **Agent Skills** system ([`.agents/skills/`](./.agents/skills)) that gives **Claude Code**, **GitHub Copilot**, **Cursor**, **Windsurf**, and **Gemini / Antigravity** progressive, domain-specific engineering rules. See **[docs/agent_skills.md](./docs/agent_skills.md)** for full details.
+
+```mermaid
+flowchart LR
+    Master[".agents/AGENTS.md\n(Master Router)"] --> Skills[".agents/skills/*/SKILL.md\n(12 Domain Playbooks)"]
+    Skills --> Copilot["GitHub Copilot\n(.github/copilot-instructions.md)"]
+    Skills --> Cursor["Cursor\n(.cursorrules)"]
+    Skills --> Claude["Claude Code / Windsurf\n(.agents/AGENTS.md + .agents/skills/)"]
+    Skills --> Gemini["Gemini / Antigravity\n(.agents/AGENTS.md + .agents/skills/)"]
+```
+
+| AI Coding Assistant / IDE                            | Repository Files Used                                        | How It Discovers & Uses CricScore Skills                                                                                                                        |
+| :--------------------------------------------------- | :----------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **GitHub&nbsp;Copilot**                              | • `.github/copilot-instructions.md`<br/>• `.agents/skills/*` | • Auto-injects `.github/copilot-instructions.md` into Copilot Chat, inline edits & PR reviews<br/>• Routes domain tasks to `.agents/skills/*/SKILL.md`          |
+| **Cursor**                                           | • `.cursorrules`<br/>• `.agents/AGENTS.md`                   | • Auto-loads `.cursorrules` and routes to `.agents/AGENTS.md`<br/>• Reads targeted `.agents/skills/*/SKILL.md` playbooks before editing matching paths          |
+| **Claude&nbsp;Code&nbsp;&&nbsp;Windsurf**            | • `.agents/AGENTS.md`<br/>• `.agents/skills/*/SKILL.md`      | • Reads `.agents/AGENTS.md` (or via `@.agents/AGENTS.md` / `.cursorrules`)<br/>• Progressively loads matching `.agents/skills/<skill-name>/SKILL.md` on demand  |
+| **Gemini&nbsp;/&nbsp;Antigravity&nbsp;/&nbsp;Codex** | • `.agents/AGENTS.md`<br/>• `.agents/skills/*/SKILL.md`      | • Native discovery of `.agents/AGENTS.md` and `.agents/skills/*/SKILL.md` YAML frontmatter (`name`, `description`)<br/>• Enforces PR, security & `~$1/mo` rules |
+
+| Skill Category                            | Included Skills (`.agents/skills/`)                                                                                                                  | Core Guardrails Enforced                                                                                                                                      |
+| :---------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Frontend,&nbsp;Backend&nbsp;&&nbsp;DB** | • `cricscore-frontend-architecture`<br/>• `cricscore-backend-architecture`<br/>• `cricscore-database-migrations`                                     | • React 19 optimistic WebSocket sync (`lastWsUpdateRef` / `lastWsUndoAtRef`)<br/>• Node.js 24 Lambda `pg.Pool` reuse & idempotent SQL migrations              |
+| **AI,&nbsp;RAG&nbsp;&&nbsp;MLOps**        | • `cricscore-agentic-rag-architecture`<br/>• `cricscore-mlops-standards`                                                                             | • In-memory MCP credential isolation & deterministic POTM (`computePlayerOfTheMatch`)<br/>• Leakage-free 8-model MLflow benchmark & `xgboost-cpu` (`~309 MB`) |
+| **Infra,&nbsp;Cost&nbsp;&&nbsp;Security** | • `cricscore-infrastructure-standards`<br/>• `cricscore-cost-governance`<br/>• `cricscore-security-standards`                                        | • `~$1/month` AWS ceiling, 7-day log retention & single-image ECR (`countNumber = 1`)<br/>• Strict `isAdminClaims` JWT RBAC & 7-scanner DevSecOps gate        |
+| **Testing,&nbsp;PRs&nbsp;&&nbsp;Reviews** | • `cricscore-testing-standards`<br/>• `cricscore-pr-and-workflow`<br/>• `cricscore-dependabot-consolidation`<br/>• `cricscore-code-review-standards` | • 376 unit tests + Playwright E2E parity across `dev` & `prod`<br/>• Raise PR & verify status checks (never auto-merge without owner approval)                |
+
 ---
 
 ## 🛠️ Technology Stack Summary
