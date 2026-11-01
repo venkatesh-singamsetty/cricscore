@@ -146,7 +146,7 @@ A central single-pane-of-glass directory providing live references across all la
 - **SQS FIFO Storage Queue:** `cricscore-storage-buffer.fifo` — [SQS Queue Console](https://us-east-1.console.aws.amazon.com/sqs/v3/home?region=us-east-1#/queues/https%3A%2F%2Fsqs.us-east-1.amazonaws.com%2F926789386606%2Fcricscore-storage-buffer.fifo)
 - **SNS Match Events Topic:** [`cricscore-match-events`](https://us-east-1.console.aws.amazon.com/sns/v3/home?region=us-east-1#/topic/arn:aws:sns:us-east-1:926789386606:cricscore-match-events)
 - **SNS Lambda Alerts Topic:** [`cricscore-lambda-alerts`](https://us-east-1.console.aws.amazon.com/sns/v3/home?region=us-east-1#/topic/arn:aws:sns:us-east-1:926789386606:cricscore-lambda-alerts)
-- **ECR ML Container Repo (`countNumber=1`):** `cricscore-ml-predict` (`294.75 MB`, pushed `2026-10-31 23:23:23`) — [ECR Repo Console](https://us-east-1.console.aws.amazon.com/ecr/repositories/private/926789386606/cricscore-ml-predict?region=us-east-1)
+- **ECR ML Container Repo (`countNumber=1`):** `cricscore-ml-predict` (`294.75 MB`, pushed `2026-11-01 13:01:35`) — [ECR Repo Console](https://us-east-1.console.aws.amazon.com/ecr/repositories/private/926789386606/cricscore-ml-predict?region=us-east-1)
 
 ### ⚡ Serverless Compute & Telemetry (AWS Lambda)
 
@@ -195,7 +195,7 @@ A central single-pane-of-glass directory providing live references across all la
 - **DVC Dataset Lineage:** `dvc:31e19c47bdbc05d773938754d8589516` (`cricket-data/t20s_json.zip.dvc`, `dvc.yaml`, `dvc.lock`)
 - **ECR Container Optimization:** `public.ecr.aws/lambda/python:3.12` + `xgboost-cpu` (`~309 MB`, `countNumber = 1` single-image retention)
 - **Dev ECR Image (`:v2.2.0`):** `294.74 MB`, Digest `sha256:9e13e45f7ee0b2b19b5fe4c96880270b30c83c003969b3a4d0edcda7b010d473`, Pushed `2026-11-01 00:44:18`
-- **Prod ECR Image (`:v2.2.0`):** `294.75 MB`, Digest `sha256:f51eafbe8b57d802746c067068c953f58892721272b5ca09fbf8daa92b552632`, Pushed `2026-10-31 23:23:23`
+- **Prod ECR Image (`:v2.2.0`):** `294.75 MB`, Digest `sha256:a1dd575c3ac855f88868993db9507210c9d6b7853f5b0cbd40922ba2f92c9a0c`, Pushed `2026-11-01 13:01:35`
 
 ### Champion vs. Baseline Benchmark Metrics
 
