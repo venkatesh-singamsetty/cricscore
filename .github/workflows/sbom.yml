@@ -1,14 +1,16 @@
-name: Generate SBOM
+name: Generate SBOM & Sync to S3
 
 on:
   push:
     branches: [ "main" ]
+    tags: [ "v*" ]
   schedule:
     - cron: '0 0 * * 0' # Run weekly on Sundays at midnight
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write # Needed to attach release assets to GitHub release if tag exists
+  id-token: write # Needed for keyless AWS OIDC authentication
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -18,8 +20,8 @@ env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
 
 jobs:
-  generate-sbom:
-    name: Syft SBOM Generation
+  generate-and-sync-sbom:
+    name: Syft SBOM Generation & S3 Sync
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -32,9 +34,54 @@ jobs:
           format: spdx-json
           output-file: cricscore-sbom.spdx.json
 
-      - name: Upload SBOM Artifact
+      - name: Upload SBOM to GitHub Artifacts (30-day retention)
         uses: actions/upload-artifact@v7
         with:
           name: cricscore-sbom
           path: cricscore-sbom.spdx.json
           retention-days: 30
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN || secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_DEFAULT_REGION || vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Sync SBOM to AWS S3 Compliance Registry
+        run: |
+          set -e
+          # Locate target S3 backup bucket
+          BUCKET=$(aws s3api list-buckets --query "Buckets[?starts_with(Name, 'cricscore-match-backups-')].Name | [0]" --output text)
+          if [ -z "$BUCKET" ] || [ "$BUCKET" = "None" ]; then
+            echo "⚠️ Prod bucket not found; attempting cricscoredev-match-backups..."
+            BUCKET=$(aws s3api list-buckets --query "Buckets[?starts_with(Name, 'cricscoredev-match-backups-')].Name | [0]" --output text)
+          fi
+
+          if [ -z "$BUCKET" ] || [ "$BUCKET" = "None" ]; then
+            echo "❌ Could not find a match-backups S3 bucket in this AWS account."
+            exit 1
+          fi
+
+          echo "Target S3 Bucket: $BUCKET"
+
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            TAG_NAME="${{ github.ref_name }}"
+            echo "📦 Uploading Release SBOM: s3://${BUCKET}/sboms/releases/${TAG_NAME}.spdx.json"
+            aws s3 cp cricscore-sbom.spdx.json "s3://${BUCKET}/sboms/releases/${TAG_NAME}.spdx.json" --content-type "application/json"
+          else
+            COMMIT_SHA="${{ github.sha }}"
+            echo "📦 Uploading Commit SBOM: s3://${BUCKET}/sboms/commits/${COMMIT_SHA}.spdx.json"
+            aws s3 cp cricscore-sbom.spdx.json "s3://${BUCKET}/sboms/commits/${COMMIT_SHA}.spdx.json" --content-type "application/json"
+            echo "📦 Updating Latest SBOM: s3://${BUCKET}/sboms/latest.spdx.json"
+            aws s3 cp cricscore-sbom.spdx.json "s3://${BUCKET}/sboms/latest.spdx.json" --content-type "application/json"
+          fi
+          echo "✅ SBOM successfully synced to AWS S3!"
+
+      - name: Attach SBOM to GitHub Release Asset
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          echo "Attaching SBOM to GitHub release $TAG_NAME..."
+          gh release upload "$TAG_NAME" cricscore-sbom.spdx.json --clobber 2>/dev/null || echo "ℹ️ Release $TAG_NAME not yet published on GitHub or upload skipped."

@@ -21,6 +21,13 @@ set +o allexport
 
 # Map TF_* prefixed vars from .env.local to Terraform's TF_VAR_* convention
 export TF_VAR_database_url="${TF_DATABASE_URL}"
+if [ -z "${TF_VAR_aiven_ca_cert:-}" ]; then
+    if [ -n "${AIVEN_CA_CERT:-}" ]; then
+        export TF_VAR_aiven_ca_cert="${AIVEN_CA_CERT}"
+    elif [ -f "$REPO_ROOT/infra/database/certs/aiven-ca.pem" ]; then
+        export TF_VAR_aiven_ca_cert="$(cat "$REPO_ROOT/infra/database/certs/aiven-ca.pem")"
+    fi
+fi
 export TF_VAR_ses_source_email="${TF_SES_SOURCE_EMAIL}"
 export TF_VAR_admin_email="${ADMIN_EMAIL}"
 export TF_VAR_domain_name="${DOMAIN_NAME}"

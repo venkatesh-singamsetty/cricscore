@@ -38,6 +38,10 @@ output "model_s3_bucket" {
   value = aws_s3_bucket.match_backups.id
 }
 
+output "backup_s3_bucket" {
+  value = aws_s3_bucket.match_backups.id
+}
+
 output "ml_model_s3_uri" {
   value = "s3://${aws_s3_bucket.match_backups.id}/${aws_s3_object.ml_model_joblib.key}"
 }

@@ -48,6 +48,12 @@ variable "database_url" {
   sensitive   = true
 }
 
+variable "aiven_ca_cert" {
+  type        = string
+  description = "Aiven Root CA certificate PEM content for strict TLS verification"
+  default     = ""
+}
+
 
 
 variable "admin_email" {

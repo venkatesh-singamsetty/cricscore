@@ -69,7 +69,7 @@ flowchart TD
 
 - **1. [Step-by-Step Deployment Guide](./deployment.md):**
   - Deploy your own instance of CricScore to AWS (`dev` & `prod`) from scratch.
-  - Complete `.env.local` and Route 53 / SES DKIM bootstrap checklist.
+  - Complete `.env.local` and one-time AWS bootstrap (Route 53 hosted zone, S3 state bucket & keyless GitHub Actions OIDC).
 - **2. [Terraform Infrastructure Tutorial](./terraform_guide.md):**
   - HCL file layout, S3 remote state locking, and `dev.tfvars` / `prod.tfvars` isolation.
   - Step-by-step `terraform plan`, `apply`, and state unlock commands.

@@ -139,6 +139,13 @@ fi
 
 # Auto-map GitHub-style variables to Terraform variables for a seamless local experience
 if [ -n "${TF_DATABASE_URL:-}" ]; then export TF_VAR_database_url="$TF_DATABASE_URL"; fi
+if [ -z "${TF_VAR_aiven_ca_cert:-}" ]; then
+  if [ -n "${AIVEN_CA_CERT:-}" ]; then
+    export TF_VAR_aiven_ca_cert="$AIVEN_CA_CERT"
+  elif [ -f "infra/database/certs/aiven-ca.pem" ]; then
+    export TF_VAR_aiven_ca_cert="$(cat infra/database/certs/aiven-ca.pem)"
+  fi
+fi
 if [ -n "${TF_SES_SOURCE_EMAIL:-}" ]; then export TF_VAR_ses_source_email="$TF_SES_SOURCE_EMAIL"; fi
 if [ -n "${AWS_REGION:-}" ]; then export TF_VAR_aws_region="$AWS_REGION"; fi
 if [ -n "${ADMIN_EMAIL:-}" ]; then export TF_VAR_admin_email="$ADMIN_EMAIL"; fi

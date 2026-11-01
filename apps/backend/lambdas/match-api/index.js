@@ -1,12 +1,22 @@
 const { Pool } = require("pg");
 
+const getSslConfig = () => {
+  const caCert = process.env.AIVEN_CA_CERT || process.env.DATABASE_CA_CERT;
+  if (caCert) {
+    return { rejectUnauthorized: true, ca: caCert };
+  }
+  // codeql[js/disabling-certificate-validation] Aiven DB requires this unless explicit CA bundle is provided
+  return { rejectUnauthorized: false };
+};
+
 const pool = new Pool({
   connectionString: (process.env.DATABASE_URL || "").split("?")[0],
-  // codeql[js/disabling-certificate-validation] Aiven DB requires this unless explicit CA bundle is provided
-  ssl: { rejectUnauthorized: false },
+  ssl: getSslConfig(),
   max: 1,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
+  statement_timeout: 10000,
+  query_timeout: 10000,
 });
 pool.on("error", (err) => console.error("Idle PostgreSQL client error:", err));
 const { SESClient, SendEmailCommand } = require("@aws-sdk/client-ses");

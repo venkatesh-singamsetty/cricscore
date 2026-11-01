@@ -23,8 +23,29 @@ jobs:
       DOMAIN_NAME: ${{ vars.DOMAIN_NAME || 'cricscore.venkateshsingamsetty.com' }}
       DATABASE_URL: ${{ secrets.TF_DATABASE_URL }}
     steps:
+      - name: Resolve Production Release Tag
+        id: resolve-tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "Using explicitly dispatched tag: ${{ github.ref_name }}"
+            echo "target_ref=${{ github.ref }}" >> "$GITHUB_OUTPUT"
+          else
+            LATEST_TAG=$(gh release view -R "${{ github.repository }}" --json tagName -q .tagName 2>/dev/null || echo "")
+            if [ -n "$LATEST_TAG" ]; then
+              echo "Targeting latest production release tag: $LATEST_TAG"
+              echo "target_ref=$LATEST_TAG" >> "$GITHUB_OUTPUT"
+            else
+              echo "No release tag found; falling back to ${{ github.ref }}"
+              echo "target_ref=${{ github.ref }}" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
       - name: Checkout code
         uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.resolve-tag.outputs.target_ref }}
 
       - name: Install PostgreSQL Client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client

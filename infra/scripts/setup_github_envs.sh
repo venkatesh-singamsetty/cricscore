@@ -35,15 +35,35 @@ gh secret set TF_DATABASE_URL -b"$TF_DATABASE_URL" --env prod
 gh secret set TF_SES_SOURCE_EMAIL -b"$TF_SES_SOURCE_EMAIL" --env dev
 gh secret set TF_SES_SOURCE_EMAIL -b"$TF_SES_SOURCE_EMAIL" --env prod
 
-# The current GitHub workflows use static AWS credentials. Prefer OIDC when the
-# repository IAM role and workflow are migrated to support it.
-if [[ -n "${AWS_ACCESS_KEY_ID:-}" && -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
+# Aiven PostgreSQL Root CA certificate for strict SSL verification
+CA_CERT_FILE="infra/database/certs/aiven-ca.pem"
+CA_CERT_VALUE="${AIVEN_CA_CERT:-}"
+if [[ -z "$CA_CERT_VALUE" && -f "$CA_CERT_FILE" ]]; then
+  CA_CERT_VALUE="$(cat "$CA_CERT_FILE")"
+fi
+if [[ -n "$CA_CERT_VALUE" ]]; then
+  gh secret set AIVEN_CA_CERT -b"$CA_CERT_VALUE" --env dev
+  gh secret set AIVEN_CA_CERT -b"$CA_CERT_VALUE" --env prod
+  gh secret set AIVEN_CA_CERT -b"$CA_CERT_VALUE"
+  echo "✅ Configured Aiven Root CA certificate (AIVEN_CA_CERT) in dev, prod, and repository secrets"
+fi
+
+# Configure AWS Credentials: Prefer keyless GitHub Actions OIDC (AWS_ROLE_ARN)
+# over legacy static keys.
+if [[ -n "${AWS_ROLE_ARN:-}" ]]; then
+  gh variable set AWS_ROLE_ARN -b "$AWS_ROLE_ARN"
+  for ENV in dev prod; do
+    gh variable set AWS_ROLE_ARN -b "$AWS_ROLE_ARN" --env "$ENV"
+  done
+  echo "✅ Configured keyless GitHub Actions OIDC role (AWS_ROLE_ARN: $AWS_ROLE_ARN)"
+elif [[ -n "${AWS_ACCESS_KEY_ID:-}" && -n "${AWS_SECRET_ACCESS_KEY:-}" ]]; then
   for ENV in dev prod; do
     gh secret set AWS_ACCESS_KEY_ID -b"$AWS_ACCESS_KEY_ID" --env "$ENV"
     gh secret set AWS_SECRET_ACCESS_KEY -b"$AWS_SECRET_ACCESS_KEY" --env "$ENV"
   done
+  echo "⚠️ Configured legacy static AWS credentials; run ./infra/scripts/bootstrap_oidc.sh to upgrade to OIDC."
 else
-  echo "⚠️ AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY not found in environment; add deployment credentials to each GitHub Environment."
+  echo "⚠️ Neither AWS_ROLE_ARN nor AWS_ACCESS_KEY_ID found; run ./infra/scripts/bootstrap_oidc.sh to configure keyless OIDC."
 fi
 
 LLM_SECRET="${OPENAI_API_KEY:-${LLM_API_KEY:-}}"

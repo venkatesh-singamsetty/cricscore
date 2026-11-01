@@ -334,6 +334,97 @@ def ai_assistant() -> None:
 
 
 # ---------------------------------------------------------------------------
+# 3. Vector RAG: Tournament Rules Ingestion & Semantic Retrieval
+# ---------------------------------------------------------------------------
+def vector_rag() -> None:
+    with Diagram(
+        "CricScore Vector RAG Architecture: Tournament Rules Ingestion & Semantic Retrieval",
+        filename=str(OUT / "03_vector_rag_architecture"),
+        outformat="png",
+        show=False,
+        direction="LR",
+        graph_attr=GRAPH,
+        node_attr=NODE,
+        edge_attr=EDGE,
+    ):
+        with Cluster(**cluster("1. Ingestion & Query Ingress", BLUE, "#eef4ff")):
+            admin = Custom(
+                "Admin Scorer\n(Upload Rulebook PDF)", icon("tb_device-mobile")
+            )
+            http = APIGateway("API Gateway\nPOST /rules/upload\nPOST /chat")
+            viewer = Custom(
+                "Viewer / Fan\n(Tournament Rule Query)",
+                icon("tb_message-chatbot"),
+            )
+            admin >> Edge(style="invis") >> viewer
+
+        with Cluster(
+            **cluster(
+                "2. Document Processing & Embedding", ORANGE, "#fffaf0"
+            )
+        ):
+            parser = Custom(
+                "PDF Parser & Splitter\npdf-parse • Paragraphs\n~1,000 Chars / Chunk",
+                icon("tb_shield-lock"),
+            )
+            embedder = Custom(
+                "OpenAI Embeddings\ntext-embedding-3-small\n(1536-d Vectors)",
+                icon("openai"),
+            )
+            chat_lambda = Lambda(
+                "chat-api Lambda\nRules Handler &\nMCP Rules Agent"
+            )
+            parser >> Edge(style="invis") >> chat_lambda
+
+        with Cluster(
+            **cluster(
+                "3. Vector Store & HNSW Index (PostgreSQL)", GREEN, "#ebfbee"
+            )
+        ):
+            pg_store = Custom(
+                "Aiven PostgreSQL 16\ntournament_rules Table\n(doc_name, chunk_text)",
+                icon("postgresql"),
+            )
+            hnsw_idx = Custom(
+                "PostgreSQL pgvector\nHNSW Cosine Index\nvector_cosine_ops (<=>)",
+                icon("tb_database-search"),
+            )
+
+        with Cluster(
+            **cluster(
+                "4. Grounded Synthesis & Citations", PURPLE, "#f3f0ff"
+            )
+        ):
+            supervisor = Custom(
+                "Agent Supervisor\nTop-8 Chunk Context\nPrompt Assembler",
+                icon("tb_robot"),
+            )
+            llm = Custom(
+                "OpenAI LLM\ngpt-4o-mini\n(Grounded Synthesis)", icon("openai")
+            )
+            response = Custom(
+                "Grounded Rule Answer\nMandatory Citations\n[Source: doc_name]",
+                icon("agent_rules"),
+            )
+
+        # Ingestion Flow (Top Path)
+        admin >> edge("Upload PDF", BLUE) >> http
+        http >> edge("Cognito Admin JWT", ORANGE) >> parser
+        parser >> edge("Text Chunks", ORANGE) >> embedder
+        embedder >> edge("1536-d Vectors", GREEN) >> pg_store
+        pg_store >> edge("Index", GREEN) >> hnsw_idx
+
+        # Query & Retrieval Flow (Bottom Path)
+        viewer >> edge("Ask Rule Question", BLUE) >> http
+        http >> edge("Invoke /chat", ORANGE) >> chat_lambda
+        chat_lambda >> edge("Vectorize Query", ORANGE) >> embedder
+        embedder >> edge("Query Vector", GREEN) >> hnsw_idx
+        hnsw_idx >> edge("Top-8 Rule Chunks", PURPLE) >> supervisor
+        supervisor >> edge("Synthesize", PURPLE) >> llm
+        llm >> edge("Cite Rule Source", PURPLE) >> response
+
+
+# ---------------------------------------------------------------------------
 # 4. MLOps & live win prediction
 # ---------------------------------------------------------------------------
 def mlops() -> None:
@@ -426,6 +517,7 @@ def mlops() -> None:
 if __name__ == "__main__":
     platform_overview()
     live_scoring()
+    vector_rag()
     ai_assistant()
     mlops()
     print(f"Diagrams written to {OUT}")

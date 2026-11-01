@@ -38,7 +38,29 @@ flowchart TD
   - Powers semantic rulebook RAG search (`tournament_rules`) directly inside PostgreSQL without an external vector database.
 - **Daily Production E2E Keep-Alive & 7-Match Retention (`.github/workflows/keepalive.yml`):**
   - Because Aiven Free Tier detects real disk/WAL write activity (and can still hibernate if only pinged with a read-only `SELECT 1`), `keepalive.yml` runs **1 full 2-over Playwright E2E match in Production (`tests/user-journey.spec.ts`)** daily at 12:00 UTC.
+  - Automatically checks out the **latest published production release tag** (`v*`) so E2E test specs and locators accurately align with the deployed Production frontend and API, without false alarms from unreleased changes on `main`.
   - This generates genuine `INSERT`, `UPDATE`, and `DELETE` (Undo) transactions across `prod.matches`, `prod.innings`, `prod.players`, `prod.bowlers`, and `prod.ball_events`, provides daily production synthetic monitoring, and automatically prunes older E2E test matches (`OFFSET 7`) so only the **latest 7 E2E test matches** are retained in `prod`.
+
+---
+
+## 🔒 Connection Security Best Practices ($0.00 Free Hardening)
+
+CricScore implements defense-in-depth security controls between AWS serverless compute and Aiven PostgreSQL without incurring paid VPC / PrivateLink costs:
+
+1. **In-Transit TLS Encryption & Strict Root CA Verification**:
+   - Connection URIs enforce `sslmode=require`.
+   - The private Aiven Project Root CA certificate resides locally at `infra/database/certs/aiven-ca.pem` (git-ignored) and in GitHub Secrets as `AIVEN_CA_CERT`.
+   - Terraform (`var.aiven_ca_cert`), deployment scripts (`deploy.sh`, `terraform.sh`), and GitHub Actions (`ci.yml`, `cd.yml`, `drift.yml`) automatically inject `AIVEN_CA_CERT` into the Lambda runtime environments.
+   - Backend connection pools strictly validate the certificate chain against this Root CA (`rejectUnauthorized: true, ca: process.env.AIVEN_CA_CERT`), eliminating Man-in-the-Middle (MITM) and DNS spoofing risks at $0.00 cost. If the CA cert is omitted, pools gracefully fall back to encrypted TLS (`rejectUnauthorized: false`).
+2. **PostgreSQL Statement & Connection Timeouts**:
+   - Client pools enforce `statement_timeout: 10000` (10 seconds) and `query_timeout: 10000` to prevent denial-of-service from runaway queries.
+   - Connection pool limits are capped (`max: 1` per container, `idleTimeoutMillis: 30000`) to respect Aiven Free Tier connection bounds.
+3. **Least-Privilege AI Database User**:
+   - A dedicated read-only role (`cricscore_ai_reader`) is provided in `infra/database/migrations/create_read_only_ai_role.sql`.
+   - Restricts AI queries strictly to `SELECT` and revokes `INSERT`, `UPDATE`, `DELETE`, `TRUNCATE`, and DDL modifications.
+4. **Parameterized Queries & Schema Isolation**:
+   - 100% of SQL queries use `$1, $2, ...` parameter placeholders to neutralize SQL injection.
+   - Separate PostgreSQL schemas (`dev` vs `prod`) isolate environments inside a single instance.
 
 ---
 

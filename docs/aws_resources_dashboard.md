@@ -35,32 +35,33 @@ A central single-pane-of-glass directory providing live references across all la
 - **Generate SBOM (`sbom.yml` — [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/sbom.yml)):** Generates Syft Software Bill of Materials (`spdx-json` artifact) on pushes to `main` and releases.
 - **MLOps Pipeline (`mlops-pipeline.yml` — [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/mlops-pipeline.yml)):** Runs the 8-model benchmark (`compare_models.py`), enforces the XGBoost `v2.2.0` quality gate, and uploads artifacts.
 - **ML Model Release & Rollback (`ml-model-release.yml` — [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/ml-model-release.yml)):** Manual `workflow_dispatch` to promote or roll back `MODEL_VERSION` across `dev`/`prod` Lambdas.
-- **Terraform Drift Detection (`drift.yml` — [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/drift.yml)):** Nightly (`00:00 UTC`) verification of Terraform state against live `dev` and `prod` AWS resources.
-- **Database Keep-Alive & Daily Prod E2E (`keepalive.yml` — [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/keepalive.yml)):** Daily (`12:00 UTC`) workflow that runs 1 full 2-over Playwright E2E match in Production to generate real Aiven PostgreSQL WAL writes and prunes older E2E test matches (`OFFSET 7`, retaining only the latest 7 E2E matches).
+- **Terraform Drift Detection (`drift.yml` — [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/drift.yml)):** Nightly (`00:00 UTC`) verification of Terraform state against live `prod` AWS resources (pinned to latest release tag).
+- **Database Keep-Alive & Daily Prod E2E (`keepalive.yml` — [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/keepalive.yml)):** Daily (`12:00 UTC`) workflow that runs 1 full 2-over Playwright E2E match in Production (pinned to latest release tag) to generate real Aiven PostgreSQL WAL writes and prunes older E2E test matches (`OFFSET 7`, retaining only the latest 7 E2E matches).
 - **Terraform Force Unlock (`terraform-unlock.yml` — [Open Workflow](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/terraform-unlock.yml)):** Emergency manual release of stuck S3 `.tflock` state locks.
 - **Dependabot Updates (`dependabot.yml` — [Open Dependabot](https://github.com/venkatesh-singamsetty/cricscore/security/dependabot)):** Weekly security PRs for npm, pip, and GitHub Actions.
 
 ### 📋 GitHub Repository Variables (`vars.*`)
 
-| Variable           | Value / Format                       | Scope               |
-| ------------------ | ------------------------------------ | ------------------- |
-| `AWS_REGION`       | `us-east-1`                          | CI, CD, Workflows   |
-| `DOMAIN_NAME`      | `cricscore.venkateshsingamsetty.com` | CI, CD, Terraform   |
-| `ZONE_DOMAIN`      | `venkateshsingamsetty.com`           | CI, CD, Terraform   |
-| `PROJECT_NAME`     | `cricscore`                          | CI, CD, Terraform   |
-| `SUBDOMAIN_PREFIX` | `cricscore`                          | CI, CD, Terraform   |
-| `TF_STATE_BUCKET`  | `venky-2026-terraform-state`         | CI, CD, Terraform   |
-| `ADMIN_EMAIL`      | Scorer admin email                   | Terraform, Cognito  |
-| `LLM_MODEL`        | `gpt-4o-mini`                        | AI Service, Lambdas |
-| `LLM_BASE_URL`     | Optional URL                         | AI Service, Lambdas |
+| Variable           | Value / Format                                                 | Scope               |
+| ------------------ | -------------------------------------------------------------- | ------------------- |
+| `AWS_REGION`       | `us-east-1`                                                    | CI, CD, Workflows   |
+| `AWS_ROLE_ARN`     | `arn:aws:iam::926789386606:role/cricscore-github-actions-role` | Keyless OIDC (STS)  |
+| `DOMAIN_NAME`      | `cricscore.venkateshsingamsetty.com`                           | CI, CD, Terraform   |
+| `ZONE_DOMAIN`      | `venkateshsingamsetty.com`                                     | CI, CD, Terraform   |
+| `PROJECT_NAME`     | `cricscore`                                                    | CI, CD, Terraform   |
+| `SUBDOMAIN_PREFIX` | `cricscore`                                                    | CI, CD, Terraform   |
+| `TF_STATE_BUCKET`  | `venky-2026-terraform-state`                                   | CI, CD, Terraform   |
+| `ADMIN_EMAIL`      | Scorer admin email                                             | Terraform, Cognito  |
+| `LLM_MODEL`        | `gpt-4o-mini`                                                  | AI Service, Lambdas |
+| `LLM_BASE_URL`     | Optional URL                                                   | AI Service, Lambdas |
 
 ### 🔒 GitHub Repository Secrets Inventory (`secrets.*`)
 
 > [!NOTE]
 > In compliance with CricScore Security Standards, only secret metadata and purposes are documented here. Secret values are injected directly into GitHub Actions runners and backend Lambda environments, never exposed to clients or checked into source code.
 
-- **`AWS_ACCESS_KEY_ID` & `AWS_SECRET_ACCESS_KEY` ([Secrets Console](https://github.com/venkatesh-singamsetty/cricscore/settings/secrets/actions)):** IAM credentials used by GitHub Actions runners for Terraform apply and S3/CloudFront sync.
-- **`AWS_ROLE_ARN` ([Secrets Console](https://github.com/venkatesh-singamsetty/cricscore/settings/secrets/actions)):** Optional IAM Role ARN for GitHub Actions OIDC federation.
+- **`AWS_ROLE_ARN` ([Variables Console](https://github.com/venkatesh-singamsetty/cricscore/settings/variables/actions)):** IAM Role ARN assumed via keyless GitHub Actions OIDC federation (`cricscore-github-actions-role`). Eliminates long-lived access keys.
+- **`AWS_ACCESS_KEY_ID` & `AWS_SECRET_ACCESS_KEY` ([Secrets Console](https://github.com/venkatesh-singamsetty/cricscore/settings/secrets/actions)):** Legacy static IAM credentials (supported as backward-compatible fallback until OIDC role is bootstrapped).
 - **`TF_DATABASE_URL` ([Secrets Console](https://github.com/venkatesh-singamsetty/cricscore/settings/secrets/actions)):** Aiven PostgreSQL connection URI (`postgres://...sslmode=require`), injected solely into backend Lambdas and migration steps.
 - **`TF_SES_SOURCE_EMAIL` ([Secrets Console](https://github.com/venkatesh-singamsetty/cricscore/settings/secrets/actions)):** Verified Amazon SES sender email for post-match HTML scorecard reports.
 - **`OPENAI_API_KEY` ([Secrets Console](https://github.com/venkatesh-singamsetty/cricscore/settings/secrets/actions)):** API key for the OpenAI `gpt-4o-mini` conversational assistant (bounded to 600 max tokens/turn).
@@ -244,6 +245,7 @@ A central single-pane-of-glass directory providing live references across all la
 
 ## 🛡️ Security Posture, SBOM & CI/CD Scans
 
+- **Keyless OIDC Authentication:** AWS IAM OpenID Connect Provider ([`token.actions.githubusercontent.com`](https://us-east-1.console.aws.amazon.com/iam/home?region=us-east-1#/oidc_providers)) & IAM Deployment Role ([`cricscore-github-actions-role`](https://us-east-1.console.aws.amazon.com/iam/home?region=us-east-1#/roles/details/cricscore-github-actions-role)) eliminating long-lived static AWS access keys.
 - **CodeQL SAST:** JavaScript, TypeScript & Python static analysis ([Code Scanning Console](https://github.com/venkatesh-singamsetty/cricscore/security/code-scanning))
 - **Dependabot SCA:** Automated npm, pip & GitHub Actions dependency updates ([Dependabot Alerts](https://github.com/venkatesh-singamsetty/cricscore/security/dependabot))
 - **GitLeaks & Trivy:** Secret detection and HIGH/CRITICAL CVE scans on every PR ([`ci.yml`](https://github.com/venkatesh-singamsetty/cricscore/actions/workflows/ci.yml))

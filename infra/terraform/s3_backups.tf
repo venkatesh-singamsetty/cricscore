@@ -29,8 +29,9 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "match_backups_sse
   }
 }
 
-# Raw match backups (backups/*) are expired after 180 days. The models/ prefix
-# (ML model registry used for rollbacks) is deliberately NOT expired.
+# Raw match backups (backups/*) are expired after 180 days.
+# Commit-level SBOMs (sboms/commits/*) are expired after 180 days.
+# Release SBOMs (sboms/releases/*) and ML models (models/*) are deliberately NOT expired for permanent audit compliance.
 resource "aws_s3_bucket_lifecycle_configuration" "match_backups" {
   bucket = aws_s3_bucket.match_backups.id
 
@@ -40,6 +41,19 @@ resource "aws_s3_bucket_lifecycle_configuration" "match_backups" {
 
     filter {
       prefix = "backups/"
+    }
+
+    expiration {
+      days = 180
+    }
+  }
+
+  rule {
+    id     = "expire-old-commit-sboms"
+    status = "Enabled"
+
+    filter {
+      prefix = "sboms/commits/"
     }
 
     expiration {

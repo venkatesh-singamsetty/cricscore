@@ -6,6 +6,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue?logo=typescript)](https://www.typescriptlang.org/)
 [![Python ML](https://img.shields.io/badge/Python-ML_Engine-blue?logo=python)](https://www.python.org/)
 [![Terraform](https://img.shields.io/badge/Terraform-Managed-purple?logo=terraform)](https://www.terraform.io/)
+[![Auth](https://img.shields.io/badge/IAM-Keyless%20OIDC-orange?logo=amazon-aws)](./docs/security_posture.md)
 [![AWS Cloud Cost](https://img.shields.io/badge/AWS%20Cost-~%241%2Fmo-blue?logo=amazon-aws)](./docs/cost_management.md)
 [![License: MIT](https://img.shields.io/badge/License:MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -99,7 +100,22 @@ When a scorer taps a ball, CricScore decouples **live broadcast speed** from **d
     - **Safe Path (Green, Steps 3b–5b) is permanent disk persistence:** It serializes writes through SQS FIFO to guarantee strict chronological ordering and durable ACID transactions in Aiven PostgreSQL 16, ensuring career averages, scorecards, and undos are never corrupted.
   - Decoupling them is what allows `score-update` to return `HTTP 200` to the scorer in `~30ms` while providing both sub-second live streaming and 100% data integrity.
 
-### 🤖 3. AI Assistant (Autonomous Multi-Agent System via MCP)
+### 📚 3. Vector RAG: Tournament Rules Ingestion & Semantic Retrieval
+
+![Vector RAG architecture: admin PDF parsing, paragraph chunking, OpenAI embeddings, and pgvector HNSW cosine search feeding grounded tournament rule citations into chat-api](./docs/images/architecture/03_vector_rag_architecture.png)
+
+- **📄 Document Ingestion Path (Admin Scorer ➔ PDF Parser ➔ PostgreSQL pgvector):**
+  - **Upload & Authorization:** Admins upload tournament rulebook PDFs via the Admin Panel (`POST /rules/upload`), authenticated by Cognito JWT (`isAdminClaims`).
+  - **Parsing & Chunking:** `pdf-parse` extracts raw text and splits it on paragraph boundaries into semantic chunks of `~1,000` characters with document metadata (`doc_name`, `chunk_index`).
+  - **Embedding Generation:** OpenAI `text-embedding-3-small` transforms each text chunk into a high-density `1536-dimensional` vector.
+  - **PostgreSQL Persistence & HNSW Indexing:** Chunks and vectors are persisted to Aiven PostgreSQL's `tournament_rules` table, indexed using `pgvector` HNSW cosine distance (`vector_cosine_ops (<=>)`) for sub-10ms approximate nearest neighbor queries without an external vector database.
+
+- **🔍 Query & Retrieval Path (Viewer / Fan ➔ Semantic Search ➔ Grounded Answer):**
+  - **Query Vectorization:** When a spectator or scorer asks a tournament rule question in the chat, `chat-api` invokes `text-embedding-3-small` to convert the query into a 1536-d vector.
+  - **Cosine Similarity Match:** Executes an indexed cosine distance query (`ORDER BY embedding <=> $1 LIMIT 8`) against Aiven PostgreSQL, retrieving the Top-8 most relevant tournament rule passages.
+  - **Context Assembly & Grounded Synthesis:** The Agent Supervisor injects the retrieved chunks into `gpt-4o-mini` with strict system instructions mandating `[Source: document_name]` citations, ensuring 100% factual accuracy and eliminating AI hallucinations.
+
+### 🤖 4. AI Assistant (Autonomous Multi-Agent System via MCP)
 
 ![Agentic AI architecture: chat-api Lambda enforces read-only guardrails, injects live match context, and coordinates four specialist MCP agents](./docs/images/architecture/03_ai_assistant.png)
 
@@ -125,7 +141,7 @@ When a scorer taps a ball, CricScore decouples **live broadcast speed** from **d
     - **`Issue Tool ➔ GitHub Issue Agent ➔ File Issue ➔ GitHub REST API`:** Files structured bug reports or feature requests on GitHub after mandatory 2-step user confirmation.
   - **`Supervisor ➔ Return Response ➔ Viewer`:** Synthesizes tool evidence into clear markdown with citations and returns it to the user's chat interface.
 
-### 🧠 4. MLOps & Live Win Probability
+### 🧠 5. MLOps & Live Win Probability
 
 ![MLOps pipeline: Cricsheet data and DVC tracking feed an 8-model benchmark in MLflow, promoting the XGBoost v2.2.0 champion through CI quality gates to S3 and ECR for real-time hybrid Lambda inference](./docs/images/architecture/04_mlops_win_prediction.png)
 
@@ -150,7 +166,7 @@ When a scorer taps a ball, CricScore decouples **live broadcast speed** from **d
   - **`ECR Registry ➔ Container Image ➔ ml-predict Lambda`:** Provides the containerized Python 3.12 runtime with XGBoost and Scikit-Learn binaries.
   - **`ml-predict Lambda ➔ Blend ➔ Hybrid Win Engine ➔ Live Win % ➔ Live Viewers`:** Evaluates XGBoost predictions, validates against dynamic programming transition matrices (Markov Chain DP) and DLS par target curves, and returns calibrated win percentages to the live scoreboard.
 
-### 🧩 5. Multi-Host AI Coding Agent Skills (`.agents/skills/`)
+### 🧩 6. Multi-Host AI Coding Agent Skills (`.agents/skills/`)
 
 CricScore ships with a vendor-neutral **Agent Skills** system ([`.agents/skills/`](./.agents/skills)) that gives **Claude Code**, **GitHub Copilot**, **Cursor**, **Windsurf**, and **Gemini / Antigravity** progressive, domain-specific engineering rules. See **[docs/agent_skills.md](./docs/agent_skills.md)** for full details.
 
@@ -205,9 +221,9 @@ cricscore/
 - **Backend & Messaging (`apps/backend`):** Node.js 24.x on AWS Lambda (8 ZIP functions), API Gateway (HTTP + WebSocket), Amazon SNS (`match-events`), Amazon SQS FIFO (`storage-buffer.fifo`), and Amazon SES.
 - **AI & Agentic RAG (`apps/backend/lambdas/chat-api` & `apps/ai-service`):** OpenAI (`gpt-4o-mini`, `text-embedding-3-small`), Model Context Protocol (`@modelcontextprotocol/sdk` `InMemoryTransport`), PostgreSQL `pgvector` (HNSW cosine index), and LangGraph.
 - **MLOps & Win Prediction (`apps/ml-engine`):** Python 3.12 on AWS Lambda Container (`ml-predict`), `xgboost-cpu` (`v2.2.0`), Scikit-Learn, MLflow, DVC, S3 Model Registry (`models/v2.2.0/`), and ECR (`~309 MB`, `countNumber = 1`).
-- **Data & Identity:** Aiven PostgreSQL 16 (`dev` & `prod` isolated schemas), Amazon DynamoDB (`PAY_PER_REQUEST`), and AWS Cognito User Pool (RS256 JWT + `Admin` RBAC).
+- **Data & Identity:** Aiven PostgreSQL 16 (strict Root CA TLS verification, `dev` & `prod` isolated schemas), Amazon DynamoDB (`PAY_PER_REQUEST`), AWS Cognito User Pool (RS256 JWT + `Admin` RBAC), and **Keyless GitHub Actions OIDC (`sts:AssumeRoleWithWebIdentity`)** eliminating static AWS keys.
 - **Cloud & IaC (`infra/terraform`):** Terraform (`>= 1.10`, `hashicorp/aws ~> 6.0`), Route 53, ACM, CloudFront (OAC), S3, CloudWatch Logs (`7d`), X-Ray (`5%`), and AWS Budgets (`~$1/mo`).
-- **CI/CD, DevSecOps & Testing:** GitHub Actions (`ci.yml`, `cd.yml`, `release.yml`, `mlops-pipeline.yml`, `drift.yml`, `keepalive.yml`), GitLeaks, CodeQL, Trivy, Checkov, OWASP ZAP, Dependabot, Syft SBOM, **376 Unit/Integration Tests** (`151` FE + `121` BE + `75` AI + `29` ML), and **15 Playwright E2E Tests**.
+- **CI/CD, DevSecOps & Testing:** GitHub Actions with **Keyless OIDC Identity** (`ci.yml`, `cd.yml`, `release.yml`, `mlops-pipeline.yml`, `drift.yml`, `keepalive.yml`), GitLeaks, CodeQL, Trivy, Checkov, OWASP ZAP, Dependabot, Syft SBOM, **376 Unit/Integration Tests** (`151` FE + `121` BE + `75` AI + `29` ML), and **15 Playwright E2E Tests**.
 
 ---
 
@@ -243,7 +259,7 @@ cricscore/
   - [Node.js 24 Lambda Guide](./docs/nodejs_guide.md) — Packaging, cold-start optimization, and connection-pooling patterns across the 8 Node.js Lambdas.
   - [Local Frontend Quickstart](./docs/local_frontend_quickstart.md) — Running the React 19 Vite SPA locally against the cloud `dev` backend in 2 minutes.
   - [UI/UX Refinement Checklist](./docs/ui_ux_refinement_checklist.md) — Mobile-first design tokens, responsive layout rules, and accessibility standards.
-  - [Architecture Diagrams Guide](./docs/diagrams/README.md) — Regenerating the 4 high-resolution PNG architecture diagrams from Python code.
+  - [Architecture Diagrams Guide](./docs/diagrams/README.md) — Regenerating the 5 high-resolution PNG architecture diagrams from Python code.
 - **🤖 Agentic AI, MCP & Serverless MLOps:**
   - [AI & RAG Architecture (MCP + POTM)](./docs/ai_architecture.md) — In-memory MCP server design, `pgvector` rulebook RAG, deterministic POTM math, and 18 production fixes.
   - [Architecture & AI/MLOps FAQ](./docs/architecture_faq.md) — Deep-dive Q&A on supervisor routing, S3 `/tmp` model caching, and hybrid win-probability math.
@@ -254,7 +270,7 @@ cricscore/
   - [Agent Skills Guide](./docs/agent_skills.md) — How `.agents/AGENTS.md` and the 12 domain `SKILL.md` playbooks work across Copilot, Cursor, Claude, and Gemini.
 - **🛡️ Security, Auth, Observability & `~$1/Month` Cost:**
   - [Cloud Cost & Trade-Offs (`~$1/mo`)](./docs/cost_management.md) — Service-by-service cost breakdown and intentional architectural trade-offs keeping AWS spend at `~$1/month`.
-  - [Security Posture & DevSecOps](./docs/security_posture.md) — Defense-in-depth controls across CloudFront, API Gateway, Cognito, MCP SQL guards, and 7 CI scanners.
+  - [Security Posture & DevSecOps](./docs/security_posture.md) — Defense-in-depth controls, keyless GitHub Actions OIDC identity federation, strict Root CA TLS, and intentional ~$1/month cost trade-offs.
   - [Security Fixes & Remediation Log](./docs/security_fixes.md) — Case studies of remediated vulnerabilities (JWT group spoofing, SQL injection, SSRF, and throttling).
   - [Authentication & RBAC](./docs/auth.md) — Cognito User Pools, Guest Scorer shadow accounts (`cognito-presignup`), and `Admin` group authorization.
   - [Branch Protection Rules](./docs/branch_protection.md) — Required PR status checks, CodeQL gates, and linear history enforcement on `main`.
