@@ -1,3 +1,9 @@
+## [4.22.2](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.22.1...v4.22.2) (2026-11-01)
+
+### 🐛 Bug Fixes
+
+* **scoring:** prevent final-ball double-add, fix live undo poll race & document AI skills ([#335](https://github.com/venkatesh-singamsetty/cricscore/issues/335)) ([c4199a7]())
+
 ## [4.22.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.22.0...v4.22.1) (2026-11-01)
 
 ### 📚 Documentation
