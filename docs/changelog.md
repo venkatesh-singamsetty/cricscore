@@ -1,3 +1,9 @@
+## [4.22.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.22.0...v4.22.1) (2026-11-01)
+
+### 📚 Documentation
+
+* format all markdown tables and navigation links line by line ([#334](https://github.com/venkatesh-singamsetty/cricscore/issues/334)) ([dd4deef]()), closes [#8209]()
+
 ## [4.22.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.21.2...v4.22.0) (2026-11-01)
 
 ### 🚀 Features
