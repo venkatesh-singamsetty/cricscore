@@ -6,13 +6,13 @@ Fan-facing, Scorer-facing, and Admin Single Page Application (SPA) served global
 
 ## 🛠️ Technology Stack
 
-| Layer                  | Package / Tool                               | Role                                                                                                        |
-| :--------------------- | :------------------------------------------- | :---------------------------------------------------------------------------------------------------------- |
-| **UI Framework**       | React 19 + TypeScript                        | Component architecture and strict static typing                                                             |
-| **Build & Dev Server** | Vite + Tailwind CSS                          | Fast HMR dev server (`localhost:3000` / `5173`) and optimized production bundle                             |
-| **Authentication**     | `aws-amplify` + `@aws-amplify/ui-react`      | Cognito Sign Up, Sign In, **Continue as Guest**, and RS256 JWT session management                           |
-| **Real-Time & AI**     | Native `WebSocket` + REST `fetch`            | Sub-second ball updates, live win-probability bar, AI chat, and deterministic **Player of the Match** cards |
-| **Unit Testing**       | Vitest + React Testing Library (`151` tests) | Component, hook, DLS math, and state synchronization verification                                           |
+| Layer                              | Package / Tool                               | Role                                                                                                             |
+| :--------------------------------- | :------------------------------------------- | :--------------------------------------------------------------------------------------------------------------- |
+| **UI&nbsp;Framework**              | React 19 + TypeScript                        | • Component architecture<br/>• Strict static typing                                                              |
+| **Build&nbsp;&&nbsp;Dev**          | Vite + Tailwind CSS                          | • Fast HMR dev server (`localhost:3000` / `5173`)<br/>• Optimized production bundle                              |
+| **Authentication**                 | `aws-amplify` + `@aws-amplify/ui-react`      | • Cognito Sign Up & Sign In<br/>• **Continue as Guest** flow<br/>• RS256 JWT session management                  |
+| **Real&#8209;Time&nbsp;&&nbsp;AI** | Native `WebSocket` + REST `fetch`            | • Sub-second ball updates & live win-probability bar<br/>• AI chat & deterministic **Player of the Match** cards |
+| **Unit&nbsp;Testing**              | Vitest + React Testing Library (`151` tests) | • Component & hook tests<br/>• DLS math & state synchronization verification                                     |
 
 ---
 

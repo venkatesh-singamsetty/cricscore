@@ -59,65 +59,69 @@ flowchart LR
 
 ## 🚦 2. HTTP API Routes (`infra/terraform/apigateway_http.tf`)
 
-**Base URL**:
+**Base URL & Rate Limits**:
 
-- **Dev**: `https://api.cricscoredev.venkateshsingamsetty.com`
-- **Prod**: `https://api.cricscore.venkateshsingamsetty.com`
-- **Throttling**: Default stage limit `50 req/s` (`100` burst); `POST /chat` and `POST /chat/summary` capped at `5 req/s` (`10` burst).
+- **Dev Base URL**: `https://api.cricscoredev.venkateshsingamsetty.com`
+- **Prod Base URL**: `https://api.cricscore.venkateshsingamsetty.com`
+- **Default Stage Throttling**: `50 req/s` (`100` burst)
+- **LLM Route Throttling (`POST /chat`, `POST /chat/summary`)**: `5 req/s` (`10` burst)
 
 ### Match & Scoring Endpoints
 
-| Method   | Route                      | Auth (API GW + Lambda)         | Lambda Handler | Description                                                                                                                         |
-| :------- | :------------------------- | :----------------------------- | :------------- | :---------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/health`                  | `NONE`                         | `match-api`    | Executes `SELECT 1 AS ok` on PostgreSQL; returns `200` (`healthy`) or `503` (`unhealthy`)                                           |
-| `GET`    | `/matches`                 | `NONE`                         | `match-api`    | Lists all matches with innings scores, toss details, and `is_test` flags                                                            |
-| `POST`   | `/match`                   | `JWT` (Scorer / Guest / Admin) | `match-api`    | Creates match + Innings 1, bulk-inserts batting/bowling squads, broadcasts `HUB_UPDATE`                                             |
-| `GET`    | `/match/{matchId}`         | `NONE`                         | `match-api`    | Fetches match header row by UUID                                                                                                    |
-| `GET`    | `/match/{matchId}/details` | `NONE`                         | `match-api`    | Deep-link restoration: returns match header, ordered innings, players (`ORDER BY batting_position ASC`), bowlers, and `ball_events` |
-| `PATCH`  | `/match/{matchId}`         | `JWT` + Owner/Admin            | `match-api`    | Updates overs, status (`COMPLETED`/`ABANDONED`), toss, or squads; triggers S3 JSON backup on completion                             |
-| `DELETE` | `/match/{matchId}`         | `JWT` + Owner/Admin            | `match-api`    | Deletes match (`ON DELETE CASCADE` removes innings/players/bowlers/balls) and broadcasts `HUB_UPDATE`                               |
-| `POST`   | `/match/{matchId}/innings` | `JWT` + Owner/Admin            | `match-api`    | Initializes or upserts 2nd innings and squads, sets target score, and broadcasts `HUB_UPDATE`                                       |
-| `POST`   | `/match/{matchId}/email`   | `JWT` + Owner/Admin            | `match-api`    | Formats HTML scorecard report and dispatches via Amazon SES                                                                         |
-| `POST`   | `/update-score`            | `JWT` + Owner/Admin            | `score-upd`    | Publishes live ball/sync event in parallel to SNS (`match-events`) and SQS FIFO (`storage-buffer.fifo`)                             |
+| Method   | Route                      | Auth (API GW + Lambda)         | Lambda Handler | Description                                                                                                                               |
+| :------- | :------------------------- | :----------------------------- | :------------- | :---------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`    | `/health`                  | `NONE`                         | `match-api`    | • Executes `SELECT 1 AS ok` on PostgreSQL<br/>• Returns `200` (`healthy`) or `503` (`unhealthy`)                                          |
+| `GET`    | `/matches`                 | `NONE`                         | `match-api`    | • Lists all matches with innings scores, toss details, and `is_test` flags                                                                |
+| `POST`   | `/match`                   | `JWT` (Scorer / Guest / Admin) | `match-api`    | • Creates match + Innings 1<br/>• Bulk-inserts batting/bowling squads<br/>• Broadcasts `HUB_UPDATE` via `broadcaster`                     |
+| `GET`    | `/match/{matchId}`         | `NONE`                         | `match-api`    | • Fetches match header row by UUID                                                                                                        |
+| `GET`    | `/match/{matchId}/details` | `NONE`                         | `match-api`    | • Deep-link restoration snapshot<br/>• Returns match header, ordered innings, players (`ORDER BY batting_position ASC`), bowlers, & balls |
+| `PATCH`  | `/match/{matchId}`         | `JWT` + Owner/Admin            | `match-api`    | • Updates overs, status (`COMPLETED`/`ABANDONED`), toss, or squads<br/>• Triggers S3 JSON backup on match completion                      |
+| `DELETE` | `/match/{matchId}`         | `JWT` + Owner/Admin            | `match-api`    | • Deletes match (`ON DELETE CASCADE` removes innings/players/bowlers/balls)<br/>• Broadcasts `HUB_UPDATE`                                 |
+| `POST`   | `/match/{matchId}/innings` | `JWT` + Owner/Admin            | `match-api`    | • Initializes or upserts 2nd innings and squads<br/>• Sets target score and broadcasts `HUB_UPDATE`                                       |
+| `POST`   | `/match/{matchId}/email`   | `JWT` + Owner/Admin            | `match-api`    | • Formats HTML scorecard report<br/>• Dispatches email via Amazon SES                                                                     |
+| `POST`   | `/update-score`            | `JWT` + Owner/Admin            | `score-upd`    | • Publishes live ball/sync event in parallel to SNS (`match-events`) and SQS FIFO (`storage-buffer.fifo`)                                 |
 
 ### AI, RAG Rulebooks & ML Inference Endpoints
 
-| Method   | Route            | Auth (API GW + Lambda) | Lambda Handler | Description                                                                                                      |
-| :------- | :--------------- | :--------------------- | :------------- | :--------------------------------------------------------------------------------------------------------------- |
-| `POST`   | `/match/predict` | `NONE`                 | `ml-predict`   | Hybrid win-probability inference (XGBoost `v2.2.0` + Markov DP + DLS par calculator)                             |
-| `POST`   | `/chat`          | `NONE` (`5 rps` cap)   | `chat-api`     | Read-only Agentic AI Chat (MCP tools: `execute_sql`, `search_rules`, `get_match_weather`, `create_github_issue`) |
-| `POST`   | `/chat/summary`  | `NONE` (`5 rps` cap)   | `chat-api`     | Generates or returns cached plain-English AI match summary                                                       |
-| `GET`    | `/rules`         | `JWT` + `requireAdmin` | `chat-api`     | Lists ingested tournament PDF rulebooks and chunk counts from `pgvector`                                         |
-| `POST`   | `/rules/upload`  | `JWT` + `requireAdmin` | `chat-api`     | Parses uploaded PDF, chunks text, embeds via `text-embedding-3-small`, and stores vectors                        |
-| `DELETE` | `/rules`         | `JWT` + `requireAdmin` | `chat-api`     | Deletes a tournament rulebook and its embeddings from PostgreSQL                                                 |
+| Method   | Route            | Auth (API GW + Lambda) | Lambda Handler | Description                                                                                                                       |
+| :------- | :--------------- | :--------------------- | :------------- | :-------------------------------------------------------------------------------------------------------------------------------- |
+| `POST`   | `/match/predict` | `NONE`                 | `ml-predict`   | • Hybrid win-probability inference<br/>• Combines XGBoost `v2.2.0` + Markov DP + DLS par calculator                               |
+| `POST`   | `/chat`          | `NONE` (`5 rps` cap)   | `chat-api`     | • Read-only Agentic AI Chat<br/>• Executes MCP tools: `execute_sql`, `search_rules`, `get_match_weather`, `create_github_issue`   |
+| `POST`   | `/chat/summary`  | `NONE` (`5 rps` cap)   | `chat-api`     | • Generates or returns cached plain-English AI match summary<br/>• Uses deterministic Player of the Match (POTM) points breakdown |
+| `GET`    | `/rules`         | `JWT` + `requireAdmin` | `chat-api`     | • Lists ingested tournament PDF rulebooks and chunk counts from `pgvector`                                                        |
+| `POST`   | `/rules/upload`  | `JWT` + `requireAdmin` | `chat-api`     | • Parses uploaded PDF and chunks text<br/>• Embeds via `text-embedding-3-small` and stores vectors in PostgreSQL                  |
+| `DELETE` | `/rules`         | `JWT` + `requireAdmin` | `chat-api`     | • Deletes a tournament rulebook and its embeddings from PostgreSQL                                                                |
 
 ### Admin & Database Maintenance Endpoints
 
-| Method   | Route                       | Auth (API GW + Lambda)  | Lambda Handler | Description                                                                              |
-| :------- | :-------------------------- | :---------------------- | :------------- | :--------------------------------------------------------------------------------------- |
-| `DELETE` | `/matches`                  | `JWT` + `isAdminClaims` | `match-api`    | Full database purge (`TRUNCATE ... RESTART IDENTITY CASCADE`) and `HUB_UPDATE` broadcast |
-| `GET`    | `/admin/users`              | `JWT` + `isAdminClaims` | `match-api`    | Lists Cognito User Pool users with `isAdmin` and `isScorer` group flags                  |
-| `DELETE` | `/admin/users`              | `JWT` + `isAdminClaims` | `match-api`    | Permanently deletes a Cognito user (blocks self-deletion and root admin deletion)        |
-| `POST`   | `/admin/users/roles`        | `JWT` + `isAdminClaims` | `match-api`    | Promotes a user to `Admin` or `Scorer` Cognito group                                     |
-| `DELETE` | `/admin/users/roles`        | `JWT` + `isAdminClaims` | `match-api`    | Removes a user from `Admin` or `Scorer` Cognito group                                    |
-| `DELETE` | `/admin/users/guests`       | `JWT` + `isAdminClaims` | `match-api`    | Bulk-deletes `guest-*` shadow users from Cognito User Pool                               |
-| `DELETE` | `/admin/matches/guests`     | `JWT` + `isAdminClaims` | `match-api`    | Deletes all matches scored by `guest-*` accounts                                         |
-| `DELETE` | `/admin/matches/incomplete` | `JWT` + `isAdminClaims` | `match-api`    | Deletes matches where `status NOT IN ('COMPLETED', 'ABANDONED')`                         |
-| `DELETE` | `/admin/matches/test`       | `JWT` + `isAdminClaims` | `match-api`    | Deletes automated/practice matches (`is_test = TRUE` or test team/email patterns)        |
+| Method   | Route                       | Auth (API GW + Lambda)  | Lambda Handler | Description                                                                                              |
+| :------- | :-------------------------- | :---------------------- | :------------- | :------------------------------------------------------------------------------------------------------- |
+| `DELETE` | `/matches`                  | `JWT` + `isAdminClaims` | `match-api`    | • Full database purge (`TRUNCATE ... RESTART IDENTITY CASCADE`)<br/>• Broadcasts `HUB_UPDATE` to viewers |
+| `GET`    | `/admin/users`              | `JWT` + `isAdminClaims` | `match-api`    | • Lists Cognito User Pool users with `isAdmin` and `isScorer` group flags                                |
+| `DELETE` | `/admin/users`              | `JWT` + `isAdminClaims` | `match-api`    | • Permanently deletes a Cognito user<br/>• Blocks self-deletion and root admin deletion                  |
+| `POST`   | `/admin/users/roles`        | `JWT` + `isAdminClaims` | `match-api`    | • Promotes a user to `Admin` or `Scorer` Cognito group                                                   |
+| `DELETE` | `/admin/users/roles`        | `JWT` + `isAdminClaims` | `match-api`    | • Removes a user from `Admin` or `Scorer` Cognito group                                                  |
+| `DELETE` | `/admin/users/guests`       | `JWT` + `isAdminClaims` | `match-api`    | • Bulk-deletes `guest-*` shadow users from Cognito User Pool                                             |
+| `DELETE` | `/admin/matches/guests`     | `JWT` + `isAdminClaims` | `match-api`    | • Deletes all matches scored by `guest-*` accounts                                                       |
+| `DELETE` | `/admin/matches/incomplete` | `JWT` + `isAdminClaims` | `match-api`    | • Deletes matches where `status NOT IN ('COMPLETED', 'ABANDONED')`                                       |
+| `DELETE` | `/admin/matches/test`       | `JWT` + `isAdminClaims` | `match-api`    | • Deletes automated/practice matches (`is_test = TRUE` or test team/email patterns)                      |
 
 ---
 
 ## 🌐 3. WebSocket API & Broadcast Protocol (`infra/terraform/apigateway_websocket.tf`)
 
-**Endpoint**: `wss://ws.cricscoredev.venkateshsingamsetty.com` (Dev) | `wss://ws.cricscore.venkateshsingamsetty.com` (Prod)
+**WebSocket Endpoints**:
 
-| Direction / Route                        | Handler / Source                                          | DynamoDB / API Action                                                              | Payload / Frame Format                                                                               |
-| :--------------------------------------- | :-------------------------------------------------------- | :--------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------- |
-| `CLIENT -> $connect`                     | `onconnect`                                               | `PutItem` (`connectionId`) in `<project>-connections`                              | Handshake upgrade (`HTTP 101 Switching Protocols`)                                                   |
-| `CLIENT -> $disconnect`                  | `ondisconnect`                                            | `DeleteItem` (`connectionId`) in `<project>-connections`                           | Automatic cleanup on tab close or disconnect                                                         |
-| `SERVER -> CLIENT` (`LIVE_SCORE_UPDATE`) | `score-upd` $\rightarrow$ SNS $\rightarrow$ `broadcaster` | Scans `connections`, sends `PostToConnectionCommand` (prunes stale `410` sockets)  | `{ "matchId": "<uuid>", "inningId": "<uuid>", "type": "LIVE_SCORE_UPDATE", "ballData": { ... } }`    |
-| `SERVER -> CLIENT` (`STATE_SYNC`)        | `score-upd` $\rightarrow$ SNS $\rightarrow$ `broadcaster` | Pushes bowler/batter selection or `undo: true` state rollback                      | `{ "matchId": "<uuid>", "type": "STATE_SYNC", "syncOnly": true, "ballData": { "undo": true, ... } }` |
-| `SERVER -> CLIENT` (`HUB_UPDATE`)        | `match-api` $\rightarrow$ `broadcaster`                   | Direct async Lambda invocation when match is created, deleted, or switches innings | `{ "matchId": "<uuid>", "type": "HUB_UPDATE", "syncOnly": true, "timestamp": "..." }`                |
+- **Dev**: `wss://ws.cricscoredev.venkateshsingamsetty.com`
+- **Prod**: `wss://ws.cricscore.venkateshsingamsetty.com`
+
+| Route / Event Type      | Handler / Source                                          | DynamoDB / API Action                                                                          | Payload / Frame Format                                                                               |
+| :---------------------- | :-------------------------------------------------------- | :--------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------- |
+| **`$connect`**          | `onconnect`                                               | • `PutItem` (`connectionId`) in `<project>-connections`                                        | • Handshake upgrade (`HTTP 101 Switching Protocols`)                                                 |
+| **`$disconnect`**       | `ondisconnect`                                            | • `DeleteItem` (`connectionId`) in `<project>-connections`                                     | • Automatic cleanup on tab close or disconnect                                                       |
+| **`LIVE_SCORE_UPDATE`** | `score-upd` $\rightarrow$ SNS $\rightarrow$ `broadcaster` | • Scans `connections` table<br/>• Sends `PostToConnectionCommand` & prunes stale `410` sockets | `{ "matchId": "<uuid>", "inningId": "<uuid>", "type": "LIVE_SCORE_UPDATE", "ballData": { ... } }`    |
+| **`STATE_SYNC`**        | `score-upd` $\rightarrow$ SNS $\rightarrow$ `broadcaster` | • Pushes bowler/batter selection<br/>• Broadcasts `undo: true` state rollback                  | `{ "matchId": "<uuid>", "type": "STATE_SYNC", "syncOnly": true, "ballData": { "undo": true, ... } }` |
+| **`HUB_UPDATE`**        | `match-api` $\rightarrow$ `broadcaster`                   | • Direct async Lambda invocation when match is created, deleted, or switches innings           | `{ "matchId": "<uuid>", "type": "HUB_UPDATE", "syncOnly": true, "timestamp": "..." }`                |
 
 ---
 

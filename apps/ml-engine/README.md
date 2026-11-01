@@ -20,19 +20,19 @@ flowchart LR
 
 ## 📁 Directory Inventory
 
-| File / Folder                   | Purpose                                                                                                                                               |
-| :------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `data/`                         | Processed `live_data.csv` dataset extracted from Cricsheet T20 archives (git-ignored; tracked via DVC)                                                |
-| `data_pipeline.py`              | Extracts `786K+` ball-by-ball match states from `cricket-data/t20s_json.zip` into `data/live_data.csv`                                                |
-| `compare_models.py`             | Leakage-free 8-model benchmark (7 Scikit-Learn classifiers + **XGBoost**), MLflow logger, quality gate validator, and `model_manifest.json` generator |
-| `predict.py`                    | AWS Lambda container entrypoint with S3 `/tmp` caching, SHA-256 checksum verification, and hybrid **XGBoost + Markov DP + DLS** inference             |
-| `win_probability.py`            | Format-agnostic (`1`–`20` overs) Markov Chain Dynamic Programming chase simulator and DLS Standard Edition resource par calculator                    |
-| `projected_score_regression.py` | 1st-innings projected score regression benchmark (Linear, Polynomial, SVR, Lasso, Ridge)                                                              |
-| `match_clustering.py`           | Unsupervised pitch/match condition clustering benchmark (K-Means, Agglomerative)                                                                      |
-| `model_manifest.json`           | Immutable release manifest (`v2.2.0`, `XGBoost`, evaluation metrics, and `.joblib` SHA-256 hash)                                                      |
-| `comparison_report.md`          | Auto-generated Markdown table comparing all 8 candidate models                                                                                        |
-| `Dockerfile`                    | Builds the CPU-only (`xgboost-cpu`, `~309 MB`) Python 3.12 AWS Lambda container image                                                                 |
-| `test_predict.py`               | **29** Pytest unit tests validating terminal states, DLS par alignment, shortened overs, and hybrid blending                                          |
+| File / Folder                   | Purpose                                                                                                                                                   |
+| :------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `data/`                         | • Processed `live_data.csv` dataset extracted from Cricsheet T20 archives<br/>• Git-ignored; tracked via DVC                                              |
+| `data_pipeline.py`              | • Extracts `786K+` ball-by-ball match states from `cricket-data/t20s_json.zip` into `data/live_data.csv`                                                  |
+| `compare_models.py`             | • Leakage-free 8-model benchmark (7 Scikit-Learn classifiers + **XGBoost**)<br/>• MLflow logger, quality gate validator & `model_manifest.json` generator |
+| `predict.py`                    | • AWS Lambda container entrypoint with S3 `/tmp` caching & SHA-256 verification<br/>• Hybrid **XGBoost + Markov DP + DLS** inference                      |
+| `win_probability.py`            | • Format-agnostic (`1`–`20` overs) Markov Chain Dynamic Programming chase simulator<br/>• DLS Standard Edition resource par calculator                    |
+| `projected_score_regression.py` | • 1st-innings projected score regression benchmark (Linear, Polynomial, SVR, Lasso, Ridge)                                                                |
+| `match_clustering.py`           | • Unsupervised pitch/match condition clustering benchmark (K-Means, Agglomerative)                                                                        |
+| `model_manifest.json`           | • Immutable release manifest (`v2.2.0`, `XGBoost`, evaluation metrics & `.joblib` SHA-256 hash)                                                           |
+| `comparison_report.md`          | • Auto-generated Markdown table comparing all 8 candidate models                                                                                          |
+| `Dockerfile`                    | • Builds the CPU-only (`xgboost-cpu`, `~309 MB`) Python 3.12 AWS Lambda container image                                                                   |
+| `test_predict.py`               | • **29** Pytest unit tests validating terminal states, DLS par alignment, shortened overs & hybrid blending                                               |
 
 ---
 

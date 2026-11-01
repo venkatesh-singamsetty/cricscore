@@ -1,8 +1,19 @@
 # 🤖 Serverless MLOps Tutorial
 
-This guide walks through the end-to-end **Machine Learning Operations (MLOps)** and **Hybrid Win Prediction** pipeline integrated into CricScore. By combining GitHub Actions for training, **Amazon S3** for versioned model artifacts, **Amazon ECR** (`xgboost-cpu`, `~309 MB`, `countNumber = 1` single-image policy) for the container runtime, and **AWS Lambda** for serverless inference, the entire platform operates within a **~$1/month** AWS footprint across `dev` and `prod`.
+This guide walks through the end-to-end **Machine Learning Operations (MLOps)** and **Hybrid Win Prediction** pipeline integrated into CricScore. By combining GitHub Actions for training, **Amazon S3** for versioned model artifacts, **Amazon ECR** (`xgboost-cpu ~309 MB`, `countNumber = 1` single-image policy) for the container runtime, and **AWS Lambda** for serverless inference, the entire platform operates within a **~$1/month** AWS footprint across `dev` and `prod`.
 
-**Quick Navigation:** [Architecture](#️-1-architecture-overview) · [Data Pipeline](#-2-the-data-pipeline-live_datacsv) · [Training](#-3-model-training-live_trainpy) · [CI/CD Gate](#-4-automated-cicd-gate-mlops-pipelineyml) · [Docker Inference](#️-5-serverless-docker-inference-predictpy) · [Frontend](#️-6-frontend-integration) · [Troubleshooting](#-7-lessons-learned--troubleshooting) · [Win Prediction Spec](#-8-win-prediction-engine-specification) · [DLS Method](#️-9-duckworth-lewis-stern-dls-method) · [DVC + MLflow](#-10-reproducible-multi-algorithm-mlops-pipeline-dvc--mlflow--manifests)
+## 🧭 Quick Navigation
+
+- [🏗️ 1. Architecture Overview](#️-1-architecture-overview)
+- [📊 2. The Data Pipeline (`live_data.csv`)](#-2-the-data-pipeline-live_datacsv)
+- [🧠 3. Model Training (`live_train.py`)](#-3-model-training-live_trainpy)
+- [🚦 4. Automated CI/CD Gate (`mlops-pipeline.yml`)](#-4-automated-cicd-gate-mlops-pipelineyml)
+- [☁️ 5. Serverless Docker Inference (`predict.py`)](#️-5-serverless-docker-inference-predictpy)
+- [🖥️ 6. Frontend Integration](#️-6-frontend-integration)
+- [🛑 7. Lessons Learned & Troubleshooting](#-7-lessons-learned--troubleshooting)
+- [📊 8. Win Prediction Engine Specification](#-8-win-prediction-engine-specification)
+- [🌧️ 9. Duckworth-Lewis-Stern (DLS) Method](#️-9-duckworth-lewis-stern-dls-method)
+- [🔬 10. Reproducible Multi-Algorithm MLOps Pipeline (DVC + MLflow + Manifests)](#-10-reproducible-multi-algorithm-mlops-pipeline-dvc--mlflow--manifests)
 
 ---
 
@@ -53,13 +64,13 @@ graph TD
 
 ### End-to-End MLOps Lifecycle Stages
 
-| Stage | Pipeline Phase                              | Script / Workflow                                 | Key Artifacts & Guarantees                                                                                                             |
-| :---: | :------------------------------------------ | :------------------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------- |
-| **1** | **Data Ingestion & DVC Lineage**            | `apps/ml-engine/data_pipeline.py`                 | Extracts `786K+` Cricsheet T20 ball-by-ball deliveries into `live_data.csv`; tracked by `cricket-data/t20s_json.zip.dvc` & `dvc.yaml`. |
-| **2** | **8-Model Benchmark & Champion Selection**  | `apps/ml-engine/compare_models.py`                | Match-grouped `70/15/15` split (zero leakage); evaluates 8 classifiers in MLflow and promotes **XGBoost (`v2.2.0`)**.                  |
-| **3** | **CI Quality Gate & Checksum Manifest**     | `.github/workflows/mlops-pipeline.yml`            | Enforces `Test Accuracy >= 0.60`, `Test ROC-AUC >= 0.65`, `Size <= 25 MB`, and writes SHA-256 hash to `model_manifest.json`.           |
-| **4** | **Decoupled S3 Model Registry + ECR Image** | `infra/terraform/s3.tf`, `ecr.tf`                 | Uploads `.joblib` (`~227 KB`) to `s3://.../models/v2.2.0/` and pushes `xgboost-cpu` (`~309 MB`) to ECR with `countNumber = 1`.         |
-| **5** | **Hybrid Serverless Inference**             | `apps/ml-engine/predict.py`, `win_probability.py` | Lazy-loads ML libraries on invoke (`<70ms` init), verifies SHA-256 in `/tmp`, and blends **XGBoost + Markov DP + DLS Par**.            |
+| Stage | Pipeline Phase                    | Script / Workflow                                        | Key Artifacts & Guarantees                                                                                                                   |
+| :---: | :-------------------------------- | :------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1** | **Data Ingestion & DVC Lineage**  | `apps/ml-engine/data_pipeline.py`                        | • Extracts `786K+` Cricsheet T20 ball-by-ball deliveries into `live_data.csv`<br/>• Tracked by `cricket-data/t20s_json.zip.dvc` & `dvc.yaml` |
+| **2** | **8-Model Benchmark & Promotion** | `apps/ml-engine/compare_models.py`                       | • Match-grouped `70/15/15` split (zero leakage)<br/>• Evaluates 8 classifiers in MLflow and promotes **XGBoost (`v2.2.0`)**                  |
+| **3** | **CI Quality Gate & Manifest**    | `.github/workflows/mlops-pipeline.yml`                   | • Enforces `Test Accuracy >= 0.60`, `Test ROC-AUC >= 0.65`, and `Size <= 25 MB`<br/>• Writes SHA-256 checksum to `model_manifest.json`       |
+| **4** | **Decoupled S3 + ECR Registries** | • `infra/terraform/s3.tf`<br/>• `infra/terraform/ecr.tf` | • Uploads `.joblib` (`~227 KB`) to `s3://.../models/v2.2.0/`<br/>• Pushes `xgboost-cpu ~309 MB` image to ECR with `countNumber = 1`          |
+| **5** | **Hybrid Serverless Inference**   | • `apps/ml-engine/predict.py`<br/>• `win_probability.py` | • Lazy-loads ML libraries on invoke (`<70ms` init) and verifies SHA-256 in `/tmp`<br/>• Blends **XGBoost `v2.2.0` + Markov DP + DLS Par**    |
 
 ---
 
@@ -125,12 +136,12 @@ python3 apps/ml-engine/compare_models.py --version v2.2.0
 
 **Location**: `.github/workflows/mlops-pipeline.yml`
 
-| Workflow Trigger / Gate        | Configuration Detail                                                                                                                       |
-| :----------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------- |
-| **Path-Scoped Push Trigger**   | Runs only when `cricket-data/**`, `data_pipeline.py`, `compare_models.py`, `train_model.py`, or `requirements-train.txt` change on `main`. |
-| **Scheduled Drift Retraining** | Runs on the 1st of every month (`cron: '0 0 1 * *'`) or via `workflow_dispatch` so routine code PRs never waste CI minutes retraining.     |
-| **Quality Gate Enforcement**   | Fails the build immediately (`sys.exit(1)`) if held-out test `accuracy < 0.60`, `roc_auc < 0.65`, or `model_size > 25 MB`.                 |
-| **Artifact Output**            | Produces `live_win_predictor_model.joblib`, `model_manifest.json` (with SHA-256 hash), `live_metadata.json`, and `comparison_report.md`.   |
+| Workflow Trigger / Gate        | Configuration Detail                                                                                                                                                   |
+| :----------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Path-Scoped Push Trigger**   | • Runs only when `cricket-data/**`, `data_pipeline.py`, `compare_models.py`, `train_model.py`, or `requirements-train.txt` change on `main`                            |
+| **Scheduled Drift Retraining** | • Runs on the 1st of every month (`cron: '0 0 1 * *'`) or via `workflow_dispatch`<br/>• Routine code PRs never waste CI minutes retraining                             |
+| **Quality Gate Enforcement**   | • Fails the build immediately (`sys.exit(1)`) if held-out test `accuracy < 0.60`, `roc_auc < 0.65`, or `model_size > 25 MB`                                            |
+| **Artifact Output**            | • Produces `live_win_predictor_model.joblib` (`~227 KB`) and `model_manifest.json` (with SHA-256 hash)<br/>• Generates `live_metadata.json` and `comparison_report.md` |
 
 ---
 
@@ -138,12 +149,12 @@ python3 apps/ml-engine/compare_models.py --version v2.2.0
 
 **Locations**: `apps/ml-engine/predict.py`, `apps/ml-engine/Dockerfile`, `infra/terraform/ecr.tf`, `infra/terraform/s3.tf`
 
-| Optimization / Policy                 | Implementation Detail                                                                                                                                             | Cost / Performance Impact                                                                |
-| :------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------- |
-| **CPU-Only `xgboost-cpu` Wheel**      | `apps/ml-engine/requirements.txt` installs `xgboost-cpu==2.1.4` instead of default `xgboost` (which bundles ~450 MB of NVIDIA CUDA/NCCL GPU libraries).           | Shrinks compressed ECR image by **62%** (`~810 MB` → **`~309 MB`**), saving `~$0.05/mo`. |
-| **Single-Image ECR Retention**        | `infra/terraform/lambda.tf` pushes only `:${var.ml_model_version}` (never `:latest`), and `ecr.tf` sets `countNumber = 1` expiration across `dev` and `prod`.     | Ensures exactly **1 image** exists per repo (`~$0.03/mo` per environment).               |
-| **Lazy Imports on Invoke**            | `predict.py` imports `joblib`, `pandas`, `numpy`, and `xgboost` inside `_load_model()` on invoke rather than top-level module init.                               | Reduces Lambda `Init Duration` to **`<70ms`** and prevents cold-start timeouts.          |
-| **S3 Model Registry + SHA-256 Check** | Downloads `models/${MODEL_VERSION}/live_win_predictor_model.joblib` to `/tmp`, verifies its SHA-256 checksum against `model_manifest.json`, and caches in memory. | Enables 5-second model rollbacks via `MODEL_VERSION` env var without rebuilding Docker.  |
+| Optimization / Policy                 | Implementation Detail                                                                                                                                                | Cost / Performance Impact                                                                                        |
+| :------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------- |
+| **CPU-Only `xgboost-cpu` Wheel**      | • `apps/ml-engine/requirements.txt` installs `xgboost-cpu==2.1.4`<br/>• Avoids default `xgboost` wheel (which bundles `~450 MB` of NVIDIA CUDA/NCCL GPU libraries)   | • Shrinks compressed ECR image by **62%** (`~810 MB` → **`xgboost-cpu ~309 MB`**)<br/>• Saves `~$0.05/mo` in ECR |
+| **Single-Image ECR Retention**        | • `infra/terraform/lambda.tf` pushes only `:${var.ml_model_version}` (never `:latest`)<br/>• `ecr.tf` sets `countNumber = 1` expiration across `dev` and `prod`      | • Ensures exactly **1 image** exists per repository<br/>• Keeps ECR storage at `~$0.03/mo` per environment       |
+| **Lazy Imports on Invoke**            | • `predict.py` imports `joblib`, `pandas`, `numpy`, and `xgboost` inside `_load_model()` on invoke<br/>• Avoids heavy top-level imports during module initialization | • Reduces Lambda `Init Duration` to **`<70ms`**<br/>• Prevents Firecracker cold-start timeouts                   |
+| **S3 Model Registry + SHA-256 Check** | • Downloads `models/${MODEL_VERSION}/live_win_predictor_model.joblib` to `/tmp`<br/>• Verifies SHA-256 checksum against `model_manifest.json` and caches in memory   | • Enables 5-second model rollbacks via `MODEL_VERSION` env var<br/>• Requires zero Docker image rebuilds         |
 
 ---
 
@@ -151,23 +162,23 @@ python3 apps/ml-engine/compare_models.py --version v2.2.0
 
 **Location**: `apps/frontend/src/components/AiMatchPrediction.tsx`
 
-| Aspect                   | Frontend Behavior                                                                                                                                |
-| :----------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Trigger Cadence**      | Fires `POST /match/predict` automatically whenever `currentScore`, `wickets`, `balls`, `target`, or `inning` changes on the live scoreboard.     |
-| **Dynamic Team Mapping** | Always maps the active `battingTeam` to `team1` and `bowlingTeam` to `team2` so 1st and 2nd innings probabilities align with the team at crease. |
-| **Visual Presentation**  | Renders a real-time dual-team probability bar (`team1Probability%` vs `team2Probability%`) inside the live scoreboard header.                    |
+| Aspect                   | Frontend Behavior                                                                                                                                            |
+| :----------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Trigger Cadence**      | • Fires `POST /match/predict` automatically whenever `currentScore`, `wickets`, `balls`, `target`, or `inning` changes on the live scoreboard                |
+| **Dynamic Team Mapping** | • Maps active `battingTeam` to `team1` and `bowlingTeam` to `team2`<br/>• Ensures 1st and 2nd innings probabilities always align with the team at the crease |
+| **Visual Presentation**  | • Renders a real-time dual-team probability bar (`team1Probability%` vs `team2Probability%`) inside the live scoreboard header                               |
 
 ---
 
 ## 🛑 7. Lessons Learned & Troubleshooting
 
-|   #   | Engineering Challenge                                       | Root Cause                                                                                                        | Production Fix Implemented                                                                                               |
-| :---: | :---------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------- |
-| **1** | **AWS Lambda 250 MB `.zip` Limit Exceeded**                 | `scikit-learn` + `pandas` + `numpy` + `xgboost` exceeded Lambda's 250 MB unzipped `.zip` ceiling.                 | Migrated `ml-predict` to an **Amazon ECR Container Image** (supports up to 10 GB) using `xgboost-cpu` (`~309 MB`).       |
-| **2** | **810 MB ECR Image Bloat & Duplicate Tags**                 | Standard `pip install xgboost` pulled NVIDIA CUDA libraries, and pushing `:latest` + `:v2.2.0` doubled tag count. | Switched to `xgboost-cpu==2.1.4`, removed `:latest` push, and enforced `countNumber = 1` lifecycle policy in `ecr.tf`.   |
-| **3** | **Out-of-Distribution (OOD) Shortened Matches (1–5 Overs)** | Linear scaling projected `9 runs in 1 ball` of a 1-over game as `180 T20 runs` (`99%` win prob).                  | Built format-agnostic **Ball-by-Ball Markov DP** (`win_probability.py`) + Par-Adjusted RPO scaling (`predict.py`).       |
-| **4** | **2nd-Innings Team Inversion Bug**                          | Frontend originally sent static `teamA`/`teamB` strings even when `teamB` was batting in Innings 2.               | `AiMatchPrediction.tsx` dynamically binds `batting_team = battingTeam` and `bowling_team = bowlingTeam`.                 |
-| **5** | **Start-of-Match (`0/0`) & Impossible Chase Skew**          | Unconstrained ML models output non-50% probabilities at `0/0` or `>0%` when needing 40 off 2 balls.               | Added hard mathematical boundary overrides (`50%/50%` at `0/0` Ball `0.0`; `0%/100%` when `runsNeeded > ballsLeft*6+1`). |
+|   #   | Engineering Challenge                         | Root Cause                                                                                                                   | Production Fix Implemented                                                                                                                  |
+| :---: | :-------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------ |
+| **1** | **AWS Lambda 250 MB `.zip` Limit Exceeded**   | • `scikit-learn` + `pandas` + `numpy` + `xgboost` exceeded Lambda's 250 MB unzipped `.zip` ceiling                           | • Migrated `ml-predict` to an **Amazon ECR Container Image** (supports up to 10 GB) using `xgboost-cpu ~309 MB`                             |
+| **2** | **810 MB ECR Image Bloat & Duplicate Tags**   | • Standard `pip install xgboost` pulled NVIDIA CUDA libraries<br/>• Pushing both `:latest` + `:v2.2.0` doubled the tag count | • Switched to `xgboost-cpu==2.1.4` and removed `:latest` push<br/>• Enforced `countNumber = 1` lifecycle policy in `ecr.tf`                 |
+| **3** | **OOD Shortened Matches (1–5 Overs)**         | • Linear scaling projected `9 runs in 1 ball` of a 1-over game as `180 T20 runs` (`99%` win prob)                            | • Built format-agnostic **Ball-by-Ball Markov DP** (`win_probability.py`)<br/>• Added Par-Adjusted RPO scaling in `predict.py`              |
+| **4** | **2nd-Innings Team Inversion Bug**            | • Frontend originally sent static `teamA`/`teamB` strings even when `teamB` was batting in Innings 2                         | • `AiMatchPrediction.tsx` dynamically binds `batting_team = battingTeam` and `bowling_team = bowlingTeam`                                   |
+| **5** | **Start-of-Match (`0/0`) & Impossible Chase** | • Unconstrained ML models output non-50% probabilities at `0/0` or `>0%` when needing 40 off 2 balls                         | • Added hard mathematical boundary overrides (`50%/50%` at `0/0` Ball `0.0`)<br/>• Enforced `0%/100%` when `runsNeeded > ballsLeft * 6 + 1` |
 
 ---
 
@@ -177,11 +188,11 @@ This section details the mathematical models, dynamic-programming ball simulatio
 
 ### 🏗️ Inference Pipeline
 
-| Layer | Engine Component                                  | Active Overs / Scope          | Mathematical Role                                                                                                                  |
-| :---: | :------------------------------------------------ | :---------------------------- | :--------------------------------------------------------------------------------------------------------------------------------- |
-| **1** | **Ball-by-Ball Markov DP (`win_probability.py`)** | All match lengths (`1–20` ov) | Exact recursion over remaining balls (`1..120`) and wickets (`0..9`) across `DEFENSIVE`, `NORMAL`, and `AGGRESSIVE` profiles.      |
-| **2** | **DLS Resource Parity Blend (2nd Innings)**       | `2nd Innings` (`RPB < 3.0`)   | Blends Markov DP with a logistic DLS Par differential so teams ahead of `dlsPar` with wickets in hand are favored (`> 50%`).       |
-| **3** | **T20 Champion XGBoost Blend (`v2.2.0`)**         | `10 < total_overs <= 20`      | Blends `live_win_predictor_model.joblib` (`XGBoost v2.2.0`) with weight rising linearly from `0.0` (at 10 overs) to `0.5` (20 ov). |
+| Layer | Engine Component                                  | Active Overs / Scope          | Mathematical Role                                                                                                                                              |
+| :---: | :------------------------------------------------ | :---------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1** | **Ball-by-Ball Markov DP (`win_probability.py`)** | All match lengths (`1–20` ov) | • Exact recursion over remaining balls (`1..120`) and wickets (`0..9`)<br/>• Evaluates transition distributions across `DEFENSIVE`, `NORMAL`, and `AGGRESSIVE` |
+| **2** | **DLS Resource Parity Blend (2nd Innings)**       | `2nd Innings` (`RPB < 3.0`)   | • Blends Markov DP with a logistic DLS Par differential<br/>• Ensures teams ahead of `dlsPar` with wickets in hand are favored (`> 50%`)                       |
+| **3** | **T20 Champion XGBoost Blend (`v2.2.0`)**         | `10 < total_overs <= 20`      | • Blends `live_win_predictor_model.joblib` (**XGBoost `v2.2.0`**)<br/>• Weight rises linearly from `0.0` (at 10 overs) to `0.5` (at 20 overs)                  |
 
 ```mermaid
 graph TD
@@ -269,19 +280,19 @@ $$\text{DLS Par Score} = \left\lfloor \text{Team 1 Score} \times \left( \frac{R_
 
 `apps/ml-engine/compare_models.py` evaluates **8 candidate classifiers** (`LogisticRegression`, `GaussianNB`, `DecisionTree`, `LinearSVM_SGD`, `RandomForest`, `ExtraTrees`, `HistGradientBoosting`, and **`XGBoost`**) and selects the model that minimizes validation **Log Loss** (`0.8 * log_loss + 0.2 * (1 - roc_auc)`).
 
-| Governance Guarantee            | Implementation in `compare_models.py`                                                                                                               |
-| :------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Match-Grouped Partitioning**  | Splits unique `match_id`s into **70% Train**, **15% Validation**, and **15% Held-Out Test** so deliveries from the same match never leak.           |
-| **In-Play Observables Only**    | Restricts features to pre-delivery state (`batting_team`, `bowling_team`, `inning`, `balls_left`, `current_score`, `wickets_lost`, `target_score`). |
-| **Calibration-First Promotion** | Promotes **XGBoost (`v2.2.0`)** with the lowest Validation Log Loss (`0.5786`), best Brier Score (`0.1992`), and highest ROC-AUC (`0.7723`).        |
+| Governance Guarantee            | Implementation in `compare_models.py`                                                                                                                                  |
+| :------------------------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Match-Grouped Partitioning**  | • Splits unique `match_id`s into **70% Train**, **15% Validation**, and **15% Held-Out Test**<br/>• Guarantees deliveries from the same match never leak               |
+| **In-Play Observables Only**    | • Restricts features strictly to pre-delivery state<br/>• Uses `batting_team`, `bowling_team`, `inning`, `balls_left`, `current_score`, `wickets_lost`, `target_score` |
+| **Calibration-First Promotion** | • Promotes **XGBoost (`v2.2.0`)** with the lowest Validation Log Loss (`0.5786`)<br/>• Achieves best Brier Score (`0.1992`) and highest ROC-AUC (`0.7723`)             |
 
 ### 10.2 MLflow, DVC & Manifest Specifications
 
-| Component                          | File / Directory                                         | Tracked Metadata & Purpose                                                                                                         |
-| :--------------------------------- | :------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------- |
-| **MLflow Experiment Store**        | `apps/ml-engine/mlruns` (`mlflow-skinny`)                | Logs hyperparameters, Git SHA, DVC hash, training duration (`0.691s`), latency (`1.98ms`), Log Loss, Brier Score, and ROC-AUC.     |
-| **DVC Dataset & Pipeline Lineage** | `cricket-data/t20s_json.zip.dvc`, `dvc.yaml`, `dvc.lock` | Tracks raw Cricsheet archive MD5 (`dvc:31e19c47bdbc05d773938754d8589516`) and reproducible `prepare` + `train_and_compare` stages. |
-| **Immutable Model Manifest**       | `apps/ml-engine/model_manifest.json`                     | Records `modelVersion: "v2.2.0"`, `algorithm: "XGBoost"`, test metrics, and `sha256: "de9e39513fbac..."` (`227,565` bytes).        |
+| Component                          | File / Directory                                                 | Tracked Metadata & Purpose                                                                                                                         |
+| :--------------------------------- | :--------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **MLflow Experiment Store**        | `apps/ml-engine/mlruns` (`mlflow-skinny`)                        | • Logs hyperparameters, Git SHA, DVC hash, training duration (`0.691s`), and latency (`1.98ms`)<br/>• Tracks Log Loss, Brier Score, and ROC-AUC    |
+| **DVC Dataset & Pipeline Lineage** | • `cricket-data/t20s_json.zip.dvc`<br/>• `dvc.yaml` & `dvc.lock` | • Tracks raw Cricsheet archive MD5 (`dvc:31e19c47bdbc05d773938754d8589516`)<br/>• Orchestrates reproducible `prepare` + `train_and_compare` stages |
+| **Immutable Model Manifest**       | `apps/ml-engine/model_manifest.json`                             | • Records `modelVersion: "v2.2.0"`, `algorithm: "XGBoost"`, and held-out test metrics<br/>• Stores `sha256: "de9e39513fbac..."` (`227,565` bytes)  |
 
 ### 10.3 Reproducibility, Verification & Rollback Commands
 
@@ -289,7 +300,7 @@ $$\text{DLS Par Score} = \left\lfloor \text{Team 1 Score} \times \left( \frac{R_
 # 1. Reproduce the full DVC pipeline (data extraction + 8-model benchmark)
 dvc repro
 
-# 2. Run the ML engine unit & calibration test suite (21 tests)
+# 2. Run the ML engine unit & calibration test suite (21 tests out of 376 platform unit tests)
 ./apps/ai-service/.venv/bin/pytest apps/ml-engine/tests -q
 
 # 3. Option A: Full Terraform + S3 + ECR versioned deploy/rollback

@@ -30,12 +30,12 @@ flowchart LR
 
 ## 📋 Why Aiven PostgreSQL?
 
-| Capability               | Engineering Benefit                                                                                                   |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------------- |
-| **ACID Transactions**    | Guarantees strict ball-by-ball cricket scoring consistency without race conditions or lost deliveries.                |
-| **Schema Isolation**     | Isolates `dev` and `prod` tables inside a single database instance via `DB_SCHEMA`, avoiding duplicate instance fees. |
-| **pgvector Extension**   | Powers semantic rulebook search (`match_chunks`) directly inside PostgreSQL without an external vector database.      |
-| **Automated Keep-Alive** | `.github/workflows/keepalive.yml` pings the database daily (`SELECT 1`) with 3x retry logic to prevent sleep pauses.  |
+| Capability                          | Engineering Benefit                                                                                                                          |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| **ACID&nbsp;Transactions**          | • Guarantees strict ball-by-ball cricket scoring consistency<br/>• Eliminates race conditions and lost deliveries                            |
+| **Schema&nbsp;Isolation**           | • Isolates `dev` and `prod` tables inside a single database instance via `DB_SCHEMA`<br/>• Avoids duplicate managed database instance fees   |
+| **pgvector&nbsp;Extension**         | • Powers semantic rulebook search (`match_chunks`) directly inside PostgreSQL<br/>• Removes the need for a separate external vector database |
+| **Automated&nbsp;Keep&#8209;Alive** | • `.github/workflows/keepalive.yml` pings the database daily (`SELECT 1`)<br/>• Includes 3x retry logic to prevent free-tier sleep pauses    |
 
 ---
 
@@ -43,12 +43,12 @@ flowchart LR
 
 ### Step 1: Create the Aiven PostgreSQL Service
 
-| Setting            | Recommended Value                             | Notes                                                           |
-| ------------------ | --------------------------------------------- | --------------------------------------------------------------- |
-| **Console URL**    | [console.aiven.io](https://console.aiven.io/) | Sign up or log in to your Aiven account                         |
-| **Service Type**   | `PostgreSQL`                                  | Latest supported version with `pgvector` support                |
-| **Cloud & Region** | `AWS` / `us-east-1`                           | Co-locates database with CricScore AWS Lambdas for low latency  |
-| **Service Name**   | `cricscore-pg`                                | Copy the **Service URI** from the **Overview** tab once running |
+| Setting                      | Recommended Value                             | Notes                                                                                                 |
+| ---------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| **Console&nbsp;URL**         | [console.aiven.io](https://console.aiven.io/) | • Sign up or log in to your Aiven account                                                             |
+| **Service&nbsp;Type**        | `PostgreSQL`                                  | • Select the latest supported PostgreSQL version<br/>• Includes built-in `pgvector` extension support |
+| **Cloud&nbsp;&&nbsp;Region** | `AWS` (`us-east-1`)                           | • Co-locates the database with CricScore AWS Lambdas<br/>• Minimizes cross-region network latency     |
+| **Service&nbsp;Name**        | `cricscore-pg`                                | • Copy the **Service URI** from the **Overview** tab once running                                     |
 
 ### Step 2: Configure Local Environment (`.env.local`)
 
@@ -85,11 +85,11 @@ gh secret set TF_DATABASE_URL --body "$TF_DATABASE_URL"
 
 ## 🔍 Troubleshooting Keep-Alive & Connections
 
-| Symptom                             | Root Cause                                 | Fix Command / Action                                                                  |
-| ----------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------- |
-| `keepalive.yml` fails after 3 tries | Free-tier service paused due to inactivity | Log into [console.aiven.io](https://console.aiven.io/) and click **Power On / Start** |
-| `password authentication failed`    | Aiven rotated credentials                  | Copy the updated Service URI and re-run `./infra/scripts/setup_github_envs.sh`        |
-| `SSL/TLS required` error            | Missing `?sslmode=require` query parameter | Append `?sslmode=require` to `TF_DATABASE_URL`                                        |
+| Symptom                             | Root Cause                                   | Fix Command / Action                                                                                                |
+| ----------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `keepalive.yml` fails after 3 tries | • Free-tier service paused due to inactivity | • Log into [console.aiven.io](https://console.aiven.io/)<br/>• Click **Power On / Start** on the PostgreSQL service |
+| `password authentication failed`    | • Aiven rotated database credentials         | • Copy the updated Service URI from Aiven<br/>• Re-run `./infra/scripts/setup_github_envs.sh`                       |
+| `SSL/TLS required` error            | • Missing `?sslmode=require` query parameter | • Append `?sslmode=require` to `TF_DATABASE_URL` in `.env.local` and GitHub Secrets                                 |
 
 ---
 
