@@ -1,3 +1,9 @@
+## [4.23.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.23.0...v4.23.1) (2026-11-01)
+
+### 🐛 Bug Fixes
+
+* **ci:** remove environment approval gate from daily database keepalive workflow ([#341](https://github.com/venkatesh-singamsetty/cricscore/issues/341)) ([ff941bd]())
+
 ## [4.23.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.22.4...v4.23.0) (2026-11-01)
 
 ### 🚀 Features
