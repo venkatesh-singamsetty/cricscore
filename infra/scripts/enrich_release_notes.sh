@@ -39,8 +39,8 @@ for PR_NUM in $PR_NUMBERS; do
   # Extract high-level summary if present and not already included
   if [ -n "$PR_BODY" ] && ! echo "$CURRENT_BODY" | grep -qF "Overview & Purpose"; then
     echo "✨ Extracting clean overview from PR #$PR_NUM..."
-    # Extract only the Overview section if present, or concise summary
-    CLEAN_OVERVIEW=$(echo "$PR_BODY" | awk '/## (🎯 )?Overview/{flag=1; next} /^## /{flag=0} flag' | sed '/^$/N;/^\n$/D' || true)
+    # Extract overview or summary section if present
+    CLEAN_OVERVIEW=$(echo "$PR_BODY" | awk '/## (🎯 )?(Overview|Summary)/{flag=1; next} /^## (Validation|Testing|Checks)/{flag=0} flag' | sed '/^$/N;/^\n$/D' || true)
     if [ -n "$CLEAN_OVERVIEW" ]; then
       NEW_BODY="${CURRENT_BODY}
 
