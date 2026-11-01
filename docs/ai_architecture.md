@@ -260,13 +260,11 @@ sequenceDiagram
 
 ## 🎨 AI Chat UX & Client Features (`ChatComponent.tsx`)
 
-| UX Feature                     | Implementation Detail                                                                                                       |
-| :----------------------------- | :-------------------------------------------------------------------------------------------------------------------------- |
-| **Persistent Local Memory**    | • Syncs conversation history to `localStorage` (`cricscore-chat-memory`)<br/>• Preserves chat context across page refreshes |
-| **One-Click `[+] New Chat`**   | • Clears local chat memory and resets the conversation window instantly                                                     |
-| **Context-Aware Prompt Chips** | • Surfaces 7 tailored quick-action chips (stats, rules, weather report, GitHub bug/feature report)                          |
-| **Clickable Markdown & Links** | • Renders Markdown tables, rulebook citations, and clickable GitHub Issue URLs (`target="_blank"`)                          |
-| **Web Speech API Voice (TTS)** | • Includes a `Voice On/Off` toggle<br/>• Uses a silent mobile Safari/iOS audio-context unlock utterance on user interaction |
+- **Persistent Local Memory:** Syncs conversation history to `localStorage` (`cricscore-chat-memory`) so chat context survives page refreshes.
+- **One-Click `[+] New Chat`:** Clears local chat memory and resets the conversation window instantly.
+- **Context-Aware Prompt Chips:** Surfaces 7 tailored quick-action chips (match stats, tournament rules, live weather report, and GitHub bug/feature reporting).
+- **Clickable Markdown & Citations:** Renders Markdown tables, `[Source: ...]` rulebook citations, and clickable GitHub Issue URLs (`target="_blank"`).
+- **Web Speech API Voice (TTS):** Includes a `Voice On/Off` toggle with a silent mobile Safari/iOS audio-context unlock utterance on user interaction.
 
 ---
 
@@ -274,13 +272,10 @@ sequenceDiagram
 
 > 📖 See the [**Serverless MLOps Tutorial**](./mlops_tutorial.md) and [**ML Models Handbook**](./ml_models_handbook.md) for the full 8-model benchmark, Markov DP math, and DLS resource tables.
 
-| Aspect                     | Production Specification                                                                                                                                                                            |
-| :------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Champion ML Model**      | • **XGBoost (`v2.2.0`)**<br/>• Validation `ROC-AUC = 0.7723` & Held-out Test `ROC-AUC = 0.7529`<br/>• Validation `Log Loss = 0.5786` & `Brier Score = 0.1992`                                       |
-| **S3 Model Registry**      | • Versioned artifacts (`live_win_predictor_model.joblib` `~227 KB`, `model_manifest.json`)<br/>• Stored in `s3://<match-backups>/models/v2.2.0/` with SHA-256 verification                          |
-| **ECR Container Runtime**  | • `cricscore-ml-predict` (`xgboost-cpu ~309 MB` compressed)<br/>• Tagged `:${var.ml_model_version}` only with **`countNumber = 1`** single-image retention (`~$0.03/mo`)                            |
-| **Hybrid Inference Blend** | • Format-agnostic **Ball-by-Ball Markov DP** (`win_probability.py`)<br/>• **DLS Par differential** in 2nd-innings chases<br/>• **XGBoost `v2.2.0`** blend (up to `50%` weight in 10–20 over games)  |
-| **Boundary Heuristics**    | • Enforces `50% / 50%` at `0/0` (Ball `0.0`) and `100% / 0%` when target is reached<br/>• Enforces `0% / 100%` when `runsNeeded > ballsLeft * 6 + 1`<br/>• Clamps live probabilities to `[1%, 99%]` |
+- **Champion ML Model:** **XGBoost (`v2.2.0`)** (`Validation ROC-AUC = 0.7723`, `Held-out Test ROC-AUC = 0.7529`, `Validation Log Loss = 0.5786`, `Brier Score = 0.1992`).
+- **Decoupled S3 Model Registry:** Stores versioned artifacts (`live_win_predictor_model.joblib` `~227 KB`, `model_manifest.json`) in `s3://<match-backups>/models/v2.2.0/` with SHA-256 verification.
+- **Lean ECR Container Runtime:** `cricscore-ml-predict` (`xgboost-cpu ~309 MB` compressed), tagged `:${var.ml_model_version}` only with **`countNumber = 1`** single-image retention (`~$0.03/mo`).
+- **Hybrid Inference & Boundary Guards:** Blends format-agnostic **Ball-by-Ball Markov DP** (`win_probability.py`), **DLS Par differential** in 2nd-innings chases, and **XGBoost `v2.2.0`** (up to `50%` weight in 10–20 over games), while enforcing `50%/50%` at `0/0` (Ball `0.0`), `100%/0%` on target completion, `0%/100%` when `runsNeeded > ballsLeft * 6 + 1`, and `[1%, 99%]` clamping during live play.
 
 ---
 

@@ -51,10 +51,8 @@ Editable Mermaid diagrams live in **[docs/architecture.md](./docs/architecture.m
 
 ![Live scoring flow: score-update Lambda publishes each ball to SNS for instant WebSocket broadcast and to SQS FIFO for guaranteed persistence in PostgreSQL](./docs/images/architecture/02_live_scoring_flow.png)
 
-| Execution Path                  | Service Pipeline                                                                                                                                  | Latency & Reliability Guarantee                                                             |
-| :------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------ | :------------------------------------------------------------------------------------------ |
-| **Fast&nbsp;Path&nbsp;(Blue)**  | `score-update` → **SNS (`match-events`)** → `broadcaster` Lambda → **DynamoDB (`PAY_PER_REQUEST`)** → **API Gateway WebSocket**                   | • **`< 1s` real-time push** to all connected viewers<br/>• Never blocks on database writes  |
-| **Safe&nbsp;Path&nbsp;(Green)** | `score-update` → **SQS FIFO (`storage-buffer.fifo`, `MessageGroupId = matchId`)** → `storage-worker` (`batch_size = 1`) → **Aiven PostgreSQL 16** | • **Strict ball-by-ball ordering** per match<br/>• ACID transactional commits to PostgreSQL |
+- **🔵 Fast Path (`< 1s` Live Broadcast):** `score-update` → **Amazon SNS (`match-events`)** → `broadcaster` Lambda → **DynamoDB (`PAY_PER_REQUEST` connection registry)** → **API Gateway WebSocket** pushes every delivery to connected viewers in under a second without waiting on database writes.
+- **🟢 Safe Path (Ordered ACID Persistence):** `score-update` → **Amazon SQS FIFO (`storage-buffer.fifo`, `MessageGroupId = matchId`)** → `storage-worker` Lambda (`batch_size = 1`) → **Aiven PostgreSQL 16** commits balls, player snapshots, and undo rollbacks in strict chronological order per match.
 
 ### 🤖 3. AI Assistant (Autonomous Multi-Agent System via MCP)
 
@@ -98,16 +96,30 @@ flowchart LR
 | **Claude&nbsp;Code&nbsp;&&nbsp;Windsurf**            | • `.agents/AGENTS.md`<br/>• `.agents/skills/*/SKILL.md`      | • Reads `.agents/AGENTS.md` (or via `@.agents/AGENTS.md` / `.cursorrules`)<br/>• Progressively loads matching `.agents/skills/<skill-name>/SKILL.md` on demand  |
 | **Gemini&nbsp;/&nbsp;Antigravity&nbsp;/&nbsp;Codex** | • `.agents/AGENTS.md`<br/>• `.agents/skills/*/SKILL.md`      | • Native discovery of `.agents/AGENTS.md` and `.agents/skills/*/SKILL.md` YAML frontmatter (`name`, `description`)<br/>• Enforces PR, security & `~$1/mo` rules |
 
-| Skill Category                            | Included Skills (`.agents/skills/`)                                                                                                                  | Core Guardrails Enforced                                                                                                                                      |
-| :---------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Frontend,&nbsp;Backend&nbsp;&&nbsp;DB** | • `cricscore-frontend-architecture`<br/>• `cricscore-backend-architecture`<br/>• `cricscore-database-migrations`                                     | • React 19 optimistic WebSocket sync (`lastWsUpdateRef` / `lastWsUndoAtRef`)<br/>• Node.js 24 Lambda `pg.Pool` reuse & idempotent SQL migrations              |
-| **AI,&nbsp;RAG&nbsp;&&nbsp;MLOps**        | • `cricscore-agentic-rag-architecture`<br/>• `cricscore-mlops-standards`                                                                             | • In-memory MCP credential isolation & deterministic POTM (`computePlayerOfTheMatch`)<br/>• Leakage-free 8-model MLflow benchmark & `xgboost-cpu` (`~309 MB`) |
-| **Infra,&nbsp;Cost&nbsp;&&nbsp;Security** | • `cricscore-infrastructure-standards`<br/>• `cricscore-cost-governance`<br/>• `cricscore-security-standards`                                        | • `~$1/month` AWS ceiling, 7-day log retention & single-image ECR (`countNumber = 1`)<br/>• Strict `isAdminClaims` JWT RBAC & 7-scanner DevSecOps gate        |
-| **Testing,&nbsp;PRs&nbsp;&&nbsp;Reviews** | • `cricscore-testing-standards`<br/>• `cricscore-pr-and-workflow`<br/>• `cricscore-dependabot-consolidation`<br/>• `cricscore-code-review-standards` | • 376 unit tests + Playwright E2E parity across `dev` & `prod`<br/>• Raise PR & verify status checks (never auto-merge without owner approval)                |
+- **12 Domain Skill Playbooks (`.agents/skills/*/SKILL.md`):**
+  - **Frontend, Backend & DB:** `cricscore-frontend-architecture`, `cricscore-backend-architecture`, `cricscore-database-migrations`
+  - **AI, RAG & MLOps:** `cricscore-agentic-rag-architecture`, `cricscore-mlops-standards`
+  - **Infra, Cost & Security:** `cricscore-infrastructure-standards`, `cricscore-cost-governance`, `cricscore-security-standards`
+  - **Testing, PRs & Reviews:** `cricscore-testing-standards`, `cricscore-pr-and-workflow`, `cricscore-dependabot-consolidation`, `cricscore-code-review-standards`
 
 ---
 
-## 🛠️ Technology Stack Summary
+## 📂 Monorepo Structure & Technology Stack
+
+```text
+cricscore/
+├── apps/
+│   ├── frontend/        # React 19, TypeScript, Vite, Tailwind CSS & AWS Amplify Auth SPA
+│   ├── backend/         # 8 Node.js 24 AWS Lambda microservices + idempotent PostgreSQL migrations
+│   ├── ai-service/      # Python LangGraph multi-agent orchestration & prompt evaluation suite
+│   ├── ml-engine/       # XGBoost v2.2.0 + Markov DP + DLS win-probability container Lambda & DVC/MLflow
+│   └── e2e/             # Playwright cross-browser & multi-window live WebSocket sync E2E suite
+├── infra/
+│   ├── terraform/       # Single root Terraform module (Route 53, CloudFront, API GW, Lambda, S3, ECR)
+│   └── scripts/         # Automated validation, deployment, DB migration & ML model promotion scripts
+├── .agents/             # Multi-host AI coding agent router (AGENTS.md) & 12 domain SKILL.md playbooks
+└── docs/                # 30+ living architecture guides, MLOps/RAG tutorials & diagram generators
+```
 
 | Layer                               | Technologies Used                                                                                                                                                                                                            |
 | :---------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

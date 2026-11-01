@@ -46,16 +46,14 @@ sequenceDiagram
     Supervisor-->>User: 10. Render Response in Chat UI
 ```
 
-### Step-by-Step Communication Table
+### Step-by-Step Communication Flow
 
-| Step  | Sender → Receiver                  | Payload / Action                                                                                                                       | Implementation File                                     |
-| :---: | :--------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------ |
-| **1** | `ChatComponent.tsx` → `chat-api`   | • Sends `POST /chat` request<br/>• Includes `{ message, matchId, history }`                                                            | `apps/frontend/src/components/ChatComponent.tsx`        |
-| **2** | `chatHandler.js` → `mcp/server.js` | • Initializes `InMemoryTransport`<br/>• Discovers registered MCP tool schemas                                                          | `apps/backend/lambdas/chat-api/handlers/chatHandler.js` |
-| **3** | `chatHandler.js` → `LLM`           | • Sends system prompt guardrails<br/>• Injects active match telemetry and tool schemas                                                 | `apps/backend/lambdas/chat-api/config/llm.js`           |
-| **4** | `LLM` → `chatHandler.js`           | • Returns structured `tool_calls` JSON<br/>• Performs zero direct execution                                                            | `apps/backend/lambdas/chat-api/handlers/chatHandler.js` |
-| **5** | `chatHandler.js` → `MCP Tool`      | • Validates per-turn rate limits<br/>• Invokes `execute_sql`, `get_match_weather`, `search_tournament_rules`, or `create_github_issue` | `apps/backend/lambdas/chat-api/mcp/tools/*.js`          |
-| **6** | `MCP Tool` → `LLM` → `User`        | • Returns sanitized JSON evidence to LLM<br/>• Synthesizes final Markdown answer with citations                                        | `apps/backend/lambdas/chat-api/handlers/chatHandler.js` |
+1. **`ChatComponent.tsx` → `chat-api`:** Sends `POST /chat` with `{ message, matchId, history }`.
+2. **`chatHandler.js` → `mcp/server.js`:** Initializes `InMemoryTransport` and discovers registered MCP tool schemas.
+3. **`chatHandler.js` → `LLM` (`config/llm.js`):** Sends system prompt guardrails, active match telemetry, and tool schemas.
+4. **`LLM` → `chatHandler.js`:** Emits structured `tool_calls` JSON (zero direct execution).
+5. **`chatHandler.js` → `MCP Tool` (`mcp/tools/*.js`):** Validates per-turn rate limits and invokes `execute_sql`, `get_match_weather`, `search_tournament_rules`, or `create_github_issue`.
+6. **`MCP Tool` → `LLM` → `User`:** Returns sanitized JSON evidence to the LLM, which synthesizes the final cited Markdown response.
 
 ---
 
@@ -81,11 +79,9 @@ flowchart LR
     Rules -->|4. Synthesize Strategy| Output["Target Pacing + Matchup & Risk Advisory"]
 ```
 
-| Stage | Component                             | Responsibility                                                                                                                                             |
-| :---: | :------------------------------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **1** | **Telemetry Injection**               | • Reconstructs 1st & 2nd innings score and overs from `matches` row (`chatHandler.js`)<br/>• Computes live `CRR`, `target`, `runsNeeded`, and `ballsLeft`  |
-| **2** | **LangGraph Specialist (`graph.py`)** | • Runs `analysis_node` specialist<br/>• Coordinates `get_match_details`, `get_match_statistics` (bowler economy, batter SR), and `search_tournament_rules` |
-| **3** | **Tactical Synthesis**                | • Produces actionable pacing recommendations (`synthesizer_node` / LLM)<br/>• Highlights which overs to attack, wicket preservation, and DLS par awareness |
+1. **Telemetry Injection (`chatHandler.js`):** Reconstructs 1st- and 2nd-innings score and overs from the active `matches` row and computes live `CRR`, `target`, `runsNeeded`, and `ballsLeft`.
+2. **LangGraph Specialist (`graph.py`):** Runs `analysis_node` to coordinate `get_match_details`, `get_match_statistics` (bowler economy, batter SR), and `search_tournament_rules`.
+3. **Tactical Synthesis (`synthesizer_node` / LLM):** Produces actionable pacing recommendations highlighting which overs to attack, wicket preservation, and DLS par awareness.
 
 ---
 
@@ -184,11 +180,9 @@ graph TD
 
 ## 🔗 Related Documentation
 
-| Guide                                                          | Focus Area                                                                                                           |
-| :------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------- |
-| [AI Architecture & Agentic RAG](./ai_architecture.md)          | • In-memory MCP server & Text-to-SQL guardrails<br/>• `pgvector` RAG & deterministic Player of the Match (POTM)      |
-| [Weather Report Agent Guide](./weather_report_agent.md)        | • Open-Meteo geocoding & hourly forecast windows<br/>• Cricket & DLS rain advisory thresholds                        |
-| [GitHub Issue Specialist Agent Guide](./github_issue_agent.md) | • 2-step confirmation protocol<br/>• SSRF/spam guardrails & `GITHUB_TOKEN` wiring                                    |
-| [MLOps Tutorial & Model Benchmarking](./mlops_tutorial.md)     | • DVC lineage & 8-model MLflow benchmark<br/>• **XGBoost `v2.2.0`**, `xgboost-cpu ~309 MB`, `countNumber = 1`, & DLS |
-| [ML Models Handbook](./ml_models_handbook.md)                  | • Mathematical formulas for 14 ML algorithms<br/>• Empirical CricScore benchmarks across Classification/Regression   |
-| [Architecture & Diagrams Overview](./architecture.md)          | • Multi-cloud system diagrams (`~$1/month` footprint)<br/>• WebSocket fan-out sequences, RBAC matrix, & `376` tests  |
+- **[AI Architecture & Agentic RAG](./ai_architecture.md):** In-memory MCP server, Text-to-SQL guardrails, `pgvector` RAG, and deterministic Player of the Match (POTM).
+- **[Weather Report Agent Guide](./weather_report_agent.md):** Open-Meteo geocoding, hourly forecast windows, and Cricket & DLS rain advisory thresholds.
+- **[GitHub Issue Specialist Agent Guide](./github_issue_agent.md):** 2-step confirmation protocol, SSRF/spam guardrails, and `GITHUB_TOKEN` wiring.
+- **[MLOps Tutorial & Model Benchmarking](./mlops_tutorial.md):** DVC lineage, 8-model MLflow benchmark, **XGBoost `v2.2.0`**, `xgboost-cpu ~309 MB`, `countNumber = 1`, and DLS math.
+- **[ML Models Handbook](./ml_models_handbook.md):** Mathematical formulas and empirical CricScore benchmarks across 14 Classification, Regression, and Clustering algorithms.
+- **[Architecture & Diagrams Overview](./architecture.md):** Multi-cloud system diagrams (`~$1/month` footprint), WebSocket fan-out sequences, RBAC matrix, and `376` automated tests.
