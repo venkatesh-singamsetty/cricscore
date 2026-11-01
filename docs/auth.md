@@ -26,23 +26,50 @@ graph TD
 
 ## 👤 2. User Roles & Capabilities
 
-| Role          | Access Level                                                                                                              | Identity Mechanism                                 | Token / Claim Verification                                                            |
-| :------------ | :------------------------------------------------------------------------------------------------------------------------ | :------------------------------------------------- | :------------------------------------------------------------------------------------ |
-| **Viewer 🌍** | • Live scoreboard & match history<br/>• Hybrid ML win predictions & deterministic POTM<br/>• Read-only AI chat            | Unauthenticated                                    | • None required (`authorization_type = "NONE"`)                                       |
-| **Scorer 🎮** | • Create & score matches<br/>• Switch innings & dispatch SES email reports<br/>• Delete own matches                       | Cognito User Pool account                          | • Valid Cognito JWT<br/>• `claims.email === matchRecord.scorer_email`                 |
-| **Guest 🎮**  | • Full scorer capabilities via zero-friction shadow account<br/>• Scoped to guest session                                 | Auto-confirmed `guest-{timestamp}@cricscore.local` | • Auto-confirmed by `cognito-presignup` Lambda<br/>• Cognito JWT issued immediately   |
-| **Admin ⚡**  | • User & role management (`Admin` / `Scorer`)<br/>• Tournament PDF rulebook RAG ingestion<br/>• Bulk database cleanup ops | Cognito `Admin` group or `ADMIN_REPORT_EMAIL`      | • Valid Cognito JWT<br/>• Verified by `isAdminClaims(claims)` / `requireAdmin(event)` |
+### RBAC Permission Matrix
+
+| Capability                      | Viewer 🌍 | Guest 🎮 | Scorer 🎮 | Admin ⚡ |
+| :------------------------------ | :-------: | :------: | :-------: | :------: |
+| Live Scoreboard & Match History |    ✅     |    ✅    |    ✅     |    ✅    |
+| Read-Only AI Chat & Predictions |    ✅     |    ✅    |    ✅     |    ✅    |
+| Create & Score Matches          |    ❌     |    ✅    |    ✅     |    ✅    |
+| Edit / Delete Own Matches       |    ❌     |    ✅    |    ✅     |    ✅    |
+| Edit / Delete Any Match         |    ❌     |    ❌    |    ❌     |    ✅    |
+| Rulebook RAG Upload & Admin Ops |    ❌     |    ❌    |    ❌     |    ✅    |
+
+### Role Identity & Verification Breakdown
+
+- **Viewer 🌍 (Unauthenticated Spectator):**
+  - Accesses live scoreboards, match history, hybrid ML win predictions, deterministic POTM awards, and read-only AI chat.
+  - Requires no Cognito session (`authorization_type = "NONE"`).
+- **Scorer 🎮 (Authenticated Cognito User):**
+  - Creates and scores matches, switches innings, dispatches SES email reports, and deletes own matches.
+  - Verified via valid Cognito JWT and ownership check (`claims.email === matchRecord.scorer_email`).
+- **Guest 🎮 (Ephemeral Shadow Account):**
+  - Full scorer capabilities via a zero-friction shadow account (`guest-{timestamp}@cricscore.local`) scoped to the browser session.
+  - Auto-confirmed immediately by the `cognito-presignup` Lambda trigger with a standard Cognito JWT.
+- **Admin ⚡ (Cognito `Admin` Group / `ADMIN_REPORT_EMAIL`):**
+  - Manages Cognito users and roles (`Admin` / `Scorer`), uploads tournament PDF rulebooks for `pgvector` RAG ingestion, and runs bulk database cleanup operations.
+  - Verified server-side by `isAdminClaims(claims)` and `requireAdmin(event)`.
 
 ---
 
 ## 🔑 3. Authentication Flows
 
-| Flow                | Trigger                     | Step-by-Step Execution                                                                                                                                                                                                                                 | State & Storage Impact                                                                                 |
-| :------------------ | :-------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------- |
-| **Sign-Up / Login** | Click **SCORER** tab        | • Amplify Authenticator collects `email`, `given_name`, `family_name`<br/>• `Hub.listen("auth", "signedIn")` fires<br/>• `fetchAuthSession()` retrieves JWT (`idToken`)                                                                                | • Sets `userToken` and `userEmail`<br/>• Sets `isAdmin` if `cognito:groups` contains `Admin`           |
-| **Guest Mode**      | Click **Continue as Guest** | • Calls `signOut()` to clear prior session<br/>• Calls `signUp({ username: "guest-{timestamp}@cricscore.local" })`<br/>• `cognito-presignup` Lambda sets `autoConfirmUser = true` & `autoVerifyEmail = true`<br/>• Immediately signs in via `signIn()` | • Sets `isGuestScorer = true`<br/>• Tags created matches with `scorer_email = guest-*@cricscore.local` |
-| **Sign Out**        | Click **SIGN OUT**          | • Calls `signOut()` via `aws-amplify/auth`<br/>• Scrubs `?matchId` from URL via `window.history.replaceState`                                                                                                                                          | • Resets `userToken`, `isAdmin`, `userEmail` to `null`<br/>• Returns active view to `VIEWER`           |
-| **Identity Guard**  | `userEmail` changes         | • `prevEmailRef` detects identity change (e.g., Guest $\rightarrow$ Regular User)<br/>• Clears in-memory match state (`matchStatus`, `matchId`, `currentInnings`)                                                                                      | • Increments `hubKey`<br/>• Reloads scoped state from `cric-match-state-{email}`                       |
+- **Sign-Up / Login (Click `SCORER` Tab):**
+  - Amplify Authenticator collects `email`, `given_name`, and `family_name`.
+  - `Hub.listen("auth", "signedIn")` fires and `fetchAuthSession()` retrieves the JWT (`idToken`).
+  - Sets `userToken` and `userEmail`, and enables `isAdmin` if `cognito:groups` contains `Admin`.
+- **Guest Mode (Click `Continue as Guest`):**
+  - Calls `signOut()` to clear any prior session, then calls `signUp({ username: "guest-{timestamp}@cricscore.local" })`.
+  - The `cognito-presignup` Lambda sets `autoConfirmUser = true` and `autoVerifyEmail = true`, allowing immediate `signIn()`.
+  - Sets `isGuestScorer = true` and tags created matches with `scorer_email = guest-*@cricscore.local`.
+- **Sign Out (Click `SIGN OUT`):**
+  - Calls `signOut()` via `aws-amplify/auth` and scrubs `?matchId` from the URL via `window.history.replaceState`.
+  - Resets `userToken`, `isAdmin`, and `userEmail` to `null` and returns the active view to `VIEWER`.
+- **Identity Guard (`userEmail` Change Detection):**
+  - `prevEmailRef` detects identity changes (e.g., transitioning from Guest to Regular User) and clears in-memory match state (`matchStatus`, `matchId`, `currentInnings`).
+  - Increments `hubKey` and reloads user-scoped state from `cric-match-state-{email}`.
 
 ---
 
@@ -76,14 +103,24 @@ sequenceDiagram
 
 ### Route-Level Security (`infra/terraform/apigateway_http.tf`)
 
-| Endpoint Pattern                                                                                                                                                                                                             | API Gateway Auth | Lambda Handler Check                                                                            | Who Can Access                               |
-| :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------------- | :---------------------------------------------------------------------------------------------- | :------------------------------------------- |
-| • `GET /health`<br/>• `GET /matches`<br/>• `GET /match/{matchId}`<br/>• `GET /match/{matchId}/details`                                                                                                                       | `NONE`           | • Public read-only PostgreSQL queries                                                           | Anyone                                       |
-| • `POST /match/predict`<br/>• `POST /chat`<br/>• `POST /chat/summary`                                                                                                                                                        | `NONE`           | • Read-only execution<br/>• `/chat` & `/chat/summary` throttled at `5 req/s` (`10` burst)       | Anyone (strictly read-only tools in `/chat`) |
-| • `POST /match`                                                                                                                                                                                                              | `JWT`            | • Requires `claims.email` (`401` if missing)                                                    | Any authenticated Scorer, Guest, or Admin    |
-| • `PATCH /match/{matchId}`<br/>• `DELETE /match/{matchId}`<br/>• `POST /match/{matchId}/innings`<br/>• `POST /match/{matchId}/email`<br/>• `POST /update-score`                                                              | `JWT`            | • `isAuthorized(event, matchRecord)`<br/>• Returns `403` if neither match owner nor Admin       | Match owner (`scorer_email`) or Admin        |
-| • `DELETE /matches`<br/>• `GET /admin/users` & `DELETE /admin/users`<br/>• `POST /admin/users/roles` & `DELETE /admin/users/roles`<br/>• `DELETE /admin/users/guests`<br/>• `DELETE /admin/matches/{guests,incomplete,test}` | `JWT`            | • `isAdminClaims(claims)` in `match-api/index.js`<br/>• Returns `403` if non-admin              | Admin only                                   |
-| • `GET /rules`<br/>• `DELETE /rules`<br/>• `POST /rules/upload`                                                                                                                                                              | `JWT`            | • `requireAdmin(event, corsHeaders)` in `chat-api/config/auth.js`<br/>• Returns `403` if denied | Admin only                                   |
+- **Public Read-Only Match Queries (`GET /health`, `GET /matches`, `GET /match/{matchId}`, `GET /match/{matchId}/details`):**
+  - **API Gateway Auth**: `NONE`
+  - **Handler Guard**: Public read-only PostgreSQL queries accessible to anyone.
+- **Public AI & ML Inference (`POST /match/predict`, `POST /chat`, `POST /chat/summary`):**
+  - **API Gateway Auth**: `NONE`
+  - **Handler Guard**: Strictly read-only tools in `/chat`; `/chat` and `/chat/summary` are throttled at `5 req/s` (`10` burst).
+- **Match Creation (`POST /match`):**
+  - **API Gateway Auth**: `JWT`
+  - **Handler Guard**: Requires verified `claims.email` (`401` if missing); accessible to any authenticated Scorer, Guest, or Admin.
+- **Match Mutation & Scoring (`PATCH /match/{matchId}`, `DELETE /match/{matchId}`, `POST /match/{matchId}/innings`, `POST /match/{matchId}/email`, `POST /update-score`):**
+  - **API Gateway Auth**: `JWT`
+  - **Handler Guard**: Enforces `isAuthorized(event, matchRecord)` — returns `403` unless caller is the match owner (`scorer_email`) or an Admin.
+- **Admin User & Database Operations (`DELETE /matches`, `GET|DELETE /admin/users`, `POST|DELETE /admin/users/roles`, `DELETE /admin/users/guests`, `DELETE /admin/matches/{guests,incomplete,test}`):**
+  - **API Gateway Auth**: `JWT`
+  - **Handler Guard**: Enforces `isAdminClaims(claims)` in `match-api/index.js` (`403` if non-admin).
+- **Tournament Rulebook RAG Management (`GET /rules`, `DELETE /rules`, `POST /rules/upload`):**
+  - **API Gateway Auth**: `JWT`
+  - **Handler Guard**: Enforces `requireAdmin(event, corsHeaders)` in `chat-api/config/auth.js` (`403` if denied).
 
 ### Exact Admin Group & Claim Verification (`match-api` & `chat-api`)
 
@@ -119,30 +156,40 @@ const isAdminClaims = (claims) => {
 
 ## 👥 6. Admin User & Database Lifecycle Operations
 
-| Admin Operation         | Route                              | AWS SDK / SQL Action                                                                     | Safeguards                                                                             |
-| :---------------------- | :--------------------------------- | :--------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------- |
-| **List Users**          | `GET /admin/users`                 | • `ListUsersCommand`<br/>• `ListUsersInGroupCommand` (`Admin`, `Scorer`)                 | • Requires `isAdminClaims(claims)`                                                     |
-| **Promote Role**        | `POST /admin/users/roles`          | • `AdminAddUserToGroupCommand` (`Admin` or `Scorer`)                                     | • Requires `isAdminClaims(claims)`                                                     |
-| **Demote Role**         | `DELETE /admin/users/roles`        | • `AdminRemoveUserFromGroupCommand`                                                      | • Requires `isAdminClaims(claims)`<br/>• Blocks demoting `ADMIN_REPORT_EMAIL` (`400`)  |
-| **Delete User**         | `DELETE /admin/users`              | • `AdminDeleteUserCommand`                                                               | • Requires `isAdminClaims(claims)`<br/>• Blocks deleting primary admin or self (`400`) |
-| **Purge Guest Users**   | `DELETE /admin/users/guests`       | • Paginates `ListUsersCommand`<br/>• Calls `AdminDeleteUserCommand` for `guest` users    | • Only deletes accounts with `guest` email/username prefix                             |
-| **Purge Guest Matches** | `DELETE /admin/matches/guests`     | • `DELETE FROM matches WHERE scorer_email LIKE 'guest-%' OR scorer_email LIKE 'guest_%'` | • Cascades to child innings, players, bowlers, and balls                               |
-| **Purge Incomplete**    | `DELETE /admin/matches/incomplete` | • `DELETE FROM matches WHERE status != 'COMPLETED' AND status != 'ABANDONED'`            | • Preserves finished & abandoned historical fixtures                                   |
-| **Purge Test Matches**  | `DELETE /admin/matches/test`       | • `DELETE FROM matches WHERE is_test = TRUE OR ...`                                      | • Cleans E2E/practice fixtures without touching user matches                           |
+- **List Users (`GET /admin/users`):**
+  - Executes `ListUsersCommand` and `ListUsersInGroupCommand` (`Admin`, `Scorer`).
+  - Guarded by `isAdminClaims(claims)`.
+- **Promote Role (`POST /admin/users/roles`):**
+  - Executes `AdminAddUserToGroupCommand` (`Admin` or `Scorer`) after verifying `isAdminClaims(claims)`.
+- **Demote Role (`DELETE /admin/users/roles`):**
+  - Executes `AdminRemoveUserFromGroupCommand` after verifying `isAdminClaims(claims)`.
+  - Blocks demoting the primary `ADMIN_REPORT_EMAIL` account (`400`).
+- **Delete User (`DELETE /admin/users`):**
+  - Executes `AdminDeleteUserCommand` after verifying `isAdminClaims(claims)`.
+  - Blocks deleting the primary admin or the caller's own account (`400`).
+- **Purge Guest Users (`DELETE /admin/users/guests`):**
+  - Paginates `ListUsersCommand` and calls `AdminDeleteUserCommand` strictly for accounts with a `guest` email/username prefix.
+- **Purge Guest Matches (`DELETE /admin/matches/guests`):**
+  - Executes `DELETE FROM matches WHERE scorer_email LIKE 'guest-%' OR scorer_email LIKE 'guest_%'`, cascading to child innings, players, bowlers, and balls.
+- **Purge Incomplete Matches (`DELETE /admin/matches/incomplete`):**
+  - Executes `DELETE FROM matches WHERE status != 'COMPLETED' AND status != 'ABANDONED'`, preserving finished and abandoned historical fixtures.
+- **Purge Test Matches (`DELETE /admin/matches/test`):**
+  - Executes `DELETE FROM matches WHERE is_test = TRUE OR ...` to clean E2E and practice fixtures without touching user matches.
 
 ---
 
 ## 🔒 7. Cognito Infrastructure Configuration (`infra/terraform/cognito.tf`)
 
-| Setting                | Configured Value                                                                               | Source File                          |
-| :--------------------- | :--------------------------------------------------------------------------------------------- | :----------------------------------- |
-| **User Pool Name**     | `${var.project_name}-user-pool`                                                                | `infra/terraform/cognito.tf`         |
-| **Sign-In Alias**      | `email` (auto-verified attribute)                                                              | `infra/terraform/cognito.tf`         |
-| **Password Policy**    | • Minimum `8` characters<br/>• Requires uppercase, lowercase, number, and symbol               | `infra/terraform/cognito.tf`         |
-| **Pre-Sign-Up Hook**   | • `module.cognito_presignup.arn`<br/>• Auto-confirms `guest-*@cricscore.local` shadow accounts | `infra/terraform/cognito.tf`         |
-| **Explicit Auth Flow** | • `ALLOW_USER_PASSWORD_AUTH`<br/>• `ALLOW_REFRESH_TOKEN_AUTH`<br/>• `ALLOW_USER_SRP_AUTH`      | `infra/terraform/cognito.tf`         |
-| **Admin Group**        | `Admin` (`aws_cognito_user_group.admin`)                                                       | `infra/terraform/cognito.tf`         |
-| **API GW Authorizer**  | `cognito-authorizer` (`$request.header.Authorization`)                                         | `infra/terraform/apigateway_http.tf` |
+- **User Pool (`${var.project_name}-user-pool` in `infra/terraform/cognito.tf`):**
+  - Uses `email` as the auto-verified sign-in alias.
+  - Enforces a minimum 8-character password policy requiring uppercase, lowercase, numeric, and symbol characters.
+- **Pre-Sign-Up Trigger (`module.cognito_presignup.arn`):**
+  - Auto-confirms `guest-*@cricscore.local` shadow accounts while requiring standard verification for regular users.
+- **Explicit Auth Flows & Groups (`infra/terraform/cognito.tf`):**
+  - Enables `ALLOW_USER_PASSWORD_AUTH`, `ALLOW_REFRESH_TOKEN_AUTH`, and `ALLOW_USER_SRP_AUTH`.
+  - Provisions the `Admin` group (`aws_cognito_user_group.admin`).
+- **API Gateway JWT Authorizer (`infra/terraform/apigateway_http.tf`):**
+  - Validates `$request.header.Authorization` against the Cognito User Pool issuer and client audience (`cognito-authorizer`).
 
 ---
 

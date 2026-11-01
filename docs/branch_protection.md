@@ -12,7 +12,7 @@ flowchart TD
     PR --> FE["Job 2: Lint & Test\n(Trivy FS + ESLint/TSC + 151 Frontend Tests + Vite Build)"]
     PR --> BE["Job 3: Backend & Terraform Validation\n(121 Backend Tests + Trivy FS + Terraform fmt/validate)"]
     PR --> PY["Job 4: Python AI & ML Validation\n(75 AI Service Tests + 29 ML Engine Tests + Trivy FS)"]
-    PR --> CQL["Job 5: CodeQL Analysis\n(JS/TS SAST Semantic Scan)"]
+    PR --> CQL["Job 5: CodeQL Analysis\n(JS/TS & Python SAST Semantic Scan)"]
 
     Sec & FE & BE & PY & CQL --> Gate{"All Checks Pass?"}
     Gate -->|Yes| Merge["Merge to main Allowed"]
@@ -23,33 +23,36 @@ flowchart TD
 
 ## 1. Automated Pull Request Status Checks
 
-The `.github/workflows/ci.yml` and `.github/workflows/codeql.yml` workflows execute **376 automated unit/integration tests** alongside static security and infrastructure gates on every pull request targeting `main`:
+The `.github/workflows/ci.yml` and `.github/workflows/codeql.yml` workflows execute **`376` automated unit/integration tests** alongside static security and infrastructure gates on every pull request targeting `main`:
 
-| Status Check Job                           | Workflow File | What It Verifies                                                                                                                                                 |
-| ------------------------------------------ | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`Infrastructure & Secrets Security`**    | `ci.yml`      | • Full-history **GitLeaks** secrets scan<br/>• **Checkov** Terraform IaC security audit (`infra/terraform`)                                                      |
-| **`Lint & Test`**                          | `ci.yml`      | • **Trivy** (`HIGH`/`CRITICAL`) scan on `apps/frontend`<br/>• TypeScript lint & typecheck<br/>• **151 Frontend Vitest** tests<br/>• Production Vite bundle build |
-| **`Backend & Terraform Validation`**       | `ci.yml`      | • **121 Backend Vitest** tests<br/>• **Trivy** scan on `apps/backend/lambdas`<br/>• `terraform fmt -check` & `terraform validate`                                |
-| **`Python AI & ML Validation`**            | `ci.yml`      | • **75 AI Service Pytest** tests<br/>• **29 ML Engine Pytest** tests<br/>• **Trivy** filesystem scan on `apps/ai-service`                                        |
-| **`Analyze Code (javascript-typescript)`** | `codeql.yml`  | • GitHub **CodeQL** semantic SAST analysis<br/>• Detects XSS, injection, and taint-flow logic flaws                                                              |
+- **`Infrastructure & Secrets Security` (`ci.yml`):**
+  - Runs full-history **GitLeaks** secrets scanning and **Checkov** Terraform IaC security audits (`infra/terraform`).
+- **`Lint & Test` (`ci.yml`):**
+  - Runs **Trivy** (`HIGH`/`CRITICAL`) filesystem scanning on `apps/frontend`, TypeScript lint & typecheck, **`151` Frontend Vitest** tests, and a production Vite bundle dry-run build.
+- **`Backend & Terraform Validation` (`ci.yml`):**
+  - Runs **`121` Backend Vitest** Lambda unit tests, **Trivy** scanning on `apps/backend/lambdas`, and `terraform fmt -check` + `terraform validate`.
+- **`Python AI & ML Validation` (`ci.yml`):**
+  - Runs **`75` AI Service Pytest** tests, **`29` ML Engine Pytest** tests (including `XGBoost v2.2.0` artifact checks), and **Trivy** filesystem scanning on `apps/ai-service`.
+- **`Analyze Code (javascript-typescript / python)` (`codeql.yml`):**
+  - Executes GitHub **CodeQL** semantic SAST analysis to detect XSS, injection, and taint-flow logic flaws.
 
 > [!NOTE]
-> Post-merge jobs (`Deploy, Test & OWASP ZAP DEV`, Playwright E2E suite, and `sbom.yml`) run on pushes to `main` or manual `workflow_dispatch`, keeping PR feedback fast and deterministic.
+> Post-merge jobs (`deploy_and_test_dev`, `15` Playwright E2E tests, OWASP ZAP scan, and `sbom.yml`) run on pushes to `main` or manual `workflow_dispatch`, keeping PR feedback fast and deterministic.
 
 ---
 
 ## 2. Recommended GitHub Branch Protection Settings (`main`)
 
-Verify or configure these settings under **GitHub Repository -> Settings -> Branches -> Branch protection rules (`main`)**:
+Verify or configure these settings under **GitHub Repository → Settings → Branches → Branch protection rules (`main`)**:
 
-| Protection Setting                            | Recommended Value | Purpose                                                                                       |
-| --------------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------- |
-| **Require a pull request before merging**     | `Enabled`         | • Prevents direct commits to `main`<br/>• Enforces peer/automated code review on every change |
-| **Require status checks to pass**             | `Enabled`         | • Enforces all 5 CI and CodeQL validation jobs before merge                                   |
-| **Require branches to be up to date**         | `Enabled`         | • Ensures the PR branch is tested against the latest `main` commit                            |
-| **Do not allow bypassing the above settings** | `Enabled`         | • Enforces governance rules equally for repository administrators                             |
-| **Allow force pushes**                        | `Disabled`        | • Protects commit history<br/>• Preserves `semantic-release` version tags                     |
-| **Allow deletions**                           | `Disabled`        | • Prevents accidental deletion of the default `main` branch                                   |
+| Protection Setting                        | Value      | Purpose                           |
+| :---------------------------------------- | :--------- | :-------------------------------- |
+| **Require a pull request before merging** | `Enabled`  | Blocks direct commits to `main`   |
+| **Require status checks to pass**         | `Enabled`  | Enforces all CI & CodeQL gates    |
+| **Require branches to be up to date**     | `Enabled`  | Tests PR against latest `main`    |
+| **Do not allow bypassing settings**       | `Enabled`  | Applies rules to administrators   |
+| **Allow force pushes**                    | `Disabled` | Protects commit & release history |
+| **Allow deletions**                       | `Disabled` | Prevents deleting `main` branch   |
 
 ---
 

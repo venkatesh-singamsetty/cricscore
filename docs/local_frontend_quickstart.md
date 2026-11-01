@@ -1,6 +1,6 @@
 # ⚡ CricScore Frontend Quickstart (Local Dev Against Your Backend)
 
-Run the React 19 + Vite frontend locally at `http://localhost:3000` connected to your own deployed AWS backend:
+Run the React 19 + Vite frontend locally at `http://localhost:3000` connected to your own deployed AWS backend (`~$1/month` combined Dev + Prod footprint):
 
 - **REST API**: `API Gateway HTTP/REST` (`VITE_API_URL`)
 - **Live Score Stream**: `API Gateway WebSocket` (`VITE_WS_URL`)
@@ -14,20 +14,20 @@ Run the React 19 + Vite frontend locally at `http://localhost:3000` connected to
 ## 🏗️ Local Frontend-to-Cloud Architecture
 
 ```mermaid
-flowchart LR
-    subgraph Local["Local Machine (localhost:3000)"]
+flowchart TD
+    subgraph Local["1. Local Machine (localhost:3000)"]
         Vite["React 19 + Vite Dev Server\n(apps/frontend/.env)"]
     end
 
-    subgraph AWS["Your AWS Backend (~$1/mo Dev + Prod)"]
+    subgraph AWS["2. Your AWS Backend (~$1/month Dev + Prod)"]
         Cognito["AWS Cognito\n(JWT Auth & Admin Group)"]
-        RestAPI["API Gateway HTTP/REST\n(VITE_API_URL)"]
-        WsAPI["API Gateway WebSocket\n(VITE_WS_URL)"]
+        RestAPI["API Gateway HTTP/REST\n(VITE_API_URL — Match, Chat & XGBoost v2.2.0)"]
+        WsAPI["API Gateway WebSocket\n(VITE_WS_URL — Live Score Stream)"]
     end
 
-    Vite -->|"OAuth /SRP Login"| Cognito
-    Vite -->|"HTTPS REST + Bearer JWT"| RestAPI
-    Vite -->|"WSS Live Score Stream"| WsAPI
+    Vite -->|"1. OAuth / SRP Login"| Cognito
+    Vite -->|"2. HTTPS REST + Bearer JWT"| RestAPI
+    Vite -->|"3. WSS Real-Time Score Stream"| WsAPI
 ```
 
 ---
@@ -51,15 +51,28 @@ Copy the template and populate the values from your deployment outputs:
 cp apps/frontend/.env.example apps/frontend/.env
 ```
 
-| Environment Variable        | Required   | Example / Source                                        | Purpose                                                                                      |
-| --------------------------- | ---------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `VITE_API_URL`              | `Yes`      | `https://<api-id>.execute-api.us-east-1.amazonaws.com`  | • REST API Gateway endpoint<br/>• Handles matches, ball-by-ball scoring, and ChatBot queries |
-| `VITE_WS_URL`               | `Yes`      | `wss://<ws-id>.execute-api.us-east-1.amazonaws.com/dev` | • WebSocket API Gateway endpoint<br/>• Streams real-time scoreboard updates                  |
-| `VITE_COGNITO_REGION`       | `Yes`      | `us-east-1`                                             | • AWS region hosting your Cognito User Pool                                                  |
-| `VITE_COGNITO_USER_POOL_ID` | `Yes`      | `us-east-1_XXXXXXXXX`                                   | • Cognito User Pool ID for scorer and admin authentication                                   |
-| `VITE_COGNITO_CLIENT_ID`    | `Yes`      | `1234567890abcdefghijklmnop`                            | • Cognito App Client ID for browser SRP/OAuth login                                          |
-| `VITE_COGNITO_DOMAIN`       | `Yes`      | `cricscore-dev-auth.auth.us-east-1.amazoncognito.com`   | • Cognito Hosted UI and OAuth domain                                                         |
-| `VITE_SENTRY_DSN`           | `Optional` | `https://...@o0.ingest.sentry.io/...`                   | • Optional frontend crash reporting DSN                                                      |
+| Environment Variable        |  Required  | Example / Format                                        |
+| :-------------------------- | :--------: | :------------------------------------------------------ |
+| `VITE_API_URL`              |   `Yes`    | `https://<api-id>.execute-api.us-east-1.amazonaws.com`  |
+| `VITE_WS_URL`               |   `Yes`    | `wss://<ws-id>.execute-api.us-east-1.amazonaws.com/dev` |
+| `VITE_COGNITO_REGION`       |   `Yes`    | `us-east-1`                                             |
+| `VITE_COGNITO_USER_POOL_ID` |   `Yes`    | `us-east-1_XXXXXXXXX`                                   |
+| `VITE_COGNITO_CLIENT_ID`    |   `Yes`    | `1234567890abcdefghijklmnop`                            |
+| `VITE_COGNITO_DOMAIN`       |   `Yes`    | `cricscore-dev-auth.auth.us-east-1.amazoncognito.com`   |
+| `VITE_SENTRY_DSN`           | `Optional` | `https://...@o0.ingest.sentry.io/...`                   |
+
+#### Environment Variable Reference
+
+- **1. `VITE_API_URL` (`Required`):**
+  - REST API Gateway endpoint handling matches, ball-by-ball scoring, **XGBoost `v2.2.0`** win predictions (`xgboost-cpu ~309 MB`, ECR `countNumber = 1`), and ChatBot queries.
+- **2. `VITE_WS_URL` (`Required`):**
+  - WebSocket API Gateway endpoint streaming real-time scoreboard and `HUB_UPDATE` broadcasts.
+- **3. `VITE_COGNITO_REGION` & `VITE_COGNITO_USER_POOL_ID` (`Required`):**
+  - AWS region (`us-east-1`) and Cognito User Pool ID for Scorer and Admin authentication.
+- **4. `VITE_COGNITO_CLIENT_ID` & `VITE_COGNITO_DOMAIN` (`Required`):**
+  - Cognito App Client ID and Hosted UI domain for browser SRP/OAuth login.
+- **5. `VITE_SENTRY_DSN` (`Optional`):**
+  - Optional frontend crash reporting DSN.
 
 > [!TIP]
 > If you deployed the backend from this machine using `./infra/scripts/deploy.sh --env dev --use-local-env`, these variables are automatically populated for you.
@@ -70,7 +83,7 @@ cp apps/frontend/.env.example apps/frontend/.env
 # Start Vite with Hot Module Replacement at http://localhost:3000
 npm run dev --prefix apps/frontend
 
-# Run the 151 Frontend Vitest unit & component tests (part of the 376 total test suite)
+# Run the 151 Frontend Vitest unit & component tests (part of the 376 unit + 15 E2E suite)
 npm test --prefix apps/frontend
 ```
 
@@ -78,8 +91,18 @@ npm test --prefix apps/frontend
 
 ## 🔐 Authentication & Admin Access Model
 
-| Role       | How to Authenticate                                      | Authorized Capabilities                                                                                               |
-| ---------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| **Viewer** | • No login required (`Guest`)                            | • Watch live ball-by-ball updates<br/>• View hybrid win probabilities<br/>• Query the AI ChatBot                      |
-| **Scorer** | • Sign in via AWS Cognito                                | • Create new matches<br/>• Record live ball-by-ball events<br/>• Trigger post-match AI summaries & deterministic POTM |
-| **Admin**  | • Sign in with a Cognito user in the exact `Admin` group | • Access Match Ops drawer<br/>• Upload or delete tournament rulebooks<br/>• Manage guest data and incomplete matches  |
+| Role       | Authentication Method                   | Primary Scope                          |
+| :--------- | :-------------------------------------- | :------------------------------------- |
+| **Viewer** | No login required (`Guest` spectator)   | Live scoreboards, win prob & AI Chat   |
+| **Scorer** | Sign in via AWS Cognito (or Guest mode) | Create matches & score ball-by-ball    |
+| **Admin**  | Cognito user in exact `Admin` group     | Match Ops, Rulebooks & DB bulk cleanup |
+
+- **1. Viewer (Public Spectator):**
+  - Watch live ball-by-ball WebSocket updates and worm charts without logging in.
+  - View hybrid win probabilities (**XGBoost `v2.2.0`** + Markov DP + DLS) and query the AI ChatBot.
+- **2. Scorer (Authenticated or Guest Scorer):**
+  - Create new matches, configure squads and toss details, and record live ball-by-ball events.
+  - Trigger post-match AI summaries and deterministic Player of the Match awards.
+- **3. Admin (`Admin` Cognito Group):**
+  - Access the **Match Ops** drawer and System Access view.
+  - Upload or delete tournament rulebook RAG documents and purge guest, incomplete, or `TEST 🧪` matches.

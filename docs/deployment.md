@@ -6,39 +6,49 @@ Step-by-step self-deployment tutorial to run CricScore (`dev` + `prod`) on your 
 > Deploy scripts apply infrastructure and database changes automatically (`terraform apply -auto-approve`). Total AWS cost for `dev` + `prod` combined is `~$1/month` (Route 53 hosted zone `$0.50/mo` + S3/ECR storage `~$0.50/mo`), guarded by a `$5/month` AWS Budget alert.
 
 ```mermaid
-flowchart LR
-    S0["Step 0: Accounts"] --> S1["Step 1: Clone & Tools"]
-    S1 --> S2["Step 2: .env.local & Check"]
+flowchart TD
+    S0["Step 0: Accounts & Keys"] --> S1["Step 1: Clone & Tools"]
+    S1 --> S2["Step 2: .env.local & Pre-Flight Check"]
     S2 --> S3["Step 3: Bootstrap DNS & SES"]
     S3 --> S4["Step 4: Deploy Dev & Prod"]
-    S4 --> S5["Step 5: Admin User"]
+    S4 --> S5["Step 5: Grant Admin User"]
     S5 --> S6["Step 6: GitHub Actions CI/CD"]
 ```
 
 ## Steps at a glance
 
-| #     | Step                    | Command / Action                                                                                    | Est. Time |
-| :---- | :---------------------- | :-------------------------------------------------------------------------------------------------- | :-------- |
-| **0** | **Get accounts & keys** | • AWS IAM user & Custom Domain<br/>• Aiven PostgreSQL & SES email<br/>• OpenAI API key & GitHub PAT | 10 min    |
-| **1** | **Clone & tools**       | `./infra/scripts/setup.sh`                                                                          | 5 min     |
-| **2** | **Configure `.env`**    | • `cp .env.local.example .env.local`<br/>• Run `./infra/scripts/deploy.sh --check`                  | 3 min     |
-| **3** | **Bootstrap AWS**       | `./infra/scripts/deploy.sh --env dev --use-local-env --bootstrap-only`                              | 10 min    |
-| **4** | **Deploy Dev & Prod**   | `./infra/scripts/deploy.sh --env dev --use-local-env --migrate`                                     | 6 min     |
-| **5** | **Grant Admin**         | `./infra/scripts/make_admin.sh --env dev you@email.com`                                             | 2 min     |
-| **6** | **GitHub Actions CI**   | `./infra/scripts/setup_github_envs.sh`                                                              | 2 min     |
+| #     | Step                  | Command                                                                | Time   |
+| :---- | :-------------------- | :--------------------------------------------------------------------- | :----- |
+| **0** | **Get accounts**      | Provision AWS, Aiven, SES & OpenAI keys                                | 10 min |
+| **1** | **Clone & tools**     | `./infra/scripts/setup.sh`                                             | 5 min  |
+| **2** | **Configure `.env`**  | `./infra/scripts/deploy.sh --check`                                    | 3 min  |
+| **3** | **Bootstrap AWS**     | `./infra/scripts/deploy.sh --env dev --use-local-env --bootstrap-only` | 10 min |
+| **4** | **Deploy Dev & Prod** | `./infra/scripts/deploy.sh --env dev --use-local-env --migrate`        | 6 min  |
+| **5** | **Grant Admin**       | `./infra/scripts/make_admin.sh --env dev you@email.com`                | 2 min  |
+| **6** | **GitHub Actions CI** | `./infra/scripts/setup_github_envs.sh`                                 | 2 min  |
 
 ---
 
 ## Step 0: Get accounts
 
-| Service                | Required Setup                                                                                             | Where to Get It                                                                                                                                                              | Cost Tier                                        |
-| :--------------------- | :--------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------- |
-| **AWS Account & IAM**  | • Create an IAM user (not root) with `AdministratorAccess` policy<br/>• Generate an Access Key ID + Secret | [IAM Console](https://console.aws.amazon.com/iam/home#/users)                                                                                                                | • `~$1/mo` (`dev` + `prod` combined)             |
-| **Custom Domain**      | • Any domain registrar allowing custom nameservers<br/>• Route 53 hosted zone is created in Step 3         | • [Spaceship](https://www.spaceship.com)<br/>• [Route 53](https://console.aws.amazon.com/route53/domains)<br/>• [Cloudflare](https://www.cloudflare.com/products/registrar/) | • Registrar fee<br/>• `$0.50/mo` Route 53 zone   |
-| **PostgreSQL 16**      | • Create a free PostgreSQL service with `pgvector`<br/>• Copy Service URI (`postgres://avnadmin:...`)      | [Aiven Console](https://console.aiven.io/signup)                                                                                                                             | • Free Tier<br/>• `keepalive.yml` prevents sleep |
-| **Sender Email (SES)** | • Email address on your domain (`noreply@yourdomain.com`)<br/>• Verified in Step 3b                        | [AWS SES Console](https://console.aws.amazon.com/ses/home#/identities)                                                                                                       | • AWS Free Tier                                  |
-| **OpenAI API Key**     | • API key for `gpt-4o-mini` chat<br/>• Powers `text-embedding-3-small` RAG search                          | [OpenAI Platform](https://platform.openai.com/api-keys)                                                                                                                      | • Pay-per-token (`~$0.0002`/query)               |
-| **GitHub Account**     | • Needed for Step 6 CI/CD automation<br/>• Optional PAT for MCP GitHub Issue Agent                         | [GitHub Settings](https://github.com/settings/tokens)                                                                                                                        | • Free                                           |
+- **AWS Account & IAM ([IAM Console](https://console.aws.amazon.com/iam/home#/users)):**
+  - Create an IAM user (not root) with the `AdministratorAccess` policy and generate an Access Key ID + Secret.
+  - **Cost Tier:** `~$1/month` (`dev` + `prod` combined).
+- **Custom Domain:**
+  - Register a domain with any registrar that supports custom nameservers (such as [Spaceship](https://www.spaceship.com), [Amazon Route 53](https://console.aws.amazon.com/route53/domains), or [Cloudflare](https://www.cloudflare.com/products/registrar/)).
+  - **Cost Tier:** Registrar fee + `$0.50/mo` Route 53 hosted zone.
+- **PostgreSQL 16 ([Aiven Console](https://console.aiven.io/signup)):**
+  - Create a free PostgreSQL 16 service (`pgvector` included) and copy the Service URI (`postgres://avnadmin:...`).
+  - **Cost Tier:** Free Tier (`keepalive.yml` runs 1 daily Production E2E match + 7-match retention to prevent inactivity sleep).
+- **Sender Email — Amazon SES ([AWS SES Console](https://console.aws.amazon.com/ses/home#/identities)):**
+  - Choose a sender email address on your custom domain (`noreply@yourdomain.com`), verified in Step 3b.
+  - **Cost Tier:** AWS Free Tier.
+- **OpenAI API Key ([OpenAI Platform](https://platform.openai.com/api-keys)):**
+  - Create an API key for `gpt-4o-mini` agentic chat and `text-embedding-3-small` rulebook RAG search.
+  - **Cost Tier:** Pay-per-token (`~$0.0002`/query).
+- **GitHub Account ([GitHub Settings](https://github.com/settings/tokens)):**
+  - Used for Step 6 CI/CD automation and an optional PAT for the MCP GitHub Issue Agent in chat.
+  - **Cost Tier:** Free.
 
 > [!WARNING]
 > If a Route 53 hosted zone for your domain already exists, do **not** run `--bootstrap-only` in Step 3. Import or reuse your existing zone via [terraform_guide.md](./terraform_guide.md).
@@ -58,7 +68,7 @@ cd cricscore
 - **Node.js `v24`** (React 19 Vite build + Node.js 24 Lambda packaging)
 - **Terraform `>= 1.10.0`** (AWS Infrastructure as Code with native S3 state locking)
 - **AWS CLI v2**, **`psql` client**, **`jq`**, and **GitHub CLI (`gh`)**
-- **Docker** (builds the `linux/amd64` `xgboost-cpu` `~309 MB` container image for `ml-predict` Lambda)
+- **Docker** (builds the `linux/amd64` `xgboost-cpu ~309 MB` container image for `ml-predict` Lambda)
 
 > [!NOTE]
 > On macOS, open **Docker Desktop** once after installation so the Docker daemon is running before Step 2b.
@@ -100,18 +110,25 @@ OPENAI_API_KEY='your-openai-api-key'
 GITHUB_TOKEN='ghp_your_github_pat_here'
 ```
 
-| Variable                   | Required? | Default / Auto-Derived Behavior                                                                                     |
-| :------------------------- | :-------- | :------------------------------------------------------------------------------------------------------------------ |
-| **`SUBDOMAIN_PREFIX`**     | Yes       | • Base name (`cricscore`)<br/>• `deploy.sh` automatically appends `dev` (`cricscoredev`) when `--env dev` is passed |
-| **`PROJECT_NAME`**         | Yes       | • Base project prefix (`cricscore`)<br/>• Derives `cricscoredev` for `dev` and `cricscore` for `prod`               |
-| **`TF_STATE_BUCKET`**      | Optional  | • Defaults to `<PROJECT_NAME>-tfstate-<AWS_ACCOUNT_ID>`<br/>• Set only to reuse an existing S3 bucket               |
-| **`LLM_BASE_URL` / Model** | Optional  | • `LLM_BASE_URL` defaults to `https://api.openai.com/v1`<br/>• `LLM_MODEL` defaults to `gpt-4o-mini`                |
-| **`DEV_*` / `PROD_*`**     | Optional  | • `DEV_DOMAIN_NAME`, `DEV_PROJECT_NAME`, `DEV_SUBDOMAIN_PREFIX`<br/>• Override auto-derived environment names       |
-| **`VITE_SENTRY_DSN`**      | Optional  | • Copy `cp apps/frontend/.env.example apps/frontend/.env`<br/>• Enables optional Sentry browser telemetry           |
+| Variable           | Required | Default / Behavior                                                         |
+| :----------------- | :------- | :------------------------------------------------------------------------- |
+| `SUBDOMAIN_PREFIX` | Yes      | Base prefix (`cricscore`; auto-derives `cricscoredev` in `dev`)            |
+| `PROJECT_NAME`     | Yes      | Base resource prefix (`cricscoredev` in `dev`, `cricscore` in `prod`)      |
+| `TF_STATE_BUCKET`  | Optional | `<PROJECT_NAME>-tfstate-<AWS_ACCOUNT_ID>`                                  |
+| `LLM_BASE_URL`     | Optional | `https://api.openai.com/v1`                                                |
+| `LLM_MODEL`        | Optional | `gpt-4o-mini`                                                              |
+| `DEV_*` / `PROD_*` | Optional | Override auto-derived `DOMAIN_NAME`, `PROJECT_NAME`, or `SUBDOMAIN_PREFIX` |
+| `VITE_SENTRY_DSN`  | Optional | Set in `apps/frontend/.env` for optional Sentry browser telemetry          |
 
 - **Auto-Derived Environment Endpoints:**
-  - **Dev (`--env dev`, prefix `cricscoredev-*`):** `https://cricscoredev.yourdomain.com` · `https://api.cricscoredev.yourdomain.com` · `wss://ws.cricscoredev.yourdomain.com`
-  - **Prod (`--env prod`, prefix `cricscore-*`):** `https://cricscore.yourdomain.com` · `https://api.cricscore.yourdomain.com` · `wss://ws.cricscore.yourdomain.com`
+  - **Dev (`--env dev`, prefix `cricscoredev-*`):**
+    - Web App: `https://cricscoredev.yourdomain.com`
+    - HTTP REST API: `https://api.cricscoredev.yourdomain.com`
+    - WebSocket API: `wss://ws.cricscoredev.yourdomain.com`
+  - **Prod (`--env prod`, prefix `cricscore-*`):**
+    - Web App: `https://cricscore.yourdomain.com`
+    - HTTP REST API: `https://api.cricscore.yourdomain.com`
+    - WebSocket API: `wss://ws.cricscore.yourdomain.com`
 
 > [!CAUTION]
 > Never commit `.env.local` to git. It is ignored via `.gitignore` and enforced by pre-commit GitLeaks hooks.
@@ -139,11 +156,15 @@ Every check (`node`, `terraform`, `aws`, `jq`, `docker`, `psql`, AWS credentials
 
 ### 3b. Delegate DNS and verify SES
 
-| Sub-step                   | Action                                                                                                                                      | Verification Check                        |
-| :------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------ | :---------------------------------------- |
-| **1. Point Nameservers**   | • Copy the 4 Route 53 nameservers printed by `--bootstrap-only`<br/>• Set them as custom nameservers at your domain registrar               | `dig NS yourdomain.com +short`            |
-| **2. Verify SES Domain**   | • Open **AWS Console → SES → Verified identities → Create identity**<br/>• Add `yourdomain.com` and publish DKIM records to Route 53        | Status shows **Verified** in SES Console  |
-| **3. Verify Sandbox User** | • While your AWS SES account is in sandbox mode, verify your `ADMIN_EMAIL` address<br/>• Or request SES production access for open delivery | Recipient email status shows **Verified** |
+1. **Point Nameservers:**
+   - Copy the 4 Route 53 nameservers printed by `--bootstrap-only` and set them as custom nameservers at your domain registrar.
+   - **Verify:** Run `dig NS yourdomain.com +short`.
+2. **Verify SES Domain:**
+   - Open **AWS Console → SES → Verified identities → Create identity**, add `yourdomain.com`, and publish DKIM records to Route 53.
+   - **Verify:** Status shows **Verified** in the SES Console.
+3. **Verify Sandbox User (or Request Production Access):**
+   - While your AWS SES account is in sandbox mode, verify your `ADMIN_EMAIL` address in SES, or request SES production access for open delivery.
+   - **Verify:** Recipient email status shows **Verified**.
 
 ---
 
@@ -155,14 +176,22 @@ Every check (`node`, `terraform`, `aws`, `jq`, `docker`, `psql`, AWS credentials
 ./infra/scripts/deploy.sh --env dev --use-local-env --migrate
 ```
 
-| Phase                       | What Happens Under the Hood                                                                                                                                                                       |
-| :-------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **1. DB Migrations**        | • Runs `./infra/database/migrate.sh "$TF_DATABASE_URL" dev`<br/>• Creates/updates tables and `pgvector` indexes in the `dev` schema                                                               |
-| **2. Dependency Hydration** | • Installs frontend dependencies<br/>• Installs production-only Node.js Lambda dependencies (`npm install --omit=dev`)                                                                            |
-| **3. Terraform Apply**      | • Runs `terraform init -reconfigure -upgrade` and `terraform apply -auto-approve`<br/>• Builds/pushes `xgboost-cpu` (`~309 MB`) image to ECR (`countNumber = 1`)<br/>• Uploads ML artifacts to S3 |
-| **4. Log Retention**        | • Enforces **7-day retention** on all `/aws/lambda/cricscoredev-*` CloudWatch Log Groups                                                                                                          |
-| **5. Frontend & CDN Sync**  | • Injects Terraform outputs (`http_api_url`, `websocket_url`, Cognito IDs) into `apps/frontend/.env`<br/>• Runs `npm run build`, syncs `dist/` to S3, and invalidates CloudFront (`/*`)           |
-| **6. Dashboard Refresh**    | • Runs `./infra/scripts/generate_platform_dashboard.sh`<br/>• Refreshes [`docs/platform_dashboard.md`](./platform_dashboard.md)                                                                   |
+What `deploy.sh` executes under the hood:
+
+1. **DB Migrations (`infra/database/migrate.sh`):**
+   - Runs `./infra/database/migrate.sh "$TF_DATABASE_URL" dev` to create or update tables and `pgvector` indexes in the `dev` schema.
+2. **Dependency Hydration:**
+   - Installs frontend dependencies and production-only Node.js Lambda dependencies (`npm install --omit=dev`).
+3. **Terraform Apply:**
+   - Runs `terraform init -reconfigure -upgrade` and `terraform apply -auto-approve`.
+   - Builds and pushes the `xgboost-cpu ~309 MB` container image to ECR (`countNumber = 1`) and uploads XGBoost v2.2.0 ML artifacts to S3.
+4. **Log Retention:**
+   - Enforces **7-day retention** on all `/aws/lambda/cricscoredev-*` CloudWatch Log Groups.
+5. **Frontend & CDN Sync:**
+   - Injects Terraform outputs (`http_api_url`, `websocket_url`, Cognito IDs) into `apps/frontend/.env`.
+   - Runs `npm run build`, syncs `dist/` to S3, and invalidates CloudFront (`/*`).
+6. **Dashboard Refresh:**
+   - Runs `./infra/scripts/generate_platform_dashboard.sh` to refresh [`docs/platform_dashboard.md`](./platform_dashboard.md).
 
 ### 4b. Verify Dev
 
@@ -206,24 +235,37 @@ gh auth login
 
 ### 6b. Automated CI/CD Pipeline Behavior
 
-| Event                        | Workflow      | Automated Actions                                                                                                                                                                                                                                   |
-| :--------------------------- | :------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Pull Request to `main`**   | `ci.yml`      | • `validate_security`: GitLeaks + Checkov<br/>• `validate_frontend`: Vitest + Trivy + Vite build<br/>• `validate_backend`: Lambda unit tests + Trivy + Terraform `fmt`/`validate`<br/>• `validate_python`: AI & ML pytest + Trivy (no cloud deploy) |
-| **Push / Merge to `main`**   | `ci.yml`      | • Runs all 4 validation jobs (`376` unit tests total)<br/>• Runs `deploy_and_test_dev`: DB migrations, `terraform init -upgrade` & `apply`, 7-day log retention, and S3/CloudFront sync<br/>• Runs AI evals, 14 Playwright E2E tests, and OWASP ZAP |
-| **`CI` Succeeds on `main`**  | `release.yml` | • Runs **Semantic Release** using `GH_PAT` to calculate next `v*` tag from Conventional Commits<br/>• Updates `docs/changelog.md` and publishes GitHub Release notes<br/>• Enriches PR overview via `enrich_release_notes.sh`                       |
-| **Release Published (`v*`)** | `cd.yml`      | • Runs `deploy_and_test_prod` against `prod` environment (supports optional manual approval gate)<br/>• Enforces 7-day Lambda log retention and deploys SPA to S3/CloudFront<br/>• Runs live AI evals, Playwright E2E, and OWASP ZAP scan           |
-| **Nightly `00:00 UTC`**      | `drift.yml`   | • Runs read-only `terraform plan -detailed-exitcode` across `dev` and `prod` without human gates<br/>• Alerts immediately on exit code `2` (out-of-band AWS drift)                                                                                  |
+- **Pull Request to `main` (`ci.yml`):**
+  - Runs 4 parallel validation jobs (`376` unit tests total): `validate_security` (GitLeaks + Checkov), `validate_frontend` (Vitest + Trivy + Vite build), `validate_backend` (Lambda unit tests + Trivy + Terraform `fmt`/`validate`), and `validate_python` (AI & ML pytest + Trivy, no cloud deploy).
+- **Push / Merge to `main` (`ci.yml`):**
+  - Runs all 4 validation jobs (`376` unit tests) followed by `deploy_and_test_dev`: DB migrations, `terraform init -upgrade` & `apply`, 7-day log retention, and S3/CloudFront sync.
+  - Executes live AI evals, `15` Playwright E2E tests, and OWASP ZAP baseline scan.
+- **`CI` Succeeds on `main` (`release.yml`):**
+  - Runs **Semantic Release** using `GH_PAT` to calculate the next `v*` tag from Conventional Commits.
+  - Updates `docs/changelog.md`, publishes GitHub Release notes, and enriches PR overview via `enrich_release_notes.sh`.
+- **Release Published (`v*` tag) (`cd.yml`):**
+  - Runs `deploy_and_test_prod` against the `prod` environment (supports optional manual approval gate).
+  - Enforces 7-day Lambda log retention, deploys SPA to S3/CloudFront, and runs live AI evals, `15` Playwright E2E tests, and OWASP ZAP scan.
+- **Nightly `00:00 UTC` (`drift.yml`):**
+  - Runs read-only `terraform plan -detailed-exitcode` across `dev` and `prod` without human gates and alerts immediately on exit code `2` (out-of-band AWS drift).
 
 ---
 
 ## Optional: Local Development, Model Rollback & Dashboard
 
-| Task                      | Command                                                                                                                                                            | Notes                                                                                                                  |
-| :------------------------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------- |
-| **Run Frontend Locally**  | `cd apps/frontend && npm run dev`                                                                                                                                  | • Uses endpoints in `apps/frontend/.env` from the last deployed environment                                            |
-| **Run Full Test Suite**   | `CHAT_API_URL='<http_api_url>' npm run test:all`                                                                                                                   | • Runs `376` unit tests (Frontend, Backend, Python AI/ML)<br/>• Executes live AI evaluation suite                      |
-| **Deploy / Roll Back ML** | • `./infra/scripts/deploy.sh --env dev --use-local-env --model-version v2.2.0`<br/>• `./infra/scripts/deploy.sh --env prod --use-local-env --model-version v2.2.0` | • Deploys specific XGBoost `v2.2.0` model tag from S3 (`s3://<bucket>/models/<version>/`)<br/>• Updates ECR (`:<tag>`) |
-| **Refresh Dashboard**     | `./infra/scripts/generate_platform_dashboard.sh`                                                                                                                   | • Regenerates [`docs/platform_dashboard.md`](./platform_dashboard.md) with live AWS, GitHub, and DB links              |
+- **Run Frontend Locally:**
+  - **Command:** `cd apps/frontend && npm run dev`
+  - Uses endpoints in `apps/frontend/.env` from the last deployed environment.
+- **Run Full Test Suite:**
+  - **Command:** `CHAT_API_URL='<http_api_url>' npm run test:all`
+  - Runs `376` unit tests (Frontend, Backend, Python AI/ML) plus the live AI evaluation suite and `15` E2E tests.
+- **Deploy / Roll Back ML Model (`XGBoost v2.2.0`):**
+  - **Dev Command:** `./infra/scripts/deploy.sh --env dev --use-local-env --model-version v2.2.0`
+  - **Prod Command:** `./infra/scripts/deploy.sh --env prod --use-local-env --model-version v2.2.0`
+  - Deploys the specified `XGBoost v2.2.0` model tag from S3 (`s3://<bucket>/models/<version>/`) and updates ECR (`:<tag>`).
+- **Refresh Platform Dashboard:**
+  - **Command:** `./infra/scripts/generate_platform_dashboard.sh`
+  - Regenerates [`docs/platform_dashboard.md`](./platform_dashboard.md) with live AWS, GitHub, and DB links.
 
 ---
 
@@ -231,11 +273,15 @@ gh auth login
 
 See [troubleshooting.md](./troubleshooting.md) for comprehensive diagnostics.
 
-| Symptom                      | Root Cause                                                                 | Fix                                                                                      |
-| :--------------------------- | :------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------- |
-| **Blank page on 1st deploy** | • CloudFront edge distribution or ACM DNS propagation still in progress    | • Wait 3–5 minutes<br/>• Hard-refresh browser (`Cmd+Shift+R`)                            |
-| **Login / Sign-up fails**    | • Stale Cognito Pool/Client IDs in `apps/frontend/.env`                    | • Re-run `./infra/scripts/deploy.sh --env dev --use-local-env` to sync Terraform outputs |
-| **Scorecard email missing**  | • SES account is in sandbox mode<br/>• Or domain DKIM verification pending | • Verify both sender domain and recipient email in **AWS SES → Verified identities**     |
+- **Blank page on 1st deploy:**
+  - **Cause:** CloudFront edge distribution or ACM DNS propagation still in progress.
+  - **Fix:** Wait 3–5 minutes and hard-refresh your browser (`Cmd+Shift+R`).
+- **Login / Sign-up fails:**
+  - **Cause:** Stale Cognito Pool/Client IDs in `apps/frontend/.env`.
+  - **Fix:** Re-run `./infra/scripts/deploy.sh --env dev --use-local-env` to sync Terraform outputs.
+- **Scorecard email missing:**
+  - **Cause:** SES account is in sandbox mode or domain DKIM verification is pending.
+  - **Fix:** Verify both sender domain and recipient email in **AWS SES → Verified identities**.
 
 ---
 

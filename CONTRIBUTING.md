@@ -1,19 +1,19 @@
 # 🛠️ CricScore Contributing & Developer Workflow Tutorial
 
-Direct pushes to `main` are blocked by GitHub Branch Protection. Every code or documentation change follows a 7-step **Feature Branch → Local Validation → Dev Cloud Verification → Pull Request → Automated Release** workflow.
+Direct pushes to `main` are blocked by GitHub Branch Protection. Every code or documentation change follows a 7-step **Feature Branch → Local Validation → Dev Cloud Verification → Pull Request → Automated Release** workflow across CricScore (`~$1/month` AWS + Aiven footprint, **XGBoost `v2.2.0`** in `xgboost-cpu ~309 MB` with ECR `countNumber = 1`, **`376` unit tests**, and **`15` Playwright E2E tests**).
 
 ---
 
 ## 🔄 End-to-End Contribution Pipeline
 
 ```mermaid
-flowchart LR
-    Step1["1. Branch from main"] --> Step2["2. Run validate_local.sh"]
-    Step2 --> Step3["3. Deploy & Test on Dev"]
-    Step3 --> Step4["4. Conventional Commit"]
-    Step4 --> Step5["5. Sync main & Push"]
-    Step5 --> Step6["6. Open PR & Pass CI Checks"]
-    Step6 --> Step7["7. Squash Merge -> Prod CD"]
+flowchart TD
+    Step1["1. Branch from main\n(git checkout -b feat/...)"] --> Step2["2. Run validate_local.sh\n(376 Unit Tests + Security Scanners)"]
+    Step2 --> Step3["3. Deploy & Test on Dev\n(./infra/scripts/deploy.sh --env dev --use-local-env)"]
+    Step3 --> Step4["4. Conventional Commit\n(feat / fix / perf / docs)"]
+    Step4 --> Step5["5. Sync origin/main & Push\n(Pre-Push Receipt Verified in <0.1s)"]
+    Step5 --> Step6["6. Open PR & Pass 5 CI Gates\n(GitLeaks, Checkov, Trivy, CodeQL, Tests)"]
+    Step6 --> Step7["7. Squash Merge -> Prod CD\n(Dev E2E + Semantic Release + Prod Deploy)"]
 ```
 
 ---
@@ -23,7 +23,7 @@ flowchart LR
 | Step  | Goal                                 | Command / Action                                                                      |
 | :---: | :----------------------------------- | :------------------------------------------------------------------------------------ |
 | **1** | **Sync `main` & create branch**      | `git checkout main && git pull origin main && git checkout -b feat/my-change`         |
-| **2** | **Run local verification gate**      | `./infra/scripts/validate_local.sh --skip-e2e`                                        |
+| **2** | **Run local verification gate**      | `./infra/scripts/validate_local.sh --fast`                                            |
 | **3** | **Deploy & verify on `dev` cloud**   | `./infra/scripts/deploy.sh --env dev --use-local-env`                                 |
 | **4** | **Commit with Conventional Commits** | `git add . && git commit -m "feat(scope): concise summary"`                           |
 | **5** | **Sync `origin/main` & push**        | `git fetch origin main && git merge origin/main --no-edit && git push -u origin HEAD` |
@@ -44,34 +44,45 @@ git checkout -b feat/your-feature-name
 
 `./infra/scripts/validate_local.sh` runs the exact same checks enforced by GitHub Actions CI:
 
-| Check                                        | Tool / Runner                                                | What It Verifies                                                                        |
-| :------------------------------------------- | :----------------------------------------------------------- | :-------------------------------------------------------------------------------------- |
-| **Frontend&nbsp;Lint&nbsp;&&nbsp;Build**     | • ESLint & `tsc -b`<br/>• Vite production build              | • Zero TypeScript or ESLint errors<br/>• Clean production bundle output                 |
-| **Frontend&nbsp;Unit&nbsp;Tests**            | • Vitest (`apps/frontend`)                                   | • **151** component, hook, DLS & state sync tests                                       |
-| **Backend&nbsp;Unit&nbsp;Tests**             | • Vitest (`apps/backend`)                                    | • **121** Lambda handler, SQL guard, MCP & deterministic POTM tests                     |
-| **Python&nbsp;AI&nbsp;&&nbsp;ML&nbsp;Tests** | • Pytest (`apps/ai-service`)<br/>• Pytest (`apps/ml-engine`) | • **75** LangGraph & MCP agent tests<br/>• **29** hybrid win-probability tests          |
-| **IaC&nbsp;&&nbsp;Secret&nbsp;Scans**        | • Terraform `fmt` & `validate`<br/>• Checkov & GitLeaks      | • Valid HCL formatting & AWS security policies<br/>• Zero leaked secrets in git history |
-| **CVE&nbsp;&&nbsp;Supply&nbsp;Chain**        | • `npm audit` & Trivy FS<br/>• Syft SPDX SBOM                | • Zero high/critical fixable CVEs<br/>• Updated dependency manifest                     |
+| Check                     | Runner / Tool                      |          Scope / Count          |
+| :------------------------ | :--------------------------------- | :-----------------------------: |
+| **Frontend Lint & Build** | ESLint, `tsc -b`, Vite Build       |       Zero TS/Lint errors       |
+| **Frontend Unit Tests**   | Vitest (`apps/frontend`)           |  **`151` tests** (`23` suites)  |
+| **Backend Unit Tests**    | Vitest (`apps/backend`)            |  **`121` tests** (`12` suites)  |
+| **Python AI & ML Tests**  | Pytest (`ai-service`, `ml-engine`) |   **`75` AI + `29` ML tests**   |
+| **IaC & Secret Scans**    | Terraform, Checkov, GitLeaks       |   HCL policies & git history    |
+| **CVE & Supply Chain**    | `npm audit`, Trivy FS, Syft SBOM   | Zero critical/high fixable CVEs |
+
+#### What Each Local Check Verifies
+
+- **1. Frontend Lint, Unit Tests (`151`) & Production Build:**
+  - Runs `tsc -b`, ESLint, `151` Vitest component/hook/DLS/POTM tests, and a clean Vite production bundle.
+- **2. Backend Lambda Unit Tests (`121`):**
+  - Verifies `match-api`, `score-update`, `storage-worker`, `broadcaster`, `cognito-presignup`, and `chat-api` MCP/SQL guardrails.
+- **3. Python AI Service (`75`) & ML Engine (`29`) Pytest Suites:**
+  - Verifies the 4-agent LangGraph/MCP router (`75` tests) and hybrid **XGBoost `v2.2.0`** + Markov DP + DLS win probability (`29` tests).
+- **4. IaC, Secret & Supply-Chain Security:**
+  - Runs `terraform fmt -check`, `terraform validate`, Checkov, GitLeaks, `npm audit`, Trivy filesystem scans, and Syft SPDX SBOM generation.
 
 ```bash
-# Fast pre-push validation (~25s, skips live Playwright E2E)
-./infra/scripts/validate_local.sh --skip-e2e
+# Fast pre-push validation (~25s, stamps .git/.local_validation_receipt)
+./infra/scripts/validate_local.sh --fast
 
-# Full validation including live Playwright E2E against Dev
+# Full validation including live 15-test Playwright E2E suite against Dev
 ./infra/scripts/validate_local.sh
 ```
 
 ### Step 3: Deploy & Test in the `dev` Cloud Sandbox
 
-Because CricScore is 100% serverless, always verify full-stack changes against the live **`dev`** environment (`https://cricscoredev.venkateshsingamsetty.com`) before merging:
+Because CricScore is 100% serverless (`~$1/month` combined Dev + Prod cost), always verify full-stack changes against the live **`dev`** environment (`https://cricscoredev.venkateshsingamsetty.com`) before merging:
 
 ```bash
 # Pre-flight check + deploy to dev (add --migrate if SQL migrations changed)
 ./infra/scripts/deploy.sh --env dev --use-local-env --check
 ./infra/scripts/deploy.sh --env dev --use-local-env
 
-# Run Playwright E2E against dev when UI flows change
-cd apps/e2e && npx playwright test --reporter=list
+# Run the 15 Playwright E2E tests against dev when UI or API flows change
+npm run test:e2e:dev
 ```
 
 ### Step 4: Commit Using Conventional Commits
@@ -120,7 +131,7 @@ gh api repos/venkatesh-singamsetty/cricscore/pulls/<PR_NUMBER>/comments
 
 Once all required PR checks are green, squash-merge into `main`. GitHub Actions automatically executes:
 
-- **`CI` (`deploy_and_test_dev`)**: Deploys `dev`, runs DB migrations, AI evaluation, Playwright E2E, and OWASP ZAP DAST.
+- **`CI` (`deploy_and_test_dev`)**: Deploys `dev`, runs DB migrations, AI evaluation, **`15` Playwright E2E tests**, and OWASP ZAP DAST.
 - **`Semantic Release` (`release.yml`)**: Cuts the next `v*` tag, updates `docs/changelog.md`, and publishes enriched GitHub Release notes.
 - **`CD` (`cd.yml`)**: Deploys the tagged release to `prod` (`https://cricscore.venkateshsingamsetty.com`), runs Playwright E2E, and runs OWASP ZAP against `prod`.
 

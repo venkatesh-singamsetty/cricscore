@@ -7,21 +7,21 @@ This reference catalogs the runtime frameworks, machine learning libraries, infr
 ## 🔄 Toolchain Lifecycle Across Dev, CI & Cloud
 
 ```mermaid
-flowchart LR
+flowchart TD
     subgraph Local["1. Local Dev & Pre-Commit"]
-        Pre["Husky + lint-staged\n(Prettier + GitLeaks)"]
-        TestLocal["Vitest (272) + Pytest (104)\n= 376 Automated Tests"]
+        Pre["Husky + lint-staged (Prettier + GitLeaks)"]
+        TestLocal["Vitest (272) + Pytest (104) = 376 Unit Tests + 15 E2E Tests"]
     end
 
     subgraph CI["2. GitHub Actions DevSecOps"]
-        SAST["CodeQL + Checkov\n+ Trivy (FS & Container)"]
-        SBOM["Syft SPDX SBOM\n+ Dependabot"]
+        SAST["CodeQL + Checkov + Trivy (FS & Container)"]
+        SBOM["Syft SPDX SBOM + Dependabot"]
     end
 
     subgraph Cloud["3. Multi-Cloud Runtime (~$1/mo)"]
-        AWS["AWS Serverless\n(Lambda + API GW + ECR xgboost-cpu)"]
-        Aiven["Aiven PostgreSQL\n(ACID + pgvector)"]
-        DAST["Playwright E2E\n+ OWASP ZAP DAST"]
+        AWS["AWS Serverless (Lambda + API GW + ECR xgboost-cpu)"]
+        Aiven["Aiven PostgreSQL (ACID + pgvector)"]
+        DAST["Playwright E2E (15) + OWASP ZAP DAST"]
     end
 
     Local --> CI --> Cloud
@@ -31,49 +31,55 @@ flowchart LR
 
 ## 1. Core Application, AI & MLOps Stack
 
-| Tool / Library                   | Layer                 | Verified Version / Footprint    | Purpose in CricScore                                                                                                                               |
-| -------------------------------- | --------------------- | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Node.js & npm**                | Runtime / Package Mgr | `Node.js 24.x`                  | • Executes backend AWS Lambda microservices<br/>• Runs monorepo workspace build scripts                                                            |
-| **React & Vite**                 | Frontend SPA          | `React 19` (`Vite`)             | • Mobile-first dark-mode scoreboard and scorer keypad<br/>• Live WebSocket dashboard with Hot Module Replacement (HMR)                             |
-| **TypeScript & ESLint**          | Static Typing & Lint  | Strict TS                       | • Prevents type regressions across frontend components<br/>• Enforces API contract safety                                                          |
-| **XGBoost & Scikit&#8209;Learn** | ML Win Prediction     | Champion **`XGBoost (v2.2.0)`** | • Live ball-by-ball win probability (`Validation ROC-AUC = 0.7723`, `Test ROC-AUC = 0.7529`)<br/>• Blended with Markov DP and DLS par calculations |
-| **LangGraph & MCP**              | Agentic AI            | Python `3.12`                   | • Orchestrates specialist agents and `pgvector` rulebook RAG<br/>• Paired with deterministic `computePlayerOfTheMatch` (`summaryHandler.js`)       |
-| **MLflow & DVC**                 | MLOps Governance      | Local / CI Tracking             | • Tracks model hyperparameters and ROC-AUC/Brier metrics<br/>• Versions reproducible training datasets                                             |
+- **Node.js & npm (`Node.js 24.x`):**
+  - Executes the 8 ZIP-packaged backend AWS Lambda microservices and runs monorepo workspace build scripts.
+- **React & Vite (`React 19` + `Vite 8`):**
+  - Powers the mobile-first dark-mode scoreboard, scorer keypad, and live WebSocket dashboard with Hot Module Replacement (HMR).
+- **TypeScript & ESLint (Strict Static Typing):**
+  - Prevents type regressions across frontend components and enforces API contract safety.
+- **XGBoost & Scikit-Learn (Champion `XGBoost v2.2.0`):**
+  - Computes live ball-by-ball win probability (`Validation ROC-AUC = 0.7723`, `Test ROC-AUC = 0.7529`), blended with Markov DP and DLS par calculations.
+- **LangGraph & MCP (`Python 3.12` Agentic AI):**
+  - Orchestrates specialist agents and `pgvector` rulebook RAG, paired with deterministic `computePlayerOfTheMatch` (`summaryHandler.js`).
+- **MLflow & DVC (MLOps Governance):**
+  - Tracks model hyperparameters and ROC-AUC/Brier metrics while versioning reproducible training datasets (`t20s_json.zip.dvc`).
 
 ---
 
 ## 2. Testing Frameworks (`376` Unit/Integration Tests + E2E)
 
-| Framework                             | Target Suite                     | Test Count  | Command to Run                             |
-| ------------------------------------- | -------------------------------- | ----------- | ------------------------------------------ |
-| **Vitest + Testing&nbsp;Library**     | Frontend (`apps/frontend`)       | `151`       | `npm --prefix apps/frontend test`          |
-| **Vitest + aws&#8209;sdk&#8209;mock** | Backend Lambdas (`apps/backend`) | `121`       | `npm --prefix apps/backend test`           |
-| **Pytest (AI&nbsp;Service)**          | Agentic AI (`apps/ai-service`)   | `75`        | `pytest apps/ai-service -q`                |
-| **Pytest (ML&nbsp;Engine)**           | ML Engine (`apps/ml-engine`)     | `29`        | `pytest apps/ml-engine/test_predict.py -q` |
-| **Playwright**                        | End-to-End Browser (`e2e/`)      | `E2E Suite` | `npx playwright test`                      |
+| Framework            | Target Suite               | Tests | Command                                    |
+| :------------------- | :------------------------- | :---: | :----------------------------------------- |
+| **Vitest (RTL)**     | Frontend (`apps/frontend`) | `151` | `npm --prefix apps/frontend test`          |
+| **Vitest (Mocks)**   | Backend (`apps/backend`)   | `121` | `npm --prefix apps/backend test`           |
+| **Pytest (AI)**      | AI Service (`ai-service`)  | `75`  | `pytest apps/ai-service -q`                |
+| **Pytest (ML)**      | ML Engine (`ml-engine`)    | `29`  | `pytest apps/ml-engine/test_predict.py -q` |
+| **Playwright (E2E)** | Browser Suite (`e2e/`)     | `15`  | `npx playwright test`                      |
 
 ---
 
 ## 3. Infrastructure & Cloud Automation (`~$1/month` Footprint)
 
-| Tool                                | Purpose                                                                                                                                                                         |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Terraform (`~1.10`)**             | • Provisions AWS serverless resources (API Gateway, Lambda, DynamoDB, S3, CloudFront, Cognito, ECR)<br/>• Manages Aiven PostgreSQL from a single root module                    |
-| **Amazon&nbsp;ECR (`xgboost-cpu`)** | • Hosts the lightweight `ml-predict` container (`~309 MB`)<br/>• Enforces a strict `countNumber = 1` lifecycle policy so ECR storage stays within the `~$1/month` budget        |
-| **AWS&nbsp;CLI**                    | • Performs S3 static asset syncs and CloudFront cache invalidations<br/>• Pushes ECR container images during deployment                                                         |
-| **GitHub&nbsp;Actions**             | • Runs PR validation and automated semantic releases<br/>• Executes nightly Terraform drift detection (`drift.yml`) and daily Aiven database keep-alive pings (`keepalive.yml`) |
+- **Terraform (`~1.10`):**
+  - Provisions all AWS serverless resources (API Gateway, Lambda, DynamoDB, S3, CloudFront, Cognito, ECR) and manages Aiven PostgreSQL from a single root module.
+- **Amazon ECR (`xgboost-cpu ~309 MB`):**
+  - Hosts the lightweight `ml-predict` container image and enforces a strict `countNumber = 1` lifecycle policy so ECR storage stays within the `~$1/month` budget.
+- **AWS CLI:**
+  - Performs S3 static asset syncs, CloudFront cache invalidations, and ECR container pushes during CI/CD deployments.
+- **GitHub Actions:**
+  - Runs PR validation, automated semantic releases, nightly Terraform drift detection (`drift.yml`), and daily Aiven database keep-alive pings (`keepalive.yml`).
 
 ---
 
 ## 4. Application Security (AppSec) & Governance
 
-| Tool                      | Security Category         | Enforcement Gate                                                                                                                                   |
-| ------------------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **GitLeaks**              | Secrets Detection         | • Scans staged commits via pre-commit hook and full Git history in CI<br/>• Blocks any hardcoded keys or credentials                               |
-| **CodeQL**                | SAST (Semantic Code Scan) | • Scans JavaScript/TypeScript on every PR and push to `main`<br/>• Detects XSS, SQL injection, and taint-flow vulnerabilities                      |
-| **Trivy**                 | SCA (Dependency & Image)  | • Scans `apps/frontend`, `apps/backend/lambdas`, `apps/ai-service`, and the `ml-predict` container<br/>• Blocks fixable `HIGH` and `CRITICAL` CVEs |
-| **Checkov**               | IaC Security              | • Audits `infra/terraform` on every PR<br/>• Enforces encryption, least-privilege IAM, and secure bucket configurations                            |
-| **OWASP&nbsp;ZAP**        | DAST (Runtime Baseline)   | • Executes an automated baseline vulnerability scan against the live deployed URL after Dev and Prod deployments                                   |
-| **Syft**                  | Supply Chain (SBOM)       | • Generates an SPDX JSON Software Bill of Materials (`sbom.yml`) weekly and on pushes to `main`                                                    |
-| **Husky & Prettier**      | Local Git Hooks           | • `pre-commit` formats staged files via `lint-staged` and runs GitLeaks<br/>• `pre-push` executes `./infra/scripts/validate_local.sh --skip-e2e`   |
-| **Semantic&nbsp;Release** | Automated Versioning      | • Parses Conventional Commits (`feat:`, `fix:`) to bump versions<br/>• Updates `docs/changelog.md` and publishes GitHub releases                   |
+| Tool                 | Layer        | Purpose                                     |
+| :------------------- | :----------- | :------------------------------------------ |
+| **GitLeaks**         | Secrets      | Pre-commit & CI full-history secret scan    |
+| **CodeQL**           | SAST         | AST analysis for JS/TS & Python flaws       |
+| **Trivy**            | SCA          | Blocks fixable `HIGH`/`CRITICAL` CVEs       |
+| **Checkov**          | IaC Security | Audits `infra/terraform` misconfigurations  |
+| **OWASP ZAP**        | DAST         | Post-deploy baseline scan against live URLs |
+| **Syft**             | SBOM         | Generates SPDX JSON supply-chain manifest   |
+| **Husky & Prettier** | Git Hooks    | Runs `lint-staged` & `validate_local.sh`    |
+| **Semantic Release** | Versioning   | Automates semver tags & `docs/changelog.md` |
