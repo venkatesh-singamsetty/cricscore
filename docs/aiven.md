@@ -1,13 +1,13 @@
 # 🗄️ Aiven Managed PostgreSQL Setup Guide
 
-CricScore uses **Aiven Managed PostgreSQL** (`pgvector` enabled) as its primary ACID relational and vector database. Both `dev` and `prod` environments share a single Aiven instance isolated by PostgreSQL schemas (`DB_SCHEMA=dev` and `DB_SCHEMA=prod`), pairing with the `~$1/month` AWS serverless footprint (Dev + Prod combined).
+CricScore uses **Aiven Managed PostgreSQL** (`pgvector` enabled) as its primary ACID relational and vector database. Both `dev` and `prod` environments share a single Aiven instance isolated by PostgreSQL schemas (`DB_SCHEMA=dev` and `DB_SCHEMA=prod`), pairing with the `~$1/month` AWS serverless footprint (`dev` + `prod` combined).
 
 ---
 
 ## 🏗️ Database Architecture & Keep-Alive Flow
 
 ```mermaid
-flowchart LR
+flowchart TD
     subgraph GitHub["GitHub Actions (Daily Cron)"]
         KA["keepalive.yml\n(12:00 UTC Daily)"]
     end
@@ -30,12 +30,14 @@ flowchart LR
 
 ## 📋 Why Aiven PostgreSQL?
 
-| Capability                          | Engineering Benefit                                                                                                                          |
-| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| **ACID&nbsp;Transactions**          | • Guarantees strict ball-by-ball cricket scoring consistency<br/>• Eliminates race conditions and lost deliveries                            |
-| **Schema&nbsp;Isolation**           | • Isolates `dev` and `prod` tables inside a single database instance via `DB_SCHEMA`<br/>• Avoids duplicate managed database instance fees   |
-| **pgvector&nbsp;Extension**         | • Powers semantic rulebook search (`match_chunks`) directly inside PostgreSQL<br/>• Removes the need for a separate external vector database |
-| **Automated&nbsp;Keep&#8209;Alive** | • `.github/workflows/keepalive.yml` pings the database daily (`SELECT 1`)<br/>• Includes 3x retry logic to prevent free-tier sleep pauses    |
+- **ACID Transactions:**
+  - Guarantees strict ball-by-ball cricket scoring consistency and eliminates race conditions or lost deliveries.
+- **Schema Isolation (`DB_SCHEMA=dev` / `DB_SCHEMA=prod`):**
+  - Isolates `dev` and `prod` tables inside a single database instance, avoiding duplicate managed database fees.
+- **`pgvector` Extension:**
+  - Powers semantic rulebook RAG search (`match_chunks`) directly inside PostgreSQL without an external vector database.
+- **Automated Keep-Alive (`.github/workflows/keepalive.yml`):**
+  - Pings the database daily at 12:00 UTC (`SELECT 1 AS keep_alive;`) with 3x retry logic to prevent free-tier inactivity sleep.
 
 ---
 
@@ -43,16 +45,16 @@ flowchart LR
 
 ### Step 1: Create the Aiven PostgreSQL Service
 
-| Setting                      | Recommended Value                             | Notes                                                                                                 |
-| ---------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| **Console&nbsp;URL**         | [console.aiven.io](https://console.aiven.io/) | • Sign up or log in to your Aiven account                                                             |
-| **Service&nbsp;Type**        | `PostgreSQL`                                  | • Select the latest supported PostgreSQL version<br/>• Includes built-in `pgvector` extension support |
-| **Cloud&nbsp;&&nbsp;Region** | `AWS` (`us-east-1`)                           | • Co-locates the database with CricScore AWS Lambdas<br/>• Minimizes cross-region network latency     |
-| **Service&nbsp;Name**        | `cricscore-pg`                                | • Copy the **Service URI** from the **Overview** tab once running                                     |
+| Setting            | Recommended Value                             |
+| :----------------- | :-------------------------------------------- |
+| **Console URL**    | [console.aiven.io](https://console.aiven.io/) |
+| **Service Type**   | `PostgreSQL 16` (`pgvector` included)         |
+| **Cloud & Region** | `AWS` (`us-east-1`, co-located with Lambdas)  |
+| **Service Name**   | `cricscore-pg`                                |
 
 ### Step 2: Configure Local Environment (`.env.local`)
 
-Add your Aiven Service URI to `.env.local` in the repository root:
+Copy the **Service URI** from the Aiven **Overview** tab and add it to `.env.local` in the repository root:
 
 ```bash
 # Format: postgres://avnadmin:[PASSWORD]@[HOST]:[PORT]/defaultdb?sslmode=require
@@ -85,11 +87,15 @@ gh secret set TF_DATABASE_URL --body "$TF_DATABASE_URL"
 
 ## 🔍 Troubleshooting Keep-Alive & Connections
 
-| Symptom                             | Root Cause                                   | Fix Command / Action                                                                                                |
-| ----------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `keepalive.yml` fails after 3 tries | • Free-tier service paused due to inactivity | • Log into [console.aiven.io](https://console.aiven.io/)<br/>• Click **Power On / Start** on the PostgreSQL service |
-| `password authentication failed`    | • Aiven rotated database credentials         | • Copy the updated Service URI from Aiven<br/>• Re-run `./infra/scripts/setup_github_envs.sh`                       |
-| `SSL/TLS required` error            | • Missing `?sslmode=require` query parameter | • Append `?sslmode=require` to `TF_DATABASE_URL` in `.env.local` and GitHub Secrets                                 |
+- **`keepalive.yml` fails after 3 tries:**
+  - **Cause:** Free-tier service paused due to prior inactivity.
+  - **Fix:** Log into [console.aiven.io](https://console.aiven.io/) and click **Power On / Start** on the PostgreSQL service.
+- **`password authentication failed`:**
+  - **Cause:** Aiven rotated database credentials.
+  - **Fix:** Copy the updated Service URI from Aiven into `.env.local` and re-run `./infra/scripts/setup_github_envs.sh`.
+- **`SSL/TLS required` error:**
+  - **Cause:** Missing `?sslmode=require` query parameter.
+  - **Fix:** Append `?sslmode=require` to `TF_DATABASE_URL` in `.env.local` and GitHub Secrets.
 
 ---
 

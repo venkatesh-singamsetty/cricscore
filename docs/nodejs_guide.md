@@ -7,7 +7,7 @@ CricScore runs on **Node.js 24 (`nodejs24.x`)** across both the **React 19 + Vit
 ## 🔄 1. Frontend Build vs. Backend Lambda Execution Lifecycle
 
 ```mermaid
-flowchart LR
+flowchart TD
     subgraph LocalDev ["1. Local Workspace (Node.js >= 24)"]
         FE_SRC["apps/frontend (TSX / ESM)"]
         BE_SRC["apps/backend/lambdas/* (JS / CommonJS)"]
@@ -35,21 +35,23 @@ flowchart LR
 
 ## 📦 2. Frontend vs. Backend Dependency Architecture
 
-| Dimension                | Frontend (`apps/frontend`)                                                        | Backend Lambdas (`apps/backend/lambdas/*`)                                                |
-| :----------------------- | :-------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------- |
-| **Module System**        | • ES Modules (`"type": "module"`)                                                 | • CommonJS (`require` / `exports.handler`)                                                |
-| **Install Command**      | • `npm install`<br/>• Includes `devDependencies` (`vite`, `typescript`, `vitest`) | • `npm install --omit=dev`<br/>• Strips dev tools before Terraform zipping                |
-| **Build Output**         | • Minified static assets in `apps/frontend/dist/`                                 | • Raw `.js` files + production `node_modules/` zipped by Terraform                        |
-| **What Uploads to AWS?** | • **Only `dist/`**<br/>• `node_modules/` is never uploaded to S3                  | • **Entire `.zip` archive**<br/>• `index.js` + production `node_modules/` uploaded to AWS |
-| **AWS Target**           | • Amazon S3 + CloudFront CDN                                                      | • AWS Lambda (`nodejs24.x` runtime)                                                       |
+- **Frontend SPA (`apps/frontend`):**
+  - **Module System**: ES Modules (`"type": "module"`).
+  - **Install & Build**: Runs `npm install` (including `devDependencies` like `vite`, `typescript`, and `vitest`) and compiles tree-shaken static assets into `apps/frontend/dist/`.
+  - **Cloud Upload Target**: Uploads **only `dist/`** to Amazon S3 + CloudFront CDN (`node_modules/` is never uploaded).
+- **Backend Microservices (`apps/backend/lambdas/*`):**
+  - **Module System**: CommonJS (`require` / `exports.handler`).
+  - **Install & Packaging**: Runs `npm install --omit=dev` to strip dev tools before Terraform's `archive_file` zips `index.js` + production `node_modules/`.
+  - **Cloud Upload Target**: Uploads the entire `.zip` archive to AWS Lambda (`nodejs24.x` runtime).
 
 ### Golden Rules of `node_modules`
 
-| Rule                                       | Reason                                                               | Verification Command                    |
-| :----------------------------------------- | :------------------------------------------------------------------- | :-------------------------------------- |
-| **Never edit `node_modules/`**             | • 100% managed by `npm` and `package-lock.json`                      | `git status --ignored`                  |
-| **Never commit `node_modules/` or `.zip`** | • Excluded via `.gitignore` to prevent repository bloat              | `git check-ignore -v node_modules/`     |
-| **Keep `package-lock.json` in sync**       | • Guarantees deterministic installs in CI (`npm ci` / `npm install`) | `./infra/scripts/check_dependencies.sh` |
+- **Never edit `node_modules/` (`git status --ignored`):**
+  - 100% managed by `npm` and `package-lock.json`.
+- **Never commit `node_modules/` or `.zip` (`git check-ignore -v node_modules/`):**
+  - Excluded via `.gitignore` to prevent repository bloat.
+- **Keep `package-lock.json` in sync (`./infra/scripts/check_dependencies.sh`):**
+  - Guarantees deterministic installs across local development and CI (`npm ci` / `npm install`).
 
 ---
 
@@ -76,11 +78,12 @@ sequenceDiagram
     Handler-->>APIGW: Fast Response (No re-initialization)
 ```
 
-| Lambda Best Practice         | Implementation in CricScore                                                                                                              | Source Reference                                                                                 |
-| :--------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------- |
-| **Global Connection Reuse**  | • Instantiate `new Pool({ max: 1 })` **outside** `exports.handler`<br/>• Instantiate AWS SDK clients (`SESClient`, `SNSClient`) globally | • `apps/backend/lambdas/match-api/index.js`<br/>• `apps/backend/lambdas/score-update/index.js`   |
-| **Non-Blocking Event Loop**  | • Set `context.callbackWaitsForEmptyEventLoop = false`<br/>• Ensures warm `pg.Pool` sockets do not stall Lambda freeze                   | • `apps/backend/lambdas/match-api/index.js`                                                      |
-| **Client Release Guarantee** | • Always call `client.release()` inside a `finally` block<br/>• Prevents PostgreSQL connection exhaustion under concurrency              | • `apps/backend/lambdas/match-api/index.js`<br/>• `apps/backend/lambdas/storage-worker/index.js` |
+- **Global Connection Reuse (`match-api/index.js`, `score-update/index.js`):**
+  - Instantiates `new Pool({ max: 1 })` and AWS SDK clients (`SESClient`, `SNSClient`) **outside** `exports.handler` so warm containers reuse open connections.
+- **Non-Blocking Event Loop (`match-api/index.js`):**
+  - Sets `context.callbackWaitsForEmptyEventLoop = false` so idle `pg.Pool` sockets never stall Lambda container freeze.
+- **Client Release Guarantee (`match-api/index.js`, `storage-worker/index.js`):**
+  - Always calls `client.release()` inside a `finally` block to prevent PostgreSQL connection exhaustion under concurrency.
 
 ---
 
@@ -88,15 +91,15 @@ sequenceDiagram
 
 ### Root Monorepo Commands (`package.json`)
 
-| Command              | Action                                                                          | When to Use                         |
-| :------------------- | :------------------------------------------------------------------------------ | :---------------------------------- |
-| `npm run dev`        | • Starts Vite local dev server with HMR (`http://localhost:5173`)               | Daily frontend development          |
-| `npm run build`      | • Compiles production bundle into `apps/frontend/dist/`                         | Pre-deploy verification             |
-| `npm run preview`    | • Serves production `dist/` bundle locally                                      | Testing minified bundle before push |
-| `npm run lint`       | • Runs TypeScript compiler check (`tsc --noEmit`)                               | Verifying strict type safety        |
-| `npm test`           | • Runs Frontend Vitest suite (`151` tests across `23` suites)                   | Quick frontend regression check     |
-| `npm run test:all`   | • Runs Frontend Vitest (`151`) + Backend Vitest (`121`)<br/>• Runs AI Chat eval | Full JS/TS workspace verification   |
-| `npm run deps:check` | • Runs `./infra/scripts/check_dependencies.sh` across npm, pip, & Dependabot    | Auditing outdated packages          |
+| Command              | Action                                          |
+| :------------------- | :---------------------------------------------- |
+| `npm run dev`        | Start Vite dev server (`http://localhost:5173`) |
+| `npm run build`      | Compile production bundle into `dist/`          |
+| `npm run preview`    | Serve production `dist/` bundle locally         |
+| `npm run lint`       | Run TypeScript compiler check (`tsc --noEmit`)  |
+| `npm test`           | Run Frontend Vitest suite (`151` unit tests)    |
+| `npm run test:all`   | Run Frontend (`151`) + Backend (`121`) + eval   |
+| `npm run deps:check` | Audit npm, pip, & Dependabot via script         |
 
 ### Runnable Development & Packaging Commands
 
@@ -124,10 +127,12 @@ done
 
 ## 🛡️ 5. Dependency Security Auditing (`npm audit` & Trivy)
 
-| Scanner                | Scope                                                                        | Trigger                                                                     | Failure Threshold                                  |
-| :--------------------- | :--------------------------------------------------------------------------- | :-------------------------------------------------------------------------- | :------------------------------------------------- |
-| **`npm audit`**        | • Root lockfile<br/>• `apps/frontend` lockfile<br/>• `apps/backend` lockfile | • Local pre-push (`./infra/scripts/validate_local.sh`)                      | `high` or `critical` (`--audit-level=high`)        |
-| **Trivy (`trivy fs`)** | • `apps/frontend`<br/>• `apps/backend/lambdas`<br/>• `apps/ai-service`       | • Local validation (`validate_local.sh`)<br/>• GitHub Actions CI (`ci.yml`) | Fixable `HIGH` or `CRITICAL` CVEs (`exit-code: 1`) |
+- **`npm audit` (Lockfile SCA):**
+  - Scans root, `apps/frontend`, and `apps/backend` lockfiles during local pre-push (`./infra/scripts/validate_local.sh`).
+  - Fails on any `high` or `critical` vulnerability (`--audit-level=high`).
+- **Trivy (`trivy fs` Dependency SCA):**
+  - Scans `apps/frontend`, `apps/backend/lambdas`, and `apps/ai-service` in both `validate_local.sh` and GitHub Actions CI (`ci.yml`).
+  - Fails on any fixable `HIGH` or `CRITICAL` CVE (`exit-code: 1`).
 
 ```bash
 # Run high-severity npm audit across workspaces

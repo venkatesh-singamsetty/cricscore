@@ -209,14 +209,24 @@ flowchart TD
 
 #### Complete Specialist Agent & Tool Inventory
 
-|   #   | Specialist Agent              | Capability / MCP Tool                   | Source & Technology         | Key Features & Guardrails                                                                                                                                                                |
-| :---: | :---------------------------- | :-------------------------------------- | :-------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **1** | 📊 **Match Stats Agent**      | `execute_sql`                           | Aiven PostgreSQL 16         | • Strict read-only `SELECT` enforcement<br/>• Blocks write/DDL keywords (`DROP`, `DELETE`, `UPDATE`)<br/>• 3-second statement timeout                                                    |
-| **2** | 📖 **Tournament Rules Agent** | `search_tournament_rules`               | `pgvector` store (Aiven PG) | • Cosine similarity search on PDF chunks<br/>• Proportional powerplay scaling for shortened overs<br/>• Strict citation: `[Source: document_name]`<br/>• Anti-hallucination truthfulness |
-| **3** | 🌦️ **Weather Agent**          | `get_match_weather`                     | Open-Meteo API              | • Geocoding + hourly forecasts<br/>• Rain probability %, temp, wind speed<br/>• Cricket & DLS rain advisories<br/>• Public API (no API key required)                                     |
-| **4** | 🐛 **GitHub Issue Agent**     | `create_github_issue`                   | GitHub REST API             | • Creates labeled issues (`via-cricscore-ai`, category)<br/>• 2-step confirmation to capture title & description<br/>• Rate-limited: max 1 issue per turn                                |
-| **5** | 🏏 **Tactical Context Agent** | Live match context injection            | Real-time scoreboard state  | • Analyzes CRR vs RRR equations<br/>• Match phase analysis (Powerplay / Middle / Death)<br/>• Evaluates bowler overs and matchup strategy without extra DB queries                       |
-| **6** | 🎯 **Win Prediction Agent**   | `predict_match_outcome` / direct Lambda | XGBoost + Markov DP + DLS   | • Validates 8 situational features<br/>• Blends ML gradient boosting with dynamic programming<br/>• Produces probabilistic percentages and conversational commentary                     |
+- **1. 📊 Match Stats Agent (`execute_sql`):**
+  - **Source & Tech:** Aiven PostgreSQL 16.
+  - **Key Guardrails:** Strict read-only `SELECT` enforcement, blocks write/DDL keywords (`DROP`, `DELETE`, `UPDATE`), and enforces a `3-second` statement timeout.
+- **2. 📖 Tournament Rules Agent (`search_tournament_rules`):**
+  - **Source & Tech:** `pgvector` store in Aiven PostgreSQL.
+  - **Key Guardrails:** Cosine similarity search (`<=>`) on PDF chunks, proportional powerplay scaling for shortened overs, and mandatory `[Source: document_name]` citations.
+- **3. 🌦️ Weather Agent (`get_match_weather`):**
+  - **Source & Tech:** Open-Meteo API (100% free public API, no key required).
+  - **Key Guardrails:** Global geocoding + hourly forecasts (`rain %`, `temp`, `wind`) paired with automated Cricket & DLS rain advisories.
+- **4. 🐛 GitHub Issue Agent (`create_github_issue`):**
+  - **Source & Tech:** GitHub Issues REST API.
+  - **Key Guardrails:** Enforces a 2-step confirmation protocol to capture title and description, applies `via-cricscore-ai` labels, and rate-limits to max `1` issue per turn.
+- **5. 🏏 Tactical Context Agent (Live Match Context Injection):**
+  - **Source & Tech:** Real-time scoreboard telemetry (`chatHandler.js` & `graph.py`).
+  - **Key Guardrails:** Evaluates live CRR vs. RRR equations, match phase (Powerplay / Middle / Death), and bowler quotas without extra database roundtrips.
+- **6. 🎯 Win Prediction Agent (`predict_match_outcome` / direct Lambda):**
+  - **Source & Tech:** **XGBoost (`v2.2.0`)** + Ball-by-Ball Markov DP + DLS Par.
+  - **Key Guardrails:** Validates 8 situational features and blends gradient boosting with exact dynamic programming to produce calibrated win probabilities.
 
 ---
 
@@ -330,15 +340,20 @@ sequenceDiagram
 
 ## 🏛️ Technical Pillars & Specifications
 
-| Technical Pillar                  | Implementation File(s)                                                                 | Mechanism & Guarantee                                                                                                                                                                             |
-| :-------------------------------- | :------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Decoupled Fan-Out**             | • `score-update/index.js`<br/>• `broadcaster/index.js`<br/>• `storage-worker/index.js` | • Publishes to **AWS SNS** (`match-events`) for instant `<50ms` WebSocket fan-out<br/>• Enqueues into **AWS SQS FIFO** (`storage-buffer.fifo`) for ordered PostgreSQL writes                      |
-| **Authoritative State**           | • `App.tsx`<br/>• `storage-worker/index.js`<br/>• `LiveScoreboard.tsx`                 | • Every `POST /update-score` payload sends `explicitTotalRuns`, `explicitTotalWickets`, and `ballData.batterName`<br/>• Keeps DB and UI synchronized across strike rotations and undos            |
-| **WS vs. Poll Recency Guard**     | • `LiveScoreboard.tsx` (`lastWsUpdateRef`)                                             | • Suppresses background REST poll overwrites for `3 seconds` after any WebSocket push<br/>• Prevents lagging database reads from reverting a live boundary or wicket                              |
-| **Idempotent Innings Sync**       | • `match-api/index.js`<br/>• `storage-worker/index.js`                                 | • `POST /match/{id}/innings` uses `ON CONFLICT (match_id, inning_number) DO UPDATE`<br/>• Resolves optimistic `inn2_<timestamp>` IDs to the canonical PostgreSQL `inning_id`                      |
-| **Deterministic POTM**            | • `chat-api/handlers/summaryHandler.js`<br/>• `computePlayerOfTheMatch()`              | • Computes Cricket MVP Impact Score deterministically (runs, team share, `4s`/`6s`, SR vs RPO, wickets, economy, maidens, `1.35x + 5.0` win bonus)<br/>• Persists and caches result in PostgreSQL |
-| **X-Ray Distributed Tracing**     | • `infra/terraform/xray.tf`<br/>• `infra/terraform/lambda.tf`                          | • Active tracing enabled on all 8 Lambdas with a `5%` fixed sampling rate<br/>• Enforces a `1 req/sec` reservoir (`cricscore-low-cost-5pct`) to stay within AWS X-Ray Free Tier                   |
-| **Scoring & Admin Authorization** | • `infra/terraform/apigw.tf`<br/>• `match-api/index.js` (`isAuthorized`)               | • Cognito JWT Authorizer protects write/admin routes at API Gateway<br/>• `match-api` verifies resource ownership (`scorer_email`) or Cognito `Admin` group membership                            |
+- **1. Decoupled Fan-Out (`score-update/index.js`, `broadcaster/index.js`, `storage-worker/index.js`):**
+  - **Mechanism:** Publishes to **AWS SNS** (`match-events`) for instant `<50ms` WebSocket fan-out and enqueues into **AWS SQS FIFO** (`storage-buffer.fifo`) for ordered PostgreSQL writes.
+- **2. Authoritative State (`App.tsx`, `storage-worker/index.js`, `LiveScoreboard.tsx`):**
+  - **Mechanism:** Every `POST /update-score` payload sends `explicitTotalRuns`, `explicitTotalWickets`, and `ballData.batterName` to keep DB and UI state synchronized across strike rotations and undos.
+- **3. WS vs. Poll Recency Guard (`LiveScoreboard.tsx` — `lastWsUpdateRef`):**
+  - **Mechanism:** Suppresses background REST poll overwrites for `3 seconds` after any WebSocket push, preventing lagging database reads from reverting a live boundary or wicket.
+- **4. Idempotent Innings Sync (`match-api/index.js`, `storage-worker/index.js`):**
+  - **Mechanism:** `POST /match/{id}/innings` uses `ON CONFLICT (match_id, inning_number) DO UPDATE` and resolves optimistic `inn2_<timestamp>` IDs to the canonical PostgreSQL `inning_id`.
+- **5. Deterministic POTM (`chat-api/handlers/summaryHandler.js` — `computePlayerOfTheMatch()`):**
+  - **Mechanism:** Computes the Cricket MVP Impact Score deterministically (runs, team share, `4s`/`6s`, SR vs. RPO, wickets, economy, maidens, `1.35x + 5.0` win bonus) and caches it in PostgreSQL.
+- **6. X-Ray Distributed Tracing (`infra/terraform/xray.tf`, `infra/terraform/lambda.tf`):**
+  - **Mechanism:** Active tracing enabled on all 8 Lambdas with a `5%` fixed sampling rate and `1 req/sec` reservoir (`cricscore-low-cost-5pct`) to stay within the AWS X-Ray Free Tier.
+- **7. Scoring & Admin Authorization (`infra/terraform/apigw.tf`, `match-api/index.js` — `isAuthorized`):**
+  - **Mechanism:** Cognito JWT Authorizer protects write/admin routes at API Gateway, while `match-api` verifies resource ownership (`scorer_email`) or Cognito `Admin` group membership.
 
 ---
 
@@ -346,26 +361,48 @@ sequenceDiagram
 
 > See [`docs/auth.md`](./auth.md) for the full authentication specification.
 
-| Role          | Identity Mechanism                                    | Frontend Capabilities                                                                            | Backend Authorization (`API Gateway` + `Lambda`)                                                         |
-| :------------ | :---------------------------------------------------- | :----------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------- |
-| **Viewer 🌍** | Public UUID link (no sign-in required)                | • View live scoreboards<br/>• Browse full scorecards<br/>• Query AI Chat Assistant               | • Open `GET /matches` and `GET /match/{id}/details`<br/>• Open `POST /chat` and `POST /match/predict`    |
-| **Guest 🎮**  | Shadow Cognito account (`guest-{ts}@cricscore.local`) | • Score practice matches<br/>• Auto-confirmed via `cognito-presignup`                            | • Valid Cognito JWT required<br/>• Isolated guest records can be bulk-pruned by Admins                   |
-| **Scorer 🎮** | Verified Cognito User Pool account                    | • Create matches and score ball-by-ball<br/>• Undo deliveries and send SES email reports         | • Valid Cognito JWT required<br/>• Per-match ownership check (`matches.scorer_email == jwt.email`)       |
-| **Admin ⚡**  | Cognito `Admin` group / `ADMIN_REPORT_EMAIL`          | • Full Match Ops Admin Panel<br/>• User management and guest data cleanup<br/>• PDF rules upload | • Valid Cognito JWT required<br/>• `cognito:groups` includes `Admin` (or super-admin email verification) |
+- **1. Viewer 🌍 (Public UUID Link):**
+  - **Identity:** No sign-in required.
+  - **Capabilities:** View live scoreboards, browse full scorecards, and query the AI Chat Assistant.
+  - **Backend Auth:** Open access on `GET /matches`, `GET /match/{id}/details`, `POST /chat`, and `POST /match/predict`.
+- **2. Guest 🎮 (Shadow Cognito Account):**
+  - **Identity:** Auto-confirmed `guest-{ts}@cricscore.local` account via `cognito-presignup`.
+  - **Capabilities:** Create and score practice matches immediately without email verification.
+  - **Backend Auth:** Valid Cognito JWT required; isolated guest records can be bulk-pruned by Admins.
+- **3. Scorer 🎮 (Verified Cognito Account):**
+  - **Identity:** Verified Cognito User Pool account.
+  - **Capabilities:** Create matches, score ball-by-ball, undo deliveries, and send SES email reports.
+  - **Backend Auth:** Valid Cognito JWT required + per-match ownership check (`matches.scorer_email == jwt.email`).
+- **4. Admin ⚡ (Cognito `Admin` Group / `ADMIN_REPORT_EMAIL`):**
+  - **Identity:** Cognito `Admin` group membership or super-admin email.
+  - **Capabilities:** Full Match Ops Admin Panel, user management, guest data cleanup, and PDF rulebook upload.
+  - **Backend Auth:** Valid Cognito JWT required + server-side `cognito:groups` `Admin` verification.
 
 ---
 
 ## 🧩 Platform Component Breakdown
 
-| Subsystem                     | AWS / Cloud Components                                                                   | Key Files                                                                           | Primary Responsibilities                                                                                                                                                                   |
-| :---------------------------- | :--------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **1. Scorer Engine**          | • `score-update` Lambda<br/>• Amazon SNS & SQS FIFO<br/>• AWS Cognito                    | • `apps/frontend/src/App.tsx`<br/>• `apps/backend/lambdas/score-update/`            | • Initializes UUID matches and validates ball-by-ball deliveries<br/>• Publishes to SNS/SQS in parallel<br/>• Isolates sessions via `prevEmailRef` identity guard                          |
-| **2. Managed Fan Hub**        | • `match-api` & `broadcaster` Lambdas<br/>• Amazon DynamoDB<br/>• API Gateway WebSockets | • `apps/backend/lambdas/match-api/`<br/>• `apps/backend/lambdas/broadcaster/`       | • Serves live match discovery and deep-link hydration<br/>• Pushes `HUB_UPDATE` broadcasts and manages `$connect`/`$disconnect`<br/>• Powers the Match Ops Admin Panel                     |
-| **3. Storage Buffer Worker**  | • `storage-worker` Lambda<br/>• Amazon SQS FIFO<br/>• Aiven PostgreSQL 16                | • `apps/backend/lambdas/storage-worker/index.js`                                    | • Drains ordered FIFO batches (`MessageGroupId = matchId`)<br/>• Executes transactional SQL updates for `matches`, `innings`, `players`, `bowlers`, and `ball_events`                      |
-| **4. Security & Identity**    | • AWS Cognito User Pool<br/>• `cognito-presignup` Lambda<br/>• AWS IAM                   | • `infra/terraform/cognito.tf`<br/>• `infra/terraform/iam.tf`                       | • Enforces least-privilege IAM roles and JWT route protection<br/>• Runs `isAuthorized()` ownership checks and TLS PostgreSQL connections<br/>• Isolates shadow guest accounts             |
-| **5. Infrastructure & CI/CD** | • Terraform + S3 State<br/>• GitHub Actions (`ci.yml`, `cd.yml`)                         | • `infra/scripts/setup.sh`<br/>• `infra/scripts/deploy.sh`<br/>• `infra/terraform/` | • Automates bootstrapping and dynamic `.env.local` hydration into `TF_VAR_*`<br/>• Runs `dev` deployments on `main` and `prod` releases on `v*` tags                                       |
-| **6. Agentic AI & MCP**       | • `chat-api` Lambda (Node.js 24)<br/>• `apps/ai-service` (Python LangGraph)              | • `apps/backend/lambdas/chat-api/`<br/>• `apps/ai-service/cricscore_ai/`            | • Runs in-memory MCP Server + 6 specialist agents<br/>• Covers SQL Stats, `pgvector` Rules RAG, Open-Meteo Weather, GitHub Issues, Tactical Context, and Win Predictor                     |
-| **7. Serverless MLOps**       | • `ml-predict` Lambda<br/>• Amazon ECR (`xgboost-cpu`)<br/>• Amazon S3 Model Registry    | • `apps/ml-engine/compare_models.py`<br/>• `apps/ml-engine/predict.py`              | • Tracks 786K+ Cricsheet deliveries via DVC and benchmarks 8 models in MLflow<br/>• Serves **XGBoost (`v2.2.0`)** + Markov DP + DLS from S3/ECR (`xgboost-cpu ~309 MB`, `countNumber = 1`) |
+- **1. Scorer Engine (`apps/frontend/src/App.tsx`, `apps/backend/lambdas/score-update/`):**
+  - **Cloud Components:** `score-update` Lambda, Amazon SNS, Amazon SQS FIFO, AWS Cognito.
+  - **Responsibilities:** Initializes UUID matches, validates ball-by-ball deliveries, publishes to SNS/SQS in parallel, and isolates sessions via the `prevEmailRef` identity guard.
+- **2. Managed Fan Hub (`apps/backend/lambdas/match-api/`, `apps/backend/lambdas/broadcaster/`):**
+  - **Cloud Components:** `match-api` & `broadcaster` Lambdas, Amazon DynamoDB, API Gateway WebSockets.
+  - **Responsibilities:** Serves live match discovery and deep-link hydration, pushes `HUB_UPDATE` broadcasts, manages `$connect`/`$disconnect`, and powers the Match Ops Admin Panel.
+- **3. Storage Buffer Worker (`apps/backend/lambdas/storage-worker/index.js`):**
+  - **Cloud Components:** `storage-worker` Lambda, Amazon SQS FIFO, Aiven PostgreSQL 16.
+  - **Responsibilities:** Drains ordered FIFO batches (`MessageGroupId = matchId`) and executes transactional SQL updates for `matches`, `innings`, `players`, `bowlers`, and `ball_events`.
+- **4. Security & Identity (`infra/terraform/cognito.tf`, `infra/terraform/iam.tf`):**
+  - **Cloud Components:** AWS Cognito User Pool, `cognito-presignup` Lambda, AWS IAM.
+  - **Responsibilities:** Enforces least-privilege IAM roles, JWT route protection, `isAuthorized()` ownership checks, TLS PostgreSQL connections, and isolated shadow guest accounts.
+- **5. Infrastructure & CI/CD (`infra/scripts/setup.sh`, `infra/scripts/deploy.sh`, `infra/terraform/`):**
+  - **Cloud Components:** Terraform + S3 State, GitHub Actions (`ci.yml`, `cd.yml`).
+  - **Responsibilities:** Automates bootstrapping, dynamic `.env.local` hydration into `TF_VAR_*`, `dev` deployments on `main`, and `prod` releases on `v*` tags.
+- **6. Agentic AI & MCP (`apps/backend/lambdas/chat-api/`, `apps/ai-service/cricscore_ai/`):**
+  - **Cloud Components:** `chat-api` Lambda (Node.js 24), `apps/ai-service` (Python LangGraph).
+  - **Responsibilities:** Runs the in-memory MCP Server and 6 specialist agents covering SQL Stats, `pgvector` Rules RAG, Open-Meteo Weather, GitHub Issues, Tactical Context, and Win Predictor.
+- **7. Serverless MLOps (`apps/ml-engine/compare_models.py`, `apps/ml-engine/predict.py`):**
+  - **Cloud Components:** `ml-predict` Lambda, Amazon ECR (`xgboost-cpu`), Amazon S3 Model Registry.
+  - **Responsibilities:** Tracks 786K+ Cricsheet deliveries via DVC, benchmarks 8 models in MLflow, and serves **XGBoost (`v2.2.0`)** (`Val ROC-AUC = 0.7723`, `Test ROC-AUC = 0.7529`) + Markov DP + DLS from S3/ECR (`xgboost-cpu ~309 MB`, `countNumber = 1`).
 
 ---
 
@@ -375,7 +412,7 @@ sequenceDiagram
 # 1. Validate Terraform infrastructure configuration
 ./infra/scripts/terraform.sh validate
 
-# 2. Run all backend, frontend, AI service, and ML engine test suites (376 unit tests)
+# 2. Run all backend, frontend, AI service, and ML engine test suites (376 unit tests, plus 15 E2E tests)
 npm --prefix apps/backend test -- --run
 npm --prefix apps/frontend test -- --run
 ./apps/ai-service/.venv/bin/pytest apps/ai-service -q
