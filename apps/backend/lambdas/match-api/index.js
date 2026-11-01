@@ -1248,10 +1248,10 @@ exports.handler = async (event, context) => {
               if (pRuns > 0 || pBalls > 0 || pIsOut) {
                 await client.query(
                   `UPDATE players
-                   SET runs = GREATEST(COALESCE(runs, 0), $1),
-                       balls_faced = GREATEST(COALESCE(balls_faced, 0), $2),
-                       fours = GREATEST(COALESCE(fours, 0), $3),
-                       sixes = GREATEST(COALESCE(sixes, 0), $4),
+                   SET runs = $1,
+                       balls_faced = $2,
+                       fours = $3,
+                       sixes = $4,
                        is_out = COALESCE($5, is_out),
                        wicket_type = COALESCE($6, wicket_type),
                        wicket_by = COALESCE($7, wicket_by),
@@ -1285,9 +1285,9 @@ exports.handler = async (event, context) => {
                   `UPDATE bowlers
                    SET overs_completed = $1,
                        balls = $2,
-                       maidens = GREATEST(COALESCE(maidens, 0), $3),
-                       runs_conceded = GREATEST(COALESCE(runs_conceded, 0), $4),
-                       wickets = GREATEST(COALESCE(wickets, 0), $5)
+                       maidens = $3,
+                       runs_conceded = $4,
+                       wickets = $5
                    WHERE inning_id = $6 AND UPPER(name) = UPPER($7)`,
                   [
                     bOvers,

@@ -124,11 +124,9 @@ test.describe("Multi-Browser Real-Time Live Score Sync", () => {
       await expect(spectatorPage).toHaveTitle(/CricScore/i);
 
       // Locate the newly created match card in MatchList and click into LiveScoreboard
-      const matchCard = spectatorPage.locator("div", {
-        hasText: new RegExp(teamA, "i"),
-      });
-      await expect(matchCard.first()).toBeVisible({ timeout: 15000 });
-      await matchCard.first().click({ force: true });
+      const matchCard = spectatorPage.getByText(new RegExp(teamA, "i")).first();
+      await expect(matchCard).toBeVisible({ timeout: 15000 });
+      await matchCard.click({ force: true });
 
       // Spectator is now on LiveScoreboard viewing the match
       await expect(
