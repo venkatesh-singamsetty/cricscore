@@ -53,14 +53,12 @@ cd cricscore
 ./infra/scripts/setup.sh
 ```
 
-| Tool Installed    | Version / Purpose                                                                                   |
-| :---------------- | :-------------------------------------------------------------------------------------------------- |
-| **Node.js**       | • `v24`<br/>• Frontend React 19 Vite build + Node.js 24 Lambda packaging                            |
-| **Terraform**     | • `>= 1.10.0`<br/>• AWS Infrastructure as Code with native S3 state locking                         |
-| **AWS CLI v2**    | • Authenticates with AWS S3, CloudFront, ECR, Lambda, and CloudWatch Logs                           |
-| **Docker**        | • Builds `linux/amd64` container image (`xgboost-cpu`, `~309 MB`)<br/>• Used by `ml-predict` Lambda |
-| **`psql` Client** | • Executes idempotent SQL schema migrations (`infra/database/migrate.sh`)                           |
-| **`jq` & `gh`**   | • JSON parsing in deployment scripts<br/>• Automated GitHub Environments configuration              |
+`setup.sh` verifies or installs:
+
+- **Node.js `v24`** (React 19 Vite build + Node.js 24 Lambda packaging)
+- **Terraform `>= 1.10.0`** (AWS Infrastructure as Code with native S3 state locking)
+- **AWS CLI v2**, **`psql` client**, **`jq`**, and **GitHub CLI (`gh`)**
+- **Docker** (builds the `linux/amd64` `xgboost-cpu` `~309 MB` container image for `ml-predict` Lambda)
 
 > [!NOTE]
 > On macOS, open **Docker Desktop** once after installation so the Docker daemon is running before Step 2b.
@@ -111,10 +109,9 @@ GITHUB_TOKEN='ghp_your_github_pat_here'
 | **`DEV_*` / `PROD_*`**     | Optional  | • `DEV_DOMAIN_NAME`, `DEV_PROJECT_NAME`, `DEV_SUBDOMAIN_PREFIX`<br/>• Override auto-derived environment names       |
 | **`VITE_SENTRY_DSN`**      | Optional  | • Copy `cp apps/frontend/.env.example apps/frontend/.env`<br/>• Enables optional Sentry browser telemetry           |
 
-| Environment             | Auto-Derived Endpoints                                                                                                                                                          | Resource Prefix  |
-| :---------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :--------------- |
-| **Dev** (`--env dev`)   | • **Frontend**: `https://cricscoredev.yourdomain.com`<br/>• **HTTP API**: `https://api.cricscoredev.yourdomain.com`<br/>• **WebSocket**: `wss://ws.cricscoredev.yourdomain.com` | `cricscoredev-*` |
-| **Prod** (`--env prod`) | • **Frontend**: `https://cricscore.yourdomain.com`<br/>• **HTTP API**: `https://api.cricscore.yourdomain.com`<br/>• **WebSocket**: `wss://ws.cricscore.yourdomain.com`          | `cricscore-*`    |
+- **Auto-Derived Environment Endpoints:**
+  - **Dev (`--env dev`, prefix `cricscoredev-*`):** `https://cricscoredev.yourdomain.com` · `https://api.cricscoredev.yourdomain.com` · `wss://ws.cricscoredev.yourdomain.com`
+  - **Prod (`--env prod`, prefix `cricscore-*`):** `https://cricscore.yourdomain.com` · `https://api.cricscore.yourdomain.com` · `wss://ws.cricscore.yourdomain.com`
 
 > [!CAUTION]
 > Never commit `.env.local` to git. It is ignored via `.gitignore` and enforced by pre-commit GitLeaks hooks.
@@ -185,12 +182,13 @@ Open the printed URL (`https://cricscoredev.yourdomain.com`). Hard-refresh if Cl
 
 ## Step 5: Sign in and make yourself admin
 
-| Step                          | Action / Command                                                                                                         |
-| :---------------------------- | :----------------------------------------------------------------------------------------------------------------------- |
-| **1. Register Account**       | • Open your live site → click **SCORER** → **Create Account**<br/>• Verify the emailed confirmation code                 |
-| **2. Promote User (CLI)**     | • `./infra/scripts/make_admin.sh --env dev you@email.com`<br/>• `./infra/scripts/make_admin.sh --env prod you@email.com` |
-| **3. Promote User (Console)** | • Open **Cognito → User pools → `<project>-user-pool`**<br/>• Navigate to **Groups → `Admin` → Add user to group**       |
-| **4. Refresh Token**          | • Sign out and sign back in<br/>• The **Admin Panel** tab appears in the navigation bar                                  |
+1. **Register Account:** Open your live site → click **SCORER** → **Create Account** and verify the emailed confirmation code.
+2. **Promote User via CLI (or AWS Cognito Console → Groups → `Admin`):**
+   ```bash
+   ./infra/scripts/make_admin.sh --env dev you@email.com
+   ./infra/scripts/make_admin.sh --env prod you@email.com
+   ```
+3. **Refresh Token:** Sign out and sign back in so the **Admin Panel** tab appears in the top navigation bar.
 
 ---
 

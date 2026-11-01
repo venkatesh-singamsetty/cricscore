@@ -102,10 +102,8 @@ SKIP_PRE_PUSH=1 git push
 
 ### 4.3 Python AI Service (`75` Tests) & ML Engine (`29` Tests)
 
-| Python Package                     | Test Files                                                                                                                     | Key Scenarios Verified                                                                                                                                                  |
-| :--------------------------------- | :----------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`apps/ai-service` (`75` tests)** | • `tests/test_router.py` & `test_graph.py`<br/>• `test_tools.py` & `test_handler.py`<br/>• `test_mcp.py` & `test_mcp_stdio.py` | • Intent routing across Weather/RAG/DB/GitHub specialists & LangGraph transitions<br/>• Citation grounding, destructive prompt refusal, & stdio MCP protocol round-trip |
-| **`apps/ml-engine` (`29` tests)**  | • `apps/ml-engine/test_predict.py`                                                                                             | • 1-over, 5-over, and 20-over formats across 1st & 2nd innings<br/>• DLS par score alignment, XGBoost (`v2.2.0`) + Markov DP blending, & SHA-256 model checksum check   |
+- **`apps/ai-service` (`75` Pytest tests — `test_router.py`, `test_graph.py`, `test_tools.py`, `test_handler.py`, `test_mcp.py`, `test_mcp_stdio.py`):** Verifies deterministic intent routing across the 4 specialists (Weather, RAG, DB, GitHub), LangGraph state transitions, `[Source: ...]` citation grounding, destructive prompt refusal, and MCP stdio server round-trips.
+- **`apps/ml-engine` (`29` Pytest tests — `test_predict.py`):** Verifies format-agnostic 1-over, 5-over, and 20-over Markov DP calculations across 1st and 2nd innings, DLS par score alignment, XGBoost (`v2.2.0`) + Markov DP blending, and S3 SHA-256 model checksum verification.
 
 ### 4.4 Playwright End-to-End Suites (`15` Tests Across 5 Suites)
 
@@ -157,7 +155,6 @@ CHAT_API_URL=https://api.cricscoredev.venkateshsingamsetty.com npm run test:ai
 
 ## 🧹 7. Test Match Isolation (`TEST 🧪` vs `GUEST 👻`)
 
-| Feature                     | Mechanism                                                                                                                                       | How to Clean Up                                                                              |
-| :-------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------- |
-| **`is_test` Auto-Tagging**  | • Matches created with `isTest: true`, `test-*` emails, or `TEST`/`SYNC`/`TEAM A` squad names set `is_test = TRUE` (`idx_matches_is_test`)      | • Admin Panel $\rightarrow$ **Database Management** $\rightarrow$ **🧪 Delete Test Matches** |
-| **Visual Badge Separation** | • `MatchList` and `LiveScoreboard` display a purple **`TEST 🧪`** badge for automated test fixtures<br/>• Real guests show **`GUEST 👻`** badge | • `DELETE /admin/matches/test` (Admin JWT required)                                          |
+- **`is_test` Auto-Tagging (`idx_matches_is_test`):** Matches created with `isTest: true`, `test-*` emails, or `TEST` / `SYNC` / `TEAM A` squad names automatically set `is_test = TRUE` in PostgreSQL.
+- **Visual Badge Separation:** `MatchList` and `LiveScoreboard` display a purple **`TEST 🧪`** badge for automated test fixtures and a **`GUEST 👻`** badge for human guest scorers.
+- **One-Click Cleanup:** Admins can purge test fixtures anytime via **Admin Panel → Database Management → 🧪 Delete Test Matches** (`DELETE /admin/matches/test`).

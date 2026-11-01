@@ -75,66 +75,52 @@ flowchart TD
 
 ### 1. Logistic Regression
 
-| Dimension             | Specification                                                                                                                                     |
-| :-------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Formulation**       | • $P(y=1\mid X) = \sigma(w^T X + b) = \frac{1}{1 + e^{-(w^T X + b)}}$<br/>• Minimizes Binary Cross-Entropy (Log Loss)                             |
-| **Cricket Context**   | • Foundational baseline modeling log-odds of victory as a linear combination of remaining balls, runs, and wickets                                |
-| **CricScore Metrics** | • Val LogLoss: `0.8069` & Val Brier: `0.2379`<br/>• Val ROC-AUC: `0.7550` & Val Acc: `65.59%`<br/>• Artifact Size: `0.01 MB` & Latency: `1.52 ms` |
-| **Pros & Cons**       | • ✅ Ultra-fast inference and direct log-odds interpretability<br/>• ❌ Cannot capture non-linear interactions between wickets and death overs    |
+- **Mathematical Formulation:** $P(y=1\mid X) = \sigma(w^T X + b) = \frac{1}{1 + e^{-(w^T X + b)}}$, minimizing Binary Cross-Entropy (Log Loss).
+- **Cricket Context:** Foundational baseline modeling log-odds of victory as a linear combination of remaining balls, runs, and wickets.
+- **CricScore Benchmark:** Val LogLoss `0.8069` · Val Brier `0.2379` · Val ROC-AUC `0.7550` · Val Acc `65.59%` · Size `0.01 MB` · Latency `1.52 ms`.
+- **Trade-Offs:** ✅ Ultra-fast inference and direct log-odds interpretability; ❌ cannot capture non-linear interactions between wickets and death overs.
 
 ### 2. K-Nearest Neighbors (KNN)
 
-| Dimension             | Specification                                                                                                                                          |
-| :-------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Formulation**       | • $\hat{P}(y=1\mid x_q) = \frac{1}{k} \sum_{i \in \mathcal{N}_k(x_q)} \mathbb{I}(y_i = 1)$<br/>• Uses Euclidean distance $d(x,z)$ over scaled features |
-| **Cricket Context**   | • Predicts outcome from the $k=7$ historical deliveries with the closest scoreboard state ($R$ runs, $W$ wickets, $B$ balls left)                      |
-| **CricScore Metrics** | • Val LogLoss: `8.7168` & Val Brier: `0.2784`<br/>• Val ROC-AUC: `0.7185` & Val Acc: `69.65%`<br/>• Latency (100 rows): **`66.15 ms`** ⚠️              |
-| **Pros & Cons**       | • ✅ Non-parametric local lookup<br/>• ❌ **$O(N \cdot D)$ lazy inference** scans 84K+ training rows per ball and yields uncalibrated step probs       |
+- **Mathematical Formulation:** $\hat{P}(y=1\mid x_q) = \frac{1}{k} \sum_{i \in \mathcal{N}_k(x_q)} \mathbb{I}(y_i = 1)$ using Euclidean distance $d(x,z)$ over scaled features.
+- **Cricket Context:** Predicts outcome from the $k=7$ historical deliveries with the closest scoreboard state ($R$ runs, $W$ wickets, $B$ balls left).
+- **CricScore Benchmark:** Val LogLoss `8.7168` · Val Brier `0.2784` · Val ROC-AUC `0.7185` · Val Acc `69.65%` · Latency (100 rows) **`66.15 ms`** ⚠️.
+- **Trade-Offs:** ✅ Non-parametric local lookup; ❌ **$O(N \cdot D)$ lazy inference** scans 84K+ training rows per ball and yields uncalibrated step probabilities.
 
 ### 3. Support Vector Machine (SVM)
 
-| Dimension             | Specification                                                                                                                                       |
-| :-------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Formulation**       | • $\min_{w,b,\xi} \frac{1}{2}\|w\|^2 + C\sum \xi_i$<br/>• Calibrated via log-loss / Platt scaling $\hat{P}(y=1\mid x) = \frac{1}{1+\exp(Af(x)+B)}$  |
-| **Cricket Context**   | • Finds the maximum-margin hyperplane separating winning and losing chase trajectories in standardized feature space                                |
-| **CricScore Metrics** | • Val LogLoss: `0.6526` & Val Brier: `0.2148`<br/>• Val ROC-AUC: `0.7704` & Val Acc: `67.55%`<br/>• Artifact Size: `0.01 MB` & Latency: `1.32 ms`   |
-| **Pros & Cons**       | • ✅ Strong ROC-AUC (`0.7704`) and tiny memory footprint<br/>• ❌ Kernel SVM ($O(N^3)$) cannot scale to 100K+ rows without linear SGD approximation |
+- **Mathematical Formulation:** $\min_{w,b,\xi} \frac{1}{2}\|w\|^2 + C\sum \xi_i$, calibrated via log-loss / Platt scaling $\hat{P}(y=1\mid x) = \frac{1}{1+\exp(Af(x)+B)}$.
+- **Cricket Context:** Finds the maximum-margin hyperplane separating winning and losing chase trajectories in standardized feature space.
+- **CricScore Benchmark:** Val LogLoss `0.6526` · Val Brier `0.2148` · Val ROC-AUC `0.7704` · Val Acc `67.55%` · Size `0.01 MB` · Latency `1.32 ms`.
+- **Trade-Offs:** ✅ Strong ROC-AUC (`0.7704`) and tiny memory footprint; ❌ kernel SVM ($O(N^3)$) cannot scale to 100K+ rows without linear SGD approximation.
 
 ### 4. Naive Bayes (Gaussian)
 
-| Dimension             | Specification                                                                                                                                                  |
-| :-------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Formulation**       | • $P(y=c \mid X) \propto P(y=c) \prod_{j=1}^D \mathcal{N}(x_j; \mu_{cj}, \sigma_{cj}^2)$<br/>• Assumes strict conditional feature independence given $y$       |
-| **Cricket Context**   | • Treats `balls_left`, `current_score`, and `wickets_lost` as independent Gaussian distributions per class                                                     |
-| **CricScore Metrics** | • Val LogLoss: **`9.5548`** ❌ & Val Brier: `0.3515`<br/>• Val ROC-AUC: `0.6487` & Val Acc: `64.36%`<br/>• Artifact Size: `0.01 MB` & Latency: `1.81 ms`       |
-| **Pros & Cons**       | • ✅ Sub-second training speed<br/>• ❌ **Violates cricket physics**: `balls_left` and `current_score` are strongly correlated, causing extreme overconfidence |
+- **Mathematical Formulation:** $P(y=c \mid X) \propto P(y=c) \prod_{j=1}^D \mathcal{N}(x_j; \mu_{cj}, \sigma_{cj}^2)$, assuming strict conditional feature independence given $y$.
+- **Cricket Context:** Treats `balls_left`, `current_score`, and `wickets_lost` as independent Gaussian distributions per class.
+- **CricScore Benchmark:** Val LogLoss **`9.5548`** ❌ · Val Brier `0.3515` · Val ROC-AUC `0.6487` · Val Acc `64.36%` · Size `0.01 MB` · Latency `1.81 ms`.
+- **Trade-Offs:** ✅ Sub-second training speed; ❌ **violates cricket physics** because `balls_left` and `current_score` are strongly correlated, causing extreme overconfidence.
 
 ### 5. Decision Tree
 
-| Dimension             | Specification                                                                                                                                     |
-| :-------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Formulation**       | • Recursive binary partitioning minimizing Gini Impurity $\text{Gini}(S) = 1 - \sum_{k} p_k^2$<br/>• Regularized with `max_depth = 6`             |
-| **Cricket Context**   | • Learns explicit coaching thresholds (e.g., `IF balls_left <= 18 AND runs_needed > 36 AND wickets >= 6 THEN win_prob = 0.08`)                    |
-| **CricScore Metrics** | • Val LogLoss: `0.8488` & Val Brier: `0.2014`<br/>• Val ROC-AUC: `0.7558` & Val Acc: `69.98%`<br/>• Artifact Size: `0.01 MB` & Latency: `1.19 ms` |
-| **Pros & Cons**       | • ✅ Fast (`1.19 ms`) and human-interpretable rules<br/>• ❌ High variance and coarse piecewise-constant probability steps                        |
+- **Mathematical Formulation:** Recursive binary partitioning minimizing Gini Impurity $\text{Gini}(S) = 1 - \sum_{k} p_k^2$, regularized with `max_depth = 6`.
+- **Cricket Context:** Learns explicit coaching thresholds (e.g., `IF balls_left <= 18 AND runs_needed > 36 AND wickets >= 6 THEN win_prob = 0.08`).
+- **CricScore Benchmark:** Val LogLoss `0.8488` · Val Brier `0.2014` · Val ROC-AUC `0.7558` · Val Acc `69.98%` · Size `0.01 MB` · Latency `1.19 ms`.
+- **Trade-Offs:** ✅ Fast (`1.19 ms`) and human-interpretable rules; ❌ high variance and coarse piecewise-constant probability steps.
 
 ### 6. Random Forest (Ensemble Bagging)
 
-| Dimension             | Specification                                                                                                                                      |
-| :-------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Formulation**       | • $\hat{P}(y=1\mid x) = \frac{1}{B}\sum_{b=1}^B T_b(x)$<br/>• Averages predictions across $B=50$ de-correlated bootstrap trees (`max_depth = 10`)  |
-| **Cricket Context**   | • Reduces single-tree variance by averaging probability estimates across diverse match sub-samples and feature subsets                             |
-| **CricScore Metrics** | • Val LogLoss: `0.6136` & Val Brier: `0.2119`<br/>• Val ROC-AUC: `0.7561` & Val Acc: `68.19%`<br/>• Artifact Size: `0.70 MB` & Latency: `15.38 ms` |
-| **Pros & Cons**       | • ✅ Smooth non-linear boundaries (`0.6136` LogLoss)<br/>• ❌ `8x` slower inference (`15.38 ms`) and `3x` larger artifact than XGBoost             |
+- **Mathematical Formulation:** $\hat{P}(y=1\mid x) = \frac{1}{B}\sum_{b=1}^B T_b(x)$, averaging predictions across $B=50$ de-correlated bootstrap trees (`max_depth = 10`).
+- **Cricket Context:** Reduces single-tree variance by averaging probability estimates across diverse match sub-samples and feature subsets.
+- **CricScore Benchmark:** Val LogLoss `0.6136` · Val Brier `0.2119` · Val ROC-AUC `0.7561` · Val Acc `68.19%` · Size `0.70 MB` · Latency `15.38 ms`.
+- **Trade-Offs:** ✅ Smooth non-linear boundaries (`0.6136` LogLoss); ❌ `8x` slower inference (`15.38 ms`) and `3x` larger artifact than XGBoost.
 
 ### 7. XGBoost (Extreme Gradient Boosting) 🏆
 
-| Dimension             | Specification                                                                                                                                                                                  |
-| :-------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Formulation**       | • $\mathcal{L}^{(t)} \approx \sum_{i=1}^N [g_i f_t(x_i) + \frac{1}{2}h_i f_t^2(x_i)] + \gamma T + \frac{1}{2}\lambda \sum w_j^2$<br/>• Configured with `n_estimators=100, max_depth=6, lr=0.1` |
-| **Cricket Context**   | • Sequentially fits 2nd-order gradient/Hessian residuals to capture non-linear phase transitions, wicket pressure, and RRR cliffs                                                              |
-| **CricScore Metrics** | • **Val LogLoss: `0.5786`** 🏆 & **Val Brier: `0.1992`** 🏆<br/>• **Val ROC-AUC: `0.7723`** 🏆 & **Test ROC-AUC: `0.7529`**<br/>• **Test Acc: `69.01%`**, Size: `0.22 MB`, Latency: `1.98 ms`  |
-| **Pros & Cons**       | • ✅ Best probability calibration, highest ROC-AUC, compact `227 KB` pipeline, and `<2 ms` CPU inference (`xgboost-cpu ~309 MB`, `countNumber = 1`)<br/>• ❌ Requires $\eta$/depth tuning      |
+- **Mathematical Formulation:** $\mathcal{L}^{(t)} \approx \sum_{i=1}^N [g_i f_t(x_i) + \frac{1}{2}h_i f_t^2(x_i)] + \gamma T + \frac{1}{2}\lambda \sum w_j^2$, configured with `n_estimators=100, max_depth=6, lr=0.1`.
+- **Cricket Context:** Sequentially fits 2nd-order gradient/Hessian residuals to capture non-linear phase transitions, wicket pressure, and RRR cliffs.
+- **CricScore Benchmark:** **Val LogLoss `0.5786`** 🏆 · **Val Brier `0.1992`** 🏆 · **Val ROC-AUC `0.7723`** 🏆 · **Test ROC-AUC `0.7529`** · **Test Acc `69.01%`** · Size `0.22 MB` · Latency `1.98 ms`.
+- **Trade-Offs:** ✅ Best probability calibration, highest ROC-AUC, compact `227 KB` pipeline, and `<2 ms` CPU inference (`xgboost-cpu ~309 MB`, `countNumber = 1`); ❌ requires $\eta$/depth tuning.
 
 ---
 

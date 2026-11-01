@@ -136,12 +136,10 @@ python3 apps/ml-engine/compare_models.py --version v2.2.0
 
 **Location**: `.github/workflows/mlops-pipeline.yml`
 
-| Workflow Trigger / Gate        | Configuration Detail                                                                                                                                                   |
-| :----------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Path-Scoped Push Trigger**   | • Runs only when `cricket-data/**`, `data_pipeline.py`, `compare_models.py`, `train_model.py`, or `requirements-train.txt` change on `main`                            |
-| **Scheduled Drift Retraining** | • Runs on the 1st of every month (`cron: '0 0 1 * *'`) or via `workflow_dispatch`<br/>• Routine code PRs never waste CI minutes retraining                             |
-| **Quality Gate Enforcement**   | • Fails the build immediately (`sys.exit(1)`) if held-out test `accuracy < 0.60`, `roc_auc < 0.65`, or `model_size > 25 MB`                                            |
-| **Artifact Output**            | • Produces `live_win_predictor_model.joblib` (`~227 KB`) and `model_manifest.json` (with SHA-256 hash)<br/>• Generates `live_metadata.json` and `comparison_report.md` |
+- **Path-Scoped Push Trigger:** Runs only when `cricket-data/**`, `data_pipeline.py`, `compare_models.py`, `train_model.py`, or `requirements-train.txt` change on `main` (routine code PRs never waste CI minutes retraining).
+- **Scheduled Drift Retraining:** Runs automatically on the 1st of every month (`cron: '0 0 1 * *'`) or on demand via `workflow_dispatch`.
+- **Quality Gate Enforcement:** Fails the pipeline immediately (`sys.exit(1)`) if held-out test `accuracy < 0.60`, `roc_auc < 0.65`, or `model_size > 25 MB`.
+- **Immutable Artifact Output:** Publishes `live_win_predictor_model.joblib` (`~227 KB`), `model_manifest.json` (with SHA-256 hash), `live_metadata.json`, and `comparison_report.md`.
 
 ---
 
@@ -162,11 +160,9 @@ python3 apps/ml-engine/compare_models.py --version v2.2.0
 
 **Location**: `apps/frontend/src/components/AiMatchPrediction.tsx`
 
-| Aspect                   | Frontend Behavior                                                                                                                                            |
-| :----------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Trigger Cadence**      | • Fires `POST /match/predict` automatically whenever `currentScore`, `wickets`, `balls`, `target`, or `inning` changes on the live scoreboard                |
-| **Dynamic Team Mapping** | • Maps active `battingTeam` to `team1` and `bowlingTeam` to `team2`<br/>• Ensures 1st and 2nd innings probabilities always align with the team at the crease |
-| **Visual Presentation**  | • Renders a real-time dual-team probability bar (`team1Probability%` vs `team2Probability%`) inside the live scoreboard header                               |
+- **Automatic Ball-by-Ball Trigger:** Fires `POST /match/predict` whenever `currentScore`, `wickets`, `balls`, `target`, or `inning` changes on the live scoreboard.
+- **Dynamic Innings Team Binding:** Maps the active `battingTeam` to `team1` and `bowlingTeam` to `team2` so 1st- and 2nd-innings win probabilities always align with the team at the crease.
+- **Live Dual-Team Probability Bar:** Renders a smooth real-time probability split (`team1Probability%` vs `team2Probability%`) inside both the Scorer console and Spectator scoreboard.
 
 ---
 
@@ -256,11 +252,9 @@ $$R(u, w, N) = \frac{Z(u, w)}{Z(N, 0)} \times 100\%$$
 
 $$\text{DLS Par Score} = \left\lfloor \text{Team 1 Score} \times \left( \frac{R_{\text{Team 2 Used}}}{R_{\text{Team 1 Total}}} \right) \right\rfloor, \qquad \text{DLS Target} = \text{DLS Par Score} + 1$$
 
-| Comparison Condition                          | Official DLS Match Result                                   |
-| :-------------------------------------------- | :---------------------------------------------------------- |
-| $\text{Team 2 Score} > \text{DLS Par Score}$  | **Team 2 Wins** by $(\text{Score} - \text{Par})$ runs (DLS) |
-| $\text{Team 2 Score} < \text{DLS Par Score}$  | **Team 1 Wins** by $(\text{Par} - \text{Score})$ runs (DLS) |
-| $\text{Team 2 Score} == \text{DLS Par Score}$ | **Match Tied** (DLS Method)                                 |
+- **If $\text{Team 2 Score} > \text{DLS Par Score}$:** Team 2 wins by $(\text{Score} - \text{Par})$ runs (DLS).
+- **If $\text{Team 2 Score} < \text{DLS Par Score}$:** Team 1 wins by $(\text{Par} - \text{Score})$ runs (DLS).
+- **If $\text{Team 2 Score} == \text{DLS Par Score}$:** Match Tied (DLS Method).
 
 ### 💡 Worked Example Table (Team 1 = `160/6` in 20 Overs; Rain at `10.0` Overs with Team 2 at `75/2`)
 
@@ -278,13 +272,11 @@ $$\text{DLS Par Score} = \left\lfloor \text{Team 1 Score} \times \left( \frac{R_
 
 ### 10.1 8-Model Algorithm Comparison & Leakage-Free Validation (`compare_models.py`)
 
-`apps/ml-engine/compare_models.py` evaluates **8 candidate classifiers** (`LogisticRegression`, `GaussianNB`, `DecisionTree`, `LinearSVM_SGD`, `RandomForest`, `ExtraTrees`, `HistGradientBoosting`, and **`XGBoost`**) and selects the model that minimizes validation **Log Loss** (`0.8 * log_loss + 0.2 * (1 - roc_auc)`).
+`apps/ml-engine/compare_models.py` evaluates **8 candidate classifiers** (`LogisticRegression`, `GaussianNB`, `DecisionTree`, `LinearSVM_SGD`, `RandomForest`, `ExtraTrees`, `HistGradientBoosting`, and **`XGBoost`**) and selects the model that minimizes validation **Log Loss** (`0.8 * log_loss + 0.2 * (1 - roc_auc)`):
 
-| Governance Guarantee            | Implementation in `compare_models.py`                                                                                                                                  |
-| :------------------------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Match-Grouped Partitioning**  | • Splits unique `match_id`s into **70% Train**, **15% Validation**, and **15% Held-Out Test**<br/>• Guarantees deliveries from the same match never leak               |
-| **In-Play Observables Only**    | • Restricts features strictly to pre-delivery state<br/>• Uses `batting_team`, `bowling_team`, `inning`, `balls_left`, `current_score`, `wickets_lost`, `target_score` |
-| **Calibration-First Promotion** | • Promotes **XGBoost (`v2.2.0`)** with the lowest Validation Log Loss (`0.5786`)<br/>• Achieves best Brier Score (`0.1992`) and highest ROC-AUC (`0.7723`)             |
+- **Match-Grouped Partitioning:** Splits unique `match_id`s into **70% Train**, **15% Validation**, and **15% Held-Out Test** so deliveries from the same match never leak across splits.
+- **In-Play Observables Only:** Restricts features strictly to pre-delivery state (`batting_team`, `bowling_team`, `inning`, `balls_left`, `current_score`, `wickets_lost`, `target_score`).
+- **Calibration-First Promotion:** Promotes **XGBoost (`v2.2.0`)** with the lowest Validation Log Loss (`0.5786`), best Brier Score (`0.1992`), and highest ROC-AUC (`0.7723`).
 
 ### 10.2 MLflow, DVC & Manifest Specifications
 
