@@ -18,7 +18,6 @@ jobs:
   prod-keepalive-e2e:
     name: Daily Prod E2E Match & Retain Latest 7 Test Matches
     runs-on: ubuntu-latest
-    environment: prod
     timeout-minutes: 15
     env:
       DOMAIN_NAME: ${{ vars.DOMAIN_NAME || 'cricscore.venkateshsingamsetty.com' }}
