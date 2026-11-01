@@ -34,12 +34,12 @@ flowchart TD
 - **AWS Account & IAM ([IAM Console](https://console.aws.amazon.com/iam/home#/users)):**
   - Create an IAM user (not root) with the `AdministratorAccess` policy and generate an Access Key ID + Secret.
   - **Cost Tier:** `~$1/month` (`dev` + `prod` combined).
-- **Custom Domain ([Spaceship](https://www.spaceship.com) · [Route 53](https://console.aws.amazon.com/route53/domains) · [Cloudflare](https://www.cloudflare.com/products/registrar/)):**
-  - Register a domain with any registrar that supports custom nameservers (Route 53 hosted zone is provisioned in Step 3).
+- **Custom Domain:**
+  - Register a domain with any registrar that supports custom nameservers (such as [Spaceship](https://www.spaceship.com), [Amazon Route 53](https://console.aws.amazon.com/route53/domains), or [Cloudflare](https://www.cloudflare.com/products/registrar/)).
   - **Cost Tier:** Registrar fee + `$0.50/mo` Route 53 hosted zone.
 - **PostgreSQL 16 ([Aiven Console](https://console.aiven.io/signup)):**
   - Create a free PostgreSQL 16 service (`pgvector` included) and copy the Service URI (`postgres://avnadmin:...`).
-  - **Cost Tier:** Free Tier (`keepalive.yml` prevents inactivity sleep).
+  - **Cost Tier:** Free Tier (`keepalive.yml` runs 1 daily Production E2E match + 7-match retention to prevent inactivity sleep).
 - **Sender Email — Amazon SES ([AWS SES Console](https://console.aws.amazon.com/ses/home#/identities)):**
   - Choose a sender email address on your custom domain (`noreply@yourdomain.com`), verified in Step 3b.
   - **Cost Tier:** AWS Free Tier.
@@ -121,8 +121,14 @@ GITHUB_TOKEN='ghp_your_github_pat_here'
 | `VITE_SENTRY_DSN`  | Optional | Set in `apps/frontend/.env` for optional Sentry browser telemetry          |
 
 - **Auto-Derived Environment Endpoints:**
-  - **Dev (`--env dev`, prefix `cricscoredev-*`):** `https://cricscoredev.yourdomain.com` · `https://api.cricscoredev.yourdomain.com` · `wss://ws.cricscoredev.yourdomain.com`
-  - **Prod (`--env prod`, prefix `cricscore-*`):** `https://cricscore.yourdomain.com` · `https://api.cricscore.yourdomain.com` · `wss://ws.cricscore.yourdomain.com`
+  - **Dev (`--env dev`, prefix `cricscoredev-*`):**
+    - Web App: `https://cricscoredev.yourdomain.com`
+    - HTTP REST API: `https://api.cricscoredev.yourdomain.com`
+    - WebSocket API: `wss://ws.cricscoredev.yourdomain.com`
+  - **Prod (`--env prod`, prefix `cricscore-*`):**
+    - Web App: `https://cricscore.yourdomain.com`
+    - HTTP REST API: `https://api.cricscore.yourdomain.com`
+    - WebSocket API: `wss://ws.cricscore.yourdomain.com`
 
 > [!CAUTION]
 > Never commit `.env.local` to git. It is ignored via `.gitignore` and enforced by pre-commit GitLeaks hooks.

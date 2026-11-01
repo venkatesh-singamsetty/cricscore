@@ -1,50 +1,129 @@
-name: Database Keep-Alive
+name: Database Keep-Alive & Daily Prod E2E Match
 
 on:
   schedule:
-    # Run at 12:00 PM every day to prevent Aiven from sleeping the Free Tier DB
+    # Run daily at 12:00 UTC to generate real WAL write activity in Aiven PostgreSQL
+    # by playing one full 2-over E2E match in Production and pruning older E2E matches (keeping latest 7).
     - cron: "0 12 * * *"
-  workflow_dispatch: # Allows manual triggering from the GitHub UI
+  workflow_dispatch: # Allows manual triggering from the GitHub Actions UI
+
+concurrency:
+  group: keepalive-prod-e2e
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
-  ping-database:
-    name: Ping Aiven PostgreSQL
+  prod-keepalive-e2e:
+    name: Daily Prod E2E Match & Retain Latest 7 Test Matches
     runs-on: ubuntu-latest
+    environment: prod
+    timeout-minutes: 15
+    env:
+      DOMAIN_NAME: ${{ vars.DOMAIN_NAME || 'cricscore.venkateshsingamsetty.com' }}
+      DATABASE_URL: ${{ secrets.TF_DATABASE_URL }}
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
       - name: Install PostgreSQL Client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
 
-      - name: Validate Secret Exists
-        env:
-          DATABASE_URL: ${{ secrets.TF_DATABASE_URL }}
+      - name: Validate Database Secret & Wake Aiven PostgreSQL
         run: |
           if [ -z "$DATABASE_URL" ]; then
-            echo "❌ TF_DATABASE_URL secret is missing or empty. Please set it in GitHub repo secrets."
+            echo "❌ TF_DATABASE_URL secret is missing or empty. Please set it in GitHub repo/environment secrets."
             exit 1
           fi
-          echo "✅ DATABASE_URL secret is present."
-
-      - name: Execute Keep-Alive Query (with retry)
-        env:
-          DATABASE_URL: ${{ secrets.TF_DATABASE_URL }}
-        # Aiven free tier may take a moment to wake up — retry up to 3 times with 10s delay
-        run: |
-          echo "Pinging database to prevent inactivity shutdown..."
+          echo "Pinging Aiven PostgreSQL before starting Production E2E match..."
           for i in 1 2 3; do
             echo "Attempt $i of 3..."
-            if PGCONNECT_TIMEOUT=20 psql "$DATABASE_URL" \
-                -c "SELECT 1 AS keep_alive;" 2>&1; then
-              echo "✅ Database successfully pinged on attempt $i."
-              exit 0
+            if PGCONNECT_TIMEOUT=20 psql "$DATABASE_URL" -c "SET search_path TO prod; SELECT count(*) AS prod_matches FROM matches;" 2>&1; then
+              echo "✅ Database connection verified on attempt $i."
+              break
+            fi
+            if [ "$i" -eq 3 ]; then
+              echo "❌ All 3 database connection attempts failed. Check https://console.aiven.io."
+              exit 1
             fi
             echo "⚠️ Attempt $i failed. Waiting 10 seconds before retry..."
             sleep 10
           done
-          echo "❌ All 3 ping attempts failed. The Aiven free-tier DB may be paused or the connection string may have changed."
-          echo ""
-          echo "👉 Next steps:"
-          echo "   1. Log in to https://console.aiven.io and check if the service is running."
-          echo "   2. If paused, restart the service manually from the Aiven console."
-          echo "   3. If the password changed, update the TF_DATABASE_URL secret in GitHub:"
-          echo "      Settings → Secrets and variables → Actions → TF_DATABASE_URL"
-          exit 0
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Install E2E dependencies
+        working-directory: ./apps/e2e
+        run: npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
+
+      - name: Cache Playwright Browsers
+        uses: actions/cache@v6
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('apps/e2e/package-lock.json') }}
+
+      - name: Install Playwright Chromium Browser
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        working-directory: ./apps/e2e
+        run: npx playwright install --with-deps chromium
+
+      - name: Run 1 Full End-to-End Match in Production
+        working-directory: ./apps/e2e
+        env:
+          BASE_URL: https://${{ env.DOMAIN_NAME }}
+          API_URL: https://api.${{ env.DOMAIN_NAME }}
+        run: npx playwright test tests/user-journey.spec.ts --project=chromium
+
+      - name: Prune Old E2E Test Matches in Prod (Keep Latest 7 Only)
+        if: always()
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            exit 0
+          fi
+          echo "🧹 Cleaning old E2E test matches in prod schema (retaining latest 7 E2E matches)..."
+          PGCONNECT_TIMEOUT=20 psql "$DATABASE_URL" << 'SQL'
+          SET search_path TO prod;
+          WITH ranked_e2e AS (
+            SELECT id, team_a_name, team_b_name, created_at
+            FROM matches
+            WHERE is_test = TRUE
+               OR team_a_name ILIKE '%test%'
+               OR team_b_name ILIKE '%test%'
+               OR team_a_name ILIKE '%sync%'
+               OR team_b_name ILIKE '%sync%'
+               OR team_a_name ILIKE 'TEAM A%'
+               OR team_b_name ILIKE 'TEAM B%'
+               OR scorer_email LIKE 'test-%'
+            ORDER BY created_at DESC
+            OFFSET 7
+          )
+          DELETE FROM matches
+          WHERE id IN (SELECT id FROM ranked_e2e)
+          RETURNING id, team_a_name, team_b_name, created_at;
+
+          SELECT count(*) AS remaining_e2e_matches
+          FROM matches
+          WHERE is_test = TRUE
+             OR team_a_name ILIKE '%test%'
+             OR team_b_name ILIKE '%test%'
+             OR team_a_name ILIKE '%sync%'
+             OR team_b_name ILIKE '%sync%'
+             OR team_a_name ILIKE 'TEAM A%'
+             OR team_b_name ILIKE 'TEAM B%'
+             OR scorer_email LIKE 'test-%';
+          SQL
+
+      - name: Upload Playwright Keep-Alive Report
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: playwright-keepalive-prod
+          path: apps/e2e/playwright-report/
+          retention-days: 7

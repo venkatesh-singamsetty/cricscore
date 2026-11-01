@@ -113,10 +113,18 @@ flowchart TD
   - Auto-loads `.cursorrules` and reads targeted `.agents/skills/*/SKILL.md` playbooks before editing matching paths.
 - **Claude Code, Windsurf, Gemini & Antigravity (`.agents/AGENTS.md` + `.agents/skills/*/SKILL.md`):**
   - Natively discovers `.agents/AGENTS.md` and YAML frontmatter (`name`, `description`) across all **12 Domain Skill Playbooks**:
-    - **Frontend, Backend & DB:** `cricscore-frontend-architecture`, `cricscore-backend-architecture`, `cricscore-database-migrations`
-    - **AI, RAG & MLOps:** `cricscore-agentic-rag-architecture`, `cricscore-mlops-standards`
-    - **Infra, Cost & Security:** `cricscore-infrastructure-standards`, `cricscore-cost-governance`, `cricscore-security-standards`
-    - **Testing, PRs & Reviews:** `cricscore-testing-standards`, `cricscore-pr-and-workflow`, `cricscore-dependabot-consolidation`, `cricscore-code-review-standards`
+    - `cricscore-frontend-architecture` — React 19, Vite, Tailwind CSS, Guest Auth, and optimistic WebSocket state rules.
+    - `cricscore-backend-architecture` — Node.js 24 Lambda handlers, SNS/SQS FIFO fan-out, and connection pooling patterns.
+    - `cricscore-database-migrations` — Idempotent `CREATE TABLE IF NOT EXISTS` and `pgvector` schema migration rules.
+    - `cricscore-agentic-rag-architecture` — In-memory MCP tools, read-only SQL guardrails, and deterministic POTM engine.
+    - `cricscore-mlops-standards` — 8-model MLflow benchmark, S3 `/tmp` model caching, and `~309 MB` CPU container rules.
+    - `cricscore-infrastructure-standards` — Single-root Terraform module, S3 state locking, and environment isolation.
+    - `cricscore-cost-governance` — Enforces `~$1/month` AWS guardrails (`7d` logs, `5%` X-Ray, `countNumber = 1` ECR).
+    - `cricscore-security-standards` — Cognito RBAC (`isAdminClaims`), route throttling, and 7-scanner DevSecOps gates.
+    - `cricscore-testing-standards` — Mandatory coverage across `376` unit tests and `15` Playwright E2E tests.
+    - `cricscore-pr-and-workflow` — Conventional Commits, feature branch validation, and CI/CD release gates.
+    - `cricscore-dependabot-consolidation` — Safe batching and verification of weekly Dependabot security PRs.
+    - `cricscore-code-review-standards` — Architectural, security, and cost checklist for reviewing every Pull Request.
 
 ---
 
@@ -143,7 +151,7 @@ cricscore/
 - **MLOps & Win Prediction (`apps/ml-engine`):** Python 3.12 on AWS Lambda Container (`ml-predict`), `xgboost-cpu` (`v2.2.0`), Scikit-Learn, MLflow, DVC, S3 Model Registry (`models/v2.2.0/`), and ECR (`~309 MB`, `countNumber = 1`).
 - **Data & Identity:** Aiven PostgreSQL 16 (`dev` & `prod` isolated schemas), Amazon DynamoDB (`PAY_PER_REQUEST`), and AWS Cognito User Pool (RS256 JWT + `Admin` RBAC).
 - **Cloud & IaC (`infra/terraform`):** Terraform (`>= 1.10`, `hashicorp/aws ~> 6.0`), Route 53, ACM, CloudFront (OAC), S3, CloudWatch Logs (`7d`), X-Ray (`5%`), and AWS Budgets (`~$1/mo`).
-- **CI/CD, DevSecOps & Testing:** GitHub Actions (`ci.yml`, `cd.yml`, `release.yml`, `mlops-pipeline.yml`, `drift.yml`), GitLeaks, CodeQL, Trivy, Checkov, OWASP ZAP, Dependabot, Syft SBOM, **376 Unit/Integration Tests** (`151` FE + `121` BE + `75` AI + `29` ML), and **15 Playwright E2E Tests**.
+- **CI/CD, DevSecOps & Testing:** GitHub Actions (`ci.yml`, `cd.yml`, `release.yml`, `mlops-pipeline.yml`, `drift.yml`, `keepalive.yml`), GitLeaks, CodeQL, Trivy, Checkov, OWASP ZAP, Dependabot, Syft SBOM, **376 Unit/Integration Tests** (`151` FE + `121` BE + `75` AI + `29` ML), and **15 Playwright E2E Tests**.
 
 ---
 
@@ -166,18 +174,39 @@ cricscore/
 ## 📚 Living Documentation & Tutorials Index
 
 - **🚀 Deployment, IaC & Release Operations:**
-  - [Full Step-by-Step Deployment Guide](./docs/deployment.md) · [Terraform Infrastructure Guide](./docs/terraform_guide.md)
-  - [GitHub Actions CI/CD Reference](./docs/github_actions.md) · [Release & Rollback Process](./docs/release_process.md) · [Aiven PostgreSQL Setup](./docs/aiven.md)
+  - [Full Step-by-Step Deployment Guide](./docs/deployment.md) — End-to-end tutorial to deploy your own `dev` and `prod` stack from scratch in ~30 minutes.
+  - [Terraform Infrastructure Guide](./docs/terraform_guide.md) — Deep dive into the single-root Terraform module, S3 state locking, and environment isolation.
+  - [GitHub Actions CI/CD Reference](./docs/github_actions.md) — Breakdown of all 10 automated workflows, secrets, variables, and daily Prod E2E keep-alive jobs.
+  - [Release & Rollback Process](./docs/release_process.md) — How Conventional Commits trigger `semantic-release`, immutable tags, and 5-second rollbacks.
+  - [Aiven PostgreSQL Setup](./docs/aiven.md) — Setting up managed PostgreSQL 16 + `pgvector` (`dev`/`prod` schemas) and daily E2E WAL keep-alive.
+  - [Domain Migration Runbook](./docs/domain_migration.md) — Zero-downtime guide for migrating custom domains across Route 53, ACM, and CloudFront.
 - **⚡ System Architecture & Real-Time APIs:**
-  - [Detailed System Architecture](./docs/architecture.md) · [Real-Time WebSocket Fan-Out Tutorial](./docs/websocket_tutorial.md)
-  - [HTTP & WebSocket API Reference](./docs/api.md) · [Node.js 24 Lambda Guide](./docs/nodejs_guide.md) · [Architecture Diagrams Guide](./docs/diagrams/README.md)
+  - [Detailed System Architecture](./docs/architecture.md) — Editable Mermaid diagrams and component breakdowns across all 5 serverless tiers.
+  - [Real-Time WebSocket Fan-Out Tutorial](./docs/websocket_tutorial.md) — How SNS broadcast and SQS FIFO persistence deliver sub-second updates with zero lost balls.
+  - [HTTP & WebSocket API Reference](./docs/api.md) — Request/response schemas, auth requirements, and throttling rules for every REST and WebSocket route.
+  - [Node.js 24 Lambda Guide](./docs/nodejs_guide.md) — Packaging, cold-start optimization, and connection-pooling patterns across the 8 Node.js Lambdas.
+  - [Local Frontend Quickstart](./docs/local_frontend_quickstart.md) — Running the React 19 Vite SPA locally against the cloud `dev` backend in 2 minutes.
+  - [UI/UX Refinement Checklist](./docs/ui_ux_refinement_checklist.md) — Mobile-first design tokens, responsive layout rules, and accessibility standards.
+  - [Architecture Diagrams Guide](./docs/diagrams/README.md) — Regenerating the 4 high-resolution PNG architecture diagrams from Python code.
 - **🤖 Agentic AI, MCP & Serverless MLOps:**
-  - [AI & RAG Architecture (MCP + POTM)](./docs/ai_architecture.md) · [Architecture & AI/MLOps FAQ](./docs/architecture_faq.md)
-  - [Serverless MLOps & DLS Tutorial](./docs/mlops_tutorial.md) · [ML Models Benchmark Handbook](./docs/ml_models_handbook.md)
-  - [Weather Specialist Agent](./docs/weather_report_agent.md) · [GitHub Issue Specialist Agent](./docs/github_issue_agent.md) · [Agent Skills Guide](./docs/agent_skills.md)
+  - [AI & RAG Architecture (MCP + POTM)](./docs/ai_architecture.md) — In-memory MCP server design, `pgvector` rulebook RAG, deterministic POTM math, and 18 production fixes.
+  - [Architecture & AI/MLOps FAQ](./docs/architecture_faq.md) — Deep-dive Q&A on supervisor routing, S3 `/tmp` model caching, and hybrid win-probability math.
+  - [Serverless MLOps & DLS Tutorial](./docs/mlops_tutorial.md) — Complete tutorial on Cricsheet DVC pipelines, MLflow tracking, DLS math, and `~309 MB` CPU containers.
+  - [ML Models Benchmark Handbook](./docs/ml_models_handbook.md) — Side-by-side mathematical and empirical comparison of all 8 candidate models (`XGBoost v2.2.0` champion).
+  - [Weather Specialist Agent](./docs/weather_report_agent.md) — Open-Meteo geocoding/forecast MCP tool and automated Cricket/DLS rain interruption advisories.
+  - [GitHub Issue Specialist Agent](./docs/github_issue_agent.md) — Conversational 2-step bug/feature issue filing with server-side rate limiting.
+  - [Agent Skills Guide](./docs/agent_skills.md) — How `.agents/AGENTS.md` and the 12 domain `SKILL.md` playbooks work across Copilot, Cursor, Claude, and Gemini.
 - **🛡️ Security, Auth, Observability & `~$1/Month` Cost:**
-  - [Cloud Cost & Trade-Offs (`~$1/mo`)](./docs/cost_management.md) · [Security Posture & DevSecOps](./docs/security_posture.md) · [Authentication & RBAC](./docs/auth.md)
-  - [Branch Protection Rules](./docs/branch_protection.md) · [Observability & X-Ray Tracing](./docs/observability.md) · [DevSecOps Toolchain](./docs/tools.md)
+  - [Cloud Cost & Trade-Offs (`~$1/mo`)](./docs/cost_management.md) — Service-by-service cost breakdown and intentional architectural trade-offs keeping AWS spend at `~$1/month`.
+  - [Security Posture & DevSecOps](./docs/security_posture.md) — Defense-in-depth controls across CloudFront, API Gateway, Cognito, MCP SQL guards, and 7 CI scanners.
+  - [Security Fixes & Remediation Log](./docs/security_fixes.md) — Case studies of remediated vulnerabilities (JWT group spoofing, SQL injection, SSRF, and throttling).
+  - [Authentication & RBAC](./docs/auth.md) — Cognito User Pools, Guest Scorer shadow accounts (`cognito-presignup`), and `Admin` group authorization.
+  - [Branch Protection Rules](./docs/branch_protection.md) — Required PR status checks, CodeQL gates, and linear history enforcement on `main`.
+  - [Observability & X-Ray Tracing](./docs/observability.md) — 7-day CloudWatch log retention, 5% X-Ray distributed tracing, and SNS error/budget alarms.
+  - [DevSecOps Toolchain](./docs/tools.md) — Reference guide to every runtime, testing framework, and security scanner used in CricScore.
 - **✅ Automated Testing, Milestones & Operations:**
-  - [Automated Testing Tutorial (376 Unit + 15 E2E)](./docs/testing.md) · [Engineering Milestones & Key PRs](./docs/engineering_milestones.md)
-  - [Troubleshooting & RCA Log](./docs/troubleshooting.md) · [Central Platform Dashboard](./docs/platform_dashboard.md) · [Full Changelog](./docs/changelog.md)
+  - [Automated Testing Tutorial (376 Unit + 15 E2E)](./docs/testing.md) — Running Vitest (`151` FE + `121` BE), Pytest (`75` AI + `29` ML), and Playwright multi-browser E2E suites.
+  - [Engineering Milestones & Key PRs](./docs/engineering_milestones.md) — Chronological engineering log of major architectural upgrades and production optimizations.
+  - [Troubleshooting & RCA Log](./docs/troubleshooting.md) — Root-cause analyses and exact fixes for 54 real-world cloud, database, WebSocket, and CI/CD incidents.
+  - [Central Platform Dashboard](./docs/platform_dashboard.md) — Auto-generated live inventory of `dev` and `prod` AWS resources, Lambdas, S3 buckets, and ML artifacts.
+  - [Full Changelog](./docs/changelog.md) — Automated semantic-release version history and release notes.

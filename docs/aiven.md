@@ -8,8 +8,8 @@ CricScore uses **Aiven Managed PostgreSQL** (`pgvector` enabled) as its primary 
 
 ```mermaid
 flowchart TD
-    subgraph GitHub["GitHub Actions (Daily Cron)"]
-        KA["keepalive.yml\n(12:00 UTC Daily)"]
+    subgraph GitHub["GitHub Actions (Daily 12:00 UTC)"]
+        KA["keepalive.yml\n(1 Full Prod E2E Match + Prune Old E2E > 7)"]
     end
 
     subgraph AWS["AWS Serverless (~$1/mo Dev + Prod)"]
@@ -21,7 +21,7 @@ flowchart TD
         PG[("defaultdb\n├─ schema: dev\n├─ schema: prod\n└─ ext: vector")]
     end
 
-    KA -->|"SELECT 1 AS keep_alive"| PG
+    KA -->|"Playwright E2E + SQL Prune (OFFSET 7)"| ProdL
     DevL -->|"SSL Connection Pool"| PG
     ProdL -->|"SSL Connection Pool"| PG
 ```
@@ -35,9 +35,10 @@ flowchart TD
 - **Schema Isolation (`DB_SCHEMA=dev` / `DB_SCHEMA=prod`):**
   - Isolates `dev` and `prod` tables inside a single database instance, avoiding duplicate managed database fees.
 - **`pgvector` Extension:**
-  - Powers semantic rulebook RAG search (`match_chunks`) directly inside PostgreSQL without an external vector database.
-- **Automated Keep-Alive (`.github/workflows/keepalive.yml`):**
-  - Pings the database daily at 12:00 UTC (`SELECT 1 AS keep_alive;`) with 3x retry logic to prevent free-tier inactivity sleep.
+  - Powers semantic rulebook RAG search (`tournament_rules`) directly inside PostgreSQL without an external vector database.
+- **Daily Production E2E Keep-Alive & 7-Match Retention (`.github/workflows/keepalive.yml`):**
+  - Because Aiven Free Tier detects real disk/WAL write activity (and can still hibernate if only pinged with a read-only `SELECT 1`), `keepalive.yml` runs **1 full 2-over Playwright E2E match in Production (`tests/user-journey.spec.ts`)** daily at 12:00 UTC.
+  - This generates genuine `INSERT`, `UPDATE`, and `DELETE` (Undo) transactions across `prod.matches`, `prod.innings`, `prod.players`, `prod.bowlers`, and `prod.ball_events`, provides daily production synthetic monitoring, and automatically prunes older E2E test matches (`OFFSET 7`) so only the **latest 7 E2E test matches** are retained in `prod`.
 
 ---
 

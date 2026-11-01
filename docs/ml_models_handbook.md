@@ -84,49 +84,63 @@ flowchart TD
 
 - **Mathematical Formulation:** $P(y=1\mid X) = \sigma(w^T X + b) = \frac{1}{1 + e^{-(w^T X + b)}}$, minimizing Binary Cross-Entropy (Log Loss).
 - **Cricket Context:** Foundational baseline modeling log-odds of victory as a linear combination of remaining balls, runs, and wickets.
-- **CricScore Benchmark:** Val LogLoss `0.8069` · Val Brier `0.2379` · Val ROC-AUC `0.7550` · Val Acc `65.59%` · Size `0.01 MB` · Latency `1.52 ms`.
+- **CricScore Benchmark:**
+  - Validation LogLoss: `0.8069` (Brier `0.2379`, ROC-AUC `0.7550`, Accuracy `65.59%`).
+  - Model Size & Latency: `0.01 MB`, `1.52 ms` per 100 rows.
 - **Trade-Offs:** ✅ Ultra-fast inference and direct log-odds interpretability; ❌ cannot capture non-linear interactions between wickets and death overs.
 
 ### 2. K-Nearest Neighbors (KNN)
 
 - **Mathematical Formulation:** $\hat{P}(y=1\mid x_q) = \frac{1}{k} \sum_{i \in \mathcal{N}_k(x_q)} \mathbb{I}(y_i = 1)$ using Euclidean distance $d(x,z)$ over scaled features.
 - **Cricket Context:** Predicts outcome from the $k=7$ historical deliveries with the closest scoreboard state ($R$ runs, $W$ wickets, $B$ balls left).
-- **CricScore Benchmark:** Val LogLoss `8.7168` · Val Brier `0.2784` · Val ROC-AUC `0.7185` · Val Acc `69.65%` · Latency (100 rows) **`66.15 ms`** ⚠️.
+- **CricScore Benchmark:**
+  - Validation LogLoss: `8.7168` (Brier `0.2784`, ROC-AUC `0.7185`, Accuracy `69.65%`).
+  - Latency (100 rows): **`66.15 ms`** ⚠️ (`33x` slower than XGBoost).
 - **Trade-Offs:** ✅ Non-parametric local lookup; ❌ **$O(N \cdot D)$ lazy inference** scans 84K+ training rows per ball and yields uncalibrated step probabilities.
 
 ### 3. Support Vector Machine (SVM)
 
 - **Mathematical Formulation:** $\min_{w,b,\xi} \frac{1}{2}\|w\|^2 + C\sum \xi_i$, calibrated via log-loss / Platt scaling $\hat{P}(y=1\mid x) = \frac{1}{1+\exp(Af(x)+B)}$.
 - **Cricket Context:** Finds the maximum-margin hyperplane separating winning and losing chase trajectories in standardized feature space.
-- **CricScore Benchmark:** Val LogLoss `0.6526` · Val Brier `0.2148` · Val ROC-AUC `0.7704` · Val Acc `67.55%` · Size `0.01 MB` · Latency `1.32 ms`.
+- **CricScore Benchmark:**
+  - Validation LogLoss: `0.6526` (Brier `0.2148`, ROC-AUC `0.7704`, Accuracy `67.55%`).
+  - Model Size & Latency: `0.01 MB`, `1.32 ms` per 100 rows.
 - **Trade-Offs:** ✅ Strong ROC-AUC (`0.7704`) and tiny memory footprint; ❌ kernel SVM ($O(N^3)$) cannot scale to 100K+ rows without linear SGD approximation.
 
 ### 4. Naive Bayes (Gaussian)
 
 - **Mathematical Formulation:** $P(y=c \mid X) \propto P(y=c) \prod_{j=1}^D \mathcal{N}(x_j; \mu_{cj}, \sigma_{cj}^2)$, assuming strict conditional feature independence given $y$.
 - **Cricket Context:** Treats `balls_left`, `current_score`, and `wickets_lost` as independent Gaussian distributions per class.
-- **CricScore Benchmark:** Val LogLoss **`9.5548`** ❌ · Val Brier `0.3515` · Val ROC-AUC `0.6487` · Val Acc `64.36%` · Size `0.01 MB` · Latency `1.81 ms`.
+- **CricScore Benchmark:**
+  - Validation LogLoss: **`9.5548`** ❌ (Brier `0.3515`, ROC-AUC `0.6487`, Accuracy `64.36%`).
+  - Model Size & Latency: `0.01 MB`, `1.81 ms` per 100 rows.
 - **Trade-Offs:** ✅ Sub-second training speed; ❌ **violates cricket physics** because `balls_left` and `current_score` are strongly correlated, causing extreme overconfidence.
 
 ### 5. Decision Tree
 
 - **Mathematical Formulation:** Recursive binary partitioning minimizing Gini Impurity $\text{Gini}(S) = 1 - \sum_{k} p_k^2$, regularized with `max_depth = 6`.
 - **Cricket Context:** Learns explicit coaching thresholds (e.g., `IF balls_left <= 18 AND runs_needed > 36 AND wickets >= 6 THEN win_prob = 0.08`).
-- **CricScore Benchmark:** Val LogLoss `0.8488` · Val Brier `0.2014` · Val ROC-AUC `0.7558` · Val Acc `69.98%` · Size `0.01 MB` · Latency `1.19 ms`.
+- **CricScore Benchmark:**
+  - Validation LogLoss: `0.8488` (Brier `0.2014`, ROC-AUC `0.7558`, Accuracy `69.98%`).
+  - Model Size & Latency: `0.01 MB`, `1.19 ms` per 100 rows.
 - **Trade-Offs:** ✅ Fast (`1.19 ms`) and human-interpretable rules; ❌ high variance and coarse piecewise-constant probability steps.
 
 ### 6. Random Forest (Ensemble Bagging)
 
 - **Mathematical Formulation:** $\hat{P}(y=1\mid x) = \frac{1}{B}\sum_{b=1}^B T_b(x)$, averaging predictions across $B=50$ de-correlated bootstrap trees (`max_depth = 10`).
 - **Cricket Context:** Reduces single-tree variance by averaging probability estimates across diverse match sub-samples and feature subsets.
-- **CricScore Benchmark:** Val LogLoss `0.6136` · Val Brier `0.2119` · Val ROC-AUC `0.7561` · Val Acc `68.19%` · Size `0.70 MB` · Latency `15.38 ms`.
+- **CricScore Benchmark:**
+  - Validation LogLoss: `0.6136` (Brier `0.2119`, ROC-AUC `0.7561`, Accuracy `68.19%`).
+  - Model Size & Latency: `0.70 MB`, `15.38 ms` per 100 rows.
 - **Trade-Offs:** ✅ Smooth non-linear boundaries (`0.6136` LogLoss); ❌ `8x` slower inference (`15.38 ms`) and `3x` larger artifact than XGBoost.
 
 ### 7. XGBoost (Extreme Gradient Boosting) 🏆
 
 - **Mathematical Formulation:** $\mathcal{L}^{(t)} \approx \sum_{i=1}^N [g_i f_t(x_i) + \frac{1}{2}h_i f_t^2(x_i)] + \gamma T + \frac{1}{2}\lambda \sum w_j^2$, configured with `n_estimators=100, max_depth=6, lr=0.1`.
 - **Cricket Context:** Sequentially fits 2nd-order gradient/Hessian residuals to capture non-linear phase transitions, wicket pressure, and RRR cliffs.
-- **CricScore Benchmark:** **Val LogLoss `0.5786`** 🏆 · **Val Brier `0.1992`** 🏆 · **Val ROC-AUC `0.7723`** 🏆 · **Test ROC-AUC `0.7529`** · **Test Acc `69.01%`** · Size `0.22 MB` · Latency `1.98 ms`.
+- **CricScore Benchmark:**
+  - Validation Metrics: **LogLoss `0.5786`** 🏆, **Brier `0.1992`** 🏆, **ROC-AUC `0.7723`** 🏆 (`68.35%` Acc).
+  - Held-Out Test Metrics: **Test ROC-AUC `0.7529`**, **Test Accuracy `69.01%`** (`0.22 MB` size, `1.98 ms` latency).
 - **Trade-Offs:** ✅ Best probability calibration, highest ROC-AUC, compact `227 KB` pipeline, and `<2 ms` CPU inference (`xgboost-cpu ~309 MB`, `countNumber = 1`); ❌ requires $\eta$/depth tuning.
 
 ---

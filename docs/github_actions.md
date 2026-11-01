@@ -11,7 +11,7 @@ flowchart TD
     REL -->|Release published / v* tag| PROD["cd.yml: deploy_and_test_prod\n(DB Migrate -> TF Apply -> 7d Logs -> S3/CF -> AI Eval + 15 E2E + ZAP)"]
 
     CRON_D["Nightly 00:00 UTC"] --> DRIFT["drift.yml: Read-Only Terraform Drift Check\n(dev & prod matrix: exitcode 2 = alert)"]
-    CRON_K["Daily 12:00 UTC"] --> KEEP["keepalive.yml: Aiven PostgreSQL Ping"]
+    CRON_K["Daily 12:00 UTC"] --> KEEP["keepalive.yml: 1 Full Prod E2E Match\n+ Retain Latest 7 E2E Matches"]
     CRON_M["Monthly / ML Paths Changed"] --> MLOPS["mlops-pipeline.yml: 8-Model Benchmark & Quality Gate"]
     DISPATCH_M["Manual Dispatch"] --> MLREL["ml-model-release.yml: Promote / Rollback ML Model + Smoke Test"]
 ```
@@ -45,9 +45,9 @@ flowchart TD
 - **`sbom.yml` — Software Bill of Materials Generation:**
   - **Triggers:** `push` (`main`), `schedule` (`0 0 * * 0` Sun), `workflow_dispatch`.
   - Generates an SPDX JSON SBOM (`cricscore-sbom.spdx.json`) using Anchore Syft and uploads it as a 30-day artifact.
-- **`keepalive.yml` — Aiven PostgreSQL Keep-Alive Cron:**
+- **`keepalive.yml` — Daily Production E2E Match & Aiven PostgreSQL Keep-Alive:**
   - **Triggers:** `schedule` (`0 12 * * *` daily), `workflow_dispatch`.
-  - Executes `SELECT 1 AS keep_alive;` via `psql` (up to 3 retries) at 12:00 UTC daily so the Aiven Free Tier PostgreSQL instance never pauses due to inactivity.
+  - Runs 1 full 2-over Playwright E2E match (`tests/user-journey.spec.ts`) against Production (`cricscore.venkateshsingamsetty.com`) to generate real WAL write activity (`INSERT`/`UPDATE`/`DELETE`) in Aiven Free Tier PostgreSQL while verifying live production health, and prunes older E2E test matches in `prod` (`OFFSET 7`) so only the **latest 7 E2E test matches** are retained.
 - **`terraform-unlock.yml` — Emergency State Force-Unlock (`dev` or `prod`):**
   - **Triggers:** `workflow_dispatch` (`environment: dev|prod`, `lock_id`).
   - Runs `terraform init` and `terraform force-unlock -force "<lock_id>"` to clear a stale `.tflock` object in S3.
