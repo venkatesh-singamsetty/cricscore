@@ -1,3 +1,9 @@
+## [4.22.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.21.2...v4.22.0) (2026-11-01)
+
+### 🚀 Features
+
+* **platform:** deterministic POTM, ~$1/mo ECR/S3 cost hardening, architecture diagrams & tutorial docs ([#333](https://github.com/venkatesh-singamsetty/cricscore/issues/333)) ([6656583]()), closes [#328]() [#329]()
+
 ## [4.21.2](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.21.1...v4.21.2) (2026-10-23)
 
 ### 🐛 Bug Fixes
