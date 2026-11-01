@@ -1,8 +1,6 @@
 # ⚡ Real-Time WebSockets & Event Fan-Out Tutorial (SNS + SQS)
 
-This tutorial provides a hands-on architectural walkthrough of CricScore's **Real-Time Event-Driven Engine**.
-
-CricScore streams ball-by-ball score updates to thousands of concurrent spectators with sub-second latency using an **AWS SNS Fan-Out Architecture** combined with **API Gateway WebSockets** and **DynamoDB Connection Tracking**.
+Hands-on architectural guide to CricScore's **Real-Time Event-Driven Engine**, combining an **AWS SNS + WebSocket Fast-Path** with an **AWS SQS FIFO + PostgreSQL Persistence Path**.
 
 ---
 
@@ -61,168 +59,142 @@ sequenceDiagram
 
 ---
 
-## 🚀 Key Components
+## 🚀 Dual-Path Event Architecture
 
-### 1. Dual-Path Architecture (Fast-Path vs Reliability Path)
-
-The event-driven flow separates spectator updates from database persistence. Delivery time and recovery depend on service availability and queue processing:
-
-- **Fast-Path (Spectator Delivery)**: `score-update` -> `SNS` -> `broadcaster` -> `WebSocket API Gateway` -> `Spectators`. Spectator delivery does not wait for the database write, but end-to-end latency depends on service and network conditions.
-- **Persistence Path**: `score-update` sends the event to the FIFO `SQS Queue` -> `storage-worker` -> `Aiven PostgreSQL`. The same score-update function publishes separately to SNS for the broadcaster path. The SQS queue retains messages for up to one day; no dead-letter queue or redrive policy is configured.
-
----
-
-### 2. WebSocket Connection Lifecycle (DynamoDB Tracking)
-
-Live spectator connection IDs are managed by serverless session Lambdas (`onconnect/` and `ondisconnect/`):
-
-#### On Connection (`$connect`):
-
-1. Spectator opens WebSocket connection: `wss://<ws-id>.execute-api.us-east-1.amazonaws.com/prod`.
-2. API Gateway invokes `onconnect` Lambda.
-3. `onconnect` writes the connection ID to DynamoDB:
-   ```json
-   {
-     "connection_id": "conn-12345",
-     "connected_at": 1774343400000
-   }
-   ```
-
-#### On Disconnection (`$disconnect`):
-
-1. Spectator closes browser tab or loses connection.
-2. API Gateway invokes `ondisconnect` Lambda.
-3. `ondisconnect` deletes `connection_id` from DynamoDB.
-
-#### Stale Connection Pruning (`GoneException`):
-
-If a connection drops ungracefully (e.g. abrupt network disconnect):
-
-- When `broadcaster` Lambda attempts `ApiGatewayManagementApi.postToConnection()`, API Gateway returns a `410 GoneException`.
-- `broadcaster` catches `GoneException` and immediately deletes the dead `connection_id` from DynamoDB to keep the connection pool clean.
+| Path                                     | Pipeline Hop Sequence                                                                                                                               | Primary Responsibility                                                                                                                  | Latency & Delivery Characteristics                                               |
+| :--------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------- |
+| **1. Fast-Path (Spectator Fan-Out)**     | `Scorer UI` ➔ `POST /match/{id}/score` ➔ `score-update` ➔ `SNS Topic` ➔ `broadcaster` ➔ `DynamoDB Scan` ➔ `WebSocket API Gateway` ➔ `Spectators`    | Streams live ball-by-ball updates (`LIVE_SCORE_UPDATE`) to all connected spectators immediately without waiting on database I/O.        | Sub-second fan-out via parallel `PostToConnectionCommand` calls.                 |
+| **2. Persistence Path (ACID Storage)**   | `Scorer UI` ➔ `POST /match/{id}/score` ➔ `score-update` ➔ `SQS FIFO (storage_buffer.fifo)` ➔ `storage-worker` (batch size `1`) ➔ `Aiven PostgreSQL` | Commits deliveries (`balls` table) and cumulative totals (`innings` table) in strict ball order per match (`MessageGroupId = matchId`). | Ordered FIFO processing, content-based deduplication, 24-hour message retention. |
+| **3. Lifecycle Hub Sync (`HUB_UPDATE`)** | `Scorer UI` ➔ `match-api` ➔ `Aiven PostgreSQL` ➔ Direct Lambda Invoke `broadcaster` (`{ type: "HUB_UPDATE" }`) ➔ `Spectators`                       | Broadcasts match creation, toss/innings switches, match completion, and resets to all viewers immediately.                              | Instant UI list & scorecard state transition without manual browser refresh.     |
 
 ---
 
-## 💻 Code Walkthrough
+## 🔌 WebSocket Connection Lifecycle (DynamoDB Tracking)
 
-### 1. Publishing an Event (`score-update/index.js`)
+| Event / Trigger         | Route / Handler                                  | DynamoDB Operation (`<project>-ws-connections`)                                 | Payload / Error Handling                                                    |
+| :---------------------- | :----------------------------------------------- | :------------------------------------------------------------------------------ | :-------------------------------------------------------------------------- |
+| **Client Connects**     | `$connect` ➔ `onconnect` Lambda                  | `PutItem`: stores `{ connection_id, timestamp }`                                | Returns `200 Connected` to establish `wss://ws.<domain>` session.           |
+| **Client Disconnects**  | `$disconnect` ➔ `ondisconnect` Lambda            | `DeleteItem`: deletes `{ connection_id }`                                       | Triggered automatically when a spectator closes the browser tab.            |
+| **Abrupt Network Drop** | `broadcaster` Lambda (`PostToConnectionCommand`) | `DeleteItem`: deletes stale `{ connection_id }` on `GoneException` (`HTTP 410`) | Self-heals the DynamoDB connection registry during every broadcast fan-out. |
+
+---
+
+## 💻 Core Lambda Implementation
+
+### 1. Publishing to SNS & SQS FIFO (`apps/backend/lambdas/score-update/index.js`)
 
 ```javascript
 import { SNSClient, PublishCommand } from "@aws-sdk/client-sns";
+import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
 
-const snsClient = new SNSClient({ region: process.env.AWS_REGION });
+const sns = new SNSClient({});
+const sqs = new SQSClient({});
 
-export const handler = async (event) => {
-  const ballData = JSON.parse(event.body);
+// 1. Fast-Path: Publish to SNS Topic for immediate WebSocket broadcast
+await sns.send(
+  new PublishCommand({
+    TopicArn: process.env.MATCH_EVENTS_TOPIC,
+    Message: JSON.stringify(eventPayload),
+    MessageAttributes: {
+      eventType: { DataType: "String", StringValue: "BALL_SCORED" },
+    },
+  }),
+);
 
-  // Publish ball event to SNS Fan-Out Topic
-  await snsClient.send(
-    new PublishCommand({
-      TopicArn: process.env.MATCH_EVENTS_TOPIC,
-      Message: JSON.stringify({
-        type: "LIVE_SCORE_UPDATE",
-        matchId: ballData.matchId,
-        data: ballData,
-      }),
-    }),
-  );
-
-  return { statusCode: 200, body: JSON.stringify({ success: true }) };
-};
+// 2. Reliability Path: Enqueue in SQS FIFO for ordered PostgreSQL persistence
+await sqs.send(
+  new SendMessageCommand({
+    QueueUrl: process.env.STORAGE_BUFFER_QUEUE,
+    MessageBody: JSON.stringify(eventPayload),
+    MessageGroupId: String(matchId), // Strict FIFO ordering per match
+  }),
+);
 ```
 
----
-
-### 2. Broadcasting to WebSockets (`broadcaster/index.js`)
+### 2. Parallel WebSocket Fan-Out & Stale Pruning (`apps/backend/lambdas/broadcaster/index.js`)
 
 ```javascript
 import {
   ApiGatewayManagementApiClient,
   PostToConnectionCommand,
 } from "@aws-sdk/client-apigatewaymanagementapi";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
-  DynamoDBClient,
+  DynamoDBDocumentClient,
   ScanCommand,
-  DeleteItemCommand,
-} from "@aws-sdk/client-dynamodb";
+  DeleteCommand,
+} from "@aws-sdk/lib-dynamodb";
+
+const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+const apiGw = new ApiGatewayManagementApiClient({
+  endpoint: process.env.WEBSOCKET_URL.replace("wss://", "https://"),
+});
 
 export const handler = async (event) => {
-  // Extract payload from SNS Fan-Out OR Direct Lambda Invocation (e.g. HUB_UPDATE from match-api)
-  let payloadStr = "";
-  if (event.Records?.[0]?.Sns?.Message) {
-    payloadStr = event.Records[0].Sns.Message;
-  } else if (event.body) {
-    payloadStr =
-      typeof event.body === "string" ? event.body : JSON.stringify(event.body);
-  } else {
-    payloadStr = JSON.stringify(event);
-  }
+  // Supports both SNS topic records and direct HUB_UPDATE invocations from match-api
+  const message = event.Records
+    ? event.Records[0].Sns.Message
+    : JSON.stringify(event);
 
-  // Fetch active WebSocket connection IDs from DynamoDB
-  const connections = await ddbClient.send(
-    new ScanCommand({ TableName: process.env.CONNECTIONS_TABLE }),
+  const { Items = [] } = await ddb.send(
+    new ScanCommand({ TableName: process.env.TABLE_NAME }),
   );
 
-  // Push to all active spectators in parallel
   await Promise.all(
-    connections.Items.map(async (item) => {
-      const connectionId = item.connection_id.S;
+    Items.map(async ({ connection_id }) => {
       try {
-        await wsApiClient.send(
+        await apiGw.send(
           new PostToConnectionCommand({
-            ConnectionId: connectionId,
-            Data: Buffer.from(payloadStr),
+            ConnectionId: connection_id,
+            Data: message,
           }),
         );
       } catch (err) {
-        if (err.name === "GoneException") {
-          // Remove stale connection from DynamoDB
-          await ddbClient.send(
-            new DeleteItemCommand({
-              TableName: process.env.CONNECTIONS_TABLE,
-              Key: { connection_id: { S: connectionId } },
+        if (err.statusCode === 410 || err.name === "GoneException") {
+          await ddb.send(
+            new DeleteCommand({
+              TableName: process.env.TABLE_NAME,
+              Key: { connection_id },
             }),
           );
         }
       }
     }),
   );
+
+  return { statusCode: 200, body: "Broadcast complete." };
 };
 ```
 
 ---
 
-## 🧪 Testing WebSockets Locally & Interactively
+## 🛡️ State Reconciliation & Reliability Guarantees
 
-### 1. Connecting via CLI (`wscat`)
-
-You can test real-time WebSocket pushes from your terminal using `wscat`:
-
-```bash
-# Install wscat
-npm install -g wscat
-
-# Connect to the live production WebSocket endpoint
-wscat -c wss://<ws-api-id>.execute-api.us-east-1.amazonaws.com/prod
-```
-
-Once connected:
-
-- Trigger a ball event via the Scorer UI or POST endpoint.
-- You will see the live JSON score payload streamed directly into your `wscat` terminal in real time!
+| Mechanism                                                                         | Problem Solved                                                                                                               | Implementation Detail                                                                                                                                                                                  |
+| :-------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Authoritative Cumulative Totals** (`explicitTotalRuns`, `explicitTotalWickets`) | Prevents score drift or double-counting if SQS FIFO batching lags slightly behind the Fast-Path WebSocket push.              | Scorer UI sends authoritative `explicitTotalRuns`, `explicitTotalWickets`, `overs`, and `balls` on every delivery and undo; both `storage-worker` and `LiveScoreboard` reconcile against these totals. |
+| **Strike-Rotation Batter Attribution** (`ballData.batterName`)                    | On odd-run deliveries (`1`, `3`) or end-of-over strike changes, post-delivery `strikerName` is the _next_ ball's striker.    | `LiveScoreboard` attributes runs and balls faced strictly to `ballData.batterName` before updating active crease positions (`strikerName` / `nonStrikerName`).                                         |
+| **WebSocket vs. Polling Recency Guard** (`lastWsScoreUpdateAtRef`)                | Prevents a slightly lagging REST poll read from briefly reverting a live boundary or 2nd-innings score on spectator screens. | `LiveScoreboard` records `lastWsScoreUpdateAtRef` on every WebSocket frame and applies monotonic reconciliation (`Math.max(old.totalRuns, inn.totalRuns, playerRunsSum, ballsRunsSum)`).               |
+| **Canonical Multi-Innings Routing** (`inningNumber`)                              | Handles rapid 2nd-innings scoring before the client receives the database primary key for the new inning row.                | `storage-worker` resolves the canonical inning row via `WHERE match_id = $1 AND inning_number = $2`.                                                                                                   |
+| **Atomic Real-Time Undo** (`undo: true`)                                          | Ensures undoing a ball updates both PostgreSQL and all connected spectators in lockstep.                                     | `score-update` broadcasts `undo: true` with restored cumulative totals; `storage-worker` deletes the latest `balls` record and updates `innings` atomically.                                           |
 
 ---
 
-## 🛡️ Reliability, State Reconciliation & Scale Characteristics
+## 🧪 Testing WebSockets Interactively (`wscat`)
 
-- **Zero-Downtime Fan-Out**: Adding more spectators scales automatically via API Gateway WebSockets and Lambda concurrency.
-- **Authoritative Cumulative Score Synchronization (`explicitTotalRuns` / `explicitTotalWickets`)**: Because SQS FIFO batching or Lambda warm-up variance can occasionally cause slight latency between the Fast-Path WebSocket push and the PostgreSQL `innings` update, the Scorer UI transmits authoritative cumulative totals (`explicitTotalRuns`, `explicitTotalWickets`, `overs`, `balls`) on every ball and undo payload. Both `storage-worker` and spectator clients (`applyLiveScoreToMatches` / `LiveScoreboard`) use these explicit cumulative totals instead of blindly adding incremental runs, preventing drift or double-counting.
-- **Strike-Rotation Batter Attribution (`ballData.batterName`)**: On odd-run deliveries (1, 3) or end-of-over strike changes, `strikerName` in the post-delivery payload reflects the _next_ ball's striker, whereas `ballData.batterName` identifies the batter who actually faced the ball. `LiveScoreboard` attributes runs and balls faced strictly to `ballData.batterName` before updating active crease positions (`strikerName` / `nonStrikerName`), ensuring individual batter scores always sum to the team total.
-- **WebSocket vs. Polling Recency Guard & Monotonic Reconciliation**: `LiveScoreboard` tracks `lastWsScoreUpdateAtRef` when receiving a WebSocket frame and suppresses background REST polling downgrades for active innings, using monotonic reconciliation (`Math.max(old.totalRuns, inn.totalRuns)` and `derivedTotalRuns = Math.max(Number(inn.total_runs || 0), playerRunsSum, ballsRunsSum)`). This prevents a slightly lagging database read from briefly reverting a live boundary or resetting 2nd innings scores to 0 on spectator screens.
-- **Canonical Multi-Innings Event Routing (`inningNumber`)**: In multi-innings matches, when the second innings begins before its database record ID is retrieved, the scorer UI transmits optimistic IDs alongside `inningNumber: 2`. `storage-worker` uses `WHERE match_id = $1 AND inning_number = $2` to resolve the canonical database inning ID, guaranteeing deliveries are persisted to the correct inning even under asynchronous SQS batching.
-- **Real-Time Undo (`undo: true`)**: When a scorer undoes the last delivery, `score-update` publishes an `undo: true` event with the restored `explicitTotalRuns`, `explicitTotalWickets`, `overs`, and `balls`. `storage-worker` deletes the last `balls` record and updates the `innings` row atomically, while connected spectators reconcile their scorecards and recent-balls strip immediately.
-- **Queue recovery**: The current Terraform does not configure a dead-letter queue or redrive policy. Monitor queue processing and define an operational recovery procedure for failures.
-- **Stale connection cleanup**: Disconnect handlers and broadcaster handling of gone connections remove stale IDs. The current DynamoDB table does not configure TTL expiration.
+```bash
+# 1. Install wscat globally (or run via npx)
+npm install -g wscat
+
+# 2. Get the deployed WebSocket URL from Terraform outputs
+WS_URL=$(terraform -chdir=infra/terraform output -raw websocket_url)
+
+# 3. Open an interactive WebSocket spectator session
+wscat -c "$WS_URL"
+
+# 4. Inspect active connection IDs in DynamoDB
+aws dynamodb scan --table-name cricscoredev-ws-connections --region us-east-1
+```
 
 ---
 

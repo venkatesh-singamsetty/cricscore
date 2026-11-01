@@ -1,39 +1,46 @@
-# 🛡️ Security Policy
+# 🛡️ Security Policy & Vulnerability Reporting
 
-## Reporting Security Vulnerabilities
+## 📬 Reporting a Vulnerability
 
-If you discover a security vulnerability within CricScore, please **do not report it in a public GitHub Issue**. Instead, send a private security report to:
+Please **do not** report security vulnerabilities in public GitHub issues. Send a private disclosure report to:
 
-📧 **Security Contact:** [venkatesh.singamsetty@gmail.com](mailto:venkatesh.singamsetty@gmail.com)
-
-Please include:
-
-- A description of the vulnerability and its potential impact.
-- Step-by-step instructions to reproduce the issue.
-- Any proof-of-concept scripts or payload examples.
-
-We take security vulnerabilities seriously and will acknowledge receipt of your report within **24 hours**.
+| Channel              | Details                                                                                          |
+| :------------------- | :----------------------------------------------------------------------------------------------- |
+| **Security Contact** | [venkatesh.singamsetty@gmail.com](mailto:venkatesh.singamsetty@gmail.com)                        |
+| **Response SLA**     | Acknowledgment within **24 hours**; triage & remediation plan within **72 hours**                |
+| **What to Include**  | Affected endpoint/component, reproduction steps, proof-of-concept payload, and impact assessment |
 
 ---
 
-## 🔒 Security Posture & Architecture Summary
+## 🔒 Defense-in-Depth Architecture
 
-CricScore enforces enterprise-grade security controls at every layer:
+```mermaid
+flowchart LR
+    Client["Browser / Client"] -->|TLS 1.3 + ACM| Edge["CloudFront + API Gateway"]
+    Edge -->|RS256 JWT + Route Throttle| Compute["AWS Lambda (Least-Privilege IAM)"]
+    Compute -->|BEGIN READ ONLY + AST Guard| DB[("Aiven PostgreSQL 16 (TLS)")]
+    CI["GitHub Actions CI/CD"] -->|GitLeaks + Checkov + Trivy + CodeQL + ZAP| Compute
+```
 
-| Security Domain            | Defense Controls                                                                                                                                          |
-| :------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Authentication**         | AWS Cognito User Pools with RS256 JWT signatures & short-lived access tokens                                                                              |
-| **API Authorization**      | Amazon API Gateway JWT Authorizers protect selected HTTP routes; public HTTP routes and the current WebSocket routes do not use API Gateway authorization |
-| **Secret Protection**      | Zero hardcoded keys in source code; secrets stored in GitHub Repository Secrets and injected securely via Terraform                                       |
-| **Static Code Analysis**   | GitHub CodeQL JavaScript/TypeScript analysis on pull requests targeting `main`, pushes to `main`, weekly, and manual runs                                 |
-| **Secret Leak Prevention** | GitLeaks scans staged files in the local pre-commit hook and the repository in CI                                                                         |
-| **Dependency Security**    | CI runs Trivy filesystem scans on frontend and backend Lambda dependencies for fixable HIGH and CRITICAL findings                                         |
-| **Dynamic Testing (DAST)** | OWASP ZAP Baseline Security Scan automated in CD deployment pipelines                                                                                     |
-| **Supply Chain**           | Syft automated SPDX Software Bill of Materials (SBOM) generation                                                                                          |
-| **Database Security**      | TLS-encrypted Aiven PostgreSQL with schema-level dev/prod data isolation                                                                                  |
-
-For full architectural details, see our **[Security Posture & Tradeoffs Guide](./docs/security_posture.md)**.
+| Security Layer                   | Control Implemented in CricScore                                                                                                                                                                                   | Verification Command / Location                        |
+| :------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------- |
+| **Identity & Auth**              | AWS Cognito User Pools (RS256 JWTs) + exact `Admin` group claim validation (`isAdminClaims`)                                                                                                                       | `apps/backend/lambdas/match-api/index.js`              |
+| **API Gateway Edge**             | Cognito JWT Authorizer on write/admin routes + `5 rps` (burst `10`) throttle on `/chat` & `/chat/summary`                                                                                                          | `infra/terraform/apigateway_http.tf`                   |
+| **AI & MCP Guardrails**          | In-memory MCP transport (`InMemoryTransport`), `BEGIN READ ONLY` SQL transactions, single-statement `SELECT`/`WITH` AST validation, `3s` timeout, `scorer_email` PII stripping, and 1-issue/turn GitHub rate limit | `apps/backend/lambdas/chat-api/mcp/`                   |
+| **Secrets Management**           | Zero hardcoded credentials; injected via GitHub Environment Secrets and `.env.local` (`TF_VAR_*`)                                                                                                                  | `gitleaks detect -v`                                   |
+| **Static Analysis (SAST)**       | GitHub CodeQL (`javascript-typescript` & `python`) on every PR and push to `main`                                                                                                                                  | `.github/workflows/codeql.yml`                         |
+| **IaC Security**                 | Checkov Terraform scanning on `infra/terraform/`                                                                                                                                                                   | `checkov -d infra/terraform/`                          |
+| **Vulnerability & Supply Chain** | `npm audit`, Trivy filesystem/container scanning (`HIGH,CRITICAL`), Dependabot, and Syft SPDX SBOM generation                                                                                                      | `./infra/scripts/validate_local.sh --skip-e2e`         |
+| **Dynamic Scanning (DAST)**      | Automated OWASP ZAP baseline scan against live `dev` and `prod` deployments                                                                                                                                        | `.github/workflows/ci.yml` & `cd.yml`                  |
+| **Data Isolation & Encryption**  | `SSE-S3 (AES256)` on all S3/ECR/SNS/SQS stores + schema-isolated (`dev` / `prod`) TLS PostgreSQL                                                                                                                   | [docs/security_posture.md](./docs/security_posture.md) |
 
 ---
 
-© 2026 CricScore Security. 🏎️🏁🚀
+## 🧪 Run Local Security Audit
+
+```bash
+# Run all security scanners locally before pushing
+./infra/scripts/validate_local.sh --skip-e2e
+```
+
+For full architectural trade-offs and remediation history, see **[Security Posture](./docs/security_posture.md)** and **[Security Fixes Log](./docs/security_fixes.md)**.

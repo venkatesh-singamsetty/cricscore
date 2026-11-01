@@ -1,62 +1,68 @@
-# Domain Migration Log & Guide
+# 🌐 Domain Migration Log & Runbook (`.site` → `.com`)
 
-This document outlines the exact steps taken to migrate the application from the `.site` domain to the `.com` domain, serving as both a historical log and a guide for any future domain migrations.
+This runbook documents the end-to-end migration of CricScore from `.site` to `.com` (`cricscore.venkateshsingamsetty.com` & `cricscore-dev.venkateshsingamsetty.com`), including DNS cutover, ACM/CloudFront updates, Amazon SES DKIM verification, and Route 53 cost cleanup to preserve the **`~$1/month` total AWS footprint** (Dev + Prod combined).
 
-## 1. DNS & Nameserver Updates
+---
 
-- Created a new Hosted Zone in AWS Route 53 for the `.com` domain.
-- Copied the 4 AWS Nameservers (NS records) provided by Route 53.
-- Logged into the domain registrar (Spaceship/Namecheap) and replaced the default nameservers with the AWS Route 53 nameservers.
-- Allowed time for DNS propagation.
+## 🔄 Migration Workflow
 
-## 2. Infrastructure as Code (.tfvars)
-
-Updated the environment variables to point to the new `.com` domain:
-
-- **`infra/terraform/environments/dev.tfvars`**: Changed `zone_domain` and `domain_name`.
-- **`infra/terraform/environments/prod.tfvars`**: Changed `zone_domain` and `domain_name`.
-
-## 3. Local Environment Updates
-
-- Updated `.env.local` to use the new `.com` domain.
-- Updated `TF_SES_SOURCE_EMAIL` in `.env.local` to `noreply@yournewdomain.com`.
-
-## 4. Redeploy Environments
-
-Ran the deployment scripts to provision the new SSL certificates, update API Gateway domains, and redirect CloudFront to the new domain:
-
-```bash
-./infra/scripts/deploy.sh --env dev
-./infra/scripts/deploy.sh --env prod
+```mermaid
+flowchart LR
+    DNS["1. Route 53 Hosted Zone\n+ Registrar NS Cutover"] --> TF["2. Update .tfvars\n& .env.local"]
+    TF --> Deploy["3. Redeploy Dev & Prod\n(ACM + CloudFront + API GW)"]
+    Deploy --> SES["4. Amazon SES Identity\n(Easy DKIM RSA-2048)"]
+    SES --> Clean["5. Delete Old Hosted Zone\n(Save $0.50/mo Route 53 Fee)"]
+    Clean --> GH["6. Sync GitHub Secrets\n(setup_github_envs.sh)"]
 ```
 
-## 5. Email (Amazon SES) Configuration
+---
 
-- Navigated to AWS SES → Configuration → Identities.
-- Created a new Domain Identity for the `.com` domain.
-- Selected **Easy DKIM** and **RSA_2048_BIT**.
-- Ensured "Publish DNS records to Route53" was checked so AWS automatically verified the domain.
+## 📋 Step-by-Step Migration Checklist
 
-## 6. Cleanup of Old Resources
+| Step  | Component                    | Action Taken / Configuration Updated                                                                                    | Cost / Operational Impact                                                   |
+| ----- | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| **1** | **Route 53 & Registrar**     | Created `.com` Hosted Zone via `infra/terraform/bootstrap` and updated all 4 NS records at the domain registrar.        | `$0.50/month` for the active hosted zone                                    |
+| **2** | **Terraform `.tfvars`**      | Updated `zone_domain` and `domain_name` in `infra/terraform/environments/dev.tfvars` and `prod.tfvars`.                 | Points CloudFront, ACM, and Cognito callbacks to `.com`                     |
+| **3** | **Local `.env.local`**       | Updated `DOMAIN_NAME`, `ZONE_DOMAIN`, and `TF_SES_SOURCE_EMAIL=noreply@<new-domain>.com`.                               | Ensures local deploy scripts pass verified sender identity                  |
+| **4** | **ACM, CloudFront & API GW** | Re-ran `./infra/scripts/deploy.sh` for `dev` and `prod` to issue free ACM TLS certs and update CloudFront aliases.      | Included with ACM (public TLS certificates have no extra charge)            |
+| **5** | **Amazon SES (Email)**       | Created `.com` Domain Identity with **Easy DKIM (`RSA_2048_BIT`)** and auto-published verification records to Route 53. | Enables authenticated password-reset and admin report emails                |
+| **6** | **Old Resource Cleanup**     | Deleted the old `.site` SES identity, non-default DNS records, and the old `.site` Route 53 Hosted Zone.                | Eliminates duplicate `$0.50/month` hosted zone charge (`~$1/mo` total kept) |
+| **7** | **GitHub Environments**      | Executed `./infra/scripts/setup_github_envs.sh` to sync `DOMAIN_NAME`, `ZONE_DOMAIN`, and `TF_SES_SOURCE_EMAIL`.        | Keeps automated CI/CD deployments aligned with the new domain               |
 
-To prevent unnecessary AWS charges (like the $0.50/month Route 53 fee), the old domain was completely removed:
+---
 
-- Deleted the old `.site` Domain Identity from Amazon SES.
-- Deleted all non-default records (TXT, CNAMEs) from the old `.site` Route 53 Hosted Zone.
-- Deleted the `.site` Route 53 Hosted Zone itself.
+## ⚡ Runnable Migration & Verification Commands
 
-## 7. GitHub Actions Synchronization
-
-To ensure the CI/CD pipeline deploys using the correct new domain, the GitHub Secrets and Variables were updated automatically by running:
+### 1. Provision Bootstrap DNS & Redeploy Environments
 
 ```bash
+# 1. Deploy Dev and Prod stacks with updated .tfvars and .env.local
+./infra/scripts/deploy.sh --env dev --use-local-env
+./infra/scripts/deploy.sh --env prod --use-local-env
+
+# 2. Synchronize updated domain variables to GitHub Actions (dev & prod environments)
 ./infra/scripts/setup_github_envs.sh
 ```
 
-This pushed the updated `DOMAIN_NAME`, `ZONE_DOMAIN`, and `TF_SES_SOURCE_EMAIL` to both the `dev` and `prod` GitHub environments.
+### 2. Verify DNS Propagation & SSL Certificates
 
-## 8. Documentation Updates
+```bash
+# Verify Route 53 NS delegation and CloudFront A/ALIAS resolution
+dig NS venkateshsingamsetty.com +short
+dig A cricscore.venkateshsingamsetty.com +short
+dig A cricscore-dev.venkateshsingamsetty.com +short
 
-- Updated all hardcoded `.site` URLs in `README.md`, `docs/terraform_guide.md`, and `docs/aws_resources_dashboard.md` to `.com`.
-- Introduced a dedicated `infra/terraform/bootstrap` folder to cleanly manage the core Terraform state bucket and Route 53 zone.
-- Updated `docs/deployment.md` to guide new users on how to run the bootstrap folder first.
+# Verify HTTPS TLS certificate subject and issuer
+curl -Iv https://cricscore.venkateshsingamsetty.com 2>&1 | grep -E "subject:|issuer:|SSL certificate verify"
+```
+
+### 3. Decommission Legacy Hosted Zone (Cost Protection)
+
+```bash
+# List hosted zones to confirm only a single active zone remains ($0.50/mo)
+aws route53 list-hosted-zones --query "HostedZones[*].[Id,Name,ResourceRecordSetCount]" --output table
+```
+
+---
+
+© 2026 CricScore Documentation. 🏎️🏁🚀

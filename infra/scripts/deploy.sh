@@ -202,6 +202,11 @@ echo "☁️ Applying AWS Infrastructure for $ENV_FILE environment..."
   -var="project_name=${DEPLOY_PROJECT}" \
   -var="subdomain_prefix=${DEPLOY_PREFIX}")
 
+# Ensure all Lambda log groups in this environment have 7-day retention
+for lg in $(aws logs describe-log-groups --region "${AWS_REGION:-us-east-1}" --log-group-name-prefix "/aws/lambda/${DEPLOY_PROJECT}-" --query "logGroups[].logGroupName" --output text 2>/dev/null || true); do
+  aws logs put-retention-policy --region "${AWS_REGION:-us-east-1}" --log-group-name "$lg" --retention-in-days 7 2>/dev/null || true
+done
+
 # 3. Read Terraform outputs
 echo "🔍 Querying Terraform outputs..."
 API_URL=$(cd infra/terraform && terraform output -raw http_api_url)

@@ -1,149 +1,137 @@
-# 🛠️ CricScore Contributing & Developer Workflow Guide
+# 🛠️ CricScore Contributing & Developer Workflow Tutorial
 
-Welcome to CricScore! This guide outlines the standard development workflow and rules for contributing code to the repository.
-
-To maintain high stability and zero-downtime deployments, direct pushes to the `main` branch are blocked. All changes must follow the **Feature Branch & Pull Request Workflow**.
+Direct pushes to `main` are blocked by GitHub Branch Protection. Every code or documentation change follows a 7-step **Feature Branch → Local Validation → Dev Cloud Verification → Pull Request → Automated Release** workflow.
 
 ---
 
-## 🚀 Quick Start: Step-by-Step Workflow
+## 🔄 End-to-End Contribution Pipeline
 
-### 1. Sync `main` & Create a Feature Branch
+```mermaid
+flowchart LR
+    Step1["1. Branch from main"] --> Step2["2. Run validate_local.sh"]
+    Step2 --> Step3["3. Deploy & Test on Dev"]
+    Step3 --> Step4["4. Conventional Commit"]
+    Step4 --> Step5["5. Sync main & Push"]
+    Step5 --> Step6["6. Open PR & Pass CI Checks"]
+    Step6 --> Step7["7. Squash Merge -> Prod CD"]
+```
 
-Always start from an up-to-date `main` branch and create a dedicated topic branch:
+---
+
+## 📋 Step-by-Step Developer Tutorial
+
+| Step  | Goal                                 | Command / Action                                                                      |
+| :---: | :----------------------------------- | :------------------------------------------------------------------------------------ |
+| **1** | **Sync `main` & create branch**      | `git checkout main && git pull origin main && git checkout -b feat/my-change`         |
+| **2** | **Run local verification gate**      | `./infra/scripts/validate_local.sh --skip-e2e`                                        |
+| **3** | **Deploy & verify on `dev` cloud**   | `./infra/scripts/deploy.sh --env dev --use-local-env`                                 |
+| **4** | **Commit with Conventional Commits** | `git add . && git commit -m "feat(scope): concise summary"`                           |
+| **5** | **Sync `origin/main` & push**        | `git fetch origin main && git merge origin/main --no-edit && git push -u origin HEAD` |
+| **6** | **Open PR & verify status checks**   | `gh pr create --base main` and `gh pr checks`                                         |
+| **7** | **Squash & merge into `main`**       | `gh pr merge --auto --squash --delete-branch`                                         |
+
+---
+
+### Step 1: Sync `main` & Create a Feature Branch
 
 ```bash
-# Ensure you are on main and up to date
 git checkout main
 git pull origin main
-
-# Create a new topic branch (e.g. fix/... or feat/...)
-git checkout -b fix/auth-token-refresh
+git checkout -b feat/your-feature-name
 ```
 
----
+### Step 2: Run the Local Validation Gate (`376` Unit Tests + 6 Security Scanners)
 
-### 2. Make & Test Your Changes Locally
+`./infra/scripts/validate_local.sh` runs the exact same checks enforced by GitHub Actions CI:
 
-Before committing or pushing, run the local verification suite. It executes Frontend TypeScript lint, Vitest unit/component tests, `npm audit`, Vite production build, Backend Vitest unit tests, Terraform `fmt -check` and `validate`, Checkov IaC scan, GitLeaks secret detection, Trivy CVE scan, Syft SBOM generation, and (unless `--skip-e2e` is passed) Playwright E2E tests against `dev`:
+| Check                     | Tool / Runner                                   | What It Verifies                                                       |
+| :------------------------ | :---------------------------------------------- | :--------------------------------------------------------------------- |
+| **Frontend Lint & Build** | ESLint + `tsc -b` + Vite                        | Zero TypeScript/ESLint errors and clean production bundle              |
+| **Frontend Unit Tests**   | Vitest (`apps/frontend`)                        | **151** component, hook, DLS, and state sync tests                     |
+| **Backend Unit Tests**    | Vitest (`apps/backend`)                         | **121** Lambda handler, SQL guard, MCP, and deterministic POTM tests   |
+| **Python AI & ML Tests**  | Pytest (`apps/ai-service`, `apps/ml-engine`)    | **75** LangGraph/MCP agent tests + **29** hybrid win-probability tests |
+| **IaC & Secret Scans**    | Terraform `fmt`/`validate` + Checkov + GitLeaks | Valid HCL formatting, AWS security policies, and zero leaked secrets   |
+| **CVE & Supply Chain**    | `npm audit` + Trivy FS + Syft SPDX SBOM         | Zero high/critical fixable CVEs and updated dependency manifest        |
 
 ```bash
-# Fast pre-push validation (skips live Playwright E2E)
+# Fast pre-push validation (~25s, skips live Playwright E2E)
 ./infra/scripts/validate_local.sh --skip-e2e
 
-# Full validation suite including live Playwright E2E against dev
+# Full validation including live Playwright E2E against Dev
 ./infra/scripts/validate_local.sh
-
-# When apps/ml-engine/ changes, also run the Python ML inference test suite
-./apps/ml-engine/venv/bin/pytest apps/ml-engine/test_predict.py
 ```
 
----
+### Step 3: Deploy & Test in the `dev` Cloud Sandbox
 
-### 3. Test Full-Stack Changes in the Cloud Sandbox
+Because CricScore is 100% serverless, always verify full-stack changes against the live **`dev`** environment (`https://cricscoredev.venkateshsingamsetty.com`) before merging:
 
-Because CricScore is a strict Serverless application, we **do not** emulate AWS API Gateway or Lambdas on localhost. To test your frontend and backend changes together before opening or merging a PR:
+```bash
+# Pre-flight check + deploy to dev (add --migrate if SQL migrations changed)
+./infra/scripts/deploy.sh --env dev --use-local-env --check
+./infra/scripts/deploy.sh --env dev --use-local-env
 
-1. **Pre-flight check & deploy to `dev`:** Push your local changes to the live AWS `dev` environment (`https://cricscoredev.venkateshsingamsetty.com`):
-   ```bash
-   ./infra/scripts/deploy.sh --env dev --use-local-env --check
-   ./infra/scripts/deploy.sh --env dev --use-local-env
-   ```
-   _(Add `--migrate` if `infra/database/schema.sql` or `infra/database/migrations/*.sql` changed.)_
-2. **Run Playwright E2E against `dev` (if UI flows/labels changed):**
-   ```bash
-   cd apps/e2e && npx playwright test --reporter=list
-   ```
-3. **Optional — Run frontend dev server locally against `dev` backend:**
-   ```bash
-   cd apps/frontend
-   npm run dev
-   ```
+# Run Playwright E2E against dev when UI flows change
+cd apps/e2e && npx playwright test --reporter=list
+```
 
----
+### Step 4: Commit Using Conventional Commits
 
-### 4. Commit Using Conventional Commit Format
+Semantic Release parses commit prefixes on `main` to calculate the next `v*` version tag and update `docs/changelog.md`:
 
-Follow the [Conventional Commits](https://www.conventionalcommits.org/) specification for commit messages and PR titles (Semantic Release uses these to determine version bumps and generate release notes):
+| Prefix                                             | Purpose                                       | Version Bump on `main` |
+| :------------------------------------------------- | :-------------------------------------------- | :--------------------: |
+| `feat:`                                            | New user-facing or architectural feature      |  **Minor** (`v1.X.0`)  |
+| `fix:`                                             | Bug fix or race-condition resolution          |  **Patch** (`v1.0.X`)  |
+| `perf:`                                            | Performance or cloud cost optimization        |  **Patch** (`v1.0.X`)  |
+| `docs:` / `chore:` / `refactor:` / `test:` / `ci:` | Documentation, dependencies, tests, workflows |  **Patch** (`v1.0.X`)  |
 
 ```bash
 git add .
-git commit -m "fix(auth): resolve JWT expiration handling on session refresh"
+git commit -m "feat(summary): unify deterministic Player of the Match across scorer and viewer"
 ```
 
-Common prefixes:
-
-- `feat:` — A new feature (triggers a **minor** version release on `main`)
-- `fix:` — A bug fix (triggers a **patch** version release on `main`)
-- `docs:` — Documentation changes (triggers a **patch** release)
-- `chore:` — Maintenance, dependency updates, build tasks (triggers a **patch** release)
-- `refactor:` — Code refactoring (triggers a **patch** release)
-- `test:` — Adding or updating automated tests
-- `ci:` — CI/CD workflow configuration changes
-
----
-
-### 5. Sync with `origin/main` & Push Your Branch
-
-Always fetch and merge `origin/main` right before pushing so your PR branch is never out-of-date with `main`:
+### Step 5: Sync with `origin/main` & Push
 
 ```bash
 git fetch origin main && git merge origin/main --no-edit
-git push -u origin fix/auth-token-refresh
+git push -u origin HEAD
 ```
 
-_(Note: Direct pushes to `main` are rejected by GitHub Branch Protection rules.)_
+### Step 6: Open a Pull Request & Verify Required Status Checks
 
----
-
-### 6. Open a Pull Request & Verify CI / CodeQL
-
-Create a PR against `main` with a clear summary comparing your branch against `origin/main`:
+| Required CI / Security Job                                | Workflow                                             | Must Pass Before Merge |
+| :-------------------------------------------------------- | :--------------------------------------------------- | :--------------------: |
+| `Infrastructure & Secrets Security` (`validate_security`) | `ci.yml` (GitLeaks + Checkov)                        |         ✅ Yes         |
+| `Lint & Test` (`validate_frontend`)                       | `ci.yml` (Trivy + ESLint + 151 Vitest + Build)       |         ✅ Yes         |
+| `Backend & Terraform Validation` (`validate_backend`)     | `ci.yml` (121 Vitest + Trivy + `terraform validate`) |         ✅ Yes         |
+| `Python AI & ML Validation` (`validate_python`)           | `ci.yml` (75 AI + 29 ML Pytest + Trivy)              |         ✅ Yes         |
+| `Analyze (javascript-typescript)` & `Analyze (python)`    | `codeql.yml` (GitHub CodeQL SAST)                    |         ✅ Yes         |
 
 ```bash
-gh pr create --title "fix(auth): resolve JWT expiration handling on session refresh" \
-             --body "Detailed summary of changes, architecture notes, and validation results." \
+gh pr create --title "feat(summary): unify deterministic Player of the Match" \
+             --body "Summary of changes, root cause, and validation results." \
              --base main
-```
 
-When a PR is opened or updated, GitHub Actions automatically runs:
-
-1. **`Security & IaC Validation` (`validate_security`)** — GitLeaks secret detection and Checkov Terraform security scanning
-2. **`Frontend Build & Test` (`validate_frontend`)** — Trivy FS scan, TypeScript (`tsc --noEmit`), Vitest unit & component suites, and Vite production build
-3. **`Backend & Terraform Validation` (`validate_backend`)** — Vitest Lambda unit tests, Trivy FS scan, and Terraform `fmt -check` & `validate`
-4. **`CodeQL` (`Analyze (javascript-typescript)` & `Analyze (python)`)** — Static analysis for security vulnerabilities, unused variables, and code quality
-
-Inspect PR checks and inline CodeQL/review comments after pushing:
-
-```bash
 gh pr checks
 gh api repos/venkatesh-singamsetty/cricscore/pulls/<PR_NUMBER>/comments
 ```
 
----
+### Step 7: Squash Merge & Automated Production Release
 
-### 7. Merge into `main` & Automated Release Pipeline
+Once all required PR checks are green, squash-merge into `main`. GitHub Actions automatically executes:
 
-Once all CI checks turn green:
-
-1. **Squash and Merge** the PR into `main` (include the detailed PR summary in the squashed commit body so `@semantic-release` publishes full release notes).
-2. Merging to `main` automatically triggers:
-   - **`CI` (`deploy_and_test_dev`)**: Runs DB migrations on `dev`, applies Terraform on `dev`, deploys the frontend to S3/CloudFront, runs AI chat evaluation, runs Playwright E2E against `dev`, and executes an OWASP ZAP baseline scan.
-   - **`Semantic Release` (`release.yml`)**: Runs after `CI` succeeds on `main`, cuts the next `v*` tag, updates `docs/changelog.md`, and publishes the GitHub Release notes.
-   - **`CD` (`cd.yml`)**: Triggered by the published release to deploy, test (Playwright E2E), and ZAP-scan `prod`.
+1. **`CI` (`deploy_and_test_dev`)**: Deploys `dev`, runs DB migrations, AI evaluation, Playwright E2E, and OWASP ZAP DAST.
+2. **`Semantic Release` (`release.yml`)**: Cuts the next `v*` tag, updates `docs/changelog.md`, and publishes enriched GitHub Release notes.
+3. **`CD` (`cd.yml`)**: Deploys the tagged release to `prod` (`https://cricscore.venkateshsingamsetty.com`), runs Playwright E2E, and runs OWASP ZAP against `prod`.
 
 ---
 
-## 🛡️ Summary of Rules
+## 🛡️ Governance Rules Summary
 
-| Action                                     | Policy                                                                                                            |
-| :----------------------------------------- | :---------------------------------------------------------------------------------------------------------------- |
-| **Direct pushes to `main`**                | ❌ Blocked by Branch Protection                                                                                   |
-| **Pushing without syncing `origin/main`**  | ❌ Prohibited (`git fetch origin main && git merge`)                                                              |
-| **Bypassing local validation / CI checks** | ❌ Blocked (`./infra/scripts/validate_local.sh`)                                                                  |
-| **Local deployment without `.env.local`**  | ❌ Always pass `--use-local-env` to `deploy.sh`                                                                   |
-| **Tests & docs with every code change**    | ✅ Required (`apps/*/test`, `docs/testing.md`, tutorials; `changelog.md` generated by semantic-release on `main`) |
-
----
-
-© 2026 CricScore Engineering. 🏎️🏁🚀
+| Rule                                           | Policy                                                                      |
+| :--------------------------------------------- | :-------------------------------------------------------------------------- |
+| **Direct pushes to `main`**                    | ❌ Blocked by GitHub Branch Protection                                      |
+| **Merging with failing CI / CodeQL checks**    | ❌ Blocked by Required Status Checks                                        |
+| **Local deployment without `--use-local-env`** | ❌ Prohibited (`./infra/scripts/deploy.sh --env dev --use-local-env`)       |
+| **Leaving open Dependabot PRs behind**         | ❌ Consolidate with `./infra/scripts/consolidate_dependabot_prs.sh --merge` |
+| **Updating tests & docs with code changes**    | ✅ Mandatory in the same PR                                                 |

@@ -1,60 +1,54 @@
-# 🎨 Frontend — React + TypeScript + Vite
+# 🎨 CricScore Frontend — React 19 + TypeScript + Vite SPA
 
-The CricScore fan-facing and scorer-facing Single Page Application (SPA).
+Fan-facing, Scorer-facing, and Admin Single Page Application (SPA) served globally via **Amazon S3 + CloudFront (OAC)**.
 
-## Tech Stack
+---
 
-| Technology            | Purpose                            |
-| --------------------- | ---------------------------------- |
-| React 19              | UI component framework             |
-| TypeScript            | Type-safe development              |
-| Vite                  | Build tooling and local dev server |
-| React Testing Library | Unit and component testing         |
-| Vitest                | Fast unit test runner              |
+## 🛠️ Technology Stack
 
-## Local Development
+| Layer                  | Package / Tool                               | Role                                                                                                        |
+| :--------------------- | :------------------------------------------- | :---------------------------------------------------------------------------------------------------------- |
+| **UI Framework**       | React 19 + TypeScript                        | Component architecture and strict static typing                                                             |
+| **Build & Dev Server** | Vite + Tailwind CSS                          | Fast HMR dev server (`localhost:3000` / `5173`) and optimized production bundle                             |
+| **Authentication**     | `aws-amplify` + `@aws-amplify/ui-react`      | Cognito Sign Up, Sign In, **Continue as Guest**, and RS256 JWT session management                           |
+| **Real-Time & AI**     | Native `WebSocket` + REST `fetch`            | Sub-second ball updates, live win-probability bar, AI chat, and deterministic **Player of the Match** cards |
+| **Unit Testing**       | Vitest + React Testing Library (`151` tests) | Component, hook, DLS math, and state synchronization verification                                           |
+
+---
+
+## ⚡ Commands Tutorial
+
+| Action                                | Command (from `apps/frontend`) | Command (from Repo Root) |
+| :------------------------------------ | :----------------------------- | :----------------------- |
+| **Install dependencies**              | `npm install`                  | `npm install`            |
+| **Start local dev server**            | `npm run dev`                  | `npm run dev`            |
+| **Run 151 unit tests**                | `npm run test`                 | `npm run test`           |
+| **TypeScript + ESLint check**         | `npm run lint`                 | `npm run lint`           |
+| **Build production bundle (`dist/`)** | `npm run build`                | `npm run build`          |
 
 ```bash
 cd apps/frontend
 npm install
-npm run dev       # Start Vite dev server at http://localhost:3000
+npm run dev
+npm run test
+npm run lint
+npm run build
 ```
 
-## Environment Variables
+---
 
-For local development, create `apps/frontend/.env.local` (or another Vite-supported
-environment file in `apps/frontend/`):
+## ⚙️ Environment Variables (`apps/frontend/.env`)
 
-```env
-VITE_API_URL=https://<api-gateway-id>.execute-api.<region>.amazonaws.com
-VITE_WS_URL=wss://<ws-gateway-id>.execute-api.<region>.amazonaws.com/prod
-```
+Automatically populated by `./infra/scripts/deploy.sh --env dev --use-local-env` (or copied from `apps/frontend/.env.example` for local development):
 
-> The local deploy script writes generated values to `apps/frontend/.env`. CI/CD
-> supplies environment-specific values to the production build.
+| Variable                    | Example Value                                       | Purpose                         |
+| :-------------------------- | :-------------------------------------------------- | :------------------------------ |
+| `VITE_APP_TITLE`            | `CricScoreDev` / `CricScore`                        | Header badge & document title   |
+| `VITE_API_URL`              | `https://api.cricscoredev.venkateshsingamsetty.com` | API Gateway HTTP REST endpoint  |
+| `VITE_WS_URL`               | `wss://ws.cricscoredev.venkateshsingamsetty.com`    | API Gateway WebSocket endpoint  |
+| `VITE_COGNITO_REGION`       | `us-east-1`                                         | AWS Cognito region              |
+| `VITE_COGNITO_USER_POOL_ID` | `us-east-1_xxxxxxxxx`                               | Cognito User Pool ID            |
+| `VITE_COGNITO_CLIENT_ID`    | `<app-client-id>`                                   | Cognito App Client ID           |
+| `VITE_COGNITO_DOMAIN`       | `cricscoredev-auth-dev`                             | Cognito Hosted UI domain prefix |
 
-## Key Commands
-
-| Command               | Description                            |
-| --------------------- | -------------------------------------- |
-| `npm run dev`         | Start local development server         |
-| `npm run build`       | Build production bundle to `dist/`     |
-| `npm run lint`        | TypeScript type-check (`tsc --noEmit`) |
-| `npm run lint:eslint` | ESLint checks                          |
-| `npm run test`        | Run Vitest unit tests                  |
-
-## Deployment
-
-The frontend is deployed to **AWS S3 + CloudFront** automatically:
-
-1. `vite build` generates the production bundle in `dist/`
-2. The CI/CD pipeline uploads `dist/` to the S3 bucket
-3. CloudFront cache is invalidated so users see the new version immediately
-
-## AI Chat Tab
-
-The frontend includes a dedicated **AI Chat** interface that:
-
-- Sends `POST /chat` requests to the `chat-api` Lambda
-- Supports upload of tournament PDF rulebooks via `POST /rules/upload`
-- Uses the configured OpenAI-compatible LLM provider via the `chat-api` Agentic RAG pipeline
+See **[Local Frontend Quickstart](../../docs/local_frontend_quickstart.md)** for full details.

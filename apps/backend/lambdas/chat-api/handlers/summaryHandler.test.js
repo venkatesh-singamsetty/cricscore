@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Pool } from "pg";
-const { summaryHandler } = require("../handlers/summaryHandler.js");
+const {
+  summaryHandler,
+  computePlayerOfTheMatch,
+} = require("../handlers/summaryHandler.js");
 const { openai } = require("../config/llm.js");
 
 describe("summaryHandler", () => {
@@ -172,5 +175,85 @@ describe("summaryHandler", () => {
     mockCreate.mockRejectedValue(new Error("LLM API error"));
     const res = await summaryHandler("m3", corsHeaders);
     expect(res.statusCode).toBe(500);
+  });
+
+  it("deterministically computes the same Player of the Match across Scorer and Viewer", () => {
+    const pom = computePlayerOfTheMatch({
+      batters: [
+        {
+          name: "Spartan 1",
+          team: "CHICAGO SPARTANS",
+          runs: 5,
+          balls: 2,
+          fours: 1,
+          sixes: 0,
+          isOut: false,
+        },
+        {
+          name: "Spartan 2",
+          team: "CHICAGO SPARTANS",
+          runs: 2,
+          balls: 2,
+          fours: 0,
+          sixes: 0,
+          isOut: true,
+        },
+        {
+          name: "Spartan 4",
+          team: "CHICAGO SPARTANS",
+          runs: 5,
+          balls: 2,
+          fours: 0,
+          sixes: 0,
+          isOut: false,
+        },
+        {
+          name: "Gladiator 6",
+          team: "MIDWEST GLADIATORS",
+          runs: 7,
+          balls: 3,
+          fours: 1,
+          sixes: 0,
+          isOut: false,
+        },
+      ],
+      bowlers: [
+        {
+          name: "Spartan 6",
+          team: "CHICAGO SPARTANS",
+          wickets: 1,
+          runsConceded: 10,
+          overs: 1,
+          balls: 0,
+        },
+        {
+          name: "Gladiator 1",
+          team: "MIDWEST GLADIATORS",
+          wickets: 1,
+          runsConceded: 12,
+          overs: 1,
+          balls: 0,
+        },
+      ],
+      matchWinner: "CHICAGO SPARTANS WON BY 2 RUNS",
+      teamAName: "CHICAGO SPARTANS",
+      teamBName: "MIDWEST GLADIATORS",
+      inn1: {
+        batting_team_name: "CHICAGO SPARTANS",
+        total_runs: 12,
+        total_wickets: 1,
+        overs: 1,
+        balls: 0,
+      },
+      inn2: {
+        batting_team_name: "MIDWEST GLADIATORS",
+        total_runs: 10,
+        total_wickets: 1,
+        overs: 1,
+        balls: 0,
+      },
+    });
+
+    expect(pom).toBe("Spartan 1 - scored 5 runs off 2 balls (1x4)");
   });
 });

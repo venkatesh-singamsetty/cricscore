@@ -1,106 +1,140 @@
-# 🟢 The NodeJS & NPM Crash Course
+# 🟢 Node.js 24, NPM & Lambda Packaging Guide
 
-This guide explains the fundamental differences between how Node.js is utilized for the Frontend (React/Vite) versus the Backend (AWS Lambdas), and demystifies the command-line tools we use every day.
-
----
-
-## 1. What is `node_modules`?
-
-Whenever you see a folder named `node_modules`, it is simply a **giant storage pantry** where third-party code lives.
-
-When you run `npm install`, your computer reaches out to the internet, downloads all the libraries your project needs to function (like React, AWS SDKs, or testing tools), and dumps them into this folder.
-
-**The Golden Rules of `node_modules`:**
-
-1. **Never edit it:** It is 100% managed by NPM. If you delete it, running `npm install` brings it right back.
-2. **It is massive:** It can easily contain 30,000+ files and consume hundreds of megabytes.
-3. **Never put it on GitHub:** Because it is so massive and auto-generated, we explicitly add `node_modules/` to our `.gitignore` file.
+CricScore runs on **Node.js 24 (`nodejs24.x`)** across both the **React 19 + Vite 8 Frontend** (`apps/frontend`, ES Modules) and the **8 ZIP-packaged AWS Lambda Functions** (`apps/backend/lambdas/*`, CommonJS).
 
 ---
 
-## 2. Frontend vs Backend Dependency Rules
+## 🔄 1. Frontend Build vs. Backend Lambda Execution Lifecycle
 
-Cloud architecture treats frontend and backend code entirely differently. If you mix these rules up, your app will either fail to build or crash in production!
+```mermaid
+flowchart LR
+    subgraph LocalDev ["1. Local Workspace (Node.js >= 24)"]
+        FE_SRC["apps/frontend (TSX / ESM)"]
+        BE_SRC["apps/backend/lambdas/* (JS / CommonJS)"]
+    end
 
-### 💻 The Frontend Rule: Full Install (`npm install`)
+    subgraph BuildStep ["2. Dependency & Build Pipeline"]
+        FE_NPM["npm install (dependencies + devDependencies)"]
+        VITE["Vite Build (tsc + Tree-Shaking + Minification)"]
+        DIST["apps/frontend/dist/ (Static HTML/CSS/JS — No node_modules)"]
 
-For the frontend (React), we **do not** upload the `node_modules` folder to AWS. We only upload the final squished `HTML/CSS/JS` files.
-However, in order to _create_ those squished files, the frontend desperately needs heavy developer tools (like TypeScript, Vite, and ESLint). These tools are stored in `"devDependencies"`.
+        BE_NPM["npm install --omit=dev (Production runtime deps only)"]
+        ZIP["Terraform archive_file (.zip includes index.js + node_modules)"]
+    end
 
-- **Action**: We must run a full `npm install` to download everything required to build the code.
+    subgraph CloudRuntime ["3. AWS Cloud Runtime"]
+        S3_CF["Amazon S3 + CloudFront CDN (Browser executes JS)"]
+        LAMBDA["AWS Lambda nodejs24.x (Cold Start Init -> Warm Handler Reuse)"]
+    end
 
-### ☁️ The Backend Rule: Production Install (`npm install --omit=dev`)
-
-For your AWS Lambdas (Backend), there is no "build" step. The AWS Lambda actually takes your raw JavaScript files **and** your entire `node_modules` folder, zips them up, and runs them natively in the cloud.
-
-- **Action**: The deployment process runs `npm install --omit=dev` for Lambda packages, excluding dependencies declared as development-only. Runtime dependencies still need to be included in the deployment package, so the result is not necessarily tiny.
-
-**In Short:**
-
-- **Frontend (AWS S3)**: Needs a massive install to build, but uploads _nothing_ from `node_modules`.
-- **Backend (AWS Lambda)**: Includes the production dependencies required at runtime in the deployment package.
-
----
-
-## 3. The Frontend Command Lifecycle (Vite)
-
-In modern frontend development (using Vite), there are three primary commands you will use:
-
-### 🛠️ `npm run dev` (The Sandbox)
-
-- **What it does:** Starts up a lightweight, hyper-fast local server for you to write code on.
-- **Special Powers:** Hot Module Replacement (HMR) applies many code and style changes without a full browser refresh; some changes may still require a reload.
-- **When to use it:** 99% of the time you are actively writing code.
-
-### 🏭 `npm run build` (The Factory)
-
-- **What it does:** It takes all of your raw development code and brutally squishes, minifies, and optimizes it down into a tiny `dist/` folder.
-- **Special Powers:** It deletes unused code (Tree-Shaking), translates TypeScript into pure JavaScript, and ensures the website will load at lightning speed.
-- **When to use it:** When you are preparing to deploy to AWS (this is exactly what GitHub Actions runs).
-
-### 🎭 `npm run preview` (The Rehearsal)
-
-- **What it does:** It acts as a local "dry run" for your production code. It boots up a fast local web server that reads directly from the optimized `dist/` folder that `npm run build` just created.
-- **Special Powers:** Lets you test the exact, minified code that your end-users will experience to ensure the optimizer didn't accidentally break any CSS or logic.
-- **When to use it:** Right before you push code to `main`, just to verify that the squished production bundle looks exactly the same as your development sandbox.
-
----
-
-## 4. Local Code Quality & Testing
-
-Before you push your code to GitHub and wait for the CI/CD pipeline to analyze it, you can (and should!) run these quality checks locally on your own machine.
-
-### 🧪 `npm run test` (The Test Suite)
-
-- **What it does:** Runs **Vitest** to execute the entire suite of automated unit tests.
-- **Special Powers:** You can use `npm run test:watch --prefix apps/frontend` to keep the frontend test runner open. When files change, Vitest reruns affected tests when it can determine the dependency relationship.
-- **When to use it:** While writing new logic, or right before pushing a branch to ensure you haven't broken any existing features.
-
-### 🧹 `npm run lint` (The Code Police)
-
-- **What it does:** Runs the TypeScript Compiler (`tsc --noEmit`) to verify that all of your data types are perfectly aligned across the entire application without actually building the app.
-- **Special Powers:** The frontend also has `npm run lint:eslint --prefix apps/frontend`, which checks its `src` files for lint issues such as unused variables and invalid React hooks.
-- **When to use it:** If you want to make absolutely sure the GitHub Actions pipeline won't reject your code for a silly typo.
-
----
-
-## 5. Dependency Security (`npm audit`)
-
-Because `node_modules` pulls in code written by thousands of strangers on the internet, it is entirely possible that a hacker discovers a vulnerability (like a backdoor or data leak) in one of those third-party libraries.
-
-To protect against this, NPM has a built-in security scanner:
-
-### 🛡️ `npm audit`
-
-- **What it does:** It checks dependencies recorded in the relevant lockfile against vulnerability advisories available through the configured npm registry. It does not guarantee that every vulnerability is known or detected.
-- **When to use it:** The configured Husky pre-push hook runs `./infra/scripts/validate_local.sh`, which runs `npm audit --audit-level=high` for the frontend and backend root package. A high- or critical-severity finding in those audited dependency trees causes the local validation script to fail. Lambda package dependencies are scanned separately by Trivy.
-
-### 🔧 How to fix a vulnerability
-
-If `npm audit` reports a vulnerability, you can try updating compatible dependencies and the lockfile with:
-
-```bash
-npm audit fix
+    FE_SRC --> FE_NPM --> VITE --> DIST --> S3_CF
+    BE_SRC --> BE_NPM --> ZIP --> LAMBDA
 ```
 
-Review the resulting manifest and lockfile changes, then rerun the audit and tests. This command may not resolve every finding; some fixes require changing a direct dependency or waiting for an upstream release.
+---
+
+## 📦 2. Frontend vs. Backend Dependency Architecture
+
+| Dimension                | Frontend (`apps/frontend`)                                                     | Backend Lambdas (`apps/backend/lambdas/*`)                                  |
+| :----------------------- | :----------------------------------------------------------------------------- | :-------------------------------------------------------------------------- |
+| **Module System**        | ES Modules (`"type": "module"`)                                                | CommonJS (`require` / `exports.handler`)                                    |
+| **Install Command**      | `npm install` (includes `devDependencies` like `vite`, `typescript`, `vitest`) | `npm install --omit=dev` (strips dev tools before zipping)                  |
+| **Build Output**         | Minified static assets in `apps/frontend/dist/`                                | Raw `.js` files + production `node_modules/` zipped by Terraform            |
+| **What Uploads to AWS?** | **Only `dist/`** (`node_modules/` is never uploaded to S3)                     | **Entire `.zip` archive** (`index.js` + `node_modules/` uploaded to Lambda) |
+| **AWS Target**           | Amazon S3 + CloudFront CDN                                                     | AWS Lambda (`nodejs24.x` runtime)                                           |
+
+### Golden Rules of `node_modules`
+
+| Rule                                                | Reason                                                             | Verification Command                    |
+| :-------------------------------------------------- | :----------------------------------------------------------------- | :-------------------------------------- |
+| **Never edit `node_modules/`**                      | 100% managed by `npm` and `package-lock.json`                      | `git status --ignored`                  |
+| **Never commit `node_modules/` or `.zip` archives** | Excluded via `.gitignore` to prevent repository bloat              | `git check-ignore -v node_modules/`     |
+| **Keep `package-lock.json` in sync**                | Guarantees deterministic installs in CI (`npm ci` / `npm install`) | `./infra/scripts/check_dependencies.sh` |
+
+---
+
+## ⚡ 3. AWS Lambda Execution Model (Cold vs. Warm Starts)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant APIGW as API Gateway / SQS / SNS
+    participant Env as Lambda Execution Environment (nodejs24.x)
+    participant Pool as Global Scope (pg.Pool / AWS SDK Clients)
+    participant Handler as exports.handler(event, context)
+
+    Note over APIGW,Handler: Cold Start (~150–400 ms)
+    APIGW->>Env: First Request Arrives
+    Env->>Env: Download & Extract Lambda .zip
+    Env->>Pool: Execute top-level module code (Initialize pg.Pool & SDK clients)
+    Env->>Handler: Invoke exports.handler(event)
+    Handler-->>APIGW: HTTP / Async Response
+
+    Note over APIGW,Handler: Warm Start (~2–20 ms)
+    APIGW->>Env: Subsequent Request Arrives
+    Env->>Handler: Reuse existing container & global pg.Pool (max: 1)
+    Handler-->>APIGW: Fast Response (No re-initialization)
+```
+
+| Lambda Best Practice             | Implementation in CricScore                                                                                                  | Source Reference                                                     |
+| :------------------------------- | :--------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------- |
+| **Global Connection Reuse**      | Instantiate `new Pool({ max: 1 })` and AWS SDK clients (`SESClient`, `SNSClient`, `SQSClient`) **outside** `exports.handler` | `apps/backend/lambdas/match-api/index.js`                            |
+| **Non-Blocking Event Loop Exit** | Set `context.callbackWaitsForEmptyEventLoop = false` so warm `pg.Pool` sockets do not stall Lambda freeze                    | `apps/backend/lambdas/match-api/index.js`                            |
+| **Client Release Guarantee**     | Always release `client.release()` inside a `finally` block to prevent connection exhaustion                                  | `apps/backend/lambdas/match-api/index.js`, `storage-worker/index.js` |
+
+---
+
+## 🛠️ 4. Command Reference (Frontend, Backend & Root Workspace)
+
+### Root Monorepo Commands (`package.json`)
+
+| Command              | Action                                                                    | When to Use                         |
+| :------------------- | :------------------------------------------------------------------------ | :---------------------------------- |
+| `npm run dev`        | Starts Vite local dev server with HMR (`http://localhost:5173`)           | Daily frontend development          |
+| `npm run build`      | Compiles production bundle into `apps/frontend/dist/`                     | Pre-deploy verification             |
+| `npm run preview`    | Serves production `dist/` bundle locally                                  | Testing minified bundle before push |
+| `npm run lint`       | Runs TypeScript compiler check (`tsc --noEmit`)                           | Verifying strict type safety        |
+| `npm test`           | Runs Frontend Vitest suite (`151` tests)                                  | Quick frontend regression check     |
+| `npm run test:all`   | Runs Frontend Vitest + Backend Vitest + AI Chat eval                      | Full JS/TS workspace verification   |
+| `npm run deps:check` | Runs `./infra/scripts/check_dependencies.sh` across npm, pip & Dependabot | Auditing outdated packages          |
+
+### Runnable Development & Packaging Commands
+
+```bash
+# 1. Start Frontend Vite Dev Server
+npm run dev
+
+# 2. Type-Check & Lint Frontend (TypeScript + ESLint)
+npm run lint --prefix apps/frontend
+npm run lint:eslint --prefix apps/frontend
+
+# 3. Run Frontend & Backend Unit Tests
+npm run test --prefix apps/frontend
+npm run test --prefix apps/backend
+
+# 4. Install Production-Only Dependencies Across All Backend Lambdas (Matches CI Deploy Step)
+for d in apps/backend/lambdas/*; do
+  if [ -f "$d/package.json" ]; then
+    (cd "$d" && npm install --omit=dev --no-audit --no-fund --ignore-scripts)
+  fi
+done
+```
+
+---
+
+## 🛡️ 5. Dependency Security Auditing (`npm audit` & Trivy)
+
+| Scanner                | Scope                                                      | Trigger                                              | Failure Threshold                                  |
+| :--------------------- | :--------------------------------------------------------- | :--------------------------------------------------- | :------------------------------------------------- |
+| **`npm audit`**        | Root, `apps/frontend`, `apps/backend` lockfiles            | Local pre-push (`./infra/scripts/validate_local.sh`) | `high` or `critical` (`--audit-level=high`)        |
+| **Trivy (`trivy fs`)** | `apps/frontend`, `apps/backend/lambdas`, `apps/ai-service` | Local validation + GitHub Actions CI (`ci.yml`)      | Fixable `HIGH` or `CRITICAL` CVEs (`exit-code: 1`) |
+
+```bash
+# Run high-severity npm audit across workspaces
+npm audit --audit-level=high
+npm --prefix apps/frontend audit --audit-level=high
+npm --prefix apps/backend audit --audit-level=high
+
+# Auto-fix compatible semver vulnerabilities
+npm audit fix
+```

@@ -1,93 +1,54 @@
-# ⚡ Lambdas — AWS Serverless Functions
+# ⚡ AWS Lambda Packages (`apps/backend/lambdas/`)
 
-All backend business logic runs as individual AWS Lambda functions. Each Lambda is fully self-contained with its own `package.json` and dependencies.
+Each subdirectory is an independent Node.js 24.x AWS Lambda package archived by Terraform (`data.archive_file`) during deployment.
 
-## Lambda Inventory
+---
 
-| Lambda              | Trigger                          | Purpose                                                        |
-| ------------------- | -------------------------------- | -------------------------------------------------------------- |
-| `match-api`         | API Gateway REST                 | CRUD for matches, innings, players; health check endpoint      |
-| `score-update`      | API Gateway REST                 | Validates and publishes ball events to SNS fan-out & SQS queue |
-| `storage-worker`    | SQS Queue                        | Reliably writes ball events to PostgreSQL with ACID guarantees |
-| `broadcaster`       | SNS Topic & Direct Lambda Invoke | Pushes live score updates & hub refreshes to WebSocket clients |
-| `onconnect`         | WebSocket $connect               | Registers fan connection ID in DynamoDB                        |
-| `ondisconnect`      | WebSocket $disconnect            | Removes stale connection from DynamoDB                         |
-| `cognito-presignup` | Cognito Pre-SignUp               | Auto-confirms guest users and verifies email attributes        |
-| `chat-api`          | API Gateway REST                 | Agentic AI Chat — MCP + RAG pipeline (see below)               |
+## 📋 Function & Route Matrix
 
-## 🤖 chat-api — Agentic AI Lambda
+| Lambda Package          | Trigger / Routes                                                                                                                                                       | Backing Stores & Services                                                                        |
+| :---------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------- |
+| **`match-api`**         | `GET/POST/DELETE /matches`, `POST /match`, `GET/PATCH/DELETE /match/{id}`, `GET /match/{id}/details`, `POST /match/{id}/innings`, `POST /match/{id}/email`, `/admin/*` | Aiven PostgreSQL 16, Amazon SES, Amazon S3 (`backups/`), Cognito Admin API, `broadcaster` Lambda |
+| **`score-update`**      | `POST /update-score`, `POST /match/{id}/score`                                                                                                                         | Amazon SNS (`match-events`), Amazon SQS FIFO (`storage-buffer.fifo`)                             |
+| **`storage-worker`**    | SQS FIFO trigger (`batch_size = 1`)                                                                                                                                    | Aiven PostgreSQL 16 (`matches`, `innings`, `players`, `bowlers`, `balls`)                        |
+| **`broadcaster`**       | SNS subscription + direct Lambda invoke                                                                                                                                | Amazon DynamoDB (`<project>-connections`), API Gateway WebSocket `@connections`                  |
+| **`onconnect`**         | WebSocket `$connect`                                                                                                                                                   | Amazon DynamoDB (`<project>-connections`)                                                        |
+| **`ondisconnect`**      | WebSocket `$disconnect`                                                                                                                                                | Amazon DynamoDB (`<project>-connections`)                                                        |
+| **`cognito-presignup`** | Cognito `PreSignUp` trigger                                                                                                                                            | AWS Cognito User Pool                                                                            |
+| **`chat-api`**          | `POST /chat`, `POST /chat/summary`, `GET/POST/DELETE /rules`                                                                                                           | Aiven PostgreSQL 16 + `pgvector`, OpenAI API, Open-Meteo API, GitHub Issues REST API             |
 
-The most complex Lambda. Implements a full **Agentic RAG pipeline** using the [Model Context Protocol (MCP)](https://modelcontextprotocol.io).
+---
 
-### Architecture
+## 🤖 `chat-api` Internal Structure
 
-```
-chat-api/
-├── index.js                      ← Thin Lambda router
-├── config/
-│   ├── db.js                     ← Shared PostgreSQL pool + setSearchPath()
-│   └── llm.js                    ← OpenAI client + model config
-├── handlers/
-│   ├── chatHandler.js            ← Main agentic chat loop (MCP client)
-│   ├── summaryHandler.js         ← AI post-match summary generation
-│   ├── uploadRulesHandler.js     ← PDF ingestion + batch vector embedding
-│   ├── listRulesHandler.js       ← List ingested rulebooks
-│   └── deleteRulesHandler.js     ← Delete rulebook documents & embeddings
-└── mcp/
-    ├── server.js                 ← MCP Server — registers all tools
-    └── tools/
-        ├── executeSql.js         ← Text-to-SQL RAG (READ ONLY, 3s timeout)
-        ├── searchRules.js        ← Vector cosine-similarity RAG
-        ├── createGithubIssue.js  ← GitHub REST API issue creator
-        └── getMatchWeather.js    ← Open-Meteo Weather & DLS advisory
+```mermaid
+flowchart LR
+    Req["POST /chat or /chat/summary"] --> Router["chat-api/index.js"]
+    Router --> Chat["handlers/chatHandler.js (MCP Client)"]
+    Router --> Sum["handlers/summaryHandler.js (Deterministic POTM)"]
+    Router --> Rules["handlers/*RulesHandler.js (PDF -> pgvector)"]
+    Chat --> MCP["mcp/server.js (InMemoryTransport)"]
+    MCP --> T1["executeSql.js"] & T2["searchRules.js"] & T3["getMatchWeather.js"] & T4["createGithubIssue.js"]
 ```
 
-### Routes
+| `chat-api` Environment Variable  | Purpose                                                                         |
+| :------------------------------- | :------------------------------------------------------------------------------ |
+| `DATABASE_URL`                   | Aiven PostgreSQL 16 connection URI (`sslmode=require`)                          |
+| `DB_SCHEMA`                      | `dev` or `prod` schema isolation                                                |
+| `OPENAI_API_KEY` / `LLM_API_KEY` | API key for `gpt-4o-mini` and `text-embedding-3-small`                          |
+| `LLM_BASE_URL` / `LLM_MODEL`     | OpenAI-compatible base URL and model override                                   |
+| `GITHUB_TOKEN`                   | Server-side token for `create_github_issue` (`venkatesh-singamsetty/cricscore`) |
 
-| Method | Path            | Handler                 | Description                            |
-| ------ | --------------- | ----------------------- | -------------------------------------- |
-| POST   | `/chat`         | `chatHandler.js`        | Agentic AI conversation                |
-| POST   | `/chat/summary` | `summaryHandler.js`     | Generate AI match summary              |
-| POST   | `/rules/upload` | `uploadRulesHandler.js` | Upload + embed tournament PDF rulebook |
-| GET    | `/rules`        | `listRulesHandler.js`   | List tournament PDF rulebooks          |
-| DELETE | `/rules`        | `deleteRulesHandler.js` | Delete tournament PDF rulebook vectors |
+---
 
-### MCP Security Model
-
-```
-User Question
-     │
-     ▼
- LLM (OpenAI)             ← Only sees: tool schemas + result text
-     │ decides to call tool
-     ▼
- MCP Server               ← Has: DATABASE_URL, LLM_API_KEY
-     │ executes securely
-     ▼
- PostgreSQL / pgvector    ← Returns: raw data
-```
-
-The LLM **never** receives credentials. All secrets are isolated inside the MCP Server.
-
-## Local Development
+## 🧪 Install & Test Commands
 
 ```bash
-# Install dependencies for all lambdas
+# Hydrate all Lambda node_modules
 for d in apps/backend/lambdas/*; do
   [ -f "$d/package.json" ] && (cd "$d" && npm install)
 done
 
-# Run backend unit tests
+# Run 121 backend unit tests
 cd apps/backend && npm test
 ```
-
-## Required Environment Variables (chat-api)
-
-| Variable         | Description                             |
-| ---------------- | --------------------------------------- |
-| `DATABASE_URL`   | Aiven PostgreSQL connection string      |
-| `DB_SCHEMA`      | `dev` or `prod` (injected by Terraform) |
-| `OPENAI_API_KEY` | OpenAI API key                          |
-| `LLM_API_KEY`    | (Fallback) OpenRouter/Groq API key      |
-| `LLM_BASE_URL`   | (Fallback) `https://api.openai.com/v1`  |
-| `LLM_MODEL`      | _(Optional)_ Override model name        |

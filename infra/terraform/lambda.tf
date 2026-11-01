@@ -235,12 +235,12 @@ module "cognito_presignup" {
 # --- ML Predictor Lambda (Python via Docker ECR) ---
 
 resource "aws_ecr_repository" "ml_predict" {
-  # checkov:skip=CKV_AWS_163: "Image scanning not required for this demo project"
+  # checkov:skip=CKV_AWS_163: "Image scanning not required for this project"
   # checkov:skip=CKV_AWS_136: "AES256 default encryption is sufficient, no custom KMS keys to avoid costs"
   # checkov:skip=CKV_AWS_51: "Image tags must be mutable for CI/CD latest tag reuse"
   name                 = "${var.project_name}-ml-predict"
   image_tag_mutability = "MUTABLE"
-  force_delete         = true
+  force_delete         = var.environment != "prod"
 }
 
 resource "aws_ecr_lifecycle_policy" "ml_predict_cleanup" {
@@ -250,7 +250,7 @@ resource "aws_ecr_lifecycle_policy" "ml_predict_cleanup" {
     rules = [
       {
         rulePriority = 1
-        description  = "Immediately expire untagged images after 1 day to stay within 500MB free tier"
+        description  = "Expire untagged images after 1 day so ECR storage never accumulates (storage is billed per GB-month)"
         selection = {
           tagStatus   = "untagged"
           countType   = "sinceImagePushed"
@@ -263,12 +263,12 @@ resource "aws_ecr_lifecycle_policy" "ml_predict_cleanup" {
       },
       {
         rulePriority = 2
-        description  = "Keep only the 2 most recent tagged images (current version tag + latest)"
+        description  = "Keep only the single active versioned image in ECR (historical model weights live in S3)"
         selection = {
           tagStatus     = "tagged"
           tagPrefixList = ["v", "latest"]
           countType     = "imageCountMoreThan"
-          countNumber   = 2
+          countNumber   = 1
         }
         action = {
           type = "expire"
@@ -293,18 +293,8 @@ resource "null_resource" "docker_build_push" {
       aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin ${aws_ecr_repository.ml_predict.repository_url}
       docker build --platform linux/amd64 --provenance=false \
         -t ${aws_ecr_repository.ml_predict.repository_url}:${var.ml_model_version} \
-        -t ${aws_ecr_repository.ml_predict.repository_url}:latest \
         ${path.module}/../../apps/ml-engine
       docker push ${aws_ecr_repository.ml_predict.repository_url}:${var.ml_model_version}
-      docker push ${aws_ecr_repository.ml_predict.repository_url}:latest
-
-      # Proactively delete any untagged images immediately so ECR storage never accumulates
-      untagged_digests=$(aws ecr list-images --repository-name ${aws_ecr_repository.ml_predict.name} --filter tagStatus=UNTAGGED --query 'imageIds[*].imageDigest' --output text --region ${var.aws_region} || true)
-      if [ -n "$untagged_digests" ]; then
-        for digest in $untagged_digests; do
-          aws ecr batch-delete-image --repository-name ${aws_ecr_repository.ml_predict.name} --image-ids imageDigest="$digest" --region ${var.aws_region} >/dev/null || true
-        done
-      fi
 
       set +e
       lambda_info=$(aws lambda get-function --function-name ${var.project_name}-ml-predict --region ${var.aws_region} 2>&1)
@@ -319,6 +309,17 @@ resource "null_resource" "docker_build_push" {
       else
         printf '%s\n' "$lambda_info" >&2
         exit "$lambda_status"
+      fi
+
+      # Strictly retain ONLY the single active image digest in ECR (delete all older digests and untagged layers immediately)
+      active_digest=$(aws ecr describe-images --repository-name ${aws_ecr_repository.ml_predict.name} --image-ids imageTag=${var.ml_model_version} --query 'imageDetails[0].imageDigest' --output text --region ${var.aws_region} 2>/dev/null || true)
+      all_digests=$(aws ecr list-images --repository-name ${aws_ecr_repository.ml_predict.name} --query 'imageIds[*].imageDigest' --output text --region ${var.aws_region} 2>/dev/null | tr '\t' '\n' | sort -u || true)
+      if [ -n "$active_digest" ] && [ "$active_digest" != "None" ] && [ -n "$all_digests" ]; then
+        for digest in $all_digests; do
+          if [ "$digest" != "$active_digest" ]; then
+            aws ecr batch-delete-image --repository-name ${aws_ecr_repository.ml_predict.name} --image-ids imageDigest="$digest" --region ${var.aws_region} >/dev/null || true
+          fi
+        done
       fi
     EOF
   }

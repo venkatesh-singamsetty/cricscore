@@ -1,57 +1,79 @@
-# 🛠️ Toolchain & Security Stack
+# 🛠️ Toolchain, MLOps & DevSecOps Stack
 
-This document outlines all the tools, frameworks, and security scanners utilized in the CricScore platform, categorized by their primary purpose.
-
----
-
-## 1. Core Development & Testing
-
-| Tool                       | Purpose                                                                                                   |
-| -------------------------- | --------------------------------------------------------------------------------------------------------- |
-| **Node.js / npm**          | The core runtime environment and package manager used for project dependencies and local scripts.         |
-| **Vite**                   | The ultra-fast frontend build tool and local development server, providing Hot Module Replacement (HMR).  |
-| **React**                  | The declarative UI library used to build the single-page application (SPA).                               |
-| **TypeScript**             | Adds strong static typing to JavaScript, preventing runtime errors and improving IDE autocomplete.        |
-| **ESLint**                 | Static code analysis tool used alongside Prettier to identify problematic patterns in JS/TS code.         |
-| **Vitest**                 | The core testing framework used for both frontend (Unit/Integration) and backend (Unit/API) testing.      |
-| **Pytest**                 | Python testing framework for validating the ML engine and Agentic AI service.                             |
-| **XGBoost & Scikit-Learn** | Machine learning libraries for live win probability prediction and multi-algorithm benchmarking.          |
-| **MLflow & DVC**           | Experiment tracking, model metrics logging, and dataset version control for the MLOps pipeline.           |
-| **React Testing Library**  | Used to mount React components in a virtual DOM to simulate user clicks and inputs for Integration tests. |
-| **Playwright**             | End-to-End (E2E) testing framework used to spin up a real browser and simulate complex user journeys.     |
-| **aws-sdk-client-mock**    | Used for mocking AWS services (like DynamoDB and SNS) during backend event-driven unit testing.           |
+This reference catalogs the runtime frameworks, machine learning libraries, infrastructure tools, and automated security scanners powering CricScore across development, CI/CD, and production (`~$1/month` total AWS cost for Dev + Prod combined).
 
 ---
 
-## 2. Infrastructure & Cloud
+## 🔄 Toolchain Lifecycle Across Dev, CI & Cloud
 
-| Tool               | Purpose                                                                                                                                                        |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Terraform**      | The Infrastructure as Code (IaC) tool used to declare, provision, and manage AWS resources (API Gateway, Lambda, S3, DynamoDB) and Aiven PostgreSQL databases. |
-| **AWS CLI**        | Command-line interface for direct AWS interactions, credential management, and running the `aws s3 sync` deployment commands.                                  |
-| **GitHub Actions** | The CI/CD automation runner. Pull requests run validation jobs; deployment and Terraform apply run on `main` or the production release workflow.               |
+```mermaid
+flowchart LR
+    subgraph Local["1. Local Dev & Pre-Commit"]
+        Pre["Husky + lint-staged\n(Prettier + GitLeaks)"]
+        TestLocal["Vitest (272) + Pytest (104)\n= 376 Automated Tests"]
+    end
+
+    subgraph CI["2. GitHub Actions DevSecOps"]
+        SAST["CodeQL + Checkov\n+ Trivy (FS & Container)"]
+        SBOM["Syft SPDX SBOM\n+ Dependabot"]
+    end
+
+    subgraph Cloud["3. Multi-Cloud Runtime (~$1/mo)"]
+        AWS["AWS Serverless\n(Lambda + API GW + ECR xgboost-cpu)"]
+        Aiven["Aiven PostgreSQL\n(ACID + pgvector)"]
+        DAST["Playwright E2E\n+ OWASP ZAP DAST"]
+    end
+
+    Local --> CI --> Cloud
+```
 
 ---
 
-## 3. Application Security (AppSec)
+## 1. Core Application, AI & MLOps Stack
 
-| Tool           | Type                       | Purpose                                                                                                                                                                                                            |
-| -------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **GitLeaks**   | Secrets Detection          | Runs locally and via GitHub Actions to scan the commit history. It blocks any code containing accidentally hardcoded API keys, AWS credentials, or database passwords from being merged.                           |
-| **CodeQL**     | Code Security (SAST)       | GitHub's native semantic analyzer. Scans the TypeScript and JavaScript code for logical vulnerabilities like Cross-Site Scripting (XSS), SQL injection, and path traversal.                                        |
-| **Trivy**      | Software Composition (SCA) | CI scans the frontend and backend Lambda dependency trees for fixable `HIGH` or `CRITICAL` vulnerabilities; these scans must pass before the DEV deployment job can run.                                           |
-| **Checkov**    | IaC Security (SAST)        | Audits the Terraform codebase before it is applied to ensure AWS best practices (e.g., encryption at rest, least-privilege IAM roles, secure S3 buckets) and explicitly blocks provisioning on unknown violations. |
-| **OWASP ZAP**  | Runtime Security (DAST)    | Runs a baseline scan against the deployed site URL after Dev or Production deployment. The current workflow does not configure ZAP findings to fail the job.                                                       |
-| **Syft**       | Supply Chain (SBOM)        | Automatically scans the repository to generate a Software Bill of Materials (SBOM) using the SPDX JSON format, providing deep visibility into application dependencies.                                            |
-| **Dependabot** | Dependency Updates         | Automatically monitors npm packages and Terraform providers, raising Pull Requests whenever a security patch or minor version update is available.                                                                 |
+| Tool / Library             | Layer                 | Verified Version / Footprint    | Purpose in CricScore                                                                                                      |
+| -------------------------- | --------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **Node.js & npm**          | Runtime / Package Mgr | `Node.js 24.x`                  | Executes backend AWS Lambda microservices and workspace build scripts.                                                    |
+| **React & Vite**           | Frontend SPA          | `React 19` / `Vite`             | Mobile-first dark-mode scoreboard, scorer keypad, and live WebSocket dashboard with HMR.                                  |
+| **TypeScript & ESLint**    | Static Typing & Lint  | Strict TS                       | Prevents type regressions across frontend components and API contracts.                                                   |
+| **XGBoost & Scikit-Learn** | ML Win Prediction     | Champion **`XGBoost (v2.2.0)`** | Live ball-by-ball win probability (`Validation ROC-AUC = 0.7723`, `Test ROC-AUC = 0.7529`) blended with Markov DP & DLS.  |
+| **LangGraph & MCP**        | Agentic AI            | Python `3.12`                   | Orchestrates specialist agents, pgvector rulebook RAG, and deterministic `computePlayerOfTheMatch` (`summaryHandler.js`). |
+| **MLflow & DVC**           | MLOps Governance      | Local / CI Tracking             | Tracks model hyperparameters, ROC-AUC/Brier metrics, and reproducible dataset versions.                                   |
 
 ---
 
-## 4. Automation & Governance
+## 2. Testing Frameworks (`376` Unit/Integration Tests + E2E)
 
-| Tool                          | Purpose                                                                                                                                                                                                                                                             |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Husky & Lint-Staged**       | The pre-commit hook runs Prettier through `lint-staged` for matching staged files, then scans staged content with Gitleaks when installed. If Gitleaks is not installed, the hook warns and skips that scan. The pre-push hook runs `validate_local.sh --skip-e2e`. |
-| **Prettier**                  | Opinionated formatter run on matching staged JavaScript, TypeScript, JSON, and Markdown files by `lint-staged` before commits.                                                                                                                                      |
-| **Semantic Release**          | Automates the entire package release workflow including: determining the next version number, generating release notes, and publishing Git tags. It is driven purely by Conventional Commit messages (e.g. `feat:`, `fix:`).                                        |
-| **Terraform Drift Detection** | A custom GitHub Action cron job (`drift.yml`) that runs `terraform plan` nightly across Dev and Prod autonomously without human gates to detect and alert if anyone bypasses infrastructure-as-code by making manual changes in the AWS Console.                    |
+| Framework                    | Target Suite                     | Test Count | Command to Run                             |
+| ---------------------------- | -------------------------------- | ---------- | ------------------------------------------ |
+| **Vitest + Testing Library** | Frontend (`apps/frontend`)       | `151`      | `npm --prefix apps/frontend test`          |
+| **Vitest + aws-sdk-mock**    | Backend Lambdas (`apps/backend`) | `121`      | `npm --prefix apps/backend test`           |
+| **Pytest**                   | Agentic AI (`apps/ai-service`)   | `75`       | `pytest apps/ai-service -q`                |
+| **Pytest**                   | ML Engine (`apps/ml-engine`)     | `29`       | `pytest apps/ml-engine/test_predict.py -q` |
+| **Playwright**               | End-to-End Browser (`e2e/`)      | E2E Suite  | `npx playwright test`                      |
+
+---
+
+## 3. Infrastructure & Cloud Automation (`~$1/month` Footprint)
+
+| Tool                           | Purpose                                                                                                                                                        |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Terraform (`~1.10`)**        | Provisions AWS serverless resources (API Gateway, Lambda, DynamoDB, S3, CloudFront, Cognito, ECR) and Aiven PostgreSQL from a single root module.              |
+| **Amazon ECR (`xgboost-cpu`)** | Hosts the lightweight `ml-predict` container (`~309 MB`) with a strict `countNumber = 1` lifecycle policy so ECR storage stays within the `~$1/mo` budget.     |
+| **AWS CLI**                    | Performs S3 static asset syncs, CloudFront cache invalidations, and ECR container pushes during deployment.                                                    |
+| **GitHub Actions**             | Runs PR validation, automated semantic releases, nightly Terraform drift detection (`drift.yml`), and daily Aiven database keep-alive pings (`keepalive.yml`). |
+
+---
+
+## 4. Application Security (AppSec) & Governance
+
+| Tool                 | Security Category         | Enforcement Gate                                                                                                                           |
+| -------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| **GitLeaks**         | Secrets Detection         | Scans staged commits (pre-commit hook) and full Git history in CI; blocks any hardcoded keys or credentials.                               |
+| **CodeQL**           | SAST (Semantic Code Scan) | Scans JavaScript/TypeScript on every PR and push to `main` for XSS, SQL injection, and taint-flow vulnerabilities.                         |
+| **Trivy**            | SCA (Dependency & Image)  | Scans `apps/frontend`, `apps/backend/lambdas`, `apps/ai-service`, and the `ml-predict` container for fixable `HIGH`/`CRITICAL` CVEs.       |
+| **Checkov**          | IaC Security              | Audits `infra/terraform` on every PR to enforce encryption, least-privilege IAM, and secure bucket configurations.                         |
+| **OWASP ZAP**        | DAST (Runtime Baseline)   | Executes an automated baseline vulnerability scan against the live deployed URL after Dev and Prod deployments.                            |
+| **Syft**             | Supply Chain (SBOM)       | Generates an SPDX JSON Software Bill of Materials (`sbom.yml`) weekly and on pushes to `main`.                                             |
+| **Husky & Prettier** | Local Git Hooks           | `pre-commit` formats staged files via `lint-staged` and runs GitLeaks; `pre-push` executes `./infra/scripts/validate_local.sh --skip-e2e`. |
+| **Semantic Release** | Automated Versioning      | Parses Conventional Commits (`feat:`, `fix:`) to bump versions, update `docs/changelog.md`, and publish GitHub releases.                   |

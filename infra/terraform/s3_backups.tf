@@ -1,7 +1,8 @@
 # --- S3 Match Backups ---
 resource "aws_s3_bucket" "match_backups" {
   bucket_prefix = "${var.project_name}-match-backups-"
-  force_destroy = true
+  # Backups and the ML model registry live here: never allow a prod destroy to wipe them.
+  force_destroy = var.environment != "prod"
 
   tags = {
     Project     = var.project_name
@@ -24,6 +25,36 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "match_backups_sse
   rule {
     apply_server_side_encryption_by_default {
       sse_algorithm = "AES256"
+    }
+  }
+}
+
+# Raw match backups (backups/*) are expired after 180 days. The models/ prefix
+# (ML model registry used for rollbacks) is deliberately NOT expired.
+resource "aws_s3_bucket_lifecycle_configuration" "match_backups" {
+  bucket = aws_s3_bucket.match_backups.id
+
+  rule {
+    id     = "expire-old-match-backups"
+    status = "Enabled"
+
+    filter {
+      prefix = "backups/"
+    }
+
+    expiration {
+      days = 180
+    }
+  }
+
+  rule {
+    id     = "abort-incomplete-multipart-uploads"
+    status = "Enabled"
+
+    filter {}
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
     }
   }
 }

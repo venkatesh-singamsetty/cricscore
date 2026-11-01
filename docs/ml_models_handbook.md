@@ -1,6 +1,6 @@
 # CricScore Machine Learning Models Revision Handbook
 
-This handbook provides an engineering and theoretical reference for the **14 fundamental machine learning algorithms** across **Regression**, **Classification**, and **Clustering**, grounded in real-world application to the CricScore Cricket Analytics Platform.
+This handbook provides an engineering and theoretical reference for **14 fundamental machine learning algorithms** across **Classification**, **Regression**, and **Clustering**, grounded in empirical benchmarks on the CricScore Cricsheet T20 dataset (`786K+` deliveries).
 
 ---
 
@@ -31,13 +31,43 @@ This handbook provides an engineering and theoretical reference for the **14 fun
 
 ## <a name="architectural-overview"></a>1. Architectural Overview & Problem Formulations
 
-In CricScore, machine learning is applied to three distinct sports analytics paradigms:
+```mermaid
+flowchart TD
+    Data["Cricsheet T20 Ball-by-Ball Dataset (786K+ Deliveries, Match-Grouped Split)"]
 
-| Paradigm           | Target Task                                     | Target Variable ($y$)                     | Feature Vector ($X$)                                                              | Primary Metric             |
-| ------------------ | ----------------------------------------------- | ----------------------------------------- | --------------------------------------------------------------------------------- | -------------------------- |
-| **Classification** | Live Ball-by-Ball Match Win Probability         | Binary Winner $\in \{0, 1\}$              | Batting team, bowling team, balls left, current score, wickets lost, target score | **Log Loss & Brier Score** |
-| **Regression**     | 1st-Innings Projected Final Score               | Continuous Final Runs $\in \mathbb{R}^+$  | Current score, balls bowled, balls left, wickets lost, current run rate           | **RMSE & MAE**             |
-| **Clustering**     | Pitch Condition / Scoring Environment Profiling | Unsupervised Clusters $k \in \{1, 2, 3\}$ | Final match score, average runs per over (RPO), total innings wickets             | **Silhouette Score**       |
+    subgraph Classification ["1. Classification: Live Win Probability (y in {0, 1})"]
+        C1["1. Logistic Regression (Baseline)"]
+        C2["2. K-Nearest Neighbors (KNN)"]
+        C3["3. Linear SVM (SGD + LogLoss)"]
+        C4["4. Gaussian Naive Bayes"]
+        C5["5. Decision Tree (CART)"]
+        C6["6. Random Forest & Extra Trees"]
+        C7["7. XGBoost v2.2.0 (Promoted Champion — Val AUC 0.7723)"]
+    end
+
+    subgraph Regression ["2. Regression: 1st-Innings Projected Score (y in R+)"]
+        R1["8. Simple Linear Regression (OLS)"]
+        R2["9. Polynomial Regression (Degree 2 — Best RMSE 24.45)"]
+        R3["10. Support Vector Regression (SVR)"]
+        R4["11. Lasso Regression (L1 Sparse)"]
+        R5["12. Ridge Regression (L2 Shrinkage)"]
+    end
+
+    subgraph Clustering ["3. Clustering: Pitch Archetype Profiling (Unsupervised)"]
+        K1["13. K-Means (k=3 — Best Silhouette 0.3662)"]
+        K2["14. Hierarchical Agglomerative (Ward)"]
+    end
+
+    Data --> Classification
+    Data --> Regression
+    Data --> Clustering
+```
+
+| Paradigm           | Target Task                                     | Target Variable ($y$)                     | Feature Vector ($X$)                                                                                    | Primary Evaluation Metric      |
+| :----------------- | :---------------------------------------------- | :---------------------------------------- | :------------------------------------------------------------------------------------------------------ | :----------------------------- |
+| **Classification** | Live Ball-by-Ball Match Win Probability         | Binary Winner $\in \{0, 1\}$              | `batting_team`, `bowling_team`, `inning`, `balls_left`, `current_score`, `wickets_lost`, `target_score` | **Log Loss, Brier & ROC-AUC**  |
+| **Regression**     | 1st-Innings Projected Final Score               | Continuous Final Runs $\in \mathbb{R}^+$  | `current_score`, `balls_bowled`, `balls_left`, `wickets_lost`, `current_run_rate`                       | **RMSE, MAE & $R^2$**          |
+| **Clustering**     | Pitch Condition / Scoring Environment Profiling | Unsupervised Archetypes $k \in \{1,2,3\}$ | Final innings score, average runs per over (`RPO`), total wickets fallen                                | **Silhouette Score & Inertia** |
 
 ---
 
@@ -45,202 +75,121 @@ In CricScore, machine learning is applied to three distinct sports analytics par
 
 ### 1. Logistic Regression
 
-- **Mathematical Formulation**:
-  $$P(y=1|X) = \sigma(w^T X + b) = \frac{1}{1 + e^{-(w^T X + b)}}$$
-  Loss function: Binary Cross-Entropy / Log Loss:
-  $$J(w) = -\frac{1}{N} \sum_{i=1}^N \left[ y_i \log(\hat{y}_i) + (1 - y_i) \log(1 - \hat{y}_i) \right]$$
-- **Cricket Context**: Used as the foundational baseline model. It models the odds ratio of victory as a monotonic linear combination of balls and runs.
-- **Empirical Results (CricScore Dataset)**:
-  - Val LogLoss: `0.8069` | Val ROC-AUC: `0.7550` | Val Accuracy: `65.59%` | Size: `8 KB` | Latency: `1.23 ms`.
-- **Pros & Cons**:
-  - _Pros_: Extremely fast, zero risk of overfitting on small feature spaces, weights $w_i$ give direct log-odds interpretability.
-  - _Cons_: Cannot capture non-linear cricket phase dynamics (e.g., losing 3 wickets in the Powerplay vs. losing 3 wickets in the death overs has an asymmetric effect on win probability).
-
----
+| Dimension             | Specification                                                                                                                  |
+| :-------------------- | :----------------------------------------------------------------------------------------------------------------------------- |
+| **Formulation**       | $P(y=1\mid X) = \sigma(w^T X + b) = \frac{1}{1 + e^{-(w^T X + b)}}$; minimizes Binary Cross-Entropy (Log Loss).                |
+| **Cricket Context**   | Foundational baseline modeling log-odds of victory as a linear combination of remaining balls, runs, and wickets.              |
+| **CricScore Metrics** | Val LogLoss: `0.8069` · Val Brier: `0.2379` · Val ROC-AUC: `0.7550` · Val Acc: `65.59%` · Size: `0.01 MB` · Latency: `1.52 ms` |
+| **Pros & Cons**       | ✅ Ultra-fast, direct log-odds interpretability · ❌ Cannot capture non-linear interaction between wickets and death overs.    |
 
 ### 2. K-Nearest Neighbors (KNN)
 
-- **Mathematical Formulation**:
-  Given query instance $x_q$, find $k$ nearest neighbors $\mathcal{N}_k(x_q)$ under distance metric $d(x, z) = \sqrt{\sum (x_j - z_j)^2}$:
-  $$\hat{P}(y=1|x_q) = \frac{1}{k} \sum_{i \in \mathcal{N}_k(x_q)} \mathbb{I}(y_i = 1)$$
-- **Cricket Context**: Predicts outcome based on the historical matches that had the most similar scoreboard state ($R$ runs, $W$ wickets, $B$ balls remaining).
-- **Empirical Results (CricScore Dataset)**:
-  - Val LogLoss: `8.7168` | Val ROC-AUC: `0.7185` | Val Accuracy: `69.65%` | Latency: **`66.15 ms`** ⚠️.
-- **Pros & Cons**:
-  - _Pros_: Non-parametric, makes zero assumptions about underlying probability distributions.
-  - _Cons_: **Catastrophic for Serverless Production**: $O(N \cdot D)$ inference complexity requires storing all 84,000+ training points in memory and evaluating pairwise distances for every live ball. High log loss due to uncalibrated step-function probability outputs.
-
----
+| Dimension             | Specification                                                                                                                         |
+| :-------------------- | :------------------------------------------------------------------------------------------------------------------------------------ |
+| **Formulation**       | $\hat{P}(y=1\mid x_q) = \frac{1}{k} \sum_{i \in \mathcal{N}_k(x_q)} \mathbb{I}(y_i = 1)$ under Euclidean distance $d(x,z)$.           |
+| **Cricket Context**   | Predicts outcome from the $k=7$ historical deliveries with the closest scoreboard state ($R$ runs, $W$ wickets, $B$ balls left).      |
+| **CricScore Metrics** | Val LogLoss: `8.7168` · Val Brier: `0.2784` · Val ROC-AUC: `0.7185` · Val Acc: `69.65%` · Latency: **`66.15 ms`** ⚠️                  |
+| **Pros & Cons**       | ✅ Non-parametric · ❌ **$O(N \cdot D)$ lazy inference** requires scanning 84K+ training rows on every ball; uncalibrated step probs. |
 
 ### 3. Support Vector Machine (SVM)
 
-- **Mathematical Formulation**:
-  Finds maximum-margin separating hyperplane $w^T x + b = 0$ solving:
-  $$\min_{w, b, \xi} \frac{1}{2} \|w\|^2 + C \sum_{i=1}^N \xi_i \quad \text{s.t. } y_i(w^T x_i + b) \ge 1 - \xi_i, \quad \xi_i \ge 0$$
-  Calibrated for probabilities via Platt Scaling: $\hat{P}(y=1|x) = \frac{1}{1 + \exp(A \cdot f(x) + B)}$.
-- **Cricket Context**: Optimizes boundary separation between winning and losing match trajectories in normalized feature space.
-- **Empirical Results (CricScore Dataset)**:
-  - Val LogLoss: `0.6526` | Val ROC-AUC: `0.7704` | Val Accuracy: `67.55%` | Size: `9 KB` | Latency: `1.35 ms`.
-- **Pros & Cons**:
-  - _Pros_: Effective in high-dimensional feature representations, robust to outliers outside the margin support vectors.
-  - _Cons_: Standard kernel SVM ($O(N^3)$ training) does not scale to 100k+ ball rows; requires linear SGD approximation with Platt scaling for real-time inference.
-
----
+| Dimension             | Specification                                                                                                                           |
+| :-------------------- | :-------------------------------------------------------------------------------------------------------------------------------------- |
+| **Formulation**       | $\min_{w,b,\xi} \frac{1}{2}\|w\|^2 + C\sum \xi_i$ with log-loss / Platt scaling $\hat{P}(y=1\mid x) = \frac{1}{1+\exp(Af(x)+B)}$.       |
+| **Cricket Context**   | Finds the maximum-margin hyperplane separating winning and losing chase trajectories in standardized feature space.                     |
+| **CricScore Metrics** | Val LogLoss: `0.6526` · Val Brier: `0.2148` · Val ROC-AUC: `0.7704` · Val Acc: `67.55%` · Size: `0.01 MB` · Latency: `1.32 ms`          |
+| **Pros & Cons**       | ✅ Strong ROC-AUC (`0.7704`) and tiny footprint · ❌ Kernel SVM ($O(N^3)$) cannot scale to 100K+ rows without linear SGD approximation. |
 
 ### 4. Naive Bayes (Gaussian)
 
-- **Mathematical Formulation**:
-  Applies Bayes' Theorem assuming conditional independence between features given class $y$:
-  $$P(y=c | X) \propto P(y=c) \prod_{j=1}^D \mathcal{N}(x_j; \mu_{cj}, \sigma_{cj}^2)$$
-- **Cricket Context**: Computes likelihood of current ball state based on historical independent distributions of runs, balls, and wickets.
-- **Empirical Results (CricScore Dataset)**:
-  - Val LogLoss: **`9.5548`** ❌ | Val ROC-AUC: `0.6487` | Val Accuracy: `64.36%` | Size: `13 KB`.
-- **Pros & Cons**:
-  - _Pros_: Sub-second training (`0.15s`), requires minimal data.
-  - _Cons_: **Violates Core Cricket Assumptions**: Features (`balls_left`, `current_score`, `wickets_lost`, `target_score`) are intrinsically correlated. The independence assumption causes severe overconfidence ($0.0001$ or $0.9999$ probabilities), resulting in disastrous log loss.
-
----
+| Dimension             | Specification                                                                                                                                      |
+| :-------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Formulation**       | $P(y=c \mid X) \propto P(y=c) \prod_{j=1}^D \mathcal{N}(x_j; \mu_{cj}, \sigma_{cj}^2)$ assuming conditional feature independence.                  |
+| **Cricket Context**   | Treats `balls_left`, `current_score`, and `wickets_lost` as independent Gaussian distributions per class.                                          |
+| **CricScore Metrics** | Val LogLoss: **`9.5548`** ❌ · Val Brier: `0.3515` · Val ROC-AUC: `0.6487` · Val Acc: `64.36%` · Size: `0.01 MB` · Latency: `1.81 ms`              |
+| **Pros & Cons**       | ✅ Sub-second training · ❌ **Violates cricket physics**: `balls_left` and `current_score` are heavily correlated, causing extreme overconfidence. |
 
 ### 5. Decision Tree
 
-- **Mathematical Formulation**:
-  Recursively partitions feature space using Gini Impurity or Cross-Entropy:
-  $$\text{Gini}(S) = 1 - \sum_{k=1}^K p_k^2, \quad \Delta \text{Gini} = \text{Gini}(S) - \frac{|S_L|}{|S|}\text{Gini}(S_L) - \frac{|S_R|}{|S|}\text{Gini}(S_R)$$
-- **Cricket Context**: Generates human-interpretable cricket rule thresholds (e.g., `IF balls_left <= 18 AND required_run_rate > 12.5 AND wickets_lost >= 6 THEN win_prob = 0.08`).
-- **Empirical Results (CricScore Dataset)**:
-  - Val LogLoss: `0.8488` | Val ROC-AUC: `0.7558` | Val Accuracy: `69.98%` | Size: `15 KB` | Latency: `1.16 ms`.
-- **Pros & Cons**:
-  - _Pros_: Highly interpretable, mirrors cricket coaching decision heuristics.
-  - _Cons_: High variance, prone to overfitting, discrete step-function probability estimates cause poor calibration.
-
----
+| Dimension             | Specification                                                                                                                  |
+| :-------------------- | :----------------------------------------------------------------------------------------------------------------------------- |
+| **Formulation**       | Recursive binary partitioning minimizing Gini Impurity $\text{Gini}(S) = 1 - \sum_{k} p_k^2$ (`max_depth = 6`).                |
+| **Cricket Context**   | Learns explicit coaching thresholds (e.g., `IF balls_left <= 18 AND runs_needed > 36 AND wickets >= 6 THEN win_prob = 0.08`).  |
+| **CricScore Metrics** | Val LogLoss: `0.8488` · Val Brier: `0.2014` · Val ROC-AUC: `0.7558` · Val Acc: `69.98%` · Size: `0.01 MB` · Latency: `1.19 ms` |
+| **Pros & Cons**       | ✅ Fast (`1.19 ms`) and human-interpretable · ❌ High variance and coarse piecewise-constant probability steps.                |
 
 ### 6. Random Forest (Ensemble Bagging)
 
-- **Mathematical Formulation**:
-  Averages $B$ de-correlated bootstrap trees grown with random feature subspace sampling ($m = \sqrt{D}$):
-  $$\hat{P}(y=1|x) = \frac{1}{B} \sum_{b=1}^B T_b(x)$$
-- **Cricket Context**: Mitigates single-tree variance by averaging over multiple match scenarios and feature combinations.
-- **Empirical Results (CricScore Dataset)**:
-  - Val LogLoss: `0.6136` | Val ROC-AUC: `0.7561` | Val Accuracy: `68.19%` | Size: `702 KB` | Latency: `16.08 ms`.
-- **Pros & Cons**:
-  - _Pros_: Robust to noisy data, handles non-linear interactions automatically.
-  - _Cons_: 50+ trees require traversing multiple memory pointers per ball, resulting in higher latency (`16 ms`) than gradient boosted trees.
-
----
+| Dimension             | Specification                                                                                                                   |
+| :-------------------- | :------------------------------------------------------------------------------------------------------------------------------ |
+| **Formulation**       | $\hat{P}(y=1\mid x) = \frac{1}{B}\sum_{b=1}^B T_b(x)$ across $B=50$ de-correlated bootstrap trees (`max_depth = 10`).           |
+| **Cricket Context**   | Reduces single-tree variance by averaging probability estimates across diverse match sub-samples and feature subsets.           |
+| **CricScore Metrics** | Val LogLoss: `0.6136` · Val Brier: `0.2119` · Val ROC-AUC: `0.7561` · Val Acc: `68.19%` · Size: `0.70 MB` · Latency: `15.38 ms` |
+| **Pros & Cons**       | ✅ Smooth non-linear boundaries (`0.6136` LogLoss) · ❌ 8x slower inference (`15.38 ms`) and 3x larger artifact than XGBoost.   |
 
 ### 7. XGBoost (Extreme Gradient Boosting) 🏆
 
-- **Mathematical Formulation**:
-  Sequential additive tree ensemble optimizing 2nd-order Taylor expansion of objective with shrinkage and regularization:
-  $$\mathcal{L}^{(t)} \approx \sum_{i=1}^N \left[ g_i f_t(x_i) + \frac{1}{2} h_i f_t^2(x_i) \right] + \gamma T + \frac{1}{2} \lambda \sum_{j=1}^T w_j^2$$
-  where $g_i = \partial_{\hat{y}^{(t-1)}} \ell(y_i, \hat{y}^{(t-1)})$ and $h_i = \partial_{\hat{y}^{(t-1)}}^2 \ell(y_i, \hat{y}^{(t-1)})$.
-- **Cricket Context**: Learns complex phase shifts, momentum swings, and target pressure through weighted gradient residuals.
-- **Empirical Results (CricScore Dataset)**:
-  - **Val LogLoss**: **`0.5786`** (Lowest) 🏆
-  - **Val ROC-AUC**: **`0.7723`** (Highest) 🏆
-  - **Val Brier Score**: **`0.1992`** (Best Calibration) 🏆
-  - **Test Accuracy**: **`69.01%`** 🏆
-  - **Train Time**: **`0.69s`** | **Model Size**: **`73 KB`** | **Latency**: **`1.65 ms`** ⚡.
-- **Pros & Cons**:
-  - _Pros_: Best calibration, lowest log loss, ultra-compact memory footprint, sub-millisecond compiled C++ tree traversal.
-  - _Cons_: Requires careful learning rate ($\eta$) and depth regularization to prevent over-indexing on rare collapse matches.
+| Dimension             | Specification                                                                                                                                                                         |
+| :-------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Formulation**       | $\mathcal{L}^{(t)} \approx \sum_{i=1}^N [g_i f_t(x_i) + \frac{1}{2}h_i f_t^2(x_i)] + \gamma T + \frac{1}{2}\lambda \sum w_j^2$ (`n_estimators=100, max_depth=6, lr=0.1`).             |
+| **Cricket Context**   | Sequentially fits 2nd-order gradient/Hessian residuals to capture non-linear phase transitions, wicket pressure, and RRR cliffs.                                                      |
+| **CricScore Metrics** | **Val LogLoss: `0.5786`** 🏆 · **Val Brier: `0.1992`** 🏆 · **Val ROC-AUC: `0.7723`** 🏆 · **Test ROC-AUC: `0.7529`** · **Test Acc: `69.01%`** · Size: `0.22 MB` · Latency: `1.98 ms` |
+| **Pros & Cons**       | ✅ Best probability calibration, highest ROC-AUC, compact `227 KB` pipeline, `<2 ms` CPU inference · ❌ Requires $\eta$/depth tuning.                                                 |
 
 ---
 
 ## <a name="regression-models"></a>3. 📈 Regression Models (1st-Innings Projected Score)
 
-### 8. Simple Linear Regression (SLR)
-
-- **Formulation**: $\hat{y} = w_1 x + b$ (Ordinary Least Squares: $\min \|y - Xw\|^2_2$).
-- **Cricket Context**: Direct run rate projection: $\text{Final Score} = \text{Current Score} + (\text{RPO} \times \text{Overs Left})$.
-- **Benchmark**: RMSE: `25.10 runs` | MAE: `18.24 runs` | $R^2$: `0.6186` | Train: `0.008s`.
-
-### 9. Polynomial Regression (Degree 2)
-
-- **Formulation**: $\hat{y} = w_0 + w_1 x + w_2 x^2 + \dots + w_d x^d$.
-- **Cricket Context**: Models non-linear death overs acceleration (scoring accelerates quadratically in the final 5 overs as wickets in hand are preserved).
-- **Benchmark**: **RMSE: `24.45 runs`** 🏆 | **MAE: `17.50 runs`** 🏆 | **$R^2$: `0.6380`** 🏆 | Train: `0.046s`.
-
-### 10. Support Vector Regression (SVR)
-
-- **Formulation**: $\min \frac{1}{2}\|w\|^2 + C \sum (\xi_i + \xi_i^*)$ subject to $|y_i - (w^T x_i + b)| \le \epsilon$.
-- **Cricket Context**: Disregards errors within an $\epsilon$-tube of runs (e.g., $\pm 5$ runs normal variance), focusing only on anomalous outlier overs.
-- **Benchmark**: RMSE: `25.31 runs` | MAE: `18.11 runs` | $R^2$: `0.6120` | Train: `0.026s`.
-
-### 11. Lasso Regression (L1 Regularization)
-
-- **Formulation**: $\min \|y - Xw\|^2_2 + \lambda \|w\|_1$.
-- **Cricket Context**: Automatic feature selection that forces redundant collinear features (e.g., `overs_bowled` vs `balls_left`) to exact zero weights.
-- **Benchmark**: RMSE: `25.29 runs` | MAE: `18.38 runs` | $R^2$: `0.6128` | Train: `0.013s`.
-
-### 12. Ridge Regression (L2 Regularization)
-
-- **Formulation**: $\min \|y - Xw\|^2_2 + \lambda \|w\|^2_2$.
-- **Cricket Context**: Shrinks weights smoothly to prevent runaway coefficients caused by strong collinearity between `current_score` and `balls_bowled`.
-- **Benchmark**: RMSE: `25.10 runs` | MAE: `18.24 runs` | $R^2$: `0.6186` | Train: `0.006s`.
+|   #    | Regression Algorithm                                                     | Mathematical Objective                                                                     | Cricket Domain Interpretation                                                                      |  RMSE (Runs)   |   MAE (Runs)   |   $R^2$ Score   | Train Time |
+| :----: | :----------------------------------------------------------------------- | :----------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------- | :------------: | :------------: | :-------------: | :--------: |
+| **8**  | <a name="8-simple-linear-regression-slr"></a>**Simple Linear (SLR)**     | $\min_w \|y - Xw\|_2^2$                                                                    | Linear run-rate extrapolation: $\text{Final} = \text{Score} + \text{RPO} \times \text{OversLeft}$. |    `25.10`     |    `18.24`     |    `0.6186`     |  `0.008s`  |
+| **9**  | <a name="9-polynomial-regression"></a>**Polynomial (Degree 2)** 🏆       | $\hat{y} = w_0 + \sum_j w_j x_j + \sum_{j \le k} w_{jk} x_j x_k$                           | Captures quadratic death-overs acceleration when wickets in hand are preserved.                    | **`24.45`** 🏆 | **`17.50`** 🏆 | **`0.6380`** 🏆 |  `0.046s`  |
+| **10** | <a name="10-support-vector-regression-svr"></a>**SVR ($\epsilon$-Tube)** | $\min \frac{1}{2}\|w\|^2 + C\sum(\xi_i + \xi_i^*)$ s.t. $\|y_i - \hat{y}_i\| \le \epsilon$ | Ignores normal $\pm\epsilon$ run variance and penalizes only extreme outlier overs.                |    `25.31`     |    `18.11`     |    `0.6120`     |  `0.026s`  |
+| **11** | <a name="11-lasso-regression-l1-regularization"></a>**Lasso ($L_1$)**    | $\min_w \|y - Xw\|_2^2 + \lambda \|w\|_1$                                                  | Zeroes out collinear features (e.g., drops `balls_bowled` when `balls_left` is present).           |    `25.29`     |    `18.38`     |    `0.6128`     |  `0.013s`  |
+| **12** | <a name="12-ridge-regression-l2-regularization"></a>**Ridge ($L_2$)**    | $\min_w \|y - Xw\|_2^2 + \lambda \|w\|_2^2$                                                | Shrinks correlated weights (`current_score` vs `balls_bowled`) smoothly without dropping.          |    `25.10`     |    `18.24`     |    `0.6186`     |  `0.006s`  |
 
 ---
 
 ## <a name="clustering-models"></a>4. 🎡 Clustering Models (Pitch & Match Condition Profiling)
 
-### 13. K-Means Clustering
-
-- **Formulation**: Partitions $N$ matches into $k$ Voronoi cells minimizing within-cluster sum of squares (WCSS / Inertia):
-  $$\arg\min_S \sum_{i=1}^k \sum_{x \in S_i} \|x - \mu_i\|^2$$
-- **Cricket Context**: Discovers 3 distinct T20 match archetypes from 3,310 innings:
-  1. **Batting Paradise** ($\sim 201$ runs, $10.1$ RPO, $4.7$ wickets).
-  2. **Bowling Minefield** ($\sim 106$ runs, $5.5$ RPO, $9.0$ wickets).
-  3. **Balanced Competitive Pitch** ($\sim 155$ runs, $7.8$ RPO, $7.0$ wickets).
-- **Benchmark**: **Silhouette Score: `0.3662`** 🏆 | Execution Time: `0.31s`.
-
-### 14. Hierarchical (Agglomerative) Clustering
-
-- **Formulation**: Bottom-up agglomeration merging clusters that minimize Ward's minimum variance criterion:
-  $$\Delta \text{ESS} = \frac{n_A n_B}{n_A + n_B} \|\mu_A - \mu_B\|^2$$
-- **Cricket Context**: Constructs dendrogram of tournament pitch behaviors over time.
-- **Benchmark**: Silhouette Score: `0.3141` | Execution Time: `0.50s`.
+|   #    | Clustering Algorithm                                                           | Mathematical Objective                                                                                     | Discovered Cricket Pitch Archetypes (`3,310` T20 Innings)                                                                                                                                   | Silhouette Score | Runtime |
+| :----: | :----------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :--------------: | :-----: |
+| **13** | <a name="13-k-means-clustering"></a>**K-Means ($k=3$)** 🏆                     | $\arg\min_S \sum_{i=1}^k \sum_{x \in S_i} \|x - \mu_i\|^2$ (Voronoi WCSS minimization)                     | **1. Batting Paradise**: `~201` runs, `10.1` RPO, `4.7` wkts<br/>**2. Balanced Pitch**: `~155` runs, `7.8` RPO, `7.0` wkts<br/>**3. Bowling Minefield**: `~106` runs, `5.5` RPO, `9.0` wkts | **`0.3662`** 🏆  | `0.31s` |
+| **14** | <a name="14-hierarchical-agglomerative-clustering"></a>**Hierarchical (Ward)** | Bottom-up merges minimizing Ward variance $\Delta \text{ESS} = \frac{n_A n_B}{n_A+n_B}\|\mu_A - \mu_B\|^2$ | Builds a nested venue dendrogram grouping grounds by historical scoring pace and wicket fall clusters.                                                                                      |     `0.3141`     | `0.50s` |
 
 ---
 
 ## <a name="empirical-benchmark-summary"></a>5. 📊 Empirical CricScore Benchmark Summary
 
-```
-=========================================================================================================
-Model                  | Family         | Val LogLoss | Val ROC-AUC | Val Brier  | Latency  | Status
-=========================================================================================================
-LogisticRegression     | Classification |      0.8069 |      0.7550 |     0.2379 |   1.23ms | Baseline
-GaussianNB             | Classification |      9.5548 |      0.6487 |     0.3515 |   1.31ms | Rejected
-KNN (k=7)              | Classification |      8.7168 |      0.7185 |     0.2784 |  66.15ms | Rejected
-DecisionTree           | Classification |      0.8488 |      0.7558 |     0.2014 |   1.16ms | Evaluated
-LinearSVM (SGD)        | Classification |      0.6526 |      0.7704 |     0.2148 |   1.35ms | Evaluated
-RandomForest           | Classification |      0.6136 |      0.7561 |     0.2119 |  16.08ms | Evaluated
-ExtraTrees             | Classification |      0.6532 |      0.7118 |     0.2302 |  15.86ms | Evaluated
-HistGradientBoosting   | Classification |      0.5998 |      0.7642 |     0.2063 |   4.05ms | Former Champ
-XGBoost (XGBClassifier)| Classification |      0.5786 |      0.7723 |     0.1992 |   1.65ms | 🏆 Champion
----------------------------------------------------------------------------------------------------------
-Polynomial Reg (d=2)   | Regression     | RMSE: 24.45 | MAE: 17.50  | R²: 0.6380 |   0.046s | Best Regressor
-K-Means (k=3)          | Clustering     | Silhouette: 0.3662        | Inertia: WCSS | 0.315s | Best Clustering
-=========================================================================================================
+### Classification Benchmark (`apps/ml-engine/compare_models.py` + `KNN` Study)
+
+| Model                  | Family              | Val Accuracy | Val Log Loss | Val Brier Score | Val ROC-AUC  | Test ROC-AUC | Latency (100 rows) | Artifact Size |   Production Status   |
+| :--------------------- | :------------------ | :----------: | :----------: | :-------------: | :----------: | :----------: | :----------------: | :-----------: | :-------------------: |
+| **XGBoost (`v2.2.0`)** | Gradient Boosting   | **`0.6835`** | **`0.5786`** |  **`0.1992`**   | **`0.7723`** | **`0.7529`** |   **`1.98 ms`**    | **`0.22 MB`** |    🏆 **Champion**    |
+| `HistGradientBoosting` | Gradient Boosting   |   `0.6789`   |   `0.5998`   |    `0.2063`     |   `0.7642`   |      —       |     `3.84 ms`      |   `0.37 MB`   |    Former Champion    |
+| `RandomForest`         | Ensemble Bagging    |   `0.6819`   |   `0.6136`   |    `0.2119`     |   `0.7561`   |      —       |     `15.38 ms`     |   `0.70 MB`   |       Evaluated       |
+| `LinearSVM_SGD`        | Max-Margin Linear   |   `0.6755`   |   `0.6526`   |    `0.2148`     |   `0.7704`   |      —       |     `1.32 ms`      |   `0.01 MB`   |       Evaluated       |
+| `ExtraTrees`           | Randomized Bagging  |   `0.6667`   |   `0.6532`   |    `0.2302`     |   `0.7118`   |      —       |     `14.96 ms`     |   `0.71 MB`   |       Evaluated       |
+| `LogisticRegression`   | Generalized Linear  |   `0.6559`   |   `0.8069`   |    `0.2379`     |   `0.7550`   |      —       |     `1.52 ms`      |   `0.01 MB`   |       Baseline        |
+| `DecisionTree`         | Single CART Tree    |   `0.6998`   |   `0.8488`   |    `0.2014`     |   `0.7558`   |      —       |     `1.19 ms`      |   `0.01 MB`   |       Evaluated       |
+| `KNN (k=7)`            | Instance-Based      |   `0.6965`   |   `8.7168`   |    `0.2784`     |   `0.7185`   |      —       |     `66.15 ms`     |  `>15.0 MB`   | ❌ Rejected (Latency) |
+| `GaussianNB`           | Probabilistic Bayes |   `0.6436`   |   `9.5548`   |    `0.3515`     |   `0.6487`   |      —       |     `1.81 ms`      |   `0.01 MB`   | ❌ Rejected (LogLoss) |
+
+```bash
+# Reproduce the multi-algorithm benchmark and inspect comparison_report.md
+python3 apps/ml-engine/compare_models.py --version v2.2.0
+cat apps/ml-engine/comparison_report.md
 ```
 
 ---
 
 ## <a name="system-design--interview-cheat-sheet"></a>6. 💡 System Design & Interview Trap Cheat Sheet
 
-### Common Technical Interview Questions
-
-1. **Why is Accuracy a misleading metric for cricket win probability?**
-   - _Answer_: Cricket scoring requires _well-calibrated probabilities_, not binary class thresholding at 0.5. A team needing 2 runs from 30 balls should have a 99% win probability, not 51%. **Log Loss** and **Brier Score** penalize poorly calibrated overconfidence exponentially, making them the proper loss metrics for betting and live broadcasting.
-
-2. **Why does Naive Bayes fail so dramatically on cricket data?**
-   - _Answer_: Naive Bayes assumes $P(X_1, X_2 | Y) = P(X_1 | Y)P(X_2 | Y)$. In cricket, $X_1 = \text{balls\_left}$ and $X_2 = \text{current\_score}$ are inextricably coupled. When one feature reaches an extreme, the multiplied probabilities degenerate to 0 or 1, triggering extreme logarithmic loss penalties ($-\log(10^{-6}) \to \infty$).
-
-3. **Why is KNN inappropriate for real-time AWS Lambda inference?**
-   - _Answer_: KNN is a "lazy learner" with $O(N \cdot D)$ inference cost. With 84,000 training points and 7 features, calculating Euclidean distance on every ball takes 66ms on Lambda, increasing execution cost and memory pressure. XGBoost, by contrast, evaluates static pre-compiled decision trees in 1.6ms.
-
-4. **Lasso (L1) vs. Ridge (L2) for cricket run rate modeling:**
-   - _Answer_: If features have severe multicollinearity (e.g., `balls_bowled` and `balls_left = 120 - balls_bowled`), Ridge ($L_2$) shrinks both coefficients proportionally, retaining all features with smaller variance. Lasso ($L_1$) selects one feature arbitrarily and zeroes out the other, acting as a sparse feature selector.
-
-5. **How does XGBoost prevent overfitting in cricket models?**
-   - _Answer_: XGBoost includes explicit regularization terms in its objective: $\gamma T$ (penalizing tree leaf count $T$) and $\frac{1}{2}\lambda \sum w_j^2$ ($L_2$ regularization on leaf weights $w_j$), along with column subsampling (`colsample_bytree`) and learning rate shrinkage ($\eta = 0.1$).
+|   #   | System Design / ML Interview Question                                   | Key Mathematical & Engineering Answer                                                                                                                                                                                                    |
+| :---: | :---------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1** | **Why is Accuracy a misleading metric for live win probability?**       | Live broadcasting requires **calibrated probabilities**, not binary `0.5` thresholding (`DecisionTree` gets `69.98%` accuracy but poor `0.8488` Log Loss). **Log Loss** and **Brier Score** penalize overconfident errors exponentially. |
+| **2** | **Why does Gaussian Naive Bayes fail so severely (`LogLoss = 9.55`)?**  | Naive Bayes assumes $P(X_1, X_2 \mid Y) = P(X_1 \mid Y)P(X_2 \mid Y)$. In cricket, `balls_left` and `current_score` are strongly anti-correlated; multiplying dependent likelihoods drives probabilities to `0.0001` or `0.9999`.        |
+| **3** | **Why is KNN unsuitable for AWS Lambda serverless inference?**          | KNN is a lazy learner with $O(N \cdot D)$ inference complexity (`66.15 ms` per 100 rows and large memory footprint). **XGBoost** compiles static depth-6 trees evaluated in **`1.98 ms`** inside a `227 KB` artifact.                    |
+| **4** | **How do you prevent target leakage in ball-by-ball cricket datasets?** | Partition Train (`70%`), Validation (`15%`), and Test (`15%`) strictly by **`match_id`** (`load_and_split_data()`), never by random row shuffling, and exclude any post-match aggregates.                                                |
+| **5** | **Lasso ($L_1$) vs. Ridge ($L_2$) for collinear cricket features?**     | Since `balls_bowled` and `balls_left = 120 - balls_bowled` are perfectly collinear, **Ridge ($L_2$)** shrinks both weights proportionally while **Lasso ($L_1$)** drives one weight to exact `0`.                                        |
+| **6** | **How does XGBoost prevent overfitting on rare cricket collapses?**     | Combines tree-complexity penalty $\gamma T$, leaf-weight $L_2$ regularization $\frac{1}{2}\lambda \sum w_j^2$, bounded depth (`max_depth = 6`), and shrinkage (`learning_rate = 0.1`).                                                   |

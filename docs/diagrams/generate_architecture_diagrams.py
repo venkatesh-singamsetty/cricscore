@@ -2,12 +2,12 @@
 """Generate the icon-based architecture images shown in the main README.
 
 The images use official AWS architecture icons (bundled with the `diagrams`
-package) plus brand / generic icons stored in `docs/diagrams/icons/`.
+package) plus brand / specialist agent icons stored in `docs/diagrams/icons/`.
 
 Usage (Graphviz `dot` must be on PATH, e.g. `brew install graphviz`):
 
     python3 -m venv /tmp/diagrams-venv
-    /tmp/diagrams-venv/bin/pip install diagrams
+    /tmp/diagrams-venv/bin/pip install diagrams pillow
     /tmp/diagrams-venv/bin/python docs/diagrams/generate_architecture_diagrams.py
 
 Output PNGs are written to `docs/images/architecture/`.
@@ -18,12 +18,15 @@ from pathlib import Path
 
 from diagrams import Cluster, Diagram, Edge
 from diagrams.aws.compute import ECR, Lambda
+from diagrams.aws.cost import Budgets
 from diagrams.aws.database import Dynamodb
+from diagrams.aws.devtools import XRay
 from diagrams.aws.engagement import SES
 from diagrams.aws.integration import SNS, SQS
-from diagrams.aws.management import Cloudwatch
+from diagrams.aws.management import CloudwatchAlarm, CloudwatchLogs
+from diagrams.aws.mobile import Amplify
 from diagrams.aws.network import APIGateway, CloudFront, Route53
-from diagrams.aws.security import Cognito
+from diagrams.aws.security import ACM, Cognito, IAMRole
 from diagrams.aws.storage import S3
 from diagrams.custom import Custom
 
@@ -38,17 +41,18 @@ def icon(name: str) -> str:
 
 
 GRAPH = {
-    "fontsize": "28",
+    "fontsize": "26",
     "fontname": "Helvetica-Bold",
     "bgcolor": "white",
-    "pad": "0.6",
-    "nodesep": "0.7",
-    "ranksep": "1.1",
-    "splines": "spline",
+    "pad": "0.5",
+    "nodesep": "0.60",
+    "ranksep": "1.15",
+    "splines": "polyline",
+    "concentrate": "false",
     "labelloc": "t",
 }
-NODE = {"fontsize": "13", "fontname": "Helvetica"}
-EDGE = {"fontsize": "12", "fontname": "Helvetica-Bold"}
+NODE = {"fontsize": "12", "fontname": "Helvetica"}
+EDGE = {"fontsize": "11", "fontname": "Helvetica-Bold"}
 
 
 def cluster(label: str, color: str, fill: str) -> dict:
@@ -58,7 +62,7 @@ def cluster(label: str, color: str, fill: str) -> dict:
             "bgcolor": fill,
             "pencolor": color,
             "fontcolor": color,
-            "fontsize": "16",
+            "fontsize": "15",
             "fontname": "Helvetica-Bold",
             "style": "rounded",
             "margin": "18",
@@ -66,23 +70,25 @@ def cluster(label: str, color: str, fill: str) -> dict:
     }
 
 
-# Colours shared across all diagrams so the legend reads the same everywhere.
-BLUE, ORANGE, GREEN, PURPLE, GREY, RED = (
+# Shared palette across all four diagrams.
+BLUE, ORANGE, GREEN, PURPLE, GREY, TEAL = (
     "#1f6feb",
     "#e8590c",
     "#2f9e44",
     "#7048e8",
-    "#868e96",
-    "#c92a2a",
+    "#495057",
+    "#0ca678",
 )
 
 
-def edge(label: str, color: str, style: str = "bold") -> Edge:
-    return Edge(label=label, color=color, fontcolor=color, style=style)
+def edge(label: str = "", color: str = GREY, style: str = "bold") -> Edge:
+    if label:
+        return Edge(label=label, color=color, fontcolor=color, style=style)
+    return Edge(color=color, style=style)
 
 
 # ---------------------------------------------------------------------------
-# 1. Platform overview
+# 1. Platform overview (all AWS platform services; live-scoring internals in #2)
 # ---------------------------------------------------------------------------
 def platform_overview() -> None:
     with Diagram(
@@ -95,55 +101,92 @@ def platform_overview() -> None:
         node_attr=NODE,
         edge_attr=EDGE,
     ):
-        users = Custom("Fans / Scorers / Admins\n(browser or phone)", icon("tb_users"))
+        users = Custom(
+            "Fans / Scorers / Admins\n(Web & Mobile)", icon("tb_users")
+        )
 
-        with Cluster(**cluster("1. Load the app", BLUE, "#eef4ff")):
-            dns = Route53("Route 53\nDNS")
-            cdn = CloudFront("CloudFront\nCDN")
-            site = S3("S3\nReact build")
+        with Cluster(**cluster("1. DNS, SSL & CDN Edge", BLUE, "#eef4ff")):
+            dns = Route53("Route 53\nHosted Zone")
+            acm = ACM("ACM\nSSL/TLS Certs")
+            cdn = CloudFront("CloudFront\nCDN + OAC")
+            site = S3("S3 Static Hosting\nReact SPA + Logs")
 
-        with Cluster(**cluster("2. Sign in & call APIs", ORANGE, "#fff4e6")):
-            auth = Cognito("Cognito\nJWT tokens")
-            http = APIGateway("API Gateway\nHTTP API")
+        with Cluster(
+            **cluster("2. Auth (Amplify + Cognito) & API Gateway", ORANGE, "#fff4e6")
+        ):
+            amplify = Amplify("AWS Amplify\nAuth SDK & UI")
+            auth = Cognito("Cognito User Pool\nJWT + Pre-Signup")
+            http = APIGateway("API Gateway\nHTTP REST API")
             ws = APIGateway("API Gateway\nWebSocket API")
 
-        with Cluster(**cluster("3. Serverless compute (AWS Lambda)", ORANGE, "#fffaf0")):
-            match_api = Lambda("match-api\nmatches & admin")
-            chat = Lambda("chat-api\nAI assistant")
-            score = Lambda("score-update\nlive balls")
-            ml = Lambda("ml-predict\nwin probability")
+        with Cluster(
+            **cluster("3. Serverless Compute (AWS Lambda)", ORANGE, "#fffaf0")
+        ):
+            iam = IAMRole("IAM Role\nLeast-Privilege")
+            match_api = Lambda("match-api\nMatches & Admin")
+            chat = Lambda("chat-api\nAI Assistant (#3)")
+            score = Lambda("score-update\nLive Balls (#2)")
+            ml = Lambda("ml-predict\nWin Predictor (#4)")
 
-        with Cluster(**cluster("4. Data & Persistence", GREEN, "#ebfbee")):
-            pg = Custom("Aiven PostgreSQL 16\n+ pgvector", icon("postgresql"))
-            llm = Custom("OpenAI-compatible\nLLM provider", icon("openai"))
-            backups = S3("S3\nbackups & ML models")
-            mail = SES("SES\nmatch report emails")
+        with Cluster(
+            **cluster("4. Data, Registries & Email", GREEN, "#ebfbee")
+        ):
+            pg = Custom(
+                "Aiven PostgreSQL 16\n+ pgvector", icon("postgresql")
+            )
+            mail = SES("Amazon SES\nScorecard Emails")
+            s3_reg = S3("Amazon S3\nBackups, Models & State")
+            ecr = ECR("Amazon ECR\nml-predict Image")
 
-        with Cluster(**cluster("5. Observability & Alarms", GREY, "#f8f9fa")):
-            logs = Cloudwatch("CloudWatch Logs\n(7-day retention)")
-            alarms = Cloudwatch("CloudWatch Alarms\n(error rate triggers)")
+        with Cluster(
+            **cluster("5. Observability, Tracing & Cost", GREY, "#f8f9fa")
+        ):
+            logs = CloudwatchLogs("CloudWatch Logs\n7-Day Retention")
+            xray = XRay("AWS X-Ray\n5% Trace Sampling")
+            alarms = CloudwatchAlarm("CloudWatch Alarms\n+ SNS Alerts")
+            budget = Budgets("AWS Budgets\n~$1/mo Guardrail")
 
-        users >> edge("open site", BLUE) >> dns >> cdn >> site
-        users >> edge("sign in", ORANGE) >> auth
-        users >> edge("REST calls + JWT", ORANGE) >> http
-        ws >> edge("live score push", GREEN) >> users
+        # Lock top-to-bottom vertical ordering within each cluster for zero crossings
+        for a, b in [(amplify, auth), (auth, ws), (ws, http)]:
+            a >> Edge(style="invis", constraint="false", weight="10") >> b
+        for a, b in [(iam, score), (score, chat), (chat, match_api), (match_api, ml)]:
+            a >> Edge(style="invis", constraint="false", weight="10") >> b
+        for a, b in [(logs, xray), (xray, alarms), (alarms, budget)]:
+            a >> Edge(style="invis", constraint="false", weight="10") >> b
+        for a, b in [(pg, mail), (mail, s3_reg), (s3_reg, ecr)]:
+            a >> Edge(style="invis", constraint="false", weight="10") >> b
 
-        http >> edge("route", ORANGE) >> [match_api, score, chat, ml]
+        # Edge 1: Static Frontend Delivery (Route 53 -> ACM -> CloudFront -> S3)
+        users >> edge("HTTPS", BLUE) >> dns >> edge("TLS", BLUE) >> acm >> edge("Origin", BLUE) >> cdn >> edge("OAC", BLUE) >> site
 
-        match_api >> edge("read / write", GREEN) >> pg
-        match_api >> edge("backup", GREEN) >> backups
-        match_api >> edge("send email", ORANGE) >> mail
-        score >> edge("fan-out (diagram 2)", GREEN, "dashed") >> ws
-        score >> edge("persist", GREEN, "dashed") >> pg
-        chat >> edge("read-only SQL + vector", PURPLE) >> pg
-        chat >> edge("tool calling", PURPLE) >> llm
-        ml >> edge("load model", GREEN, "dashed") >> backups
+        # Edge 2: Identity (AWS Amplify -> Cognito -> HTTP API JWT Authorizer) & API Entry
+        users >> edge("Sign In", ORANGE) >> amplify
+        amplify >> Edge(color=ORANGE, fontcolor=ORANGE, style="bold", label="SRP / JWT", constraint="false") >> auth
+        auth >> edge("Authorizer", ORANGE, "dashed") >> iam
+        users >> edge("REST + JWT", ORANGE) >> http
+        users << edge("Live Push (#2)", GREEN) << ws
 
-        # All Lambda compute functions stream logs and wire to CloudWatch Alarms
-        for fn in [match_api, score, chat, ml]:
-            fn >> Edge(color=GREY, style="dotted") >> logs
-        match_api >> Edge(color=RED, style="dotted") >> alarms
-        score >> Edge(color=RED, style="dotted") >> alarms
+        # API Gateway -> Serverless Compute
+        http >> edge("Route", ORANGE) >> match_api
+        http >> edge("Route", ORANGE) >> chat
+        http >> edge("Route", ORANGE) >> score
+        http >> edge("Route", ORANGE) >> ml
+        ws << edge("SNS + Broadcaster (#2)", GREEN, "dashed") << score
+
+        # Serverless Compute -> Data, Registries & Email (100% genuine connections)
+        match_api >> edge("Send Report", ORANGE) >> mail
+        match_api >> edge("Read / Write", GREEN) >> pg
+        match_api >> edge("Match Backups", GREEN, "dashed") >> s3_reg
+        chat >> edge("Read-Only SQL + RAG", PURPLE) >> pg
+        score >> edge("SQS + Worker (#2)", GREEN, "dashed") >> pg
+        ml >> edge("Load Model v2.2.0", GREEN) >> s3_reg
+        ml >> edge("Container Image", ORANGE, "dashed") >> ecr
+
+        # Serverless Compute -> Observability, Tracing & Cost Governance (upper band, zero crossings)
+        iam >> edge("Cost Guardrail", GREY, "dotted") >> budget
+        iam >> edge("Error Alarms", GREY, "dotted") >> alarms
+        iam >> edge("7d Logs", GREY, "dotted") >> logs
+        iam >> edge("Active Traces", GREY, "dotted") >> xray
 
 
 # ---------------------------------------------------------------------------
@@ -151,7 +194,7 @@ def platform_overview() -> None:
 # ---------------------------------------------------------------------------
 def live_scoring() -> None:
     with Diagram(
-        "Live Scoring Flow: One Ball, Two Paths",
+        "Live Scoring Flow: One Ball, Two Parallel Paths",
         filename=str(OUT / "02_live_scoring_flow"),
         outformat="png",
         show=False,
@@ -160,37 +203,42 @@ def live_scoring() -> None:
         node_attr=NODE,
         edge_attr=EDGE,
     ):
-        scorer = Custom("Scorer\n(taps a ball)", icon("tb_device-mobile"))
+        scorer = Custom("Scorer\n(Taps Ball)", icon("tb_device-mobile"))
         http = APIGateway("HTTP API\nPOST /update-score")
         producer = Lambda("score-update\nLambda")
 
-        with Cluster(**cluster("FAST PATH: viewers see it in < 1s", BLUE, "#eef4ff")):
-            sns = SNS("SNS\nlive-score-fanout")
+        with Cluster(
+            **cluster("FAST PATH: Sub-Second Fan Broadcast", BLUE, "#eef4ff")
+        ):
+            sns = SNS("Amazon SNS\nmatch-events")
             broadcaster = Lambda("broadcaster\nLambda")
-            conns = Dynamodb("DynamoDB\nWebSocket connections")
+            conns = Dynamodb("DynamoDB\nActive Connections")
             ws = APIGateway("WebSocket API\n@connections")
 
-        viewers = Custom("Fans watching\n(live scoreboard)", icon("tb_users"))
+        viewers = Custom("Live Viewers\n(Scoreboard)", icon("tb_users"))
 
-        with Cluster(**cluster("SAFE PATH: never lose a ball", GREEN, "#ebfbee")):
-            sqs = SQS("SQS\npersistence queue")
+        with Cluster(
+            **cluster("SAFE PATH: Ordered Database Persistence", GREEN, "#ebfbee")
+        ):
+            sqs = SQS("Amazon SQS FIFO\nstorage-buffer.fifo")
             worker = Lambda("storage-worker\nLambda")
-            pg = Custom("Aiven PostgreSQL 16\nmatches / innings / balls", icon("postgresql"))
+            pg = Custom(
+                "Aiven PostgreSQL 16\nmatches / innings / balls",
+                icon("postgresql"),
+            )
 
-        scorer >> edge("1", ORANGE) >> http >> edge("2", ORANGE) >> producer
-        producer >> edge("3a publish", BLUE) >> sns >> edge("4a", BLUE) >> broadcaster
-        broadcaster >> edge("5a who is online?", BLUE) >> conns
-        broadcaster >> edge("6a push", BLUE) >> ws >> edge("7a", BLUE) >> viewers
-        producer >> edge("3b enqueue", GREEN) >> sqs >> edge("4b batch", GREEN) >> worker
-        worker >> edge("5b write", GREEN) >> pg
+        scorer >> edge("1. Ball", ORANGE) >> http >> edge("2. Invoke", ORANGE) >> producer
+        producer >> edge("3a. Publish", BLUE) >> sns >> edge("4a. Trigger", BLUE) >> broadcaster
+        broadcaster >> edge("5a. Lookup", BLUE) >> conns >> edge("6a. Push", BLUE) >> ws >> edge("7a. Stream", BLUE) >> viewers
+        producer >> edge("3b. Enqueue", GREEN) >> sqs >> edge("4b. Poll", GREEN) >> worker >> edge("5b. Persist", GREEN) >> pg
 
 
 # ---------------------------------------------------------------------------
-# 3. AI assistant: Agentic Multi-Agent AI System
+# 3. AI assistant: Autonomous Multi-Agent System via MCP
 # ---------------------------------------------------------------------------
 def ai_assistant() -> None:
     with Diagram(
-        "CricScore Agentic AI Architecture: Lambda, MCP & Multi-Agent System",
+        "CricScore Agentic AI Architecture: Supervisor, MCP & Specialist Agents",
         filename=str(OUT / "03_ai_assistant"),
         outformat="png",
         show=False,
@@ -199,68 +247,98 @@ def ai_assistant() -> None:
         node_attr=NODE,
         edge_attr=EDGE,
     ):
-        with Cluster(**cluster("1. Client Request", BLUE, "#eef4ff")):
-            fan = Custom("Fan / Scorer\n(chat widget)", icon("tb_message-chatbot"))
+        with Cluster(**cluster("1. Client & API Entry", BLUE, "#eef4ff")):
+            fan = Custom(
+                "Fan / Scorer\n(Chat Widget)", icon("tb_message-chatbot")
+            )
             http = APIGateway("API Gateway\nPOST /chat")
 
-        with Cluster(**cluster("2. AWS Serverless Compute (chat-api Lambda)", ORANGE, "#fffaf0")):
+        with Cluster(
+            **cluster(
+                "2. Orchestration & Guardrails (chat-api Lambda)",
+                ORANGE,
+                "#fffaf0",
+            )
+        ):
             chat_lambda = Lambda("chat-api\nLambda Handler")
-            guard = Custom("Security Guardrails\nread-only SQL guard,\n1-issue rate limit", icon("tb_shield-lock"))
-            orchestrator = Custom("Agent Orchestrator\n& Supervisor", icon("tb_robot"))
-            mcp_client = Custom("MCP Client\n(Protocol Adapter)", icon("tb_brain"))
+            guard = Custom(
+                "Security Guardrails\nRead-Only • PII Strip\n1-Issue Rate Guard",
+                icon("tb_shield-lock"),
+            )
+            supervisor = Custom(
+                "Agent Supervisor\nContext Injection &\nTool Orchestrator",
+                icon("tb_robot"),
+            )
+            llm = Custom(
+                "OpenAI-Compatible LLM\ngpt-4o-mini\n(Intent & Synthesis)",
+                icon("openai"),
+            )
+            mcp = Custom(
+                "In-Memory MCP\nClient <-> Server\n(Credential Isolation)",
+                icon("mcp_hub"),
+            )
 
-            with Cluster(**cluster("Individual Specialist Agents", PURPLE, "#ffffff")):
-                match_agent = Custom("Match Stats Agent\n(Text-to-SQL)", icon("tb_database-search"))
-                rules_agent = Custom("Rules Agent\n(Vector RAG)", icon("tb_brain"))
-                weather_agent = Custom("Weather Agent\n(Open-Meteo & DLS)", icon("tb_cloud-rain"))
-                issue_agent = Custom("Issue Agent\n(GitHub Tracker)", icon("github"))
+        with Cluster(
+            **cluster(
+                "3. Specialist AI Agents (MCP Tools)", PURPLE, "#f3f0ff"
+            )
+        ):
+            stats_agent = Custom(
+                "Match Stats Agent\nexecute_sql\n(Read-Only SELECT)",
+                icon("agent_stats"),
+            )
+            rules_agent = Custom(
+                "Tournament Rules Agent\nsearch_tournament_rules\n(Vector RAG + Citation)",
+                icon("agent_rules"),
+            )
+            weather_agent = Custom(
+                "Weather Specialist Agent\nget_match_weather\n(Hourly Rain & DLS)",
+                icon("agent_weather"),
+            )
+            issue_agent = Custom(
+                "GitHub Issue Agent\ncreate_github_issue\n(2-Step Confirmed)",
+                icon("agent_issue"),
+            )
 
-            with Cluster(**cluster("MCP Server & Tools", PURPLE, "#f3f0ff")):
-                mcp_server = Custom("In-Memory MCP Server\n(Tool Schema Registry)", icon("tb_robot"))
-                tools = Custom("MCP Tools\nexecute_sql • search_rules\nget_weather • create_issue", icon("tb_database-search"))
+        with Cluster(
+            **cluster("4. Backing Data Stores & External APIs", GREEN, "#ebfbee")
+        ):
+            pg_sql = Custom(
+                "Aiven PostgreSQL 16\nLive Matches, Innings\n& Player Stats",
+                icon("postgresql"),
+            )
+            pg_vec = Custom(
+                "PostgreSQL pgvector\nRulebook Embeddings\n(Cosine Similarity)",
+                icon("tb_database-search"),
+            )
+            meteo = Custom(
+                "Open-Meteo API\nGeocoding & Live\nHourly Forecast",
+                icon("openmeteo"),
+            )
+            gh = Custom(
+                "GitHub REST API\nRepository Issues\nTracker",
+                icon("github"),
+            )
 
-        with Cluster(**cluster("3. Reasoning Engine", PURPLE, "#f3f0ff")):
-            llm = Custom("OpenAI-Compatible LLM\n(Autonomous Reasoning\n& Tool Selection)", icon("openai"))
+        # Clean left-to-right flow with straight lines
+        fan >> edge("Ask", BLUE) >> http >> edge("Invoke", ORANGE) >> chat_lambda
+        chat_lambda >> edge("Enforce", ORANGE) >> guard >> edge("Context", ORANGE) >> supervisor
+        supervisor >> Edge(label="Reason & Synthesize", color=PURPLE, fontcolor=PURPLE, style="bold", dir="both") >> llm
+        supervisor >> Edge(label="Dispatch Tool", color=PURPLE, fontcolor=PURPLE, style="bold") >> mcp
 
-        with Cluster(**cluster("4. Data Stores & External APIs", GREEN, "#ebfbee")):
-            pg_rel = Custom("Aiven PostgreSQL 16\n(Matches & stats)", icon("postgresql"))
-            pg_vec = Custom("pgvector Store\n(Rulebook embeddings)", icon("postgresql"))
-            meteo = Custom("Open-Meteo API\n(Live weather & rain)", icon("openmeteo"))
-            gh = Custom("GitHub Issues API\n(Issue filing)", icon("github"))
-
-        with Cluster(**cluster("5. Response Delivery", BLUE, "#eef4ff")):
-            output = Custom("Sanitized Output\n(Answer, Citations,\n& Tactical Cards)", icon("tb_message-chatbot"))
-
-        # 1. Ingress Flow
-        fan >> edge("ask", BLUE) >> http >> edge("invoke", ORANGE) >> chat_lambda
-        chat_lambda >> edge("sanitize", PURPLE) >> guard >> orchestrator
-
-        # 2. Orchestrator <-> LLM Reasoning Loop
-        orchestrator >> Edge(label="1. prompt & tools / 3. tool results", color=PURPLE, fontcolor=PURPLE, style="bold") >> llm
-        llm >> Edge(label="2. tool decisions / 4. final answer", color=PURPLE, fontcolor=PURPLE, style="bold") >> orchestrator
-
-        # 3. Orchestrator <-> MCP Client <-> Specialist Agents <-> MCP Server & Tools
-        orchestrator >> Edge(label="dispatch tool calls\n(results return)", color=PURPLE, fontcolor=PURPLE, style="bold", dir="both") >> mcp_client
-        mcp_client >> edge("delegate", PURPLE) >> [match_agent, rules_agent, weather_agent, issue_agent]
-        [match_agent, rules_agent, weather_agent, issue_agent] >> edge("invoke", PURPLE) >> mcp_server
-        mcp_server >> Edge(label="executes", color=PURPLE, fontcolor=PURPLE, style="bold", dir="both") >> tools
-
-        # 4. Tools query External Stores & APIs
-        tools >> edge("read-only SQL", GREEN) >> pg_rel
-        tools >> edge("cosine search", GREEN) >> pg_vec
-        tools >> edge("hourly forecast", GREEN) >> meteo
-        tools >> edge("create issue", GREEN) >> gh
-
-        # 5. Final Response Delivery (Orchestrator returns synthesized answer)
-        orchestrator >> Edge(label="5. return synthesized response", color=BLUE, fontcolor=BLUE, style="bold") >> output
+        # MCP dispatches to the 4 specialist agents (1-to-1 row alignment with backing stores)
+        mcp >> edge("SQL Tool", PURPLE) >> stats_agent >> edge("3s Read-Only Txn", GREEN) >> pg_sql
+        mcp >> edge("RAG Tool", PURPLE) >> rules_agent >> edge("Top-K Chunks", GREEN) >> pg_vec
+        mcp >> edge("Weather Tool", PURPLE) >> weather_agent >> edge("Hourly Weather", TEAL) >> meteo
+        mcp >> edge("Issue Tool", PURPLE) >> issue_agent >> edge("File Issue", ORANGE) >> gh
 
 
 # ---------------------------------------------------------------------------
-# 4. MLOps & win prediction
+# 4. MLOps & live win prediction
 # ---------------------------------------------------------------------------
 def mlops() -> None:
     with Diagram(
-        "MLOps & Hybrid Win Prediction: From Data to Live Probabilities",
+        "MLOps & Hybrid Win Prediction: From Cricsheet Data to Live Probabilities",
         filename=str(OUT / "04_mlops_win_prediction"),
         outformat="png",
         show=False,
@@ -269,35 +347,80 @@ def mlops() -> None:
         node_attr=NODE,
         edge_attr=EDGE,
     ):
-        with Cluster(**cluster("1. Dataset & DVC Versioning", BLUE, "#eef4ff")):
-            data = Custom("Cricsheet T20 Data\n(786K+ ball-by-ball deliveries)", icon("tb_chart-line"))
-            dvc = Custom("DVC Dataset Tracking\n(cricket-data/t20s_json.zip.dvc)", icon("dvc"))
+        with Cluster(**cluster("1. Dataset & Versioning", BLUE, "#eef4ff")):
+            data = Custom(
+                "Cricsheet T20 Data\n786K+ Ball Deliveries",
+                icon("tb_chart-line"),
+            )
+            dvc = Custom(
+                "DVC Dataset Tracking\nt20s_json.zip.dvc\n+ dvc.yaml / dvc.lock",
+                icon("dvc"),
+            )
 
-        with Cluster(**cluster("2. Multi-Model Experimentation & Tracking", PURPLE, "#f3f0ff")):
-            sk = Custom("scikit-learn Baselines\n(Logistic, RF, ExtraTrees, HGB)", icon("scikitlearn"))
-            xgb = Custom("XGBoost Champion\n(v2.2.0, ROC-AUC > 0.65)", icon("xgboost"))
-            mlflow = Custom("MLflow Tracking\n(Log loss, Brier, ROC-AUC)", icon("mlflow"))
+        with Cluster(
+            **cluster(
+                "2. Multi-Model Training & Selection", PURPLE, "#f3f0ff"
+            )
+        ):
+            bench = Custom(
+                "8-Model Benchmark\ncompare_models.py\n(Scikit-Learn + XGBoost)",
+                icon("scikitlearn"),
+            )
+            mlflow = Custom(
+                "MLflow Tracking\nAccuracy, Log Loss,\nBrier & ROC-AUC",
+                icon("mlflow"),
+            )
+            xgb = Custom(
+                "Promoted Champion\nXGBoost v2.2.0\n(ROC-AUC 0.77)",
+                icon("xgboost"),
+            )
 
-        with Cluster(**cluster("3. CI/CD Governance & Packaging (GitHub Actions)", ORANGE, "#fff4e6")):
-            gate = Custom("Quality Gates\n(Accuracy >= 60%, ROC-AUC >= 65%,\nSHA-256 Manifest)", icon("githubactions"))
-            registry = S3("Amazon S3\n(models/v2.2.0/ registry)")
-            ecr = ECR("Amazon ECR\n(:v2.2.0 container image)")
+        with Cluster(
+            **cluster(
+                "3. Quality Gate & Artifact Registries", ORANGE, "#fff4e6"
+            )
+        ):
+            gate = Custom(
+                "CI Quality Gate\nAcc >= 60%, AUC >= 65%\n+ SHA-256 Manifest",
+                icon("githubactions"),
+            )
+            s3_reg = S3(
+                "Amazon S3 Registry\nmodels/v2.2.0/\n(.joblib + manifest)"
+            )
+            ecr = ECR(
+                "Amazon ECR Registry\nml-predict:v2.2.0\n(Python 3.12 Image)"
+            )
 
-        with Cluster(**cluster("4. Real-Time Hybrid Inference (AWS Lambda)", GREEN, "#ebfbee")):
-            http = APIGateway("API Gateway\nPOST /match/predict")
-            ml = Lambda("ml-predict Lambda\n(Python 3.12 container)")
-            engine = Custom("Hybrid Probability Engine\n(Par RPO + DP Chase + DLS)", icon("tb_brain"))
+        http = APIGateway("API Gateway\nPOST /match/predict")
 
-        viewers = Custom("Fans & Live Scoreboard\n(Real-time win probability %)", icon("tb_users"))
+        with Cluster(
+            **cluster(
+                "4. Real-Time Hybrid Inference (AWS Lambda)", GREEN, "#ebfbee"
+            )
+        ):
+            ml = Lambda(
+                "ml-predict Lambda\nLoads S3 Model into /tmp\n& Verifies SHA-256"
+            )
+            engine = Custom(
+                "Hybrid Win Engine\nXGBoost + Markov DP\n+ DLS Par Scaling",
+                icon("tb_brain"),
+            )
 
-        data >> dvc >> edge("train", PURPLE) >> [sk, xgb]
-        [sk, xgb] >> mlflow >> edge("champion model", ORANGE) >> gate
-        gate >> edge("save artifact", ORANGE) >> registry
-        gate >> Edge(label="docker push", color=ORANGE, fontcolor=ORANGE) >> ecr
-        viewers >> edge("ball update", GREEN) >> http >> ml
-        ecr >> edge("container image", GREEN, "dashed") >> ml
-        registry >> edge("checksum-verified model", GREEN, "dashed") >> ml
-        ml >> edge("evaluate", GREEN) >> engine
+        viewers = Custom(
+            "Live Scoreboard\nSub-Second Win %", icon("tb_users")
+        )
+
+        # Sequential left-to-right pipeline without parallel-champion confusion
+        data >> edge("Extract", BLUE) >> dvc >> edge("Train 8 Models", PURPLE) >> bench
+        bench >> edge("Log Metrics", PURPLE) >> mlflow >> edge("Select Best", PURPLE) >> xgb
+        xgb >> edge("Validate", ORANGE) >> gate
+        gate >> edge("Upload Artifact", ORANGE) >> s3_reg
+        gate >> edge("Push Image", ORANGE) >> ecr
+        gate >> Edge(style="invis") >> http
+        s3_reg >> edge("Fetch + SHA-256", GREEN) >> ml
+        ecr >> edge("Container Image", GREEN, "dashed") >> ml
+        http >> edge("Ball State", GREEN) >> ml
+        ml >> edge("Blend", GREEN) >> engine >> edge("Live Win %", BLUE) >> viewers
 
 
 if __name__ == "__main__":

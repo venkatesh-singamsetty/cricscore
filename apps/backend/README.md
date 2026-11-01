@@ -1,64 +1,48 @@
-# 🏗️ Backend: AWS Lambdas
+# ⚡ CricScore Backend — AWS Serverless Node.js 24 Lambdas
 
-This folder contains the core Node.js serverless functions that power the CricScore real-time match engine.
-
----
-
-## 🛠️ Compute Handlers
-
-### 1. **Match API (`match-api/`)**
-
-Handles RESTful initialization, metadata updates, match reports, and lookup of matches within **Aiven PostgreSQL**.
-
-- `POST /match`
-- `GET /match/{matchId}`
-- `PATCH /match/{matchId}`
-- `DELETE /match/{matchId}`
-- `GET /match/{matchId}/details`
-- `POST /match/{matchId}/innings`
-- `POST /match/{matchId}/email`
-- `GET /matches`
-- `DELETE /matches`
-
-### 2. **Score Update (`score-update/`)**
-
-- Receives scoring events from the scorer client.
-- Publishes events to the **AWS SNS Topic** for decoupled fan-out processing.
-
-### 3. **Broadcaster (`broadcaster/`)**
-
-- Receives events forwarded by the AWS SNS Topic (Fast-Path).
-- Retrieves active connection registries from **DynamoDB**.
-- Pushes events to all connected spectators via **API Gateway WebSockets**.
-
-### 4. **Storage Worker (`storage-worker/`)**
-
-- Consumes from the SQS queue (Reliability Buffer) asynchronously.
-- Updates match metadata and ball-by-ball events in **Aiven PostgreSQL**.
-
-### 5. **Session Handlers (`onconnect/`, `ondisconnect/`)**
-
-Manages the lifecycle of live spectators by updating the **DynamoDB** connection registry.
-
-### 6. **Chat API (`chat-api/`)**
-
-Node.js Agent Supervisor orchestrating autonomous specialist tools (PostgreSQL read-only queries, pgvector tournament rules RAG, Open-Meteo weather forecasts, and rate-guarded GitHub issue reporting).
-
-### 7. **Cognito Pre-Signup (`cognito-presignup/`)**
-
-AWS Cognito Pre-Signup trigger Lambda that enforces auto-confirmation and email verification for seamless user onboarding.
+Contains the 8 Node.js 24.x ZIP Lambda functions and shared **121-test Vitest suite** powering CricScore's real-time scoring, WebSocket fan-out, match management, and Agentic AI MCP assistant.
 
 ---
 
-## 🌩️ Deployment Notes
+## 🗺️ Lambda Architecture & Routing
 
-- **Runtime**: Node.js 24.x
-- **SDK**: AWS SDK v3
-- **Drivers**: `pg` (Postgres)
-- **Archiving**: Terraform automatically bundles these folders into ZIP files during `apply`.
+```mermaid
+flowchart LR
+    HTTP["API Gateway HTTP"] --> Match["match-api"]
+    HTTP --> Score["score-update"]
+    HTTP --> Chat["chat-api (In-Memory MCP)"]
+    WS["API Gateway WebSocket"] --> Conn["onconnect / ondisconnect"]
+    Score --> SNS["SNS (match-events)"] --> Broad["broadcaster"] --> WS
+    Score --> SQS["SQS FIFO (storage-buffer.fifo)"] --> Worker["storage-worker"] --> PG[("Aiven PostgreSQL 16")]
+    Match & Chat --> PG
+```
 
 ---
 
-## 🛡️ Security
+## 📋 Lambda Inventory (`apps/backend/lambdas/`)
 
-- **Data Protection**: All API endpoints and WebSocket feeds run over secure SSL/TLS (HTTPS & WSS).
+| Lambda Folder                                       | Memory / Timeout  | Trigger                   | Primary Responsibilities                                                                                                                                                  |
+| :-------------------------------------------------- | :---------------: | :------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [`match-api/`](./lambdas/match-api)                 | `128 MB` / `30s`  | API Gateway HTTP          | Match CRUD, deep-link hydration, synchronous completion stats flush, SES HTML scorecard email, S3 backup JSON, Admin RBAC ops                                             |
+| [`score-update/`](./lambdas/score-update)           | `256 MB` / `30s`  | API Gateway HTTP          | Validates ball events and fans out in parallel to SNS (`match-events`) and SQS FIFO (`storage-buffer.fifo`)                                                               |
+| [`storage-worker/`](./lambdas/storage-worker)       | `256 MB` / `30s`  | SQS FIFO (`batch_size=1`) | Ordered ACID persistence of deliveries, innings, batters, and bowlers into Aiven PostgreSQL 16                                                                            |
+| [`broadcaster/`](./lambdas/broadcaster)             |  `128 MB` / `3s`  | SNS + Direct Invoke       | Scans active `connectionId`s in DynamoDB and pushes live frames (`LIVE_SCORE_UPDATE`, `HUB_UPDATE`) via WebSocket API                                                     |
+| [`onconnect/`](./lambdas/onconnect)                 |  `128 MB` / `3s`  | WebSocket `$connect`      | Registers viewer WebSocket `connectionId` in DynamoDB (`PAY_PER_REQUEST`)                                                                                                 |
+| [`ondisconnect/`](./lambdas/ondisconnect)           |  `128 MB` / `3s`  | WebSocket `$disconnect`   | Removes disconnected `connectionId` from DynamoDB                                                                                                                         |
+| [`cognito-presignup/`](./lambdas/cognito-presignup) |  `128 MB` / `3s`  | Cognito Pre-SignUp        | Auto-confirms shadow guest accounts (`guest-*@cricscore.local`)                                                                                                           |
+| [`chat-api/`](./lambdas/chat-api)                   | `1024 MB` / `30s` | API Gateway HTTP          | Agentic AI supervisor (`InMemoryTransport` MCP), 4 specialist tools, `pgvector` rulebook ingestion, and deterministic **Player of the Match** (`computePlayerOfTheMatch`) |
+
+---
+
+## 🧪 Commands Tutorial
+
+```bash
+# Install dependencies across all Lambda packages
+cd apps/backend && npm install
+for d in lambdas/*; do [ -f "$d/package.json" ] && (cd "$d" && npm install); done
+
+# Run all 121 backend unit tests
+npm test
+```
+
+See **[API Reference](../../docs/api.md)** and **[Node.js Lambda Guide](../../docs/nodejs_guide.md)** for full details.
