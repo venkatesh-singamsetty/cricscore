@@ -1,3 +1,9 @@
+## [4.24.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.24.0...v4.24.1) (2026-11-01)
+
+### 🐛 Bug Fixes
+
+* **ci:** lockfile minimatch update, CD release permissions & release notes enrichment ([#344](https://github.com/venkatesh-singamsetty/cricscore/issues/344)) ([e87e1c5]()), closes [#85]() [#85]()
+
 ## [4.24.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.23.2...v4.24.0) (2026-11-01)
 
 ### 🚀 Features
