@@ -1,3 +1,9 @@
+## [4.23.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.22.4...v4.23.0) (2026-11-01)
+
+### 🚀 Features
+
+* overhaul match scoring crease UI and polish platform documentation ([#340](https://github.com/venkatesh-singamsetty/cricscore/issues/340)) ([d520a40]())
+
 ## [4.22.4](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.22.3...v4.22.4) (2026-11-01)
 
 ### 📚 Documentation
