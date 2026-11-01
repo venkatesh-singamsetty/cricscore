@@ -4,16 +4,16 @@ This guide walks through the end-to-end **Machine Learning Operations (MLOps)** 
 
 ## 🧭 Quick Navigation
 
-- [🏗️ 1. Architecture Overview](#️-1-architecture-overview)
-- [📊 2. The Data Pipeline (`live_data.csv`)](#-2-the-data-pipeline-live_datacsv)
-- [🧠 3. Model Training (`live_train.py`)](#-3-model-training-live_trainpy)
-- [🚦 4. Automated CI/CD Gate (`mlops-pipeline.yml`)](#-4-automated-cicd-gate-mlops-pipelineyml)
-- [☁️ 5. Serverless Docker Inference (`predict.py`)](#️-5-serverless-docker-inference-predictpy)
-- [🖥️ 6. Frontend Integration](#️-6-frontend-integration)
-- [🛑 7. Lessons Learned & Troubleshooting](#-7-lessons-learned--troubleshooting)
-- [📊 8. Win Prediction Engine Specification](#-8-win-prediction-engine-specification)
-- [🌧️ 9. Duckworth-Lewis-Stern (DLS) Method](#️-9-duckworth-lewis-stern-dls-method)
-- [🔬 10. Reproducible Multi-Algorithm MLOps Pipeline (DVC + MLflow + Manifests)](#-10-reproducible-multi-algorithm-mlops-pipeline-dvc--mlflow--manifests)
+- [🏗️ 1. Architecture Overview](#️-1-architecture-overview) — End-to-end DVC, MLflow, S3/ECR, and Lambda hybrid inference diagram.
+- [📊 2. The Data Pipeline (`live_data.csv`)](#-2-the-data-pipeline-live_datacsv) — Extracting `786K+` deliveries from Cricsheet T20 JSON archives.
+- [🧠 3. Model Training (`live_train.py`)](#-3-model-training-live_trainpy) — Leakage-free `GroupShuffleSplit` and 8-model benchmark evaluation.
+- [🚦 4. Automated CI/CD Gate (`mlops-pipeline.yml`)](#-4-automated-cicd-gate-mlops-pipelineyml) — Automated accuracy/ROC-AUC quality gates and S3/ECR promotion.
+- [☁️ 5. Serverless Docker Inference (`predict.py`)](#️-5-serverless-docker-inference-predictpy) — `~309 MB` `xgboost-cpu` container, `/tmp` S3 caching, and SHA-256 verification.
+- [🖥️ 6. Frontend Integration](#️-6-frontend-integration) — Rendering the real-time win-probability bar on every ball.
+- [🛑 7. Lessons Learned & Troubleshooting](#-7-lessons-learned--troubleshooting) — 5 production MLOps root-cause analyses and cost optimizations.
+- [📊 8. Win Prediction Engine Specification](#-8-win-prediction-engine-specification) — Blending `XGBoost v2.2.0`, Markov Chain DP, and hard terminal overrides.
+- [🌧️ 9. Duckworth-Lewis-Stern (DLS) Method](#️-9-duckworth-lewis-stern-dls-method) — Standard Edition resource table math and rain-interruption par targets.
+- [🔬 10. Reproducible Multi-Algorithm MLOps Pipeline (DVC + MLflow + Manifests)](#-10-reproducible-multi-algorithm-mlops-pipeline-dvc--mlflow--manifests) — Reproducing the pipeline locally and executing 5-second model rollbacks.
 
 ---
 

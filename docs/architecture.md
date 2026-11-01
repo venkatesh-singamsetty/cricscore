@@ -4,15 +4,15 @@ CricScore is built on a high-concurrency, **Event-Driven Architecture (EDA)** wh
 
 ## 🧭 Quick Navigation
 
-- [🗺️ System Diagrams (Mermaid)](#-system-diagrams-mermaid)
-  - [☁️ 1. Multi-Cloud System Architecture: AWS Serverless & Aiven PostgreSQL](#️-1-multi-cloud-system-architecture-aws-serverless--aiven-postgresql)
-  - [🤖 2. Agentic AI, MCP & Specialist Multi-Agent Architecture](#-2-agentic-ai-mcp--specialist-multi-agent-architecture)
-  - [🧠 3. Serverless MLOps & Hybrid Win Prediction Architecture](#-3-serverless-mlops--hybrid-win-prediction-architecture)
-- [🔄 Detailed Sequence Flows (Fan-Out)](#-detailed-sequence-flows-fan-out)
-- [🏛️ Technical Pillars & Specifications](#️-technical-pillars--specifications)
-- [🔐 Authentication & Role Model](#-authentication--role-model)
-- [🧩 Platform Component Breakdown](#-platform-component-breakdown)
-- [🛠️ Quick Verification Commands](#️-quick-verification-commands)
+- [🗺️ System Diagrams (Mermaid)](#-system-diagrams-mermaid) — Editable top-down architecture diagrams across the full platform.
+  - [☁️ 1. Multi-Cloud System Architecture: AWS Serverless & Aiven PostgreSQL](#️-1-multi-cloud-system-architecture-aws-serverless--aiven-postgresql) — Edge, Auth, Compute, Data, and Observability tiers.
+  - [🤖 2. Agentic AI, MCP & Specialist Multi-Agent Architecture](#-2-agentic-ai-mcp--specialist-multi-agent-architecture) — In-memory MCP tools, read-only SQL guards, and `pgvector` RAG.
+  - [🧠 3. Serverless MLOps & Hybrid Win Prediction Architecture](#-3-serverless-mlops--hybrid-win-prediction-architecture) — DVC, MLflow, S3/ECR registries, and hybrid `XGBoost v2.2.0` + Markov DP + DLS inference.
+- [🔄 Detailed Sequence Flows (Fan-Out)](#-detailed-sequence-flows-fan-out) — Step-by-step ball ingestion, WebSocket broadcast, and ACID persistence sequences.
+- [🏛️ Technical Pillars & Specifications](#️-technical-pillars--specifications) — Core engineering guarantees for latency, ordering, security, and `~$1/month` cost.
+- [🔐 Authentication & Role Model](#-authentication--role-model) — Viewer, Guest Scorer, Registered Scorer, and Admin access tiers.
+- [🧩 Platform Component Breakdown](#-platform-component-breakdown) — File-by-file responsibilities across all 7 platform subsystems.
+- [🛠️ Quick Verification Commands](#️-quick-verification-commands) — CLI commands to regenerate diagrams and verify local/cloud health.
 
 ---
 

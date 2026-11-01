@@ -6,26 +6,26 @@ This handbook provides an engineering and theoretical reference for **14 fundame
 
 ## 📑 Table of Contents
 
-1. [Architectural Overview & Problem Formulations](#architectural-overview)
-2. [🎯 Classification Models (Win Probability Prediction)](#classification-models)
-   - [1. Logistic Regression](#1-logistic-regression)
-   - [2. K-Nearest Neighbors (KNN)](#2-k-nearest-neighbors-knn)
-   - [3. Support Vector Machine (SVM)](#3-support-vector-machine-svm)
-   - [4. Naive Bayes (Gaussian)](#4-naive-bayes-gaussian)
-   - [5. Decision Tree](#5-decision-tree)
-   - [6. Random Forest (Ensemble Bagging)](#6-random-forest-ensemble-bagging)
-   - [7. XGBoost (Extreme Gradient Boosting)](#7-xgboost-extreme-gradient-boosting)
-3. [📈 Regression Models (1st-Innings Projected Score)](#regression-models)
-   - [8. Simple Linear Regression (SLR)](#8-simple-linear-regression-slr)
-   - [9. Polynomial Regression](#9-polynomial-regression)
-   - [10. Support Vector Regression (SVR)](#10-support-vector-regression-svr)
-   - [11. Lasso Regression (L1 Regularization)](#11-lasso-regression-l1-regularization)
-   - [12. Ridge Regression (L2 Regularization)](#12-ridge-regression-l2-regularization)
-4. [🎡 Clustering Models (Pitch & Match Condition Profiling)](#clustering-models)
-   - [13. K-Means Clustering](#13-k-means-clustering)
-   - [14. Hierarchical (Agglomerative) Clustering](#14-hierarchical-agglomerative-clustering)
-5. [📊 Empirical CricScore Benchmark Summary](#empirical-benchmark-summary)
-6. [💡 System Design & Interview Trap Cheat Sheet](#system-design--interview-cheat-sheet)
+1. [Architectural Overview & Problem Formulations](#architectural-overview) — How Classification, Regression, and Clustering map to live T20 match analytics.
+2. [🎯 Classification Models (Win Probability Prediction)](#classification-models) — Predicting 2nd-innings chase victory probability $P(y=1\mid X)$:
+   - [1. Logistic Regression](#1-logistic-regression) — Linear log-odds baseline (`Val LogLoss = 0.8069`).
+   - [2. K-Nearest Neighbors (KNN)](#2-k-nearest-neighbors-knn) — Distance-based historical scoreboard lookup (`66.15 ms` lazy scan).
+   - [3. Support Vector Machine (SVM)](#3-support-vector-machine-svm) — Maximum-margin linear classifier with Platt scaling (`Val ROC-AUC = 0.7704`).
+   - [4. Naive Bayes (Gaussian)](#4-naive-bayes-gaussian) — Conditional independence baseline showing why correlated cricket features fail (`LogLoss = 9.5548`).
+   - [5. Decision Tree](#5-decision-tree) — Depth-regularized axis-aligned threshold rules (`1.19 ms` latency).
+   - [6. Random Forest (Ensemble Bagging)](#6-random-forest-ensemble-bagging) — Variance-reducing bootstrap tree ensemble (`Val LogLoss = 0.6136`).
+   - [7. XGBoost (Extreme Gradient Boosting)](#7-xgboost-extreme-gradient-boosting) — 🏆 Production Champion (`v2.2.0`, `Val LogLoss = 0.5786`, `Val ROC-AUC = 0.7723`).
+3. [📈 Regression Models (1st-Innings Projected Score)](#regression-models) — Forecasting final 1st-innings totals from live delivery states:
+   - [8. Simple Linear Regression (SLR)](#8-simple-linear-regression-slr) — Unregularized Ordinary Least Squares baseline (`RMSE = 25.10`).
+   - [9. Polynomial Regression](#9-polynomial-regression) — 🏆 Degree-2 interaction model capturing death-over acceleration (`RMSE = 24.45`).
+   - [10. Support Vector Regression (SVR)](#10-support-vector-regression-svr) — $\epsilon$-insensitive tube regression robust to outlier overs.
+   - [11. Lasso Regression (L1 Regularization)](#11-lasso-regression-l1-regularization) — Sparse feature selection eliminating collinear ball counters.
+   - [12. Ridge Regression (L2 Regularization)](#12-ridge-regression-l2-regularization) — $L_2$ weight shrinkage stabilizing correlated predictors.
+4. [🎡 Clustering Models (Pitch & Match Condition Profiling)](#clustering-models) — Unsupervised discovery of venue and pitch archetypes:
+   - [13. K-Means Clustering](#13-k-means-clustering) — 🏆 Centroid partitioning into Batting Paradise, Balanced, and Bowling Minefield (`Silhouette = 0.3662`).
+   - [14. Hierarchical (Agglomerative) Clustering](#14-hierarchical-agglomerative-clustering) — Bottom-up Ward linkage venue similarity tree.
+5. [📊 Empirical CricScore Benchmark Summary](#empirical-benchmark-summary) — Complete side-by-side validation and held-out test metrics table.
+6. [💡 System Design & Interview Trap Cheat Sheet](#system-design--interview-cheat-sheet) — Key engineering answers on leakage-free splits, LogLoss vs. Accuracy, and hybrid DP+ML.
 
 ---
 

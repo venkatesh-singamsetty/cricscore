@@ -46,5 +46,5 @@ flowchart TD
 ./infra/scripts/validate_local.sh --skip-e2e
 ```
 
-- 📖 **[Security Posture & Trade-Offs](./docs/security_posture.md)**
-- 📖 **[Security Fixes Log](./docs/security_fixes.md)**
+- 📖 **[Security Posture & Trade-Offs](./docs/security_posture.md)** — Complete defense-in-depth architecture, active controls inventory, and intentional `~$1/month` security trade-offs.
+- 📖 **[Security Fixes Log](./docs/security_fixes.md)** — Detailed root-cause analyses and code-level remediations for all resolved security findings.

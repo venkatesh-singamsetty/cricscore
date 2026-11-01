@@ -35,15 +35,24 @@ flowchart TD
 
 ## 🚀 Dual-Path Event Architecture
 
+When a scorer enters a delivery, CricScore decouples **real-time viewer fan-out** from **ACID database persistence** into two concurrent, non-blocking asynchronous paths:
+
 1. **Fast-Path Fan-Out (`Scorer UI` ➔ `POST /match/{id}/score` ➔ `score-update` ➔ `SNS` ➔ `broadcaster` ➔ `WebSocket`):**
-   - Streams live ball-by-ball updates (`LIVE_SCORE_UPDATE`) to all connected spectators in sub-second latency.
-   - Bypasses relational database I/O on the push path and fans out via parallel `PostToConnectionCommand` calls.
+   - **Target:** Ephemeral `< 1s` push directly into viewer browsers (`LIVE_SCORE_UPDATE`).
+   - **Mechanism:** Bypasses relational database I/O completely on the push path and fans out via parallel AWS SDK `PostToConnectionCommand` calls to active sockets in DynamoDB.
 2. **Persistence Path (`Scorer UI` ➔ `POST /match/{id}/score` ➔ `score-update` ➔ `SQS FIFO` ➔ `storage-worker` ➔ `PostgreSQL`):**
-   - Enqueues events in `storage_buffer.fifo` with content-based deduplication, 24-hour retention, and `batch_size = 1`.
-   - Enforces strict per-match ball ordering (`MessageGroupId = String(matchId)`) before committing to the `balls` and `innings` tables.
+   - **Target:** 100% durable ACID database commitment in exact chronological order.
+   - **Mechanism:** Enqueues events into `storage_buffer.fifo` with `MessageGroupId = String(matchId)`, content-based deduplication, and `batch_size = 1`. Commits balls, bowler/batter statistics, and undo rollbacks to Aiven PostgreSQL 16.
 3. **Lifecycle Hub Sync (`Scorer UI` ➔ `match-api` ➔ `PostgreSQL` ➔ Direct Invoke `broadcaster`):**
    - Broadcasts match creation, toss/innings switches, match completion, and resets via `{ type: "HUB_UPDATE" }`.
    - Synchronizes all active viewers immediately without requiring a manual browser refresh.
+
+> [!NOTE]
+> **Why Two Paths Instead of One?**
+>
+> - **Zero Database Lock Latency for Spectators:** Writing to a cloud database takes 100–300ms (network round-trip + transaction lock). Chaining WebSocket pushes _after_ database writes would delay ball updates for hundreds of live fans.
+> - **Guaranteed Ordering:** SQS FIFO ensures deliveries and undo events are never committed out of order during rapid scoring taps.
+> - **Fault Isolation:** If PostgreSQL experiences a temporary connection pool spike, the Fast Path continues delivering live balls to viewers uninterrupted while SQS FIFO safely buffers events until the database catches up.
 
 ---
 

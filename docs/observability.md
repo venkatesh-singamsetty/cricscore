@@ -4,9 +4,9 @@ CricScore combines AWS free-tier telemetry (**CloudWatch Logs**, **CloudWatch Me
 
 **Related Operational Guides**:
 
-- [Cloud Cost & Infrastructure Management (`~$1/month`)](./cost_management.md)
-- [Auto-Generated AWS Resources Dashboard](./aws_resources_dashboard.md)
-- [Troubleshooting Runbook & Incident Log](./troubleshooting.md)
+- [Cloud Cost & Infrastructure Management (`~$1/month`)](./cost_management.md) — How 7-day log retention and 5% X-Ray sampling keep observability within the AWS Free Tier.
+- [Auto-Generated AWS Resources Dashboard](./aws_resources_dashboard.md) — Direct console links to every live `dev` and `prod` Lambda log group, X-Ray map, and alarm.
+- [Troubleshooting Runbook & Incident Log](./troubleshooting.md) — Step-by-step diagnosis and fixes for 54 real-world production and CI/CD incidents.
 
 ---
 

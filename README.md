@@ -65,8 +65,17 @@ Editable Mermaid diagrams live in **[docs/architecture.md](./docs/architecture.m
 
 ![Live scoring flow: score-update Lambda publishes each ball to SNS for instant WebSocket broadcast and to SQS FIFO for guaranteed persistence in PostgreSQL](./docs/images/architecture/02_live_scoring_flow.png)
 
-- **🔵 Fast Path (`< 1s` Live Broadcast):** `score-update` → **Amazon SNS (`match-events`)** → `broadcaster` Lambda → **DynamoDB (`PAY_PER_REQUEST` connection registry)** → **API Gateway WebSocket** pushes every delivery to connected viewers in under a second without waiting on database writes.
-- **🟢 Safe Path (Ordered ACID Persistence):** `score-update` → **Amazon SQS FIFO (`storage-buffer.fifo`, `MessageGroupId = matchId`)** → `storage-worker` Lambda (`batch_size = 1`) → **Aiven PostgreSQL 16** commits balls, player snapshots, and undo rollbacks in strict chronological order per match.
+When a scorer taps a ball, CricScore decouples **live broadcast speed** from **database persistence** into two independent, parallel paths:
+
+- **🔵 Fast Path (Ephemeral `< 1s` Live Broadcast to Viewers):**
+  - `score-update` → **Amazon SNS (`match-events`)** → `broadcaster` Lambda → scans active connections in **DynamoDB (`PAY_PER_REQUEST`)** → pushes live frame via **API Gateway WebSocket** directly to fan browsers.
+  - **Why it exists:** Bypasses database writes entirely so viewers see boundaries and wickets in under 1 second without waiting on SQL locks or connection pools.
+- **🟢 Safe Path (Guaranteed Ordered ACID Persistence to Database):**
+  - `score-update` → **Amazon SQS FIFO (`storage-buffer.fifo`, `MessageGroupId = matchId`)** → `storage-worker` Lambda (`batch_size = 1`) → commits delivery, player stats, and undo rollbacks to **Aiven PostgreSQL 16**.
+  - **Why it exists:** Ensures strict chronological ordering (one ball at a time per match) and durable ACID history so browser refreshes, scorecards, and player career averages are never corrupted.
+- **💡 Why Two Paths Instead of One?**
+  - If we wrote to PostgreSQL first before broadcasting, database latency and connection pool spikes would slow down live fans.
+  - If we only broadcasted without FIFO queuing, network glitches or rapid scoring taps could write balls out of order or lose deliveries entirely on page refresh. Parallel fan-out gives both sub-second fan updates and 100% data integrity.
 
 ### 🤖 3. AI Assistant (Autonomous Multi-Agent System via MCP)
 

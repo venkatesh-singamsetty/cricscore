@@ -128,7 +128,7 @@ npm --prefix apps/frontend test -- --run src/test/ChatComponent.test.tsx
 
 ## 🔗 Related Documentation
 
-- [**AI Architecture (Agentic RAG & MCP)**](./ai_architecture.md)
-- [**GitHub Issue Specialist Agent Guide**](./github_issue_agent.md)
-- [**MLOps & DLS Par Score Guide**](./mlops_tutorial.md)
-- [**Architecture & AI/MLOps FAQ**](./architecture_faq.md)
+- [**AI Architecture (Agentic RAG & MCP)**](./ai_architecture.md) — End-to-end multi-agent MCP supervisor, `pgvector` RAG, and deterministic POTM engine.
+- [**GitHub Issue Specialist Agent Guide**](./github_issue_agent.md) — Conversational 2-step bug/feature issue filing with server-side rate limiting.
+- [**MLOps & DLS Par Score Guide**](./mlops_tutorial.md) — How rain interruptions adjust target scores using the Duckworth-Lewis-Stern (DLS) resource table.
+- [**Architecture & AI/MLOps FAQ**](./architecture_faq.md) — Deep-dive Q&A on specialist agent orchestration and hybrid win-probability math.

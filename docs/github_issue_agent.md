@@ -138,7 +138,7 @@ npm --prefix apps/frontend test -- --run src/test/ChatComponent.test.tsx
 
 ## 🔗 Related Documentation
 
-- [**AI Architecture (Agentic RAG & MCP)**](./ai_architecture.md)
-- [**Weather Report Specialist Agent Guide**](./weather_report_agent.md)
-- [**Architecture & AI/MLOps FAQ**](./architecture_faq.md)
-- [**Full Deployment Guide**](./deployment.md)
+- [**AI Architecture (Agentic RAG & MCP)**](./ai_architecture.md) — End-to-end multi-agent MCP supervisor, `pgvector` RAG, and deterministic POTM engine.
+- [**Weather Report Specialist Agent Guide**](./weather_report_agent.md) — Open-Meteo geocoding/forecast tool and automated Cricket/DLS interruption advisories.
+- [**Architecture & AI/MLOps FAQ**](./architecture_faq.md) — Deep-dive Q&A on MCP security isolation, supervisor routing, and hybrid ML inference.
+- [**Full Deployment Guide**](./deployment.md) — Configuring `GITHUB_TOKEN` (`GH_PAT`) in `.env.local` and GitHub Actions secrets.

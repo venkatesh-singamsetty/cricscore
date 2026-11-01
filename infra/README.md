@@ -32,7 +32,7 @@
 
 ## 📖 Related Guides
 
-- **[Step-by-Step Deployment Guide](../docs/deployment.md)**
-- **[Terraform Infrastructure Tutorial](../docs/terraform_guide.md)**
-- **[Cloud Cost Management (`~$1/Month`)](../docs/cost_management.md)**
-- **[Aiven PostgreSQL 16 Setup](../docs/aiven.md)**
+- **[Step-by-Step Deployment Guide](../docs/deployment.md)** — Complete walkthrough to deploy `dev` and `prod` environments from scratch.
+- **[Terraform Infrastructure Tutorial](../docs/terraform_guide.md)** — Module breakdown, remote S3 state locking, and environment isolation patterns.
+- **[Cloud Cost Management (`~$1/Month`)](../docs/cost_management.md)** — Service-level cost guardrails and architectural trade-offs keeping AWS spend around `~$1/month`.
+- **[Aiven PostgreSQL 16 Setup](../docs/aiven.md)** — Provisioning managed PostgreSQL + `pgvector` and the daily Production E2E keep-alive workflow.

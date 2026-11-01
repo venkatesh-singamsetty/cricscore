@@ -54,5 +54,5 @@ docker build --platform linux/amd64 --provenance=false -t cricscore-ml-predict:v
 
 ## 📖 Deep-Dive Tutorials
 
-- **[Serverless MLOps & DLS Tutorial](../../docs/mlops_tutorial.md)**
-- **[ML Models Benchmark Handbook](../../docs/ml_models_handbook.md)**
+- **[Serverless MLOps & DLS Tutorial](../../docs/mlops_tutorial.md)** — End-to-end guide to Cricsheet data extraction, DVC/MLflow tracking, DLS par math, and `~309 MB` CPU Lambda containers.
+- **[ML Models Benchmark Handbook](../../docs/ml_models_handbook.md)** — Mathematical formulations and empirical CricScore benchmarks across 14 classification, regression, and clustering algorithms.

@@ -8,14 +8,14 @@ A central single-pane-of-glass directory providing live references across all la
 
 ## 📌 Quick Navigation
 
-- [🐙 GitHub Repository Resources, Actions, Vars & Secrets](#-github-repository-resources-actions-vars--secrets)
-- [🟢 Development Environment](#-development-dev)
-- [🔵 Production Environment](#-production-prod)
-- [🤖 ML Models, Container Images & MLOps Registry](#-ml-models-container-images--mlops-registry)
-- [🗄️ Database, Vectors & RAG Architecture](#-database-vectors--rag-architecture-aiven-postgresql)
-- [📦 Storage & S3 Buckets](#-storage-s3-buckets--terraform-state)
-- [🛡️ Security Posture, SBOM & CI/CD Scans](#-security-posture-sbom--cicd-scans)
-- [📊 Observability, Traces & Alarms](#-observability-tracing--alarms-aws-x-ray--cloudwatch)
+- [🐙 GitHub Repository Resources, Actions, Vars & Secrets](#-github-repository-resources-actions-vars--secrets) — Workflows, environment variables, secrets metadata, and CI artifacts.
+- [🟢 Development Environment](#-development-dev) — Live `dev` endpoints, CloudFront, API Gateway, Cognito, S3, and Lambda console links.
+- [🔵 Production Environment](#-production-prod) — Live `prod` endpoints, CloudFront, API Gateway, Cognito, S3, and Lambda console links.
+- [🤖 ML Models, Container Images & MLOps Registry](#-ml-models-container-images--mlops-registry) — `XGBoost v2.2.0` S3 model registry, ECR container digests, and benchmark metrics.
+- [🗄️ Database, Vectors & RAG Architecture](#-database-vectors--rag-architecture-aiven-postgresql) — Aiven PostgreSQL 16 + `pgvector` schema isolation and MCP specialist tools.
+- [📦 Storage & S3 Buckets](#-storage-s3-buckets--terraform-state) — Static hosting, match backup, CDN log, and remote Terraform state buckets.
+- [🛡️ Security Posture, SBOM & CI/CD Scans](#-security-posture-sbom--cicd-scans) — CodeQL, Dependabot, GitLeaks, Trivy, Checkov, Syft SBOM, and OWASP ZAP links.
+- [📊 Observability, Traces & Alarms](#-observability-tracing--alarms-aws-x-ray--cloudwatch) — CloudWatch 7-day log groups, X-Ray 5% service map, and SNS alarms.
 
 ---
 
