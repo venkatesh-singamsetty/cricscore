@@ -247,16 +247,16 @@ A central single-pane-of-glass directory providing live references across all la
 
 ### Tiered S3 Cleanup Lifecycle Rules (5 GB Free-Tier Protection)
 
-| Resource Category                | S3 Prefix / Path      | Dev Retention (Aggressive) | Prod Retention (Lenient) | Rationale                                                              |
-| :------------------------------- | :-------------------- | :------------------------- | :----------------------- | :--------------------------------------------------------------------- |
-| **Playwright E2E Reports**       | `reports/playwright/` | **7 Days**                 | **30 Days**              | Fast cleanup for CI runs; `latest/` continually updated in-place.      |
-| **Match Event Backups**          | `backups/`            | **14 Days**                | **90 Days**              | Dev test matches are disposable; Prod matches retained quarterly.      |
-| **Commit-Level SBOMs**           | `sboms/commits/`      | **30 Days**                | **90 Days**              | Software Bill of Materials for development branch/commit tracking.     |
-| **Release SBOMs**                | `sboms/releases/`     | _N/A_                      | **Permanent**            | Formal security audit compliance records (~300 KB each).               |
-| **ML Model Registry**            | `models/`             | **Permanent**              | **Permanent**            | Serialized XGBoost model weights (`.joblib`), manifests, and metadata. |
-| **Access Logs**                  | `*` (logs bucket)     | **7 Days**                 | **30 Days**              | Short-term CloudFront/S3 access debugging logs.                        |
-| **Noncurrent App Versions**      | `*` (app bucket)      | **3 Days**                 | **7 Days**               | Rollback safety window following frontend build deployments.           |
-| **Incomplete Multipart Uploads** | _All Buckets_         | **1 Day**                  | **7 Days**               | Eliminates orphaned byte storage billing.                              |
+| Resource Category                | S3 Prefix / Path      | Dev Retention (Aggressive) | Prod Retention (Lenient) | Rationale                                                                            |
+| :------------------------------- | :-------------------- | :------------------------- | :----------------------- | :----------------------------------------------------------------------------------- |
+| **Playwright E2E Reports**       | `reports/playwright/` | **7 Days**                 | **30 Days**              | Fast cleanup for CI runs; `latest/` continually updated in-place.                    |
+| **Match Event Backups**          | `backups/`            | **14 Days**                | **90 Days**              | Dev test matches are disposable; Prod matches retained quarterly.                    |
+| **Dev Post-Deploy SBOMs**        | `sboms/dev/`          | **30 Days**                | _N/A_                    | Generated only after successful DEV deployment in `ci.yml`.                          |
+| **Prod Release SBOMs**           | `sboms/releases/`     | _N/A_                      | **Permanent**            | Formal security audit compliance records attached to GitHub releases (~300 KB each). |
+| **ML Model Registry**            | `models/`             | **Permanent**              | **Permanent**            | Serialized XGBoost model weights (`.joblib`), manifests, and metadata.               |
+| **Access Logs**                  | `*` (logs bucket)     | **7 Days**                 | **30 Days**              | Short-term CloudFront/S3 access debugging logs.                                      |
+| **Noncurrent App Versions**      | `*` (app bucket)      | **3 Days**                 | **7 Days**               | Rollback safety window following frontend build deployments.                         |
+| **Incomplete Multipart Uploads** | _All Buckets_         | **1 Day**                  | **7 Days**               | Eliminates orphaned byte storage billing.                                            |
 
 ### CloudWatch 4.5 GB Quota Alarms (90% Ceiling)
 

@@ -41,16 +41,16 @@ AWS Free Tier S3 Standard Storage (5.0 GB Total)
 
 Retention policies are intentionally differentiated based on **resource criticality** and **environment**. Dev environments clean up aggressively to eliminate test bloat, while Prod retains data with measured leniency for compliance and recovery.
 
-| Resource Category                | S3 Prefix / Path      | Criticality     | Dev Retention (Aggressive) | Prod Retention (Lenient)      | Rationale & Protection                                                                                |
-| :------------------------------- | :-------------------- | :-------------- | :------------------------- | :---------------------------- | :---------------------------------------------------------------------------------------------------- |
-| **Playwright E2E Reports**       | `reports/playwright/` | 🟡 Low          | **7 Days**                 | **30 Days**                   | Ephemeral CI test results & HTML traces. `latest/` is overwritten on each deploy.                     |
-| **Match Event Backups**          | `backups/`            | 🟠 Medium       | **14 Days**                | **90 Days**                   | Raw JSON match state dumps from Lambda. Dev matches are disposable; Prod kept for quarterly recovery. |
-| **Commit-Level SBOMs**           | `sboms/commits/`      | 🟠 Medium       | **30 Days**                | **90 Days**                   | Software Bill of Materials for development commits and branch builds.                                 |
-| **Release SBOMs**                | `sboms/releases/`     | 🟢 High (Audit) | _N/A_                      | **Permanent (Never Expired)** | Required for formal security compliance audits. Only ~300 KB per release tag.                         |
-| **ML Model Registry**            | `models/`             | 🔴 Critical     | **Permanent**              | **Permanent (Never Expired)** | Serialized XGBoost model weights (`.joblib`), manifests, and metadata for live inference & rollbacks. |
-| **Access Logs**                  | `*` (in logs bucket)  | 🟡 Low          | **7 Days**                 | **30 Days**                   | CloudFront CDN and S3 HTTP access logs used solely for short-term operational debugging.              |
-| **Noncurrent App Versions**      | `*` (in app bucket)   | 🟠 Medium       | **3 Days**                 | **7 Days**                    | Prior frontend static bundle versions retained briefly in case of an immediate UI rollback.           |
-| **Incomplete Multipart Uploads** | _All Buckets_         | ⚪ Waste        | **1 Day**                  | **7 Days**                    | Aborted uploads purged automatically to eliminate orphaned byte billing.                              |
+| Resource Category                | S3 Prefix / Path      | Criticality     | Dev Retention (Aggressive) | Prod Retention (Lenient)      | Rationale & Protection                                                                                  |
+| :------------------------------- | :-------------------- | :-------------- | :------------------------- | :---------------------------- | :------------------------------------------------------------------------------------------------------ |
+| **Playwright E2E Reports**       | `reports/playwright/` | 🟡 Low          | **7 Days**                 | **30 Days**                   | Ephemeral CI test results & HTML traces. `latest/` is overwritten on each deploy.                       |
+| **Match Event Backups**          | `backups/`            | 🟠 Medium       | **14 Days**                | **90 Days**                   | Raw JSON match state dumps from Lambda. Dev matches are disposable; Prod kept for quarterly recovery.   |
+| **Dev Post-Deploy SBOMs**        | `sboms/dev/`          | 🟠 Medium       | **30 Days**                | _N/A_                         | Generated only after successful DEV deployment in `ci.yml`; auto-expired after 30 days.                 |
+| **Prod Release SBOMs**           | `sboms/releases/`     | 🟢 High (Audit) | _N/A_                      | **Permanent (Never Expired)** | Generated only after successful PROD deployment in `cd.yml` & attached to GitHub release. ~300 KB each. |
+| **ML Model Registry**            | `models/`             | 🔴 Critical     | **Permanent**              | **Permanent (Never Expired)** | Serialized XGBoost model weights (`.joblib`), manifests, and metadata for live inference & rollbacks.   |
+| **Access Logs**                  | `*` (in logs bucket)  | 🟡 Low          | **7 Days**                 | **30 Days**                   | CloudFront CDN and S3 HTTP access logs used solely for short-term operational debugging.                |
+| **Noncurrent App Versions**      | `*` (in app bucket)   | 🟠 Medium       | **3 Days**                 | **7 Days**                    | Prior frontend static bundle versions retained briefly in case of an immediate UI rollback.             |
+| **Incomplete Multipart Uploads** | _All Buckets_         | ⚪ Waste        | **1 Day**                  | **7 Days**                    | Aborted uploads purged automatically to eliminate orphaned byte billing.                                |
 
 ---
 

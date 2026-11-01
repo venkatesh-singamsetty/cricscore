@@ -32,7 +32,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "match_backups_sse
 # Tiered S3 Lifecycle Rules based on Resource Criticality:
 # - Match Backups (backups/): Prod 90 days, Dev 14 days (aggressive)
 # - Playwright E2E Reports (reports/): Prod 30 days, Dev 7 days (aggressive)
-# - Commit-level SBOMs (sboms/commits/): Prod 90 days, Dev 30 days (aggressive)
+# - Dev Deployment SBOMs (sboms/dev/): 30 days (aggressive)
 # - Release SBOMs (sboms/releases/) & ML models (models/): Deliberately NOT expired for audit & rollbacks.
 resource "aws_s3_bucket_lifecycle_configuration" "match_backups" {
   bucket = aws_s3_bucket.match_backups.id
@@ -64,15 +64,15 @@ resource "aws_s3_bucket_lifecycle_configuration" "match_backups" {
   }
 
   rule {
-    id     = "expire-commit-sboms"
+    id     = "expire-dev-sboms"
     status = "Enabled"
 
     filter {
-      prefix = "sboms/commits/"
+      prefix = "sboms/dev/"
     }
 
     expiration {
-      days = var.environment == "prod" ? 90 : 30
+      days = 30
     }
   }
 

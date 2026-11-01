@@ -357,3 +357,22 @@ jobs:
           target: "https://${{ vars.DOMAIN_NAME }}"
           rules_file_name: ".zap/rules.tsv"
           fail_action: false
+
+      # --- DEV POST-DEPLOY SBOM GENERATION & S3 SYNC ---
+      - name: Generate Dev SBOM with Syft
+        uses: anchore/sbom-action@v0
+        with:
+          path: ./
+          format: spdx-json
+          output-file: cricscore-sbom-dev.spdx.json
+
+      - name: Sync Dev SBOM to S3
+        run: |
+          BUCKET=$(aws s3api list-buckets --query "Buckets[?starts_with(Name, 'cricscoredev-match-backups-')].Name | [0]" --output text)
+          if [ -n "$BUCKET" ] && [ "$BUCKET" != "None" ]; then
+            echo "📦 Uploading Dev SBOM to s3://${BUCKET}/sboms/dev/latest.spdx.json..."
+            aws s3 cp cricscore-sbom-dev.spdx.json "s3://${BUCKET}/sboms/dev/latest.spdx.json" --content-type "application/json"
+            echo "✅ Dev post-deploy SBOM synced to S3."
+          else
+            echo "⚠️ Could not locate cricscoredev-match-backups bucket in AWS account."
+          fi

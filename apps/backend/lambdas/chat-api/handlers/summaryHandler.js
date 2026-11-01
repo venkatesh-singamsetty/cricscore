@@ -323,7 +323,7 @@ async function summaryHandler(
   // Handle pure local / guest match payload (no cloud DB row)
   if (isLocalGuestMatch && matchData) {
     try {
-      const data = matchData || {};
+      const data = matchData;
       const teamAName = data.teamAName || data.teamA?.name || "Team A";
       const teamBName = data.teamBName || data.teamB?.name || "Team B";
       const matchWinner =

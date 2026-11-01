@@ -1,9 +1,6 @@
-name: Generate SBOM & Sync to S3
+name: Generate SBOM & Compliance Audit
 
 on:
-  push:
-    branches: [ "main" ]
-    tags: [ "v*" ]
   schedule:
     - cron: '0 0 * * 0' # Run weekly on Sundays at midnight
   workflow_dispatch:

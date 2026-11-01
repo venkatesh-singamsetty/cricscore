@@ -216,3 +216,30 @@ jobs:
           target: "https://${{ vars.DOMAIN_NAME }}"
           rules_file_name: ".zap/rules.tsv"
           fail_action: false
+
+      # --- PROD POST-DEPLOY SBOM GENERATION & S3 SYNC ---
+      - name: Generate Prod Release SBOM with Syft
+        uses: anchore/sbom-action@v0
+        with:
+          path: ./
+          format: spdx-json
+          output-file: cricscore-sbom-prod.spdx.json
+
+      - name: Sync Prod Release SBOM to S3 & GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT || github.token }}
+        run: |
+          BUCKET=$(aws s3api list-buckets --query "Buckets[?starts_with(Name, 'cricscore-match-backups-')].Name | [0]" --output text)
+          TAG_NAME="${{ github.ref_name || github.sha }}"
+          if [ -n "$BUCKET" ] && [ "$BUCKET" != "None" ]; then
+            echo "📦 Uploading Prod Release SBOM to s3://${BUCKET}/sboms/releases/${TAG_NAME}.spdx.json..."
+            aws s3 cp cricscore-sbom-prod.spdx.json "s3://${BUCKET}/sboms/releases/${TAG_NAME}.spdx.json" --content-type "application/json"
+            echo "📦 Updating prod latest SBOM at s3://${BUCKET}/sboms/prod/latest.spdx.json..."
+            aws s3 cp cricscore-sbom-prod.spdx.json "s3://${BUCKET}/sboms/prod/latest.spdx.json" --content-type "application/json"
+            echo "✅ Prod Release post-deploy SBOM synced to S3."
+          fi
+
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "Attaching SBOM to GitHub release $TAG_NAME..."
+            gh release upload "$TAG_NAME" cricscore-sbom-prod.spdx.json --clobber 2>/dev/null || echo "ℹ️ Release $TAG_NAME not yet published or upload skipped."
+          fi

@@ -21,6 +21,7 @@
     "@sentry/react": "^11.8.0",
     "aws-amplify": "^6.22.2",
     "lucide-react": "^1.61.0",
+    "minimatch": "^11.0.3",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "recharts": "^3.9.1"
@@ -49,6 +50,7 @@
     "vitest": "^5.0.1"
   },
   "overrides": {
-    "brace-expansion": "^1.1.21"
+    "brace-expansion": "^1.1.21",
+    "minimatch": "^11.0.3"
   }
 }
