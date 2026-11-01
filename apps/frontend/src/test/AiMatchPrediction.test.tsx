@@ -110,4 +110,45 @@ describe("AiMatchPrediction Component", () => {
       }),
     );
   });
+
+  it("renders bat icon 🏏 before batting team percentage and ball icon 🎾 before bowling team percentage", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        team1: "MIDWEST GLADIATORS",
+        team2: "CHICAGO SPARTANS",
+        team1WinProbability: 0.47,
+        team2WinProbability: 0.53,
+        predictedWinner: "CHICAGO SPARTANS",
+        modelVersion: "v2+dp-sim",
+      }),
+    });
+
+    render(
+      <AiMatchPrediction
+        matchId="match_1"
+        teamA="CHICAGO SPARTANS"
+        teamB="MIDWEST GLADIATORS"
+        battingTeam="MIDWEST GLADIATORS"
+        bowlingTeam="CHICAGO SPARTANS"
+        totalOvers={1}
+        compact={true}
+        inning={2}
+        currentScore={0}
+        wicketsLost={0}
+        targetScore={11}
+        ballsBowled={0}
+      />,
+    );
+
+    await waitFor(() => {
+      // Batting team (MIDWEST GLADIATORS, 47%) should have 🏏 before 47%
+      expect(screen.getByText("🏏")).toBeInTheDocument();
+      expect(screen.getByText("47%")).toBeInTheDocument();
+
+      // Bowling team (CHICAGO SPARTANS, 53%) should have 🎾 before 53%
+      expect(screen.getByText("🎾")).toBeInTheDocument();
+      expect(screen.getByText("53%")).toBeInTheDocument();
+    });
+  });
 });

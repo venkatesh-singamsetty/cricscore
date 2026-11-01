@@ -48,13 +48,23 @@ flowchart TD
 
 ## 2. Testing Frameworks (`376` Unit/Integration Tests + E2E)
 
-| Framework            | Target Suite               | Tests | Command                                    |
-| :------------------- | :------------------------- | :---: | :----------------------------------------- |
-| **Vitest (RTL)**     | Frontend (`apps/frontend`) | `151` | `npm --prefix apps/frontend test`          |
-| **Vitest (Mocks)**   | Backend (`apps/backend`)   | `121` | `npm --prefix apps/backend test`           |
-| **Pytest (AI)**      | AI Service (`ai-service`)  | `75`  | `pytest apps/ai-service -q`                |
-| **Pytest (ML)**      | ML Engine (`ml-engine`)    | `29`  | `pytest apps/ml-engine/test_predict.py -q` |
-| **Playwright (E2E)** | Browser Suite (`e2e/`)     | `15`  | `npx playwright test`                      |
+```bash
+# Run Frontend Vitest suite (151 unit tests)
+npm --prefix apps/frontend test
+
+# Run Backend Lambda Vitest suite (121 unit tests)
+npm --prefix apps/backend test
+
+# Run Python AI Service pytest suite (75 tests)
+pytest apps/ai-service -q
+
+# Run Python ML Engine inference pytest suite (29 tests)
+pytest apps/ml-engine/test_predict.py -q
+
+# Run Playwright End-to-End browser test suite (15 tests)
+npx playwright test
+
+```
 
 ---
 

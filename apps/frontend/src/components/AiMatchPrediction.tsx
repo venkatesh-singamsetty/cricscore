@@ -1,4 +1,9 @@
 import React, { useEffect, useState } from "react";
+import {
+  getTeamBrandColor,
+  getTeamGlow,
+  TEAM_BRAND_COLORS,
+} from "../utils/teamColorUtils";
 
 interface AiMatchPredictionProps {
   matchId: string;
@@ -170,29 +175,73 @@ export const AiMatchPrediction: React.FC<AiMatchPredictionProps> = ({
     );
   }
 
+  const p1 = Math.round(prediction.team1WinProbability * 100);
+  const p2 = Math.round(prediction.team2WinProbability * 100);
+
+  const norm = (s?: string) => (s || "").trim().toLowerCase();
+  const isTeam1Batting = norm(prediction.team1) === norm(activeBattingTeam);
+
+  // Map brand colors consistently: Chicago Spartans = #00D2FF (Cyan/Blue), Midwest Gladiators = #00F5A0 (Mint Green)
+  const color1 = getTeamBrandColor(prediction.team1, teamA, teamB);
+  let color2 = getTeamBrandColor(prediction.team2, teamA, teamB);
+  if (color2 === color1) {
+    color2 =
+      color1 === TEAM_BRAND_COLORS.SPARTANS
+        ? TEAM_BRAND_COLORS.GLADIATORS
+        : TEAM_BRAND_COLORS.SPARTANS;
+  }
+
+  const glow1 = getTeamGlow(color1);
+  const glow2 = getTeamGlow(color2);
+
   if (compact) {
     return (
-      <div className="flex flex-col gap-1 mt-1 w-full bg-slate-900/60 py-1.5 px-2.5 rounded-xl border border-white/5 shadow-sm">
-        <div className="flex items-center justify-between w-full">
-          <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-1">
-            <span>🤖</span> Win Prediction
+      <div className="w-full bg-slate-800/60 p-2.5 sm:p-3 rounded-xl border border-white/10 shadow-sm flex flex-col gap-2 sm:gap-2.5">
+        <span className="sr-only">
+          {prediction.team1} {p1}% - {p2}% {prediction.team2}
+        </span>
+        {/* Percentages on outer edges with WIN PREDICTION centered (No team names) */}
+        <div className="flex justify-between items-center text-xs sm:text-sm font-black tabular-nums tracking-wider leading-none">
+          <span
+            style={{ color: color1 }}
+            className="font-black drop-shadow-sm flex items-center gap-1"
+          >
+            <span className="text-xs sm:text-sm select-none">
+              {isTeam1Batting ? "🏏" : "🎾"}
+            </span>
+            <span>{p1}%</span>
           </span>
-          <span className="text-[9px] font-bold text-slate-300 uppercase tabular-nums">
-            {prediction.team1}{" "}
-            {Math.round(prediction.team1WinProbability * 100)}% -{" "}
-            {Math.round(prediction.team2WinProbability * 100)}%{" "}
-            {prediction.team2}
+          <span className="text-slate-400 font-bold uppercase text-[9px] sm:text-[10px] tracking-widest flex items-center gap-1">
+            <span>🤖</span> WIN PREDICTION
+          </span>
+          <span
+            style={{ color: color2 }}
+            className="font-black drop-shadow-sm flex items-center gap-1"
+          >
+            <span className="text-xs sm:text-sm select-none">
+              {isTeam1Batting ? "🎾" : "🏏"}
+            </span>
+            <span>{p2}%</span>
           </span>
         </div>
-        <div className="w-full h-1.5 rounded-full overflow-hidden flex bg-slate-700/50">
+        {/* 2-Color Split Progress Bar */}
+        <div className="flex h-2 sm:h-2.5 w-full overflow-hidden rounded-full bg-slate-800">
           <div
-            className="bg-cyan-400 h-full transition-all duration-1000 shadow-[0_0_8px_rgba(34,211,238,0.8)]"
-            style={{ width: `${prediction.team1WinProbability * 100}%` }}
-          ></div>
+            className="transition-all duration-500"
+            style={{
+              width: `${prediction.team1WinProbability * 100}%`,
+              backgroundColor: color1,
+              boxShadow: glow1,
+            }}
+          />
           <div
-            className="bg-amber-500 h-full transition-all duration-1000 shadow-[0_0_8px_rgba(245,158,11,0.6)]"
-            style={{ width: `${prediction.team2WinProbability * 100}%` }}
-          ></div>
+            className="transition-all duration-500"
+            style={{
+              width: `${prediction.team2WinProbability * 100}%`,
+              backgroundColor: color2,
+              boxShadow: glow2,
+            }}
+          />
         </div>
       </div>
     );
@@ -210,19 +259,39 @@ export const AiMatchPrediction: React.FC<AiMatchPredictionProps> = ({
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <div className="flex justify-between text-[10px] font-bold text-white">
-          <span>{prediction.team1}</span>
-          <span>{prediction.team2}</span>
+        <div className="flex justify-between text-xs font-black uppercase tracking-wider">
+          <span
+            style={{ color: color1 }}
+            className="drop-shadow-sm flex items-center gap-1"
+          >
+            <span>{isTeam1Batting ? "🏏" : "🎾"}</span>
+            <span>{prediction.team1}</span>
+          </span>
+          <span
+            style={{ color: color2 }}
+            className="drop-shadow-sm flex items-center gap-1"
+          >
+            <span>{isTeam1Batting ? "🎾" : "🏏"}</span>
+            <span>{prediction.team2}</span>
+          </span>
         </div>
 
         <div className="w-full h-1.5 rounded-full overflow-hidden flex">
           <div
-            className="bg-cyan-400 h-full transition-all duration-1000 shadow-[0_0_8px_rgba(34,211,238,0.8)]"
-            style={{ width: `${prediction.team1WinProbability * 100}%` }}
+            className="h-full transition-all duration-1000"
+            style={{
+              width: `${prediction.team1WinProbability * 100}%`,
+              backgroundColor: color1,
+              boxShadow: glow1,
+            }}
           ></div>
           <div
-            className="bg-amber-500 h-full transition-all duration-1000 shadow-[0_0_8px_rgba(245,158,11,0.6)]"
-            style={{ width: `${prediction.team2WinProbability * 100}%` }}
+            className="h-full transition-all duration-1000"
+            style={{
+              width: `${prediction.team2WinProbability * 100}%`,
+              backgroundColor: color2,
+              boxShadow: glow2,
+            }}
           ></div>
         </div>
 

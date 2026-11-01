@@ -11,6 +11,7 @@ import { BowlerSelectModal } from "./MatchView/BowlerSelectModal";
 import { ExtraRunsModal } from "./MatchView/ExtraRunsModal";
 import { AiMatchPrediction } from "./AiMatchPrediction";
 import { calculateDlsParScore } from "../utils/dlsUtils";
+import { getTeamBrandColor } from "../utils/teamColorUtils";
 
 interface MatchViewProps {
   initialState: InningsState;
@@ -321,6 +322,23 @@ const MatchView: React.FC<MatchViewProps> = ({
     if (runsNeeded <= 0) return "Reached";
     return `${runsNeeded} OFF ${ballsRemaining}`;
   };
+
+  const matchTeamA = previousInnings
+    ? previousInnings.battingTeamName
+    : innings.battingTeamName;
+  const matchTeamB = previousInnings
+    ? innings.battingTeamName
+    : innings.bowlingTeamName;
+  const battingTeamColor = getTeamBrandColor(
+    innings.battingTeamName,
+    matchTeamA,
+    matchTeamB,
+  );
+  const bowlingTeamColor = getTeamBrandColor(
+    innings.bowlingTeamName,
+    matchTeamA,
+    matchTeamB,
+  );
 
   const saveToHistory = () => {
     setHistory((prev) => [...prev, JSON.parse(JSON.stringify(innings))]);
@@ -1389,174 +1407,335 @@ const MatchView: React.FC<MatchViewProps> = ({
 
       {/* Ultra-Slim Header (Fixed) */}
       <div className="shrink-0 text-white">
-        <div className="max-w-5xl mx-auto w-full px-3 py-1.5">
-          <div className="flex justify-between items-center gap-4">
-            <div className="flex-1 overflow-hidden">
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1">
-                <span className="bg-indigo-600 text-white text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-widest flex-shrink-0">
-                  {innings.inningNumber === 1 ? "1st" : "2nd"} INN
-                </span>
-                <div className="flex items-center gap-1.5 text-white text-[11px] font-black tracking-widest uppercase flex-wrap">
-                  <span className="text-slate-500 text-[8px] italic lowercase font-medium">
-                    vs
+        <div className="max-w-5xl mx-auto w-full px-3 sm:px-4 pt-1.5 pb-0 sm:pt-2">
+          {/* Curved Score Header Card */}
+          <div className="bg-slate-800/60 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border border-white/10 shadow-lg">
+            <div className="flex justify-between items-center gap-4">
+              <div className="flex-1 overflow-hidden">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1">
+                  <span className="bg-indigo-600 text-white text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-widest flex-shrink-0">
+                    {innings.inningNumber === 1 ? "1st" : "2nd"} INN
                   </span>
-                  <span
-                    className="text-indigo-400 cursor-pointer hover:underline text-[10px] font-bold leading-tight"
-                    onClick={() => handleRenameTeam(false)}
-                  >
-                    {innings.bowlingTeamName}
-                  </span>
+                  <div className="flex items-center gap-1.5 text-white text-xs font-black tracking-wider uppercase flex-wrap">
+                    <span className="text-slate-400 text-[9px] uppercase font-bold tracking-widest">
+                      vs
+                    </span>
+                    <span
+                      style={{ color: bowlingTeamColor }}
+                      className="cursor-pointer hover:underline text-xs font-black tracking-wide leading-tight drop-shadow-sm"
+                      onClick={() => handleRenameTeam(false)}
+                    >
+                      {innings.bowlingTeamName}
+                    </span>
+                  </div>
                 </div>
-              </div>
-              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0">
-                <span className="w-full sm:w-auto text-lg sm:text-xl md:text-2xl font-black text-emerald-400 uppercase tracking-tighter mr-1 flex items-center gap-1 leading-tight break-words">
-                  <span>🏏</span>
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0">
                   <span
-                    className="cursor-pointer hover:underline"
-                    onClick={() => handleRenameTeam(true)}
+                    style={{ color: battingTeamColor }}
+                    className="w-full sm:w-auto text-lg sm:text-xl md:text-2xl font-black uppercase tracking-tighter mr-1 flex items-center gap-1 leading-tight break-words"
                   >
-                    {innings.battingTeamName}
+                    <span>🏏</span>
+                    <span
+                      className="cursor-pointer hover:underline"
+                      onClick={() => handleRenameTeam(true)}
+                    >
+                      {innings.battingTeamName}
+                    </span>
                   </span>
-                </span>
-                <span className="text-3xl md:text-4xl font-black tracking-tighter text-white tabular-nums">
-                  {innings.totalRuns}
-                  <span className="text-slate-500 mx-0.5 text-2xl md:text-3xl">
-                    /
+                  <span className="text-3xl md:text-4xl font-black tracking-tighter text-white tabular-nums">
+                    {innings.totalRuns}
+                    <span className="text-slate-500 mx-0.5 text-2xl md:text-3xl">
+                      /
+                    </span>
+                    {innings.totalWickets}
                   </span>
-                  {innings.totalWickets}
-                </span>
-                <div className="flex items-center gap-1 text-indigo-400 font-black text-base md:text-lg leading-none tabular-nums group/overs">
-                  <span>
-                    ({innings.overs}.{innings.balls}
-                  </span>
-                  <span className="text-slate-600 text-xs mx-0.5">/</span>
-                  {isEditingOvers ? (
-                    <div className="flex items-center gap-1 animate-in zoom-in-75 duration-200">
-                      <input
-                        type="number"
-                        autoFocus
-                        defaultValue={totalOvers}
-                        className="w-10 bg-indigo-600/30 border border-indigo-400/50 rounded text-center outline-none text-white text-xs py-0.5 font-black"
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            const val = parseInt(
-                              (e.target as HTMLInputElement).value,
-                            );
+                  <div className="flex items-center gap-1 text-indigo-400 font-black text-base md:text-lg leading-none tabular-nums group/overs">
+                    <span>
+                      ({innings.overs}.{innings.balls}
+                    </span>
+                    <span className="text-slate-600 text-xs mx-0.5">/</span>
+                    {isEditingOvers ? (
+                      <div className="flex items-center gap-1 animate-in zoom-in-75 duration-200">
+                        <input
+                          type="number"
+                          autoFocus
+                          defaultValue={totalOvers}
+                          className="w-10 bg-indigo-600/30 border border-indigo-400/50 rounded text-center outline-none text-white text-xs py-0.5 font-black"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              const val = parseInt(
+                                (e.target as HTMLInputElement).value,
+                              );
+                              if (!isNaN(val)) onUpdateOvers?.(val);
+                              setIsEditingOvers(false);
+                            }
+                            if (e.key === "Escape") setIsEditingOvers(false);
+                          }}
+                          onBlur={(e) => {
+                            const val = parseInt(e.target.value);
                             if (!isNaN(val)) onUpdateOvers?.(val);
                             setIsEditingOvers(false);
-                          }
-                          if (e.key === "Escape") setIsEditingOvers(false);
-                        }}
-                        onBlur={(e) => {
-                          const val = parseInt(e.target.value);
-                          if (!isNaN(val)) onUpdateOvers?.(val);
-                          setIsEditingOvers(false);
-                        }}
-                      />
+                          }}
+                        />
+                        <span
+                          className="text-[10px] text-emerald-400"
+                          onClick={() => setIsEditingOvers(false)}
+                        >
+                          ✅
+                        </span>
+                      </div>
+                    ) : (
                       <span
-                        className="text-[10px] text-emerald-400"
-                        onClick={() => setIsEditingOvers(false)}
+                        className="cursor-pointer hover:text-indigo-300 transition-colors flex items-center gap-1"
+                        onClick={() => setIsEditingOvers(true)}
                       >
-                        ✅
+                        <span>{totalOvers})</span>
+                        <span className="text-[10px] opacity-0 group-hover/overs:opacity-100 ml-0.5">
+                          ✏️
+                        </span>
                       </span>
-                    </div>
-                  ) : (
-                    <span
-                      className="cursor-pointer hover:text-indigo-300 transition-colors flex items-center gap-1"
-                      onClick={() => setIsEditingOvers(true)}
-                    >
-                      <span>{totalOvers})</span>
-                      <span className="text-[10px] opacity-0 group-hover/overs:opacity-100 ml-0.5">
-                        ✏️
-                      </span>
+                    )}
+                    <span className="text-slate-600 text-[9px] tracking-tight ml-0.5">
+                      OVS
                     </span>
-                  )}
-                  <span className="text-slate-600 text-[9px] tracking-tight ml-0.5">
-                    OVS
-                  </span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="flex flex-col items-center justify-center shrink-0">
-              <button
-                onClick={() => setShowScoreboard(true)}
-                className="px-3.5 py-1 bg-indigo-600 hover:bg-indigo-500 rounded text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-md"
-              >
-                Scorecard 📋
-              </button>
-              {innings.inningNumber === 2 && Boolean(innings.target) && (
-                <div className="flex flex-col items-center mt-1.5">
-                  <span className="text-lg sm:text-xl md:text-2xl font-black text-amber-400 uppercase tracking-tight text-center leading-none whitespace-nowrap drop-shadow-sm">
-                    {equation ? `🎯 ${equation}` : `TGT: ${innings.target}`}
-                  </span>
-                </div>
-              )}
+              <div className="flex flex-col items-center justify-center shrink-0">
+                <button
+                  onClick={() => setShowScoreboard(true)}
+                  className="px-3.5 py-1 bg-indigo-600 hover:bg-indigo-500 rounded text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-md"
+                >
+                  Scorecard 📋
+                </button>
+                {innings.inningNumber === 2 && Boolean(innings.target) && (
+                  <div className="flex flex-col items-center mt-1.5">
+                    <span className="text-lg sm:text-xl md:text-2xl font-black text-amber-400 uppercase tracking-tight text-center leading-none whitespace-nowrap drop-shadow-sm">
+                      {equation ? `🎯 ${equation}` : `TGT: ${innings.target}`}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
           {/* CRR / RRR / DLS Tab Row - Fixed in Header & Always 100% Visible */}
-          <div className="mt-1.5 pt-1.5 border-t border-white/10">
+          <div className="mt-2.5 sm:mt-3">
             <div
-              className={`grid ${dls ? "grid-cols-3" : "grid-cols-2"} gap-1.5 sm:gap-2`}
+              className={`grid ${dls ? "grid-cols-3" : "grid-cols-2"} gap-2.5 sm:gap-3`}
             >
-              <div className="bg-slate-900/90 rounded-lg py-1 px-1 sm:px-2 text-center border border-white/10 shadow-sm">
-                <div className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase tracking-wider">
+              <div className="bg-slate-800/60 rounded-xl p-2.5 sm:p-3 text-center border border-white/10 shadow-sm">
+                <div className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-wider">
                   CRR
                 </div>
-                <div className="text-sm md:text-base font-black text-white tabular-nums leading-tight mt-0.5">
+                <div className="text-base md:text-lg font-black text-white tabular-nums leading-tight mt-0.5">
                   {crr}
                 </div>
               </div>
               {rrr !== null ? (
-                <div className="bg-amber-500/10 rounded-lg py-1 px-1 sm:px-2 text-center border border-amber-500/30 shadow-sm">
-                  <div className="text-[8px] md:text-[9px] font-black text-amber-500 uppercase tracking-wider">
+                <div className="bg-amber-500/10 rounded-xl p-2.5 sm:p-3 text-center border border-amber-500/30 shadow-sm">
+                  <div className="text-[9px] md:text-[10px] font-black text-amber-500 uppercase tracking-wider">
                     RRR
                   </div>
-                  <div className="text-sm md:text-base font-black text-amber-400 tabular-nums leading-tight mt-0.5">
+                  <div className="text-base md:text-lg font-black text-amber-400 tabular-nums leading-tight mt-0.5">
                     {rrr}
                   </div>
                 </div>
               ) : (
-                <div className="bg-slate-900/90 rounded-lg py-1 px-1 sm:px-2 text-center border border-white/10 shadow-sm">
-                  <div className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase tracking-wider">
+                <div className="bg-slate-800/60 rounded-xl p-2.5 sm:p-3 text-center border border-white/10 shadow-sm">
+                  <div className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-wider">
                     BALLS LEFT
                   </div>
-                  <div className="text-sm md:text-base font-black text-white tabular-nums leading-tight mt-0.5">
+                  <div className="text-base md:text-lg font-black text-white tabular-nums leading-tight mt-0.5">
                     {ballsLeft}
                   </div>
                 </div>
               )}
               {dls && (
                 <div
-                  className={`rounded-lg py-1 px-1 sm:px-2 text-center border transition-all shadow-sm ${
-                    dls.isAhead
-                      ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300"
-                      : dls.isTied
-                        ? "bg-amber-500/15 border-amber-500/40 text-amber-300"
-                        : "bg-red-500/15 border-red-500/40 text-red-300"
+                  className={`rounded-xl p-2.5 sm:p-3 text-center border transition-all shadow-sm ${
+                    innings.overs === 0 && innings.balls === 0
+                      ? "bg-slate-800/60 border-white/10 text-slate-400"
+                      : dls.isAhead
+                        ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300"
+                        : dls.isTied
+                          ? "bg-amber-500/15 border-amber-500/40 text-amber-300"
+                          : "bg-red-500/15 border-red-500/40 text-red-300"
                   }`}
                 >
-                  <div className="text-[8px] md:text-[9px] font-black uppercase tracking-wider flex items-center justify-center gap-0.5">
+                  <div className="text-[9px] md:text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-0.5">
                     <span>🌧️</span> DLS PAR
                   </div>
-                  <div className="text-sm md:text-base font-black tabular-nums leading-tight mt-0.5">
+                  <div
+                    className={`text-base md:text-lg font-black tabular-nums leading-tight mt-0.5 ${
+                      innings.overs === 0 && innings.balls === 0
+                        ? "text-white"
+                        : ""
+                    }`}
+                  >
                     {dls.parScore}
                   </div>
-                  <div className="text-[7px] md:text-[8px] font-bold truncate opacity-90 leading-none mt-0.5">
+                  <div className="text-[8px] md:text-[9px] font-bold truncate opacity-90 leading-none mt-0.5">
                     {dls.statusText.replace(" (DLS)", "")}
                   </div>
                 </div>
               )}
             </div>
           </div>
+        </div>
+      </div>
 
-          {/* AI Match Prediction — Fixed in Top Header along with stats */}
-          <div className="mt-1">
+      {/* Main Live Dashboard Area — balanced and distributed, scrollable if needed */}
+      <div
+        ref={middleContainerRef}
+        className="flex-1 min-h-0 overflow-y-auto w-full scrollbar-hide [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden flex flex-col justify-center py-2.5 sm:py-3"
+      >
+        <div className="max-w-5xl mx-auto w-full px-3 sm:px-4 flex flex-col gap-2.5 sm:gap-3">
+          {/* Active Player Cards */}
+          <div className="grid grid-cols-[1.14fr_0.86fr] sm:grid-cols-[1.15fr_0.85fr] gap-2.5 sm:gap-3 items-stretch">
+            {/* Batters (Left Column: Unified Crease / Partnership Card) */}
+            <div className="h-full">
+              <div className="flex flex-col justify-between p-2 sm:p-2.5 rounded-xl bg-slate-800/60 border border-white/10 shadow-sm h-full">
+                {/* Striker Row */}
+                <div className="flex justify-between items-center px-2.5 py-1.5 sm:py-2 rounded-lg bg-indigo-600/35 border-2 border-indigo-400/60 shadow-[0_0_12px_rgba(99,102,241,0.25)] transition-all">
+                  <div className="flex items-center gap-1 overflow-hidden flex-1 min-w-0 pr-1">
+                    <span
+                      className="text-xs sm:text-sm font-black truncate uppercase tracking-tight cursor-pointer hover:opacity-80 transition-opacity flex items-center gap-1 text-white"
+                      onClick={() => handleRenamePlayer(striker.id)}
+                      title="Click to rename striker"
+                    >
+                      <span className="truncate">{striker.name || "---"}</span>
+                      <span
+                        className="shrink-0 text-xs sm:text-sm drop-shadow"
+                        title="On Strike"
+                      >
+                        🏏
+                      </span>
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-0.5 sm:gap-1 shrink-0 ml-1">
+                    <span className="text-sm sm:text-base font-black text-white drop-shadow-sm">
+                      {striker.runs}
+                    </span>
+                    <span className="text-[10px] sm:text-xs font-bold text-indigo-200">
+                      ({striker.ballsFaced})
+                    </span>
+                  </div>
+                </div>
+
+                {/* Central Strike Swap Button (Overlapping both batsmen's edges, icon only, offset right) */}
+                <div className="relative flex items-center justify-center -my-2 sm:-my-2.5 z-10">
+                  <div
+                    className="absolute inset-0 flex items-center"
+                    aria-hidden="true"
+                  >
+                    <div className="w-full border-t border-white/10" />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSwapEnds}
+                    aria-label="Swap Strike Ends"
+                    title="Swap Strike Ends"
+                    className="group relative z-10 translate-x-8 sm:translate-x-10 w-6 h-6 sm:w-6.5 sm:h-6.5 rounded-full bg-slate-700 hover:bg-indigo-600 border border-white/20 hover:border-indigo-400 flex items-center justify-center text-slate-200 hover:text-white transition-all active:scale-90 shadow-md cursor-pointer"
+                  >
+                    <svg
+                      className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-indigo-300 group-hover:text-white transition-colors"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="m21 16-4 4-4-4" />
+                      <path d="M17 20V4" />
+                      <path d="m3 8 4-4 4 4" />
+                      <path d="M7 4v16" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Non-Striker Row */}
+                <div className="flex justify-between items-center px-2.5 py-1.5 sm:py-2 rounded-lg bg-slate-900/40 border border-white/5 transition-all opacity-85 hover:opacity-100">
+                  <div className="flex items-center gap-1 overflow-hidden flex-1 min-w-0 pr-1">
+                    <span
+                      className="text-xs sm:text-sm font-black truncate uppercase tracking-tight cursor-pointer hover:opacity-80 transition-opacity flex items-center gap-1 text-slate-300"
+                      onClick={() => handleRenamePlayer(nonStriker.id)}
+                      title="Click to rename non-striker"
+                    >
+                      <span className="truncate">
+                        {nonStriker.name || "---"}
+                      </span>
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-0.5 sm:gap-1 shrink-0 ml-1">
+                    <span className="text-sm sm:text-base font-black text-slate-300">
+                      {nonStriker.runs}
+                    </span>
+                    <span className="text-[10px] sm:text-xs font-bold text-slate-500">
+                      ({nonStriker.ballsFaced})
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bowlers (Right Column) */}
+            <div className="h-full">
+              <div className="flex justify-between items-center p-2.5 sm:p-3 rounded-xl bg-slate-800/60 border border-white/10 shadow-sm h-full">
+                <div className="flex flex-col min-w-0 pr-1">
+                  <div className="flex flex-col mb-0.5">
+                    <span
+                      style={{ color: bowlingTeamColor }}
+                      className="text-[9.5px] sm:text-xs font-black uppercase tracking-wider leading-none mb-0.5 truncate drop-shadow-sm"
+                    >
+                      {innings.bowlingTeamName}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <span className="w-1.5 h-2 bg-indigo-500 rounded-full"></span>
+                      <span className="text-[8.5px] sm:text-[9px] font-black text-slate-400 uppercase leading-none">
+                        Bowler
+                      </span>
+                    </div>
+                  </div>
+                  <span
+                    className="text-xs sm:text-sm font-black text-indigo-300 uppercase truncate cursor-pointer hover:text-white transition-colors"
+                    onClick={() => handleRenameBowler(bowler.id)}
+                  >
+                    {bowler.name || "---"}
+                  </span>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="text-lg sm:text-xl font-black text-white leading-none tabular-nums">
+                    {bowler.wickets}
+                    <span className="text-slate-500 mx-0.5">/</span>
+                    {bowler.runsConceded}
+                  </div>
+                  <div className="text-[10px] sm:text-xs font-bold text-slate-400 tabular-nums uppercase mt-0.5">
+                    ({bowler.overs}.{bowler.balls})
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* AI Match Prediction — Positioned ABOVE "THIS OVER" timeline */}
+          <div className="shrink-0">
             <AiMatchPrediction
               matchId={matchId}
-              teamA={innings.battingTeamName}
-              teamB={innings.bowlingTeamName}
+              teamA={
+                previousInnings
+                  ? previousInnings.battingTeamName
+                  : innings.battingTeamName
+              }
+              teamB={
+                previousInnings
+                  ? innings.battingTeamName
+                  : innings.bowlingTeamName
+              }
+              battingTeam={innings.battingTeamName}
+              bowlingTeam={innings.bowlingTeamName}
               totalOvers={totalOvers}
               compact={true}
               inning={innings.inningNumber}
@@ -1566,114 +1745,25 @@ const MatchView: React.FC<MatchViewProps> = ({
               ballsBowled={innings.overs * 6 + innings.balls}
             />
           </div>
-        </div>
-      </div>
-
-      {/* Main Live Dashboard Area — balanced and distributed, scrollable if needed */}
-      <div
-        ref={middleContainerRef}
-        className="flex-1 min-h-0 overflow-y-auto w-full scrollbar-hide [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden py-1 flex flex-col"
-      >
-        <div className="max-w-5xl mx-auto w-full px-3 py-1 flex-1 flex flex-col justify-evenly gap-2 sm:gap-2.5">
-          {/* Active Player Cards */}
-          <div className="grid grid-cols-2 gap-2">
-            {/* Batters */}
-            <div className="space-y-1.5">
-              {[striker, nonStriker].map((b, idx) => (
-                <div
-                  key={b.id || idx}
-                  className={`flex justify-between items-center px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-xl transition-all ${idx === 0 ? "bg-indigo-600 border-2 border-indigo-300 shadow-xl font-black" : "bg-slate-800 border-2 border-transparent opacity-85"}`}
-                >
-                  <div className="flex items-center gap-1.5 sm:gap-2 overflow-hidden flex-1 min-w-0 pr-1">
-                    <span
-                      className={`text-xs md:text-sm font-black truncate uppercase tracking-tight cursor-pointer hover:opacity-80 transition-opacity ${idx === 0 ? "text-white" : "text-slate-200"}`}
-                      onClick={() => handleRenamePlayer(b.id)}
-                    >
-                      {b.name || "---"} {idx === 0 && "🏏"}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <div className="flex items-baseline gap-1">
-                      <span
-                        className={`text-base md:text-xl font-black ${idx === 0 ? "text-white" : "text-slate-200"}`}
-                      >
-                        {b.runs}
-                      </span>
-                      <span
-                        className={`text-[10px] md:text-xs font-black ${idx === 0 ? "text-indigo-100" : "text-slate-400"}`}
-                      >
-                        ({b.ballsFaced})
-                      </span>
-                    </div>
-                    {idx === 0 && (
-                      <button
-                        type="button"
-                        onClick={handleSwapEnds}
-                        aria-label="Swap Strike Ends"
-                        title="Swap Strike Ends"
-                        className="ml-1 w-8 h-8 min-w-[32px] min-h-[32px] flex items-center justify-center bg-white/20 hover:bg-white text-white hover:text-indigo-950 rounded-lg text-xs border border-white/30 active:scale-90 transition-all shadow-md cursor-pointer"
-                      >
-                        🔄
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Bowlers */}
-            <div className="space-y-1">
-              <div className="flex justify-between items-center px-3 py-2.5 rounded-xl bg-slate-800 border border-white/10 shadow-inner h-full">
-                <div className="flex flex-col min-w-0">
-                  <div className="flex flex-col mb-1">
-                    <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest leading-none mb-0.5 italic">
-                      {innings.bowlingTeamName}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <span className="w-1 h-2.5 bg-indigo-500 rounded-full"></span>
-                      <span className="text-[9px] font-black text-slate-500 uppercase leading-none">
-                        Bowler
-                      </span>
-                    </div>
-                  </div>
-                  <span
-                    className="text-xs md:text-sm font-black text-indigo-300 uppercase truncate cursor-pointer hover:text-white transition-colors"
-                    onClick={() => handleRenameBowler(bowler.id)}
-                  >
-                    {bowler.name || "---"}
-                  </span>
-                </div>
-                <div className="text-right">
-                  <div className="text-lg md:text-xl font-black text-white leading-none tabular-nums">
-                    {bowler.wickets}
-                    <span className="text-indigo-500 mx-0.5">/</span>
-                    {bowler.runsConceded}
-                  </div>
-                  <div className="text-[10px] md:text-xs font-black text-slate-500 tabular-nums uppercase mt-0.5">
-                    ({bowler.overs}.{bowler.balls})
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
 
           {/* Over Timeline */}
-          <div className="bg-slate-800/60 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border border-white/10 shadow-lg shrink-0">
-            <div className="flex items-center gap-2 sm:gap-3">
+          <div className="bg-slate-800/60 backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border border-white/10 shadow-lg shrink-0 overflow-hidden">
+            <div className="flex flex-row flex-nowrap items-center gap-2 sm:gap-2.5 w-full min-w-0">
+              {/* Over Timeline Badge */}
+              <span className="text-[10px] sm:text-xs font-black text-slate-300 uppercase tracking-widest inline-flex items-center gap-1.5 shrink-0 bg-white/5 px-2.5 py-1.5 rounded-full border border-white/10 leading-none">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+                <span>THIS OVER</span>
+              </span>
               {/* Over Timeline Balls */}
-              <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto scrollbar-hide flex-1">
-                <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest flex items-center gap-1.5 shrink-0 bg-white/5 px-2.5 py-1 rounded-full border border-white/10">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  THIS OVER
-                </span>
+              <div className="flex flex-row flex-nowrap items-center gap-1.5 sm:gap-2 flex-1 min-w-0 overflow-x-auto scrollbar-hide [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden py-0.5">
                 {innings.currentOver.length === 0 ? (
-                  <div className="flex items-center gap-1.5 text-slate-500">
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-white/10 bg-slate-800/80 inline-flex items-center justify-center animate-pulse">
-                      <span className="text-[10px] italic text-slate-400">
+                  <div className="flex items-center gap-2 text-slate-500 shrink-0">
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border border-slate-700 bg-slate-800/80 inline-flex items-center justify-center animate-pulse shrink-0">
+                      <span className="text-xs sm:text-sm font-black text-slate-300">
                         0
                       </span>
                     </div>
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider italic">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider italic shrink-0">
                       Waiting for ball...
                     </span>
                   </div>
@@ -1757,7 +1847,7 @@ const MatchView: React.FC<MatchViewProps> = ({
                           return (
                             <span
                               key={idx}
-                              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full inline-flex items-center justify-center text-[10px] sm:text-xs font-black border shadow-md transition-all animate-in zoom-in-75 duration-300 shrink-0 ${badgeBg}`}
+                              className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full inline-flex items-center justify-center leading-none text-xs sm:text-sm font-black border shadow-md transition-all animate-in zoom-in-75 duration-300 shrink-0 ${badgeBg}`}
                             >
                               {label}
                             </span>
@@ -1767,7 +1857,7 @@ const MatchView: React.FC<MatchViewProps> = ({
                           [...Array(6 - legalBallsInOver)].map((_, i) => (
                             <span
                               key={`empty-${i}`}
-                              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-white/10 bg-slate-800/80 text-slate-400 font-bold text-[10px] inline-flex items-center justify-center shadow-inner shrink-0"
+                              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border border-slate-700 bg-slate-800/90 text-slate-300 font-black text-xs sm:text-sm inline-flex items-center justify-center leading-none shadow-inner shrink-0"
                             >
                               {legalBallsInOver + i + 1}
                             </span>
@@ -1783,10 +1873,10 @@ const MatchView: React.FC<MatchViewProps> = ({
       </div>
 
       {/* Operations Cockpit (Fixed at Bottom) */}
-      <div className="shrink-0 z-[90]">
-        <div className="max-w-5xl mx-auto w-full px-3 pb-1">
+      <div className="shrink-0 z-[90] bg-slate-950/95 backdrop-blur-md pt-0 pb-2 sm:pb-2.5">
+        <div className="max-w-5xl mx-auto w-full px-3 sm:px-4">
           {isInningsComplete ? (
-            <div className="my-2 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-3 sm:p-4 space-y-3 shadow-2xl">
+            <div className="my-2 rounded-2xl border border-indigo-500/30 bg-slate-900/90 p-3 sm:p-4 space-y-2 sm:space-y-2.5 shadow-2xl">
               <div className="text-center">
                 <div className="text-xs font-black uppercase tracking-[0.25em] text-indigo-400">
                   {innings.inningNumber === 1
@@ -1798,7 +1888,7 @@ const MatchView: React.FC<MatchViewProps> = ({
                   {innings.totalWickets} ({innings.overs}.{innings.balls} Overs)
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5">
                 <button
                   type="button"
                   onClick={handleUndo}
@@ -1825,13 +1915,13 @@ const MatchView: React.FC<MatchViewProps> = ({
               </div>
             </div>
           ) : (
-            <>
+            <div className="flex flex-col gap-2 sm:gap-2.5">
               {/* Action Tabs */}
-              <div className="grid grid-cols-4 border-b border-white/5 rounded-t-xl overflow-hidden bg-slate-900/40 border-t border-x border-white/5">
+              <div className="grid grid-cols-4 gap-2 sm:gap-2.5">
                 <button
                   onClick={handleUndo}
                   disabled={!canUndo || isProcessing}
-                  className="py-2.5 sm:py-2 flex flex-col items-center justify-center gap-0.5 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white hover:bg-white/5 transition-all border-r border-white/5 disabled:opacity-10 active:scale-95"
+                  className="py-2 px-1 sm:px-2 rounded-xl bg-slate-800/60 border border-white/10 hover:border-white/20 hover:bg-slate-700/60 flex flex-col items-center justify-center gap-0.5 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition-all disabled:opacity-20 active:scale-95 shadow-sm"
                 >
                   <span className="text-base sm:text-lg text-indigo-400">
                     ↺
@@ -1840,14 +1930,14 @@ const MatchView: React.FC<MatchViewProps> = ({
                 </button>
                 <button
                   onClick={() => setModalView("BOWLER_SELECT")}
-                  className="py-2.5 sm:py-2 flex flex-col items-center justify-center gap-0.5 text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-white hover:bg-white/5 transition-all border-r border-white/5 active:scale-95"
+                  className="py-2 px-1 sm:px-2 rounded-xl bg-slate-800/60 border border-white/10 hover:border-white/20 hover:bg-slate-700/60 flex flex-col items-center justify-center gap-0.5 text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition-all active:scale-95 shadow-sm"
                 >
                   <span className="text-base sm:text-lg">🎾</span>
                   Change Bowler
                 </button>
                 <button
                   onClick={() => setModalView("BATTER_SELECT")}
-                  className="py-2.5 sm:py-2 flex flex-col items-center justify-center gap-0.5 text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-white hover:bg-white/5 transition-all border-r border-white/5 active:scale-95"
+                  className="py-2 px-1 sm:px-2 rounded-xl bg-slate-800/60 border border-white/10 hover:border-white/20 hover:bg-slate-700/60 flex flex-col items-center justify-center gap-0.5 text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition-all active:scale-95 shadow-sm"
                 >
                   <span className="text-base sm:text-lg">🏏</span>
                   Change Batter
@@ -1857,7 +1947,7 @@ const MatchView: React.FC<MatchViewProps> = ({
                     innings.strikerId && setModalView("RETIRE_MODAL")
                   }
                   disabled={!innings.strikerId}
-                  className={`py-2.5 sm:py-2 flex flex-col items-center justify-center gap-0.5 text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${!innings.strikerId ? "opacity-40 cursor-not-allowed text-slate-600" : "text-slate-400 hover:text-white hover:bg-white/5"}`}
+                  className={`py-2 px-1 sm:px-2 rounded-xl bg-slate-800/60 border border-white/10 hover:border-white/20 hover:bg-slate-700/60 flex flex-col items-center justify-center gap-0.5 text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-sm ${!innings.strikerId ? "opacity-30 cursor-not-allowed text-slate-600" : "text-slate-400 hover:text-white"}`}
                 >
                   <span className="text-base sm:text-lg">🚪</span>
                   Retire
@@ -1865,9 +1955,9 @@ const MatchView: React.FC<MatchViewProps> = ({
               </div>
 
               {/* Input Hub */}
-              <div className="py-2 space-y-2">
+              <div className="space-y-2 sm:space-y-2.5">
                 {/* Extras Console */}
-                <div className="grid grid-cols-4 gap-2 mb-1">
+                <div className="grid grid-cols-4 gap-2 sm:gap-2.5">
                   {["WIDE", "NO_BALL", "BYE", "LEG_BYE"].map((type) => {
                     const isActive = pendingExtra === (type as ExtraType);
                     return (
@@ -1912,7 +2002,7 @@ const MatchView: React.FC<MatchViewProps> = ({
                   <button
                     type="button"
                     onClick={() => handleScore(5)}
-                    className="h-16 sm:h-[4.25rem] lg:h-[4.5rem] min-h-[64px] rounded-2xl md:rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-black text-3xl sm:text-4xl active:scale-95 transition-all shadow-[0_0_15px_rgba(245,158,11,0.6)] border border-amber-400/50"
+                    className="h-16 sm:h-[4.25rem] lg:h-[4.5rem] min-h-[64px] rounded-2xl md:rounded-xl bg-slate-800 border border-slate-700 hover:border-slate-500 hover:bg-slate-700 text-white font-black text-3xl sm:text-4xl active:scale-95 transition-all shadow-lg"
                   >
                     5
                   </button>
@@ -1932,7 +2022,7 @@ const MatchView: React.FC<MatchViewProps> = ({
                   </button>
                 </div>
               </div>
-            </>
+            </div>
           )}
         </div>
       </div>
