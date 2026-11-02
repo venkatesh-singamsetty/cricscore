@@ -12,9 +12,18 @@
 
 - 🚀 **Production Environment:** https://cricscore.venkateshsingamsetty.com
 - 🧪 **Development Environment:** https://cricscoredev.venkateshsingamsetty.com
-- 📖 **Full Self-Deployment Guide:** [docs/deployment.md](https://github.com/venkatesh-singamsetty/cricscore/blob/feat/scoring-ui-and-docs-polish/docs/deployment.md)
-- ⚡ **Developer Command Cheatsheet:** [CHEATSHEET.md](https://github.com/venkatesh-singamsetty/cricscore/blob/feat/scoring-ui-and-docs-polish/CHEATSHEET.md)
-- 📊 **Platform & Infrastructure Dashboard:** [docs/platform_dashboard.md](https://github.com/venkatesh-singamsetty/cricscore/blob/feat/scoring-ui-and-docs-polish/docs/platform_dashboard.md)
+- 📖 **Full Self-Deployment Guide:** [docs/deployment.md](./docs/deployment.md)
+- ⚡ **Developer Command Cheatsheet:** [CHEATSHEET.md](./CHEATSHEET.md)
+- 📊 **Platform & Infrastructure Dashboard:** [docs/platform_dashboard.md](./docs/platform_dashboard.md)
+- 🗄️ **S3 Storage Lifecycle Guide:** [docs/s3_storage_lifecycle.md](./docs/s3_storage_lifecycle.md)
+
+---
+
+## 🎥 Live Platform Demo Walkthrough
+
+https://github.com/user-attachments/assets/a20577b4-c841-48ee-81e3-67249ce3e9cb
+
+> 💡 _Full end-to-end walkthrough showcasing real-time ball-by-ball scoring, strike swap & undo resilience, sub-second spectator WebSocket broadcast, ML win predictions, and the autonomous AI cricket assistant._
 
 ---
 
