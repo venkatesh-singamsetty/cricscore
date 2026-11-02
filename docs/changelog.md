@@ -1,3 +1,9 @@
+## [4.24.2](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.24.1...v4.24.2) (2026-11-02)
+
+### 📚 Documentation
+
+* add native playable video demo walkthrough to root README ([#346](https://github.com/venkatesh-singamsetty/cricscore/issues/346)) ([f78a781]())
+
 ## [4.24.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.24.0...v4.24.1) (2026-11-01)
 
 ### 🐛 Bug Fixes
