@@ -21,7 +21,7 @@
 
 ## 🎥 Live Platform Demo Walkthrough
 
-https://github.com/user-attachments/assets/a20577b4-c841-48ee-81e3-67249ce3e9cb
+https://github.com/user-attachments/assets/67f96c78-df51-4247-b5d1-f5ea4db52366
 
 > 💡 _Full end-to-end walkthrough showcasing real-time ball-by-ball scoring, strike swap & undo resilience, sub-second spectator WebSocket broadcast, ML win predictions, and the autonomous AI cricket assistant._
 
