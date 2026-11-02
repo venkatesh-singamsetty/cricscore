@@ -1,3 +1,9 @@
+## [4.24.3](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.24.2...v4.24.3) (2026-11-02)
+
+### 📚 Documentation
+
+* update demo video walkthrough in root README ([#347](https://github.com/venkatesh-singamsetty/cricscore/issues/347)) ([06f53ee]())
+
 ## [4.24.2](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.24.1...v4.24.2) (2026-11-02)
 
 ### 📚 Documentation
