@@ -20,8 +20,8 @@
     "@aws-amplify/ui-react": "^6.15.4",
     "@sentry/react": "^11.8.0",
     "aws-amplify": "^6.22.2",
-    "lucide-react": "^1.61.0",
-    "minimatch": "^11.0.3",
+    "lucide-react": "^1.69.0",
+    "minimatch": "^11.0.4",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "recharts": "^3.9.1"
@@ -37,8 +37,8 @@
     "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "^8.72.0",
     "@typescript-eslint/parser": "^8.59.4",
-    "@vitejs/plugin-react": "^6.1.2",
-    "@vitest/coverage-v8": "^5.0.5",
+    "@vitejs/plugin-react": "^6.2.1",
+    "@vitest/coverage-v8": "^5.1.0",
     "brace-expansion": "^5.0.12",
     "eslint": "^10.13.0",
     "eslint-plugin-react": "^7.37.5",
@@ -46,11 +46,11 @@
     "eslint-plugin-react-refresh": "^0.5.7",
     "jsdom": "^30.1.3",
     "typescript": "~7.0.2",
-    "vite": "^8.3.5",
+    "vite": "^8.3.6",
     "vitest": "^5.0.1"
   },
   "overrides": {
     "brace-expansion": "^1.1.21",
-    "minimatch": "^11.0.3"
+    "minimatch": "^11.0.4"
   }
 }
