@@ -12,7 +12,7 @@ export const ExtraRunsModal: React.FC<ExtraRunsModalProps> = ({
   onScore,
   onIgnore,
 }) => (
-  <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[200] p-4 backdrop-blur-md animate-in fade-in duration-300">
+  <div className="fixed inset-0 bg-slate-950/80 flex overflow-y-auto z-[200] px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] [&>*]:mx-auto [&>*]:my-auto backdrop-blur-md animate-in fade-in duration-300">
     <div className="bg-slate-900 border border-white/10 rounded-[2.5rem] p-8 w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-500 text-center">
       <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 mb-4">
         <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400 italic">

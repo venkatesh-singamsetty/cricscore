@@ -1,5 +1,6 @@
 import React from "react";
 import { InningsState, WicketType } from "../../types";
+import { BatIcon } from "../icons/CricketIcons";
 
 interface BatterSelectModalProps {
   innings: InningsState;
@@ -54,8 +55,8 @@ export const BatterSelectModal: React.FC<BatterSelectModalProps> = ({
         : "Select New Batter";
 
   return (
-    <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[200] p-4 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="bg-slate-900 border border-white/10 rounded-[2.5rem] w-full max-w-sm shadow-2xl overflow-hidden flex flex-col max-h-[70vh] animate-in zoom-in-95 duration-500">
+    <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[200] px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-md animate-in fade-in duration-300">
+      <div className="bg-slate-900 border border-white/10 rounded-[2.5rem] w-full max-w-sm shadow-2xl overflow-hidden flex flex-col max-h-[70dvh] animate-in zoom-in-95 duration-500">
         <div className="p-6 bg-slate-950 border-b border-white/5 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-1.5 h-6 bg-indigo-500 rounded-full"></div>
@@ -63,7 +64,9 @@ export const BatterSelectModal: React.FC<BatterSelectModalProps> = ({
               {title}
             </h3>
           </div>
-          <span className="text-2xl animate-bounce">🏏</span>
+          <span className="text-2xl animate-bounce">
+            <BatIcon />
+          </span>
         </div>
         <div className="overflow-y-auto p-4 space-y-1.5 pb-8 scrollbar-hide flex-1">
           {availableBatters.length === 0 ? (
@@ -79,7 +82,7 @@ export const BatterSelectModal: React.FC<BatterSelectModalProps> = ({
               >
                 <div className="flex items-center gap-3 min-w-0 flex-wrap">
                   <span className="text-lg opacity-40 group-hover:opacity-100 transition-opacity">
-                    🏏
+                    <BatIcon />
                   </span>
                   <span className="font-black text-slate-200 group-hover:text-white uppercase tracking-tight text-sm italic truncate">
                     {innings.players[id].name}
@@ -134,7 +137,7 @@ export const BatterSelectModal: React.FC<BatterSelectModalProps> = ({
           ) && (
             <button
               onClick={onClose}
-              className="w-full py-2 text-slate-500 text-[9px] font-black uppercase tracking-widest hover:text-white transition-colors"
+              className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl font-black uppercase tracking-widest text-xs border border-white/10 active:scale-95 transition-all shadow-sm cursor-pointer"
             >
               Close View
             </button>

@@ -291,8 +291,6 @@ export function ChatComponent({
   const QUICK_PROMPTS = [
     "What are the Powerplay rules?",
     "Wide vs No-Ball: Which takes precedence?",
-    "How many fielders are allowed outside the circle?",
-    "Can you analyze the current match details?",
     "Who won Player of the Match in the last match?",
     "Can you check the weather report for our match?",
     "I want to report a bug or request a new feature",
@@ -688,7 +686,7 @@ export function ChatComponent({
                   <Sparkles size={13} className="text-amber-400" />
                   Suggested Questions
                 </span>
-                <div className="flex flex-col gap-2 sm:gap-2.5 md:gap-2 [@media(max-height:700px)]:gap-1.5">
+                <div className="flex flex-col gap-2 sm:gap-2.5">
                   {QUICK_PROMPTS.map((prompt, i) => (
                     <button
                       key={i}
@@ -696,17 +694,17 @@ export function ChatComponent({
                       onClick={() => submitText(prompt, false)}
                       disabled={loading}
                       aria-label={prompt}
-                      className="w-full text-left py-2.5 px-3.5 [@media(max-height:700px)]:py-1 [@media(max-height:700px)]:px-3 [@media(max-height:700px)]:text-[12px] sm:py-3 sm:px-4 md:py-2.5 md:px-3.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-white/5 hover:border-indigo-500/40 text-slate-200 hover:text-white transition-all text-[13px] sm:text-sm font-semibold flex items-center justify-between group active:scale-[0.98] shadow-sm"
+                      className="w-full text-left py-2.5 px-3.5 sm:py-3 sm:px-4 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 border border-white/10 hover:border-indigo-500/40 text-slate-200 hover:text-white transition-all text-xs sm:text-sm font-semibold flex items-center justify-between group active:scale-[0.98] shadow-sm min-h-[44px]"
                     >
-                      <span className="flex items-center gap-3 [@media(max-height:700px)]:gap-2 min-w-0">
-                        <span className="w-6 h-6 [@media(max-height:700px)]:w-5 [@media(max-height:700px)]:h-5 sm:w-6.5 sm:h-6.5 rounded-md bg-indigo-500/20 text-indigo-300 flex items-center justify-center text-[11px] sm:text-xs font-bold shrink-0">
+                      <span className="flex items-center gap-3 min-w-0">
+                        <span className="w-6 h-6 sm:w-6.5 sm:h-6.5 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center text-[11px] sm:text-xs font-bold shrink-0">
                           {i + 1}
                         </span>
                         <span className="leading-snug">{prompt}</span>
                       </span>
                       <Send
                         size={14}
-                        className="text-slate-500 group-hover:text-indigo-400 shrink-0 ml-2 transition-colors [@media(max-height:700px)]:hidden"
+                        className="text-slate-500 group-hover:text-indigo-400 shrink-0 ml-2 transition-colors"
                       />
                     </button>
                   ))}
@@ -806,8 +804,8 @@ export function ChatComponent({
       )}
 
       <div
-        className="shrink-0 p-2.5 sm:p-3.5 bg-slate-900/95 backdrop-blur-md border-t border-white/10 z-30 sticky bottom-0"
-        style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.625rem)" }}
+        className="shrink-0 p-2.5 sm:p-3 bg-slate-900/95 backdrop-blur-md border-t border-white/10 z-30 sticky bottom-0"
+        style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.75rem)" }}
       >
         <form onSubmit={sendMessage} className="flex items-center gap-2">
           <input
@@ -834,7 +832,7 @@ export function ChatComponent({
               window.scrollTo(0, 0);
             }}
             placeholder="Ask about the match, score, or players..."
-            className="flex-1 min-w-0 bg-slate-900 border border-white/10 rounded-2xl py-2.5 sm:py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-slate-500"
+            className="flex-1 min-w-0 bg-slate-900 border border-white/10 rounded-2xl h-11 sm:h-12 py-2 px-3.5 sm:px-4 text-xs sm:text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-slate-500"
             readOnly={loading}
             enterKeyHint="send"
           />
@@ -844,7 +842,7 @@ export function ChatComponent({
             // dismissing the mobile keyboard.
             onMouseDown={(e) => e.preventDefault()}
             disabled={!input.trim() || loading}
-            className="p-2.5 sm:p-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-2xl disabled:opacity-50 transition-all shrink-0 shadow-lg shadow-indigo-600/30 hover:shadow-[0_0_12px_rgba(99,102,241,0.5)] active:scale-95"
+            className="h-11 w-11 sm:h-12 sm:w-12 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-2xl disabled:opacity-50 transition-all shrink-0 shadow-lg shadow-indigo-600/30 hover:shadow-[0_0_12px_rgba(99,102,241,0.5)] active:scale-95 flex items-center justify-center"
             title="Send message"
           >
             <Send size={18} />
@@ -867,7 +865,7 @@ export function ChatComponent({
                 }
               }
             }}
-            className={`p-2.5 sm:p-3 rounded-2xl transition-all shrink-0 shadow-lg active:scale-95 ${
+            className={`h-11 w-11 sm:h-12 sm:w-12 rounded-2xl transition-all shrink-0 shadow-lg active:scale-95 flex items-center justify-center ${
               isSpeechEnabled
                 ? "bg-gradient-to-r from-indigo-600 to-amber-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.6)] border border-amber-400/50"
                 : "bg-slate-800 text-slate-400 hover:text-slate-200 border border-white/10"

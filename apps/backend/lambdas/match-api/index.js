@@ -872,13 +872,15 @@ exports.handler = async (event, context) => {
       const isTestMatch = Boolean(
         isTest ||
         (teamA &&
-          (teamA.toLowerCase().includes("test") ||
-            teamA.toLowerCase().includes("sync") ||
-            teamA.toUpperCase().startsWith("TEAM A"))) ||
+          teamB &&
+          teamA.trim().toUpperCase() === "TEAM A" &&
+          teamB.trim().toUpperCase() === "TEAM B") ||
+        (teamA &&
+          (teamA.toLowerCase().includes("[test]") ||
+            teamA.toLowerCase().includes("e2e"))) ||
         (teamB &&
-          (teamB.toLowerCase().includes("test") ||
-            teamB.toLowerCase().includes("sync") ||
-            teamB.toUpperCase().startsWith("TEAM B"))) ||
+          (teamB.toLowerCase().includes("[test]") ||
+            teamB.toLowerCase().includes("e2e"))) ||
         (scorerEmail &&
           (scorerEmail.toLowerCase().startsWith("test-") ||
             scorerEmail.toLowerCase().includes("@test."))),
@@ -1081,9 +1083,9 @@ exports.handler = async (event, context) => {
 
     // GET /matches (All)
     if (httpMethod === "GET" && path === "/matches") {
-      // Proactive Cleanup: Auto-complete matches inactive for > 24 hours
+      // Proactive Cleanup: Mark abandoned matches inactive for > 24 hours as ABANDONED (never COMPLETED)
       await client.query(
-        "UPDATE matches SET status = 'COMPLETED' WHERE status = 'LIVE' AND updated_at < (NOW() - INTERVAL '24 hours')",
+        "UPDATE matches SET status = 'ABANDONED', match_winner = 'ABANDONED' WHERE status = 'LIVE' AND updated_at < (NOW() - INTERVAL '24 hours')",
       );
 
       const res = await client.query(`
@@ -1092,16 +1094,32 @@ exports.handler = async (event, context) => {
                            'id', i.id,
                            'inning_number', i.inning_number,
                            'batting_team_name', i.batting_team_name,
-                           'total_runs', GREATEST(
-                             COALESCE(i.total_runs, 0),
-                             COALESCE((SELECT SUM(p.runs) FROM players p WHERE p.inning_id = i.id), 0),
-                             COALESCE((SELECT SUM(b.runs + CASE WHEN (b.is_extra = true OR b.is_extra::text = 'true') AND UPPER(COALESCE(b.extra_type, '')) IN ('WIDE','NO_BALL') THEN COALESCE(NULLIF(b.extra_runs, 0), 1) ELSE COALESCE(b.extra_runs, 0) END) FROM ball_events b WHERE b.inning_id = i.id), 0)
-                           ),
-                           'total_wickets', GREATEST(
-                             COALESCE(i.total_wickets, 0),
-                             COALESCE((SELECT COUNT(*) FROM players p WHERE p.inning_id = i.id AND p.is_out = true AND p.wicket_type != 'RETIRED_HURT'), 0),
-                             COALESCE((SELECT COUNT(*) FROM ball_events b WHERE b.inning_id = i.id AND (b.is_wicket = true OR b.is_wicket::text = 'true') AND b.wicket_type != 'RETIRED_HURT'), 0)
-                           ),
+                           'total_runs', CASE
+                             WHEN (i.is_completed = TRUE OR m.status = 'COMPLETED') AND COALESCE(i.total_runs, 0) > 0 THEN
+                               GREATEST(
+                                 COALESCE(i.total_runs, 0),
+                                 COALESCE((SELECT SUM(p.runs) FROM players p WHERE p.inning_id = i.id), 0)
+                               )
+                             ELSE
+                               GREATEST(
+                                 COALESCE(i.total_runs, 0),
+                                 COALESCE((SELECT SUM(p.runs) FROM players p WHERE p.inning_id = i.id), 0),
+                                 COALESCE((SELECT SUM(b.runs + CASE WHEN (b.is_extra = true OR b.is_extra::text = 'true') AND UPPER(COALESCE(b.extra_type, '')) IN ('WIDE','NO_BALL') THEN COALESCE(NULLIF(b.extra_runs, 0), 1) ELSE COALESCE(b.extra_runs, 0) END) FROM ball_events b WHERE b.inning_id = i.id), 0)
+                               )
+                           END,
+                           'total_wickets', CASE
+                             WHEN (i.is_completed = TRUE OR m.status = 'COMPLETED') AND (COALESCE(i.total_wickets, 0) > 0 OR COALESCE(i.total_runs, 0) > 0) THEN
+                               GREATEST(
+                                 COALESCE(i.total_wickets, 0),
+                                 COALESCE((SELECT COUNT(*) FROM players p WHERE p.inning_id = i.id AND p.is_out = true AND p.wicket_type != 'RETIRED_HURT'), 0)
+                               )
+                             ELSE
+                               GREATEST(
+                                 COALESCE(i.total_wickets, 0),
+                                 COALESCE((SELECT COUNT(*) FROM players p WHERE p.inning_id = i.id AND p.is_out = true AND p.wicket_type != 'RETIRED_HURT'), 0),
+                                 COALESCE((SELECT COUNT(*) FROM ball_events b WHERE b.inning_id = i.id AND (b.is_wicket = true OR b.is_wicket::text = 'true') AND b.wicket_type != 'RETIRED_HURT'), 0)
+                               )
+                           END,
                            'overs', i.overs,
                            'balls', i.balls
                        ) ORDER BY i.inning_number) FROM innings i WHERE i.match_id = m.id) as innings
@@ -1800,8 +1818,9 @@ exports.handler = async (event, context) => {
       }
 
       try {
+        // Scoped strictly to real guest matches — test matches are preserved for test cleanup
         const res = await client.query(
-          "DELETE FROM matches WHERE scorer_email LIKE 'guest-%' OR scorer_email LIKE 'guest_%' RETURNING id",
+          "DELETE FROM matches WHERE (scorer_email LIKE 'guest-%' OR scorer_email LIKE 'guest_%') AND (is_test IS NOT TRUE) RETURNING id",
         );
         const deletedCount = res.rowCount || 0;
 
@@ -1843,8 +1862,13 @@ exports.handler = async (event, context) => {
       }
 
       try {
+        // Deletes any match that is not completed, was marked abandoned, or completed without result/winner
         const res = await client.query(
-          "DELETE FROM matches WHERE status != 'COMPLETED' AND status != 'ABANDONED' RETURNING id",
+          `DELETE FROM matches 
+           WHERE status != 'COMPLETED' 
+              OR status = 'ABANDONED' 
+              OR (status = 'COMPLETED' AND (match_winner IS NULL OR TRIM(match_winner) = '' OR match_winner ILIKE '%no result%' OR match_winner ILIKE '%abandoned%'))
+           RETURNING id`,
         );
         const deletedCount = res.rowCount || 0;
 
@@ -1889,8 +1913,16 @@ exports.handler = async (event, context) => {
       }
 
       try {
+        // Scoped strictly to automation test matches only — leaving real user matches untouched
         const res = await client.query(
-          "DELETE FROM matches WHERE is_test = TRUE OR team_a_name ILIKE '%test%' OR team_b_name ILIKE '%test%' OR team_a_name ILIKE '%sync%' OR team_b_name ILIKE '%sync%' OR team_a_name ILIKE 'TEAM A%' OR team_b_name ILIKE 'TEAM B%' OR scorer_email LIKE 'test-%' RETURNING id",
+          `DELETE FROM matches 
+           WHERE is_test = TRUE 
+              OR scorer_email LIKE 'test-%' 
+              OR scorer_email ILIKE '%@test.%' 
+              OR (team_a_name = 'TEAM A' AND team_b_name = 'TEAM B')
+              OR (team_a_name ILIKE '%[test]%' OR team_b_name ILIKE '%[test]%')
+              OR (team_a_name ILIKE '%e2e%' OR team_b_name ILIKE '%e2e%')
+           RETURNING id`,
         );
         const deletedCount = res.rowCount || 0;
 
@@ -2054,17 +2086,42 @@ exports.handler = async (event, context) => {
           "SELECT * FROM bowlers WHERE inning_id = $1",
           [inn.id],
         );
-        // Fetch all ball events
+        // Fetch all ball events and deduplicate any orphan/undone legal deliveries at the same (over_number, ball_number)
         const ballsRes = await client.query(
           "SELECT * FROM ball_events WHERE inning_id = $1 ORDER BY created_at",
           [inn.id],
         );
 
+        const dedupedBalls = [];
+        const legalBallIndexByPos = new Map();
+        for (const ballRow of ballsRes.rows) {
+          const extraTypeUpper = String(
+            ballRow.extra_type || "NONE",
+          ).toUpperCase();
+          const wicketTypeUpper = String(
+            ballRow.wicket_type || "NONE",
+          ).toUpperCase();
+          const isLegalDelivery =
+            extraTypeUpper !== "WIDE" &&
+            extraTypeUpper !== "NO_BALL" &&
+            wicketTypeUpper !== "RETIRED_HURT" &&
+            wicketTypeUpper !== "RETIRED_OUT";
+          const posKey = `${ballRow.over_number}:${ballRow.ball_number}`;
+          if (isLegalDelivery && legalBallIndexByPos.has(posKey)) {
+            dedupedBalls[legalBallIndexByPos.get(posKey)] = ballRow;
+          } else {
+            if (isLegalDelivery) {
+              legalBallIndexByPos.set(posKey, dedupedBalls.length);
+            }
+            dedupedBalls.push(ballRow);
+          }
+        }
+
         fullDetails.innings.push({
           ...inn,
           players: playersRes.rows,
           bowlers: bowlersRes.rows,
-          allBalls: ballsRes.rows,
+          allBalls: dedupedBalls,
         });
       }
 

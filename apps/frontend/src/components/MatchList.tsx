@@ -648,7 +648,7 @@ const MatchList: React.FC<MatchListProps> = ({
                           <div className="flex flex-col min-w-0">
                             <h4
                               title={leftTeamName}
-                              className="match-card-team-name text-white uppercase tracking-tight italic group-hover:text-emerald-400 transition-colors truncate whitespace-nowrap"
+                              className="match-card-team-name text-white uppercase tracking-tight italic group-hover:text-emerald-400 transition-colors whitespace-nowrap overflow-hidden text-ellipsis"
                             >
                               {leftTeamName}
                             </h4>
@@ -673,7 +673,7 @@ const MatchList: React.FC<MatchListProps> = ({
                           <div className="flex flex-col text-right min-w-0">
                             <h4
                               title={rightTeamName}
-                              className="match-card-team-name text-white uppercase tracking-tight italic group-hover:text-emerald-400 transition-colors truncate whitespace-nowrap"
+                              className="match-card-team-name text-white uppercase tracking-tight italic group-hover:text-emerald-400 transition-colors whitespace-nowrap overflow-hidden text-ellipsis"
                             >
                               {rightTeamName}
                             </h4>

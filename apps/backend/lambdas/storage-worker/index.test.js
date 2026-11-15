@@ -75,7 +75,11 @@ describe("Storage Worker Lambda", () => {
     const res = await handler(event);
 
     expect(res.statusCode).toBe(200);
-    expect(mockQuery).toHaveBeenCalledTimes(8); // 2 Inserts, 1 assign, Inning update, match update, ball_events insert, player update, bowler update
+    expect(mockQuery).toHaveBeenCalledTimes(9); // 2 Inserts, 1 assign, Inning update, match update, ball_events stale delete, ball_events insert, player update, bowler update
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.stringContaining("DELETE FROM ball_events"),
+      ["inn_123", 1, 1],
+    );
   });
 
   it.each(["RETIRED_HURT", "RETIRED_OUT"])(

@@ -111,7 +111,7 @@ describe("AiMatchPrediction Component", () => {
     );
   });
 
-  it("renders bat icon 🏏 before batting team percentage and ball icon 🎾 before bowling team percentage", async () => {
+  it("renders an SVG bat icon before batting team percentage and an SVG ball icon before bowling team percentage", async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -142,12 +142,12 @@ describe("AiMatchPrediction Component", () => {
     );
 
     await waitFor(() => {
-      // Batting team (MIDWEST GLADIATORS, 47%) should have 🏏 before 47%
-      expect(screen.getByText("🏏")).toBeInTheDocument();
+      // Batting team (MIDWEST GLADIATORS, 47%) should have the bat icon before 47%
+      expect(screen.getByTestId("cricket-bat-icon")).toBeInTheDocument();
       expect(screen.getByText("47%")).toBeInTheDocument();
 
-      // Bowling team (CHICAGO SPARTANS, 53%) should have 🎾 before 53%
-      expect(screen.getByText("🎾")).toBeInTheDocument();
+      // Bowling team (CHICAGO SPARTANS, 53%) should have the cricket ball icon before 53%
+      expect(screen.getByTestId("cricket-ball-icon")).toBeInTheDocument();
       expect(screen.getByText("53%")).toBeInTheDocument();
     });
   });

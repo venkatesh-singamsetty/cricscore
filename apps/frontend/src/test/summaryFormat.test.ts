@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { getPartnerships } from "../utils/partnershipUtils";
 import { ExtraType, WicketType } from "../types";
-import { stripPlayerOfMatchLine } from "../utils/summaryFormat";
+import {
+  stripPlayerOfMatchLine,
+  parsePlayerOfTheMatch,
+} from "../utils/summaryFormat";
 
 describe("stripPlayerOfMatchLine", () => {
   it("removes the leading trophy POM line", () => {
@@ -89,5 +92,43 @@ describe("stripPlayerOfMatchLine", () => {
     expect(stripPlayerOfMatchLine("Team B won by 10 wickets.")).toBe(
       "Team B won by 10 wickets.",
     );
+  });
+});
+
+describe("parsePlayerOfTheMatch", () => {
+  it("separates player name and stats text with hyphen delimiter", () => {
+    const parsed = parsePlayerOfTheMatch(
+      "Spartan 2 - scored 5 runs off 3 balls",
+    );
+    expect(parsed.name).toBe("Spartan 2");
+    expect(parsed.details).toBe("scored 5 runs off 3 balls");
+  });
+
+  it("separates player name and stats text with en-dash delimiter", () => {
+    const parsed = parsePlayerOfTheMatch("Gladiator 3 – 2 wickets for 14 runs");
+    expect(parsed.name).toBe("Gladiator 3");
+    expect(parsed.details).toBe("2 wickets for 14 runs");
+  });
+
+  it("handles POM string with leading prefix", () => {
+    const parsed = parsePlayerOfTheMatch(
+      "🏆 Player of the Match: Spartan 2 - scored 5 runs off 3 balls",
+    );
+    expect(parsed.name).toBe("Spartan 2");
+    expect(parsed.details).toBe("scored 5 runs off 3 balls");
+  });
+
+  it("returns name with null details when no stats separator exists", () => {
+    const parsed = parsePlayerOfTheMatch("Gladiator 1");
+    expect(parsed.name).toBe("Gladiator 1");
+    expect(parsed.details).toBeNull();
+  });
+
+  it("handles null or undefined safely", () => {
+    expect(parsePlayerOfTheMatch(null)).toEqual({ name: "", details: null });
+    expect(parsePlayerOfTheMatch(undefined)).toEqual({
+      name: "",
+      details: null,
+    });
   });
 });

@@ -558,21 +558,23 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               {pendingBulkAction === "delete-all-guest-data" && (
                 <p className="text-slate-300 text-sm font-medium mb-8 leading-relaxed">
                   Are you sure you want to permanently delete ALL guest matches
-                  AND guest users? This cannot be undone.
+                  AND guest users? (Automation test matches are strictly
+                  preserved and untouched.)
                 </p>
               )}
 
               {pendingBulkAction === "delete-all-incomplete-matches" && (
                 <p className="text-slate-300 text-sm font-medium mb-8 leading-relaxed">
-                  Are you sure you want to permanently delete ALL incomplete
-                  matches from the database? This cannot be undone.
+                  Are you sure you want to permanently delete ALL incomplete and
+                  abandoned matches from the database? This cannot be undone.
                 </p>
               )}
 
               {pendingBulkAction === "delete-all-test-matches" && (
                 <p className="text-slate-300 text-sm font-medium mb-8 leading-relaxed">
-                  Are you sure you want to permanently delete ALL test/practice
-                  matches from the database? This cannot be undone.
+                  Are you sure you want to permanently delete ALL automation
+                  test matches from the database? Real user matches will remain
+                  completely untouched.
                 </p>
               )}
 

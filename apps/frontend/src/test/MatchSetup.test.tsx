@@ -164,4 +164,51 @@ describe("MatchSetup Component", () => {
       expect(fetchBody.tossDecision).toBe("BAT");
     });
   });
+
+  it("navigates mobile wizard steps without showing test-match-toggle on Step 3 and enforces single-line squad headers", async () => {
+    await act(async () => {
+      render(<MatchSetup onStartMatch={vi.fn()} onResumeMatch={vi.fn()} />);
+    });
+
+    // Check squad header has whitespace-nowrap and ROSTER pill
+    const squadLabels = screen.getAllByText(/Squad \(one player per line\)/i);
+    expect(squadLabels.length).toBeGreaterThanOrEqual(1);
+    expect(squadLabels[0]).toHaveClass("whitespace-nowrap");
+
+    const rosterBadges = screen.getAllByText(/ROSTER/i);
+    expect(rosterBadges.length).toBeGreaterThanOrEqual(1);
+    expect(rosterBadges[0]).toHaveClass("whitespace-nowrap");
+
+    // Navigate to Step 2
+    const nextToStep2 = screen.getByRole("button", {
+      name: /NEXT: SECOND TEAM ➔/i,
+    });
+    fireEvent.click(nextToStep2);
+
+    // Verify Step 2 is active
+    expect(screen.getByText(/Step 2: Second Team/i)).toBeInTheDocument();
+
+    // Navigate to Step 3
+    const nextToStep3 = screen.getByRole("button", {
+      name: /NEXT: OVERS & TOSS ➔/i,
+    });
+    fireEvent.click(nextToStep3);
+
+    // Verify Step 3 is active
+    expect(screen.getByText(/Step 3: Overs & Toss/i)).toBeInTheDocument();
+
+    // Verify test-match-toggle-mobile has been removed from Step 3
+    expect(
+      screen.queryByTestId("test-match-toggle-mobile"),
+    ).not.toBeInTheDocument();
+
+    // Verify Start Match button is available
+    expect(
+      screen.getByRole("button", { name: /Start Match/i }),
+    ).toBeInTheDocument();
+
+    // Verify squad textarea uses responsive mobile 24px line-height for viewport clearance
+    const squadTextareas = screen.getAllByPlaceholderText(/Enter player name/i);
+    expect(squadTextareas[0]).toHaveClass("leading-[24px]");
+  });
 });

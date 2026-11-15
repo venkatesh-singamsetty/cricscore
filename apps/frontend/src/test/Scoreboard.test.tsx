@@ -182,7 +182,9 @@ describe("Scoreboard Component", () => {
       />,
     );
 
-    const inns1Tab = screen.getByText(/CHICAGO CHIEFS \(Inns 1\)/i);
+    const inns1Tab = screen
+      .getAllByText(/CHICAGO CHIEFS/i)
+      .find((el) => el.className.includes("truncate"))!;
     fireEvent.click(inns1Tab);
 
     // CHIEF 1 and CHIEF 2 appear
@@ -321,8 +323,12 @@ describe("Scoreboard Component", () => {
       />,
     );
 
-    const prevTabText = screen.getByText(/CHICAGO CHIEFS \(Inns 1\)/i);
-    const currTabText = screen.getByText(/MIDWEST GLADIATORS \(Inns 2\)/i);
+    const prevTabText = screen
+      .getAllByText(/CHICAGO CHIEFS/i)
+      .find((el) => el.className.includes("truncate"))!;
+    const currTabText = screen
+      .getAllByText(/MIDWEST GLADIATORS/i)
+      .find((el) => el.className.includes("truncate"))!;
 
     expect(prevTabText).toHaveClass("whitespace-nowrap");
     expect(prevTabText).toHaveClass("mr-1.5");

@@ -4,6 +4,7 @@ import {
   getTeamGlow,
   TEAM_BRAND_COLORS,
 } from "../utils/teamColorUtils";
+import { BatIcon, BallIcon } from "./icons/CricketIcons";
 
 interface AiMatchPredictionProps {
   matchId: string;
@@ -196,30 +197,30 @@ export const AiMatchPrediction: React.FC<AiMatchPredictionProps> = ({
 
   if (compact) {
     return (
-      <div className="w-full bg-slate-800/60 p-2.5 sm:p-3 rounded-xl border border-white/10 shadow-sm flex flex-col gap-2 sm:gap-2.5">
+      <div className="cs-stat w-full bg-slate-800/60 p-2.5 sm:p-3 rounded-xl border border-white/10 shadow-sm flex flex-col gap-2 sm:gap-2.5">
         <span className="sr-only">
           {prediction.team1} {p1}% - {p2}% {prediction.team2}
         </span>
         {/* Percentages on outer edges with WIN PREDICTION centered (No team names) */}
-        <div className="flex justify-between items-center text-xs sm:text-sm font-black tabular-nums tracking-wider leading-none">
+        <div className="flex justify-between items-center text-xs sm:text-sm font-black tabular-nums tracking-wider leading-none whitespace-nowrap">
           <span
             style={{ color: color1 }}
-            className="font-black drop-shadow-sm flex items-center gap-1"
+            className="font-black drop-shadow-sm flex items-center gap-1 shrink-0"
           >
             <span className="text-xs sm:text-sm select-none">
-              {isTeam1Batting ? "🏏" : "🎾"}
+              {isTeam1Batting ? <BatIcon /> : <BallIcon />}
             </span>
             <span>{p1}%</span>
           </span>
-          <span className="text-slate-400 font-bold uppercase text-[9px] sm:text-[10px] tracking-widest flex items-center gap-1">
+          <span className="text-slate-400 font-bold uppercase text-[9px] sm:text-[10px] tracking-widest flex items-center gap-1 shrink-0 px-1">
             <span>🤖</span> WIN PREDICTION
           </span>
           <span
             style={{ color: color2 }}
-            className="font-black drop-shadow-sm flex items-center gap-1"
+            className="font-black drop-shadow-sm flex items-center gap-1 shrink-0"
           >
             <span className="text-xs sm:text-sm select-none">
-              {isTeam1Batting ? "🎾" : "🏏"}
+              {isTeam1Batting ? <BallIcon /> : <BatIcon />}
             </span>
             <span>{p2}%</span>
           </span>
@@ -264,14 +265,14 @@ export const AiMatchPrediction: React.FC<AiMatchPredictionProps> = ({
             style={{ color: color1 }}
             className="drop-shadow-sm flex items-center gap-1"
           >
-            <span>{isTeam1Batting ? "🏏" : "🎾"}</span>
+            <span>{isTeam1Batting ? <BatIcon /> : <BallIcon />}</span>
             <span>{prediction.team1}</span>
           </span>
           <span
             style={{ color: color2 }}
             className="drop-shadow-sm flex items-center gap-1"
           >
-            <span>{isTeam1Batting ? "🎾" : "🏏"}</span>
+            <span>{isTeam1Batting ? <BallIcon /> : <BatIcon />}</span>
             <span>{prediction.team2}</span>
           </span>
         </div>
