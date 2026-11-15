@@ -1,3 +1,9 @@
+## [4.25.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.24.3...v4.25.0) (2026-11-15)
+
+### 🚀 Features
+
+* mobile responsive UI standardization, unified 4x4 keypad grid, and dependency updates ([#356](https://github.com/venkatesh-singamsetty/cricscore/issues/356)) ([0d0a0dd]()), closes [#348]() [#355]()
+
 ## [4.24.3](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.24.2...v4.24.3) (2026-11-02)
 
 ### 📚 Documentation
