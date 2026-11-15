@@ -1,6 +1,6 @@
 # 🧪 Testing Strategy & Verification Matrix
 
-CricScore enforces a multi-layer testing architecture spanning **`376` automated unit and integration tests** (`151` Frontend Vitest + `121` Backend Vitest + `75` AI Service Pytest + `29` ML Engine Pytest), **`15` Playwright End-to-End (E2E) tests** across 5 suites, live **AI Chat evaluations**, and **OWASP ZAP DAST** scans.
+CricScore enforces a multi-layer testing architecture spanning **`388` automated unit and integration tests** (`160` Frontend Vitest + `124` Backend Vitest + `75` AI Service Pytest + `29` ML Engine Pytest), **`15` Playwright End-to-End (E2E) tests** across 5 suites, live **AI Chat evaluations**, and **OWASP ZAP DAST** scans.
 
 ---
 
@@ -14,9 +14,9 @@ flowchart TD
         FastCmd --> Receipt
     end
 
-    subgraph UnitIntegration ["2. Unit & Integration Suite (376 Tests Total)"]
-        FE["Frontend Vitest: 151 Tests (23 Suites)"]
-        BE["Backend Lambda Vitest: 121 Tests (12 Suites)"]
+    subgraph UnitIntegration ["2. Unit & Integration Suite (388 Tests Total)"]
+        FE["Frontend Vitest: 160 Tests (23 Suites)"]
+        BE["Backend Lambda Vitest: 124 Tests (16 Suites)"]
         AI["Python AI Service Pytest: 75 Tests (LangGraph / MCP)"]
         ML["Python ML Engine Pytest: 29 Tests (XGBoost v2.2.0 / DP / DLS)"]
         FE --> BE --> AI --> ML
@@ -40,13 +40,13 @@ flowchart TD
 
 ---
 
-## 📊 2. Complete Test Suite Inventory (`376` Unit/Integration + `15` E2E)
+## 📊 2. Complete Test Suite Inventory (`388` Unit/Integration + `15` E2E)
 
 ```bash
-# Run Frontend Vitest suite (151 unit tests)
+# Run Frontend Vitest suite (160 unit tests)
 npm run test --prefix apps/frontend
 
-# Run Backend Lambda Vitest suite (121 unit tests)
+# Run Backend Lambda Vitest suite (124 unit tests)
 npm run test --prefix apps/backend
 
 # Run Python AI Service pytest suite (75 tests)
@@ -55,7 +55,7 @@ pytest apps/ai-service -q
 # Run Python ML Engine inference pytest suite (29 tests)
 pytest apps/ml-engine/test_predict.py -q
 
-# Run all 376 unit tests together across Frontend, Backend, AI, and ML
+# Run all 388 unit tests together across Frontend, Backend, AI, and ML
 npm run test:all
 
 # Run full Playwright E2E suite against Dev environment (15 tests)
@@ -68,14 +68,14 @@ npm run test:ai
 
 ### What Each Layer Verifies
 
-- **1. Frontend (`Vitest` + React Testing Library — `151` tests in `apps/frontend/src/test/*.test.{ts,tsx}`):**
+- **1. Frontend (`Vitest` + React Testing Library — `160` tests in `apps/frontend/src/test/*.test.{ts,tsx}`):**
   - Standard Edition DLS par score (1–50 overs), partnership math, and deterministic Player of the Match (`potmUtils`).
-  - Live WebSocket score merge (`applyLiveScoreToMatches`) and monotonic 2nd-innings transitions.
-  - Component behavior across `LiveScoreboard`, `MatchView`, `MatchSetup`, `AdminPanel`, and `ChatComponent`.
-  - DOM XSS link sanitization and mobile touch layout guardrails.
-- **2. Backend Lambdas (`Vitest` — `121` tests in `apps/backend/lambdas/**/*.test.js`):**
-  - `match-api` CRUD, Cognito JWT / Admin group authorization, and HTML SES scorecard formatting.
-  - `score-update` SNS + SQS FIFO dual fan-out and `storage-worker` idempotent ball persistence / `undo: true` rollback.
+  - Live WebSocket score merge (`applyLiveScoreToMatches`), monotonic 2nd-innings transitions, and duplicate/undone `allBalls` deduplication in `LiveScoreboard`.
+  - Component behavior across `LiveScoreboard`, `MatchView`, `MatchSetup`, `AdminPanel`, `CricketIcons`, and `ChatComponent`.
+  - Mobile touch layout guardrails, safe area bottom spacing, and single-line squad headers.
+- **2. Backend Lambdas (`Vitest` — `122` tests in `apps/backend/lambdas/**/*.test.js`):**
+  - `match-api` CRUD, Cognito JWT / Admin group authorization, duplicate legal delivery deduplication in `/details`, and HTML SES scorecard formatting.
+  - `score-update` SNS + SQS FIFO dual fan-out and `storage-worker` idempotent ball persistence, stale/duplicate legal delivery pruning, and `undo: true` rollback.
   - `broadcaster` `410 GoneException` stale socket pruning and `cognito-presignup` guest auto-confirmation.
   - `chat-api` in-memory MCP tools, read-only SQL guardrails, and deterministic POTM summary generation.
 - **3. Python AI Service (`Pytest` — `75` tests in `apps/ai-service/tests/test_*.py`):**

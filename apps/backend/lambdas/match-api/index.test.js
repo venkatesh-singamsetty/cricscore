@@ -503,6 +503,65 @@ describe("match-api Lambda handler", () => {
     expect(body.success).toBe(true);
     expect(body.deletedMatchesCount).toBe(4);
     expect(body.message).toContain("Deleted 4 test matches");
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.stringContaining("is_test = TRUE"),
+    );
+  });
+
+  it("should allow admin to delete incomplete matches including abandoned and no-result matches", async () => {
+    mockQuery.mockResolvedValueOnce({ rowCount: 3 });
+
+    const event = {
+      httpMethod: "DELETE",
+      path: "/admin/matches/incomplete",
+      requestContext: {
+        authorizer: {
+          jwt: {
+            claims: {
+              email: "admin@example.com",
+              "cognito:groups": ["Admin"],
+            },
+          },
+        },
+      },
+    };
+
+    const response = await handler(event);
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body.success).toBe(true);
+    expect(body.deletedMatchesCount).toBe(3);
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.stringContaining("status = 'ABANDONED'"),
+    );
+  });
+
+  it("should allow admin to delete guest matches without sweeping away test matches", async () => {
+    mockQuery.mockResolvedValueOnce({ rowCount: 2 });
+
+    const event = {
+      httpMethod: "DELETE",
+      path: "/admin/matches/guests",
+      requestContext: {
+        authorizer: {
+          jwt: {
+            claims: {
+              email: "admin@example.com",
+              "cognito:groups": ["Admin"],
+            },
+          },
+        },
+      },
+    };
+
+    const response = await handler(event);
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body.success).toBe(true);
+    expect(body.deletedMatchesCount).toBe(2);
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.stringContaining("is_test IS NOT TRUE"),
+    );
   });
 
   it("should forbid non-admin from deleting test matches", async () => {
@@ -631,5 +690,95 @@ describe("match-api Lambda handler", () => {
     expect(htmlBody).toContain("white-space: nowrap; font-size: 12px;");
     expect(htmlBody).toContain("SPARTAN 1&nbsp;*");
     expect(htmlBody).toContain("GLADIATOR 1");
+  });
+
+  it("should deduplicate orphan/undone legal deliveries at the same (over_number, ball_number) in GET /match/{matchId}/details", async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [
+        {
+          id: "match_ff8cb0e2",
+          status: "COMPLETED",
+          team_a_name: "TEAM A",
+          team_b_name: "TEAM B",
+          team_b_score: 25,
+          team_b_wickets: 4,
+          team_a_score: 26,
+          team_a_wickets: 3,
+          match_winner: "TEAM A WON BY 7 WICKETS",
+        },
+      ],
+    });
+    mockQuery.mockResolvedValueOnce({
+      rows: [
+        {
+          id: "inn_1",
+          inning_number: 1,
+          batting_team_name: "TEAM B",
+          total_runs: 25,
+          total_wickets: 4,
+          overs: 2,
+          balls: 0,
+          is_completed: true,
+        },
+      ],
+    });
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // players
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // bowlers
+    mockQuery.mockResolvedValueOnce({
+      rows: [
+        {
+          id: "ball_undone_1",
+          over_number: 0,
+          ball_number: 1,
+          runs: 2,
+          is_extra: false,
+          extra_type: "NONE",
+          wicket_type: "NONE",
+        },
+        {
+          id: "ball_actual_1",
+          over_number: 0,
+          ball_number: 1,
+          runs: 2,
+          is_extra: false,
+          extra_type: "NONE",
+          wicket_type: "NONE",
+        },
+        {
+          id: "ball_wide_2",
+          over_number: 0,
+          ball_number: 2,
+          runs: 0,
+          is_extra: true,
+          extra_type: "WIDE",
+          extra_runs: 1,
+          wicket_type: "NONE",
+        },
+        {
+          id: "ball_actual_2",
+          over_number: 0,
+          ball_number: 2,
+          runs: 4,
+          is_extra: false,
+          extra_type: "NONE",
+          wicket_type: "NONE",
+        },
+      ],
+    });
+
+    const response = await handler({
+      httpMethod: "GET",
+      path: "/match/match_ff8cb0e2/details",
+      pathParameters: { matchId: "match_ff8cb0e2" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body.innings[0].allBalls).toHaveLength(3);
+    expect(body.innings[0].allBalls.map((b) => b.id)).toEqual([
+      "ball_actual_1",
+      "ball_wide_2",
+      "ball_actual_2",
+    ]);
   });
 });

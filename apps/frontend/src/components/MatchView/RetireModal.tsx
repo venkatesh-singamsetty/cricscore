@@ -12,7 +12,7 @@ export const RetireModal: React.FC<RetireModalProps> = ({
   onRetire,
   onClose,
 }) => (
-  <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[200] p-4 backdrop-blur-md animate-in fade-in duration-300">
+  <div className="fixed inset-0 bg-slate-950/80 flex overflow-y-auto z-[200] px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] [&>*]:mx-auto [&>*]:my-auto backdrop-blur-md animate-in fade-in duration-300">
     <div className="bg-slate-900 border border-white/10 rounded-[2.5rem] w-full max-w-sm shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-500">
       <div className="p-6 bg-slate-950 border-b border-white/5 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -50,7 +50,7 @@ export const RetireModal: React.FC<RetireModalProps> = ({
         </div>
         <button
           onClick={onClose}
-          className="mt-4 py-4 px-4 bg-slate-800 text-slate-400 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:text-white transition-all"
+          className="mt-4 py-3.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-2xl font-black uppercase tracking-widest text-xs border border-white/10 active:scale-95 transition-all shadow-md cursor-pointer"
         >
           Cancel
         </button>

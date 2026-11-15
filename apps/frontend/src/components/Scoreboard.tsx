@@ -10,6 +10,7 @@ import {
   resolvePOTM,
 } from "../utils/scorecardUtils";
 import { getTeamBrandColor } from "../utils/teamColorUtils";
+import { BatIcon } from "./icons/CricketIcons";
 
 interface ScoreboardProps {
   currentInnings: InningsState;
@@ -72,7 +73,7 @@ const BattingTable: React.FC<BattingTableProps> = React.memo(
                 <th className="px-2.5 py-1 sm:py-1.5 whitespace-nowrap">
                   Batter
                 </th>
-                <th className="px-2 py-1 sm:py-1.5 whitespace-nowrap">
+                <th className="px-1.5 sm:px-2 py-1 sm:py-1.5 whitespace-nowrap">
                   Status
                 </th>
                 <th className="px-2 py-1 sm:py-1.5 text-right whitespace-nowrap">
@@ -112,6 +113,66 @@ const BattingTable: React.FC<BattingTableProps> = React.memo(
                       ? "text-emerald-400 font-bold"
                       : "text-indigo-400";
 
+                const statusNode =
+                  player.isOut || player.wicketType === "RETIRED_HURT" ? (
+                    (() => {
+                      const type = player.wicketType;
+                      const bowler = player.wicketBy;
+                      const fielder = player.fielderName;
+
+                      let text = "";
+                      if (type === "CAUGHT") {
+                        if (fielder === bowler) text = `c & b ${bowler}`;
+                        else text = `c ${fielder || "---"} b ${bowler}`;
+                      } else if (type === "STUMPED") {
+                        text = `st ${fielder || "---"} b ${bowler}`;
+                      } else if (type === "RUN_OUT") {
+                        text = `run out (${fielder || "---"})`;
+                      } else if (type === "LBW") {
+                        text = `lbw b ${bowler}`;
+                      } else if (type === "BOWLED") {
+                        text = `b ${bowler}`;
+                      } else if (type === "HIT_WICKET") {
+                        text = `hit wicket b ${bowler}`;
+                      } else if (type === "RETIRED_HURT") {
+                        text = "ret. hurt";
+                      } else if (type === "RETIRED_OUT") {
+                        text = "ret. out";
+                      } else {
+                        text = `${type?.toLowerCase().replace(/_/g, " ")}`;
+                      }
+
+                      if (type === "RETIRED_HURT") {
+                        return (
+                          <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-black tracking-wide inline-flex items-center gap-1 shadow-sm whitespace-nowrap">
+                            🚑 {text}
+                          </span>
+                        );
+                      }
+                      if (type === "RETIRED_OUT") {
+                        return (
+                          <span className="bg-purple-500/20 text-purple-300 border border-purple-500/40 px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-black tracking-wide inline-flex items-center gap-1 shadow-sm whitespace-nowrap">
+                            🚪 {text}
+                          </span>
+                        );
+                      }
+                      return (
+                        <span className="text-red-400 font-black uppercase tracking-tight whitespace-nowrap drop-shadow-sm">
+                          {text}
+                        </span>
+                      );
+                    })()
+                  ) : (
+                    <span className="text-emerald-400 font-bold opacity-90 inline-flex items-center gap-1 whitespace-nowrap">
+                      {highlight ? (
+                        <span className="inline-flex items-center gap-1">
+                          <BatIcon /> BATTING
+                        </span>
+                      ) : (
+                        "NOT OUT"
+                      )}
+                    </span>
+                  );
                 return (
                   <tr
                     key={id}
@@ -126,90 +187,38 @@ const BattingTable: React.FC<BattingTableProps> = React.memo(
                         highlight ? "text-white" : "text-slate-100"
                       }`}
                     >
-                      <span className="inline-flex items-center gap-1.5 font-extrabold text-white text-xs sm:text-sm tracking-tight">
-                        {player.name}
+                      <span className="inline-flex items-center gap-1.5 font-extrabold text-white text-xs sm:text-sm tracking-tight max-w-[34vw] sm:max-w-none">
+                        <span className="truncate">{player.name}</span>
                         {isStriker && (
-                          <span className="text-amber-300 animate-pulse text-xs">
-                            🏏
+                          <span className="text-amber-300 text-sm shrink-0">
+                            <BatIcon />
                           </span>
                         )}
                       </span>
                     </td>
                     <td
-                      className={`px-2 py-1.5 text-[9px] sm:text-[10px] font-black uppercase tracking-tight whitespace-nowrap ${
+                      className={`px-1.5 sm:px-2 py-1.5 text-[9px] sm:text-[10px] font-black uppercase tracking-tight leading-tight sm:whitespace-nowrap max-sm:[&_*]:whitespace-normal max-sm:max-w-[30vw] ${
                         highlight ? "text-indigo-100" : "text-slate-500"
                       }`}
                     >
-                      {player.isOut || player.wicketType === "RETIRED_HURT" ? (
-                        (() => {
-                          const type = player.wicketType;
-                          const bowler = player.wicketBy;
-                          const fielder = player.fielderName;
-
-                          let text = "";
-                          if (type === "CAUGHT") {
-                            if (fielder === bowler) text = `c & b ${bowler}`;
-                            else text = `c ${fielder || "---"} b ${bowler}`;
-                          } else if (type === "STUMPED") {
-                            text = `st ${fielder || "---"} b ${bowler}`;
-                          } else if (type === "RUN_OUT") {
-                            text = `run out (${fielder || "---"})`;
-                          } else if (type === "LBW") {
-                            text = `lbw b ${bowler}`;
-                          } else if (type === "BOWLED") {
-                            text = `b ${bowler}`;
-                          } else if (type === "HIT_WICKET") {
-                            text = `hit wicket b ${bowler}`;
-                          } else if (type === "RETIRED_HURT") {
-                            text = "ret. hurt";
-                          } else if (type === "RETIRED_OUT") {
-                            text = "ret. out";
-                          } else {
-                            text = `${type?.toLowerCase().replace(/_/g, " ")}`;
-                          }
-
-                          if (type === "RETIRED_HURT") {
-                            return (
-                              <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-black tracking-wide inline-flex items-center gap-1 shadow-sm whitespace-nowrap">
-                                🚑 {text}
-                              </span>
-                            );
-                          }
-                          if (type === "RETIRED_OUT") {
-                            return (
-                              <span className="bg-purple-500/20 text-purple-300 border border-purple-500/40 px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] font-black tracking-wide inline-flex items-center gap-1 shadow-sm whitespace-nowrap">
-                                🚪 {text}
-                              </span>
-                            );
-                          }
-                          return (
-                            <span className="text-red-400 font-black uppercase tracking-tight whitespace-nowrap drop-shadow-sm">
-                              {text}
-                            </span>
-                          );
-                        })()
-                      ) : (
-                        <span className="text-emerald-400 font-bold opacity-90 inline-flex items-center gap-1 whitespace-nowrap">
-                          {highlight ? "🏏 BATTING" : "NOT OUT"}
-                        </span>
-                      )}
+                      {statusNode}
                     </td>
                     <td
-                      className={`px-2 py-1.5 text-right font-black text-xs sm:text-sm tabular-nums whitespace-nowrap ${
+                      className={`px-1.5 sm:px-2 py-1.5 text-right font-black text-xs sm:text-sm tabular-nums whitespace-nowrap ${
                         highlight ? "text-white" : "text-slate-100"
                       }`}
                     >
                       {player.runs}
                     </td>
                     <td
-                      className={`px-2 py-1.5 text-right font-black text-[11px] tabular-nums whitespace-nowrap ${
+                      className={`px-1.5 sm:px-2 py-1.5 text-right font-black text-[11px] tabular-nums whitespace-nowrap ${
                         highlight ? "text-indigo-200" : "text-slate-400"
                       }`}
                     >
                       {player.ballsFaced}
                     </td>
                     <td
-                      className={`px-2 py-1.5 text-right font-black text-[11px] tabular-nums whitespace-nowrap ${
+                      className={`px-1.5 sm:px-2 py-1.5 text-right font-black text-[11px] tabular-nums whitespace-nowrap ${
                         highlight
                           ? "text-white"
                           : player.fours > 0
@@ -220,7 +229,7 @@ const BattingTable: React.FC<BattingTableProps> = React.memo(
                       {player.fours}
                     </td>
                     <td
-                      className={`px-2 py-1.5 text-right font-black text-[11px] tabular-nums whitespace-nowrap ${
+                      className={`px-1.5 sm:px-2 py-1.5 text-right font-black text-[11px] tabular-nums whitespace-nowrap ${
                         highlight
                           ? "text-white"
                           : player.sixes > 0
@@ -231,7 +240,7 @@ const BattingTable: React.FC<BattingTableProps> = React.memo(
                       {player.sixes}
                     </td>
                     <td
-                      className={`px-2 py-1.5 last:rounded-r-lg text-right font-black text-[11px] tabular-nums whitespace-nowrap ${srColor}`}
+                      className={`px-1.5 sm:px-2 py-1.5 last:rounded-r-lg text-right font-black text-[11px] tabular-nums whitespace-nowrap ${srColor}`}
                     >
                       {sr}
                     </td>
@@ -355,27 +364,27 @@ const BowlingTable: React.FC<BowlingTableProps> = React.memo(
                     </span>
                   </td>
                   <td
-                    className={`px-2 py-1.5 text-right font-black text-[11px] tabular-nums whitespace-nowrap ${isCurrent ? "text-indigo-200" : "text-slate-400"}`}
+                    className={`px-1.5 sm:px-2 py-1.5 text-right font-black text-[11px] tabular-nums whitespace-nowrap ${isCurrent ? "text-indigo-200" : "text-slate-400"}`}
                   >
                     {bowler.overs}.{bowler.balls}
                   </td>
                   <td
-                    className={`px-2 py-1.5 text-right font-black text-[11px] tabular-nums whitespace-nowrap ${isCurrent ? "text-indigo-200" : "text-slate-400"}`}
+                    className={`px-1.5 sm:px-2 py-1.5 text-right font-black text-[11px] tabular-nums whitespace-nowrap ${isCurrent ? "text-indigo-200" : "text-slate-400"}`}
                   >
                     {bowler.maidens}
                   </td>
                   <td
-                    className={`px-2 py-1.5 text-right font-black text-xs sm:text-sm tabular-nums whitespace-nowrap ${isCurrent ? "text-white" : "text-slate-100"}`}
+                    className={`px-1.5 sm:px-2 py-1.5 text-right font-black text-xs sm:text-sm tabular-nums whitespace-nowrap ${isCurrent ? "text-white" : "text-slate-100"}`}
                   >
                     {bowler.runsConceded}
                   </td>
                   <td
-                    className={`px-2 py-1.5 text-right font-black text-xs sm:text-sm tabular-nums whitespace-nowrap ${isCurrent ? "text-white" : bowler.wickets > 0 ? "text-indigo-300 font-black" : "text-slate-400"}`}
+                    className={`px-1.5 sm:px-2 py-1.5 text-right font-black text-xs sm:text-sm tabular-nums whitespace-nowrap ${isCurrent ? "text-white" : bowler.wickets > 0 ? "text-indigo-300 font-black" : "text-slate-400"}`}
                   >
                     {bowler.wickets}
                   </td>
                   <td
-                    className={`px-2 py-1.5 last:rounded-r-lg text-right font-black text-[11px] tabular-nums whitespace-nowrap ${econColor}`}
+                    className={`px-1.5 sm:px-2 py-1.5 last:rounded-r-lg text-right font-black text-[11px] tabular-nums whitespace-nowrap ${econColor}`}
                   >
                     {econ}
                   </td>
@@ -471,7 +480,7 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
 
   return (
     <div className="fixed inset-x-0 top-14 bottom-0 md:top-16 bg-slate-950/85 z-[400] flex items-center justify-center p-2 sm:p-4 backdrop-blur-xl animate-in fade-in duration-300">
-      <div className="bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[1.5rem] sm:rounded-[2.5rem] w-full max-w-5xl max-h-full md:max-h-[calc(100vh-8rem)] min-h-0 overflow-hidden flex flex-col shadow-2xl relative animate-in zoom-in-95 duration-500">
+      <div className="bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-[1.5rem] sm:rounded-[2.5rem] w-full max-w-5xl max-h-full md:max-h-[calc(100dvh-8rem)] min-h-0 overflow-hidden flex flex-col shadow-2xl relative animate-in zoom-in-95 duration-500">
         {/* Subtle glossy glow background elements */}
         <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 blur-3xl pointer-events-none -z-10"></div>
         <div className="absolute bottom-0 left-0 w-80 h-80 bg-blue-500/10 blur-3xl pointer-events-none -z-10"></div>
@@ -517,7 +526,8 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
                 }}
                 className="flex-1 min-w-0 text-left truncate whitespace-nowrap block mr-1.5 font-black drop-shadow-sm"
               >
-                {previousInnings.battingTeamName} (Inns 1)
+                {previousInnings.battingTeamName}
+                <span className="hidden sm:inline"> (Inns 1)</span>
               </span>
               <span
                 className={`px-1 py-0.5 rounded text-[9px] sm:text-[10px] font-black tabular-nums border shrink-0 ${
@@ -548,8 +558,11 @@ const Scoreboard: React.FC<ScoreboardProps> = ({
               }}
               className="flex-1 min-w-0 text-left truncate whitespace-nowrap block mr-1.5 font-black drop-shadow-sm"
             >
-              {currentInnings.battingTeamName} (Inns{" "}
-              {currentInnings.inningNumber})
+              {currentInnings.battingTeamName}
+              <span className="hidden sm:inline">
+                {" "}
+                (Inns {currentInnings.inningNumber})
+              </span>
             </span>
             <span
               className={`px-1 py-0.5 rounded text-[9px] sm:text-[10px] font-black tabular-nums border shrink-0 ${

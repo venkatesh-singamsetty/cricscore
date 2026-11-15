@@ -17,7 +17,7 @@ export const RunOutModal: React.FC<RunOutModalProps> = ({
   onClose,
 }) => {
   return (
-    <div className="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[200] p-4 backdrop-blur-md animate-in fade-in duration-300">
+    <div className="fixed inset-0 bg-slate-950/80 flex overflow-y-auto z-[200] px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] [&>*]:mx-auto [&>*]:my-auto backdrop-blur-md animate-in fade-in duration-300">
       <div className="bg-slate-900 border border-white/10 rounded-[2.5rem] p-6 w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-500 flex flex-col gap-4">
         <div className="flex items-center gap-3 border-b border-white/10 pb-4">
           <div className="w-1.5 h-6 bg-red-600 rounded-full"></div>
@@ -82,7 +82,7 @@ export const RunOutModal: React.FC<RunOutModalProps> = ({
         )}
         <button
           onClick={onClose}
-          className="mt-2 py-3 px-4 bg-transparent text-slate-500 rounded-full font-black uppercase tracking-widest text-[9px] hover:bg-white/5 hover:text-white transition-all border border-transparent hover:border-white/10"
+          className="mt-2 py-3.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-2xl font-black uppercase tracking-widest text-xs border border-white/10 active:scale-95 transition-all shadow-md cursor-pointer"
         >
           Abort Wicket
         </button>

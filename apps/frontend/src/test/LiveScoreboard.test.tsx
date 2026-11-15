@@ -727,4 +727,112 @@ describe("LiveScoreboard Component", () => {
     expect(screen.getAllByText(/14\/1/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/16\/0/i).length).toBeGreaterThan(0);
   });
+
+  it("does not inflate completed innings totalRuns when duplicate legal deliveries exist in allBalls", async () => {
+    const completedMatchWithDuplicateBall = {
+      match: {
+        id: "ff8cb0e2-a233-4f13-b013-f7a8d0608d5e",
+        status: "COMPLETED",
+        team_a_name: "TEAM A",
+        team_b_name: "TEAM B",
+        total_overs: 2,
+        match_winner: "TEAM A WON BY 7 WICKETS",
+      },
+      innings: [
+        {
+          id: "inn_1",
+          inning_number: 1,
+          batting_team_name: "TEAM B",
+          bowling_team_name: "TEAM A",
+          total_runs: 25,
+          total_wickets: 4,
+          overs: 2,
+          balls: 0,
+          is_completed: true,
+          players: [
+            {
+              id: "p_b1",
+              name: "PLAYER B1",
+              runs: 21,
+              balls_faced: 12,
+              fours: 2,
+              sixes: 1,
+              is_out: false,
+              batting_position: 1,
+            },
+          ],
+          bowlers: [],
+          allBalls: [
+            {
+              id: "orphan_ball",
+              over_number: 0,
+              ball_number: 1,
+              runs: 2,
+              is_extra: false,
+              extra_type: "NONE",
+              wicket_type: "NONE",
+            },
+            {
+              id: "real_ball_1",
+              over_number: 0,
+              ball_number: 1,
+              runs: 2,
+              is_extra: false,
+              extra_type: "NONE",
+              wicket_type: "NONE",
+            },
+            {
+              id: "remaining_balls",
+              over_number: 0,
+              ball_number: 2,
+              runs: 23,
+              is_extra: false,
+              extra_type: "NONE",
+              wicket_type: "NONE",
+            },
+          ],
+        },
+        {
+          id: "inn_2",
+          inning_number: 2,
+          batting_team_name: "TEAM A",
+          bowling_team_name: "TEAM B",
+          total_runs: 26,
+          total_wickets: 3,
+          overs: 2,
+          balls: 0,
+          is_completed: true,
+          players: [
+            {
+              id: "p_a1",
+              name: "PLAYER A1",
+              runs: 26,
+              balls_faced: 12,
+              fours: 3,
+              sixes: 1,
+              is_out: false,
+              batting_position: 1,
+            },
+          ],
+          bowlers: [],
+          allBalls: [],
+        },
+      ],
+    };
+
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => completedMatchWithDuplicateBall,
+    });
+
+    render(
+      <LiveScoreboard initialMatchId="ff8cb0e2-a233-4f13-b013-f7a8d0608d5e" />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/25\/4/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/26\/3/i).length).toBeGreaterThan(0);
+    });
+    expect(screen.queryByText(/27\/4/i)).not.toBeInTheDocument();
+  });
 });

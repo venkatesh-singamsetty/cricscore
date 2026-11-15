@@ -157,7 +157,7 @@ describe("ChatComponent", () => {
     );
 
     const chip = screen.getByRole("button", {
-      name: "Can you analyze the current match details?",
+      name: "Wide vs No-Ball: Which takes precedence?",
     });
     const pomChip = screen.getByRole("button", {
       name: "Who won Player of the Match in the last match?",
@@ -291,7 +291,7 @@ describe("ChatComponent", () => {
   });
 
   describe("Multi-Agent prompts and responses (RAG, DB, Weather, GitHub)", () => {
-    it("handles RAG prompts (Powerplay, Wide vs No-Ball, Fielders circle) and renders formatted answers", async () => {
+    it("handles RAG prompts (Powerplay, Wide vs No-Ball) and renders formatted answers", async () => {
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -309,7 +309,7 @@ describe("ChatComponent", () => {
       );
 
       const promptChip = screen.getByRole("button", {
-        name: "How many fielders are allowed outside the circle?",
+        name: "What are the Powerplay rules?",
       });
       await act(async () => {
         fireEvent.click(promptChip);

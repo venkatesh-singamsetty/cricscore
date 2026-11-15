@@ -299,4 +299,46 @@ describe("MatchView Component", () => {
       expect(thisOverContainer).toHaveTextContent(String(slot));
     }
   });
+
+  it("renders unified 4x4 keypad grid with all 16 buttons sharing identical column alignment and styling", () => {
+    const initialState = createInningsState();
+
+    render(
+      <MatchView
+        initialState={initialState}
+        totalOvers={2}
+        matchId="match_keypad_test"
+        userToken="test-token"
+        onInningsEnd={vi.fn()}
+        onResetMatch={vi.fn()}
+      />,
+    );
+
+    const grid = document.querySelector(".cs-cockpit-grid");
+    expect(grid).toBeInTheDocument();
+    expect(grid?.children.length).toBe(16);
+
+    const changeBowlerLabel = screen.getByText(/Change Bowler/i);
+    expect(changeBowlerLabel).toBeInTheDocument();
+
+    const changeBatterLabel = screen.getByText(/Change Batter/i);
+    expect(changeBatterLabel).toBeInTheDocument();
+
+    // Verify extras console buttons
+    expect(screen.getByRole("button", { name: /^WIDE$/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^NO BALL$/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^BYE$/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^LEG BYE$/i }),
+    ).toBeInTheDocument();
+
+    // Verify all buttons in the 4x4 grid have min-w-0, w-full, box-border
+    Array.from(grid!.children).forEach((btn) => {
+      expect(btn).toHaveClass("min-w-0");
+      expect(btn).toHaveClass("w-full");
+      expect(btn).toHaveClass("box-border");
+    });
+  });
 });

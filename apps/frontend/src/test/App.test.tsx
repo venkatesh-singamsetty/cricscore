@@ -1,10 +1,20 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  act,
+} from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import App, {
   isGuestEmail,
   buildGuestCredentials,
   decodeJwtPayload,
 } from "../App";
+
+vi.mock("../authConfig", () => ({
+  hasCognitoAuthConfig: vi.fn(() => true),
+}));
 
 vi.mock("aws-amplify/auth", () => ({
   fetchAuthSession: vi.fn().mockResolvedValue({
@@ -25,16 +35,21 @@ vi.mock("aws-amplify/utils", () => ({
 }));
 
 vi.mock("@aws-amplify/ui-react", () => ({
-  Authenticator: ({ children }: any) => (
-    <div>
-      {typeof children === "function"
-        ? children({ signOut: vi.fn(), user: null })
-        : children}
-    </div>
-  ),
+  Authenticator: ({ children, components }: any) => {
+    const Footer = components?.SignIn?.Footer;
+    return (
+      <div data-amplify-authenticator>
+        {Footer && <Footer />}
+        {typeof children === "function"
+          ? children({ signOut: vi.fn(), user: null })
+          : children}
+      </div>
+    );
+  },
   useAuthenticator: () => ({
     user: null,
     signOut: vi.fn(),
+    toForgotPassword: vi.fn(),
   }),
 }));
 
@@ -103,7 +118,9 @@ describe("App Component & Auth Utilities", () => {
     });
 
     it("renders primary navigation tabs", async () => {
-      render(<App />);
+      await act(async () => {
+        render(<App />);
+      });
 
       expect(
         screen.getByRole("button", { name: /VIEWER 🌍/i }),
@@ -116,17 +133,45 @@ describe("App Component & Auth Utilities", () => {
       ).toBeInTheDocument();
     });
 
-    it("switches to CHAT BOT tab when clicked", async () => {
-      render(<App />);
-
-      const chatTabButton = screen.getByRole("button", {
-        name: /CHAT BOT ✨/i,
+    it("renders Continue as Guest without 'No account needed' subtext on Scorer sign-in", async () => {
+      await act(async () => {
+        render(<App />);
       });
-      fireEvent.click(chatTabButton);
+
+      const scorerTabButton = screen.getByRole("button", {
+        name: /SCORER 🎮/i,
+      });
+      fireEvent.click(scorerTabButton);
 
       await waitFor(() => {
-        expect(chatTabButton).toHaveClass("text-amber-400");
+        expect(
+          screen.getByRole("button", { name: /Continue as Guest/i }),
+        ).toBeInTheDocument();
       });
+
+      // Confirm old helper subtext has been removed
+      expect(screen.queryByText(/No account needed/i)).not.toBeInTheDocument();
+    });
+
+    it("keeps top navigation bar clean with exactly 3 primary tabs and no standalone SIGN IN button", async () => {
+      await act(async () => {
+        render(<App />);
+      });
+
+      expect(
+        screen.getByRole("button", { name: /VIEWER 🌍/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /SCORER 🎮/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /CHAT BOT ✨/i }),
+      ).toBeInTheDocument();
+
+      // Top nav bar should not contain a separate SIGN IN tab
+      expect(
+        screen.queryByRole("button", { name: /^SIGN IN$/i }),
+      ).not.toBeInTheDocument();
     });
   });
 });

@@ -330,7 +330,23 @@ exports.handler = async (event, context) => {
       }
 
       if (!syncOnly && ballData && !undo) {
-        // 3. Log Ball Event
+        // 3. Log Ball Event (first prune any stale/undone/duplicate legal delivery at or beyond this ball position)
+        await client.query(
+          `DELETE FROM ball_events
+           WHERE inning_id = $1
+             AND (
+               over_number > $2
+               OR (over_number = $2 AND ball_number > $3)
+               OR (
+                 over_number = $2
+                 AND ball_number = $3
+                 AND UPPER(COALESCE(extra_type, 'NONE')) NOT IN ('WIDE', 'NO_BALL')
+                 AND UPPER(COALESCE(wicket_type, 'NONE')) NOT IN ('RETIRED_HURT', 'RETIRED_OUT')
+               )
+             )`,
+          [inningId, ballData.overNumber, ballData.ballNumber],
+        );
+
         await client.query(
           `INSERT INTO ball_events (inning_id, over_number, ball_number, bowler_name, batter_name, runs, is_extra, extra_type, extra_runs, is_wicket, wicket_type, fielder_name, commentary) 
                      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,

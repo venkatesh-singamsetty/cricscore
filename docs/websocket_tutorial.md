@@ -176,8 +176,8 @@ export const handler = async (event) => {
   - Prevents a slightly lagging REST poll read from briefly reverting a live boundary or 2nd-innings score by applying monotonic reconciliation (`Math.max(old.totalRuns, inn.totalRuns, playerRunsSum)`).
 - **Multi-Innings Routing (`WHERE match_id = $1 AND inning_number = $2`):**
   - Resolves the canonical inning row in `storage-worker` during rapid 2nd-innings scoring before the client receives the database primary key for the new inning row.
-- **Atomic Real-Time Undo (`undo: true`):**
-  - `score-update` broadcasts `undo: true` with restored cumulative totals while `storage-worker` deletes the latest `balls` record and updates `innings` atomically in PostgreSQL.
+- **Atomic Real-Time Undo (`undo: true`) & Duplicate Legal Delivery Pruning:**
+  - `score-update` broadcasts `undo: true` with restored cumulative totals while `storage-worker` deletes the latest `ball_events` record and updates `innings` atomically in PostgreSQL. When logging a new delivery, `storage-worker` also prunes any stale or duplicate legal delivery at or beyond `(over_number, ball_number)` so an undo-and-rescore race never leaves orphan `ball_events` rows or inflates completed innings totals.
 
 ---
 

@@ -7,13 +7,14 @@ import { AiMatchPrediction } from "./AiMatchPrediction";
 import { InningsState, ExtraType, WicketType } from "../types";
 import { getCurrentPartnership } from "../utils/partnershipUtils";
 import { calculateDlsParScore } from "../utils/dlsUtils";
-import { stripPlayerOfMatchLine } from "../utils/summaryFormat";
+import { parsePlayerOfTheMatch } from "../utils/summaryFormat";
 import { getTeamBrandColor } from "../utils/teamColorUtils";
 import {
   isHubRefreshType,
   isScoreEventType,
   unwrapLiveScoreMessage,
 } from "../utils/applyLiveScoreToMatches";
+import { BatIcon } from "./icons/CricketIcons";
 
 interface LiveBall {
   overNumber: number;
@@ -218,7 +219,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
             0,
           );
 
-          const allBallsMapped = (inn.allBalls || []).map((b: any) => ({
+          const rawAllBallsMapped = (inn.allBalls || []).map((b: any) => ({
             ...b,
             bowlerName: b.bowler_name || b.bowlerName,
             batterName: b.batter_name || b.batterName,
@@ -232,6 +233,26 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
             ballNumber:
               b.ball_number !== undefined ? b.ball_number : b.ballNumber,
           }));
+
+          // Deduplicate any orphan/undone legal deliveries at the same (overNumber, ballNumber)
+          const allBallsMapped: any[] = [];
+          const legalBallIdxByPos = new Map<string, number>();
+          for (const b of rawAllBallsMapped) {
+            const isLegalDelivery =
+              b.extraType !== ExtraType.WIDE &&
+              b.extraType !== ExtraType.NO_BALL &&
+              b.wicketType !== WicketType.RETIRED_HURT &&
+              b.wicketType !== WicketType.RETIRED_OUT;
+            const posKey = `${b.overNumber}:${b.ballNumber}`;
+            if (isLegalDelivery && legalBallIdxByPos.has(posKey)) {
+              allBallsMapped[legalBallIdxByPos.get(posKey)!] = b;
+            } else {
+              if (isLegalDelivery) {
+                legalBallIdxByPos.set(posKey, allBallsMapped.length);
+              }
+              allBallsMapped.push(b);
+            }
+          }
 
           const ballsRunsSum = allBallsMapped.reduce((sum: number, b: any) => {
             const r = Number(b.runs || 0);
@@ -252,11 +273,16 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
             return sum + ballTotal;
           }, 0);
 
-          const derivedTotalRuns = Math.max(
-            Number(inn.total_runs || inn.totalRuns || 0),
-            playerRunsSum,
-            ballsRunsSum,
+          const isCompletedInnings =
+            Boolean(inn.is_completed ?? inn.isCompleted) ||
+            data.match.status === "COMPLETED";
+          const explicitInningsRuns = Number(
+            inn.total_runs || inn.totalRuns || 0,
           );
+          const derivedTotalRuns =
+            isCompletedInnings && explicitInningsRuns > 0
+              ? Math.max(explicitInningsRuns, playerRunsSum)
+              : Math.max(explicitInningsRuns, playerRunsSum, ballsRunsSum);
 
           const outWicketsCount = Object.values(players).filter(
             (p: any) => p.isOut && p.wicketType !== WicketType.RETIRED_HURT,
@@ -266,11 +292,18 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
             (b: any) => b.isWicket && b.wicketType !== WicketType.RETIRED_HURT,
           ).length;
 
-          const derivedTotalWickets = Math.max(
-            Number(inn.total_wickets || inn.totalWickets || 0),
-            outWicketsCount,
-            ballsWicketsCount,
+          const explicitInningsWickets = Number(
+            inn.total_wickets || inn.totalWickets || 0,
           );
+          const derivedTotalWickets =
+            isCompletedInnings &&
+            (explicitInningsWickets > 0 || explicitInningsRuns > 0)
+              ? Math.max(explicitInningsWickets, outWicketsCount)
+              : Math.max(
+                  explicitInningsWickets,
+                  outWicketsCount,
+                  ballsWicketsCount,
+                );
 
           const innOvers = Number(inn.overs || 0);
           const innBalls = Number(inn.balls || 0);
@@ -1239,7 +1272,9 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                     {/* Main Row: Prominent Batting Team on Left, Huge Score on Right */}
                     <div className="flex justify-between items-center gap-3 pt-1 pb-0.5 min-w-0">
                       <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <span className="text-xl sm:text-2xl shrink-0">🏏</span>
+                        <span className="text-xl sm:text-2xl shrink-0">
+                          <BatIcon />
+                        </span>
                         <h2
                           style={{
                             color: getTeamBrandColor(
@@ -1248,7 +1283,7 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                               matchMeta?.teamB,
                             ),
                           }}
-                          className="text-lg sm:text-2xl font-black uppercase tracking-tight truncate whitespace-nowrap"
+                          className="text-base sm:text-2xl font-black uppercase tracking-tight break-words line-clamp-2 leading-tight"
                         >
                           {currentInnings.battingTeamName}
                         </h2>
@@ -1699,7 +1734,9 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                     <div className="relative z-10">
                       <div className="flex justify-center gap-4 mb-6 opacity-30">
                         <span className="text-4xl">🏆</span>
-                        <span className="text-4xl">🏏</span>
+                        <span className="text-4xl">
+                          <BatIcon />
+                        </span>
                         <span className="text-4xl">🏆</span>
                       </div>
 
@@ -1739,59 +1776,51 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
                       </button>
                     </div>
                   </div>
-                  {!matchMeta?.aiSummary ? (
-                    <div className="bg-slate-800/30 border border-white/5 rounded-[2rem] p-6 text-center animate-pulse">
-                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center justify-center gap-2 mb-3">
-                        <span className="animate-spin">⏳</span>{" "}
-                        {isGeneratingAiSummary
-                          ? "GENERATING MATCH SUMMARY & POM..."
-                          : "FETCHING AI SUMMARY..."}
-                      </span>
-                      {!isGeneratingAiSummary && (
-                        <button
-                          onClick={() => handleGenerateAiSummary(true)}
-                          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-lg"
-                        >
-                          ✨ GENERATE AI SUMMARY NOW
-                        </button>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="bg-slate-800/50 border border-indigo-500/30 rounded-[2rem] p-6 text-left shadow-xl animate-in slide-in-from-bottom-4 duration-700">
-                      <div className="flex justify-between items-center mb-4">
-                        <h4 className="text-xs font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">
-                          <span>🤖</span> MATCH SUMMARY & POM
-                        </h4>
-                        <button
-                          onClick={() => handleGenerateAiSummary(true)}
-                          disabled={isGeneratingAiSummary}
-                          className="px-3 py-1.5 bg-indigo-600/20 hover:bg-indigo-600 text-indigo-400 hover:text-white rounded-xl font-black text-[10px] uppercase tracking-wider border border-indigo-500/30 transition-all flex items-center gap-1.5 disabled:opacity-50"
-                        >
-                          {isGeneratingAiSummary
-                            ? "REGENERATING..."
-                            : "🔄 REFRESH"}
-                        </button>
-                      </div>
-                      <div className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
-                        {matchMeta.playerOfTheMatch
-                          ? stripPlayerOfMatchLine(matchMeta.aiSummary)
-                          : matchMeta.aiSummary}
-                      </div>
-                      {matchMeta.playerOfTheMatch && (
-                        <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-center gap-3">
-                          <span className="text-2xl">🏆</span>
-                          <div>
-                            <div className="text-amber-500 text-[10px] font-black tracking-widest uppercase">
-                              Player of the Match
-                            </div>
-                            <div className="text-amber-100 font-bold text-sm">
-                              {matchMeta.playerOfTheMatch}
-                            </div>
-                          </div>
+                  {matchMeta?.playerOfTheMatch ? (
+                    <div className="p-4 bg-gradient-to-r from-amber-500/25 via-amber-500/15 to-slate-900/60 border border-amber-500/40 rounded-2xl flex items-center gap-3.5 shadow-[0_0_20px_rgba(245,158,11,0.2)] animate-in zoom-in-95 duration-300 text-left">
+                      <span className="text-3xl sm:text-4xl shrink-0">🏆</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-amber-400 text-[10px] sm:text-xs font-black tracking-widest uppercase flex items-center gap-1.5">
+                          <span>PLAYER OF THE MATCH</span>
                         </div>
-                      )}
+                        <div className="font-bold text-sm sm:text-base tracking-wide leading-snug break-words mt-0.5">
+                          <span className="text-cyan-400 font-black text-base sm:text-lg">
+                            {
+                              parsePlayerOfTheMatch(matchMeta.playerOfTheMatch)
+                                .name
+                            }
+                          </span>
+                          {parsePlayerOfTheMatch(matchMeta.playerOfTheMatch)
+                            .details && (
+                            <span className="text-slate-100 font-medium ml-1.5">
+                              —{" "}
+                              {
+                                parsePlayerOfTheMatch(
+                                  matchMeta.playerOfTheMatch,
+                                ).details
+                              }
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  )}
+                  ) : isGeneratingAiSummary ? (
+                    <div className="bg-slate-800/40 border border-amber-500/20 rounded-2xl p-3.5 text-center animate-pulse flex items-center justify-center gap-2">
+                      <span className="animate-spin text-amber-400">⏳</span>
+                      <span className="text-[10px] sm:text-xs font-black text-amber-400 uppercase tracking-widest">
+                        CALCULATING PLAYER OF THE MATCH...
+                      </span>
+                    </div>
+                  ) : !matchMeta?.isGuest ? (
+                    <div className="bg-slate-800/30 border border-white/5 rounded-2xl p-4 text-center">
+                      <button
+                        onClick={() => handleGenerateAiSummary(true)}
+                        className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-lg"
+                      >
+                        ✨ VIEW STANDOUT PLAYER OF THE MATCH
+                      </button>
+                    </div>
+                  ) : null}
                   <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic leading-relaxed opacity-50">
                     This match is safely archived in the cloud.
                   </p>

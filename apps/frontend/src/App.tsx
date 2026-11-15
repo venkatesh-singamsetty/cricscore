@@ -18,7 +18,7 @@ import {
 } from "aws-amplify/auth";
 import { Hub } from "aws-amplify/utils";
 import { hasCognitoAuthConfig } from "./authConfig";
-import { stripPlayerOfMatchLine } from "./utils/summaryFormat";
+import { parsePlayerOfTheMatch } from "./utils/summaryFormat";
 import {
   safeLocalStorageGet,
   safeLocalStorageRemove,
@@ -27,6 +27,7 @@ import {
   safeSessionStorageSet,
   CHAT_MEMORY_KEY,
 } from "./utils/storageSafety";
+import { BatIcon } from "./components/icons/CricketIcons";
 
 const MatchSetup = React.lazy(() => import("./components/MatchSetup"));
 const MatchView = React.lazy(() => import("./components/MatchView"));
@@ -423,7 +424,7 @@ const App: React.FC = () => {
   };
 
   const GuestCta = () => (
-    <div className="auth-guest-wrap mb-1">
+    <div className="auth-guest-wrap">
       <div className="auth-divider">
         <span>or</span>
       </div>
@@ -438,29 +439,15 @@ const App: React.FC = () => {
         <span className="auth-guest-icon">⚡</span>
         {isStartingGuest ? "Starting…" : "Continue as Guest"}
       </button>
-      <p className="auth-guest-hint">No account needed · score instantly</p>
-
-      {/* Scorer capabilities footer - Single line on mobile anchored cleanly */}
-      <div className="mt-3 pt-2.5 pb-1 border-t border-white/5 flex items-center justify-center gap-1.5 sm:gap-2.5 text-center text-[8.5px] sm:text-[9.5px] text-slate-400 font-bold uppercase tracking-wider whitespace-nowrap overflow-hidden">
-        <span className="flex items-center gap-1 text-slate-300 shrink-0">
-          <span className="text-emerald-400 text-xs">⚡</span> Instant Setup
-        </span>
-        <span className="text-slate-600 shrink-0">·</span>
-        <span className="flex items-center gap-1 text-slate-300 shrink-0">
-          <span className="text-blue-400 text-xs">🌍</span> Match Hub
-        </span>
-        <span className="text-slate-600 shrink-0">·</span>
-        <span className="flex items-center gap-1 text-slate-300 shrink-0">
-          <span className="text-indigo-400 text-xs">📋</span> Scorecards
-        </span>
-      </div>
     </div>
   );
 
   const AuthHeader = () => (
     <div className="auth-hero">
       <div className="auth-hero-brand">
-        <div className="auth-logo">🏏</div>
+        <div className="auth-logo">
+          <BatIcon />
+        </div>
         <h2 className="auth-title">
           Cric<span>Score</span>
         </h2>
@@ -1138,6 +1125,7 @@ const App: React.FC = () => {
       setUserToken(null);
       setIsAdmin(false);
       setUserEmail(null);
+      setIsGuestScorer(false);
       setView("VIEWER");
     } catch (e) {
       console.error("Sign out error", e);
@@ -1453,18 +1441,18 @@ const App: React.FC = () => {
   }, [matchStatus, matchId, hasSentAutoEmail]);
 
   return (
-    <div className="h-full w-full flex flex-col bg-slate-950 font-sans text-slate-100 overflow-hidden">
+    <div className="h-[100dvh] max-h-[100dvh] w-full flex flex-col bg-slate-950 font-sans text-slate-100 overflow-hidden">
       {/* Global Header Switcher - Always Visible & Clickable */}
       <div
         className="bg-slate-950/80 backdrop-blur-md shrink-0 border-b border-white/10 z-[500] sticky top-0 shadow-md w-full"
         style={{ paddingTop: "max(env(safe-area-inset-top), 0.375rem)" }}
       >
-        <div className="max-w-5xl mx-auto w-full px-3 py-1.5 md:py-2 flex justify-between items-center">
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none max-w-full">
-            <div className="flex bg-slate-900/90 p-1 rounded-full border border-white/10 shrink-0 gap-1 shadow-inner">
+        <div className="max-w-5xl mx-auto w-full px-2 min-[380px]:px-3 py-1.5 md:py-2 flex justify-between items-center gap-2">
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none min-w-0 max-w-full">
+            <div className="flex bg-slate-900/90 p-0.5 min-[380px]:p-1 rounded-full border border-white/10 shrink-0 gap-0.5 min-[380px]:gap-1 shadow-inner">
               <button
                 onClick={() => handleViewClick("VIEWER")}
-                className={`px-3 py-1.5 md:px-5 md:py-2 font-black text-xs md:text-sm tracking-wide transition-all whitespace-nowrap rounded-full ${
+                className={`px-2 min-[380px]:px-3 py-1.5 md:px-5 md:py-2 font-black text-[11px] min-[380px]:text-xs md:text-sm tracking-normal min-[380px]:tracking-wide transition-all whitespace-nowrap rounded-full ${
                   view === "VIEWER"
                     ? "text-cyan-400 bg-cyan-500/25 border border-cyan-400/60 shadow-[0_0_14px_rgba(6,182,212,0.4)]"
                     : "text-slate-400 hover:text-cyan-300 hover:bg-white/5 border border-transparent font-semibold"
@@ -1474,7 +1462,7 @@ const App: React.FC = () => {
               </button>
               <button
                 onClick={() => handleViewClick("SCORER")}
-                className={`px-3 py-1.5 md:px-5 md:py-2 font-black text-xs md:text-sm tracking-wide transition-all whitespace-nowrap rounded-full ${
+                className={`px-2 min-[380px]:px-3 py-1.5 md:px-5 md:py-2 font-black text-[11px] min-[380px]:text-xs md:text-sm tracking-normal min-[380px]:tracking-wide transition-all whitespace-nowrap rounded-full ${
                   view === "SCORER"
                     ? "text-emerald-400 bg-emerald-500/25 border border-emerald-400/60 shadow-[0_0_14px_rgba(16,185,129,0.4)]"
                     : "text-slate-400 hover:text-emerald-300 hover:bg-white/5 border border-transparent font-semibold"
@@ -1484,7 +1472,7 @@ const App: React.FC = () => {
               </button>
               <button
                 onClick={() => handleViewClick("CHAT")}
-                className={`px-3 py-1.5 md:px-5 md:py-2 font-black text-xs md:text-sm tracking-wide transition-all whitespace-nowrap rounded-full ${
+                className={`px-2 min-[380px]:px-3 py-1.5 md:px-5 md:py-2 font-black text-[11px] min-[380px]:text-xs md:text-sm tracking-normal min-[380px]:tracking-wide transition-all whitespace-nowrap rounded-full ${
                   view === "CHAT"
                     ? "text-amber-400 bg-amber-500/25 border border-amber-400/60 shadow-[0_0_14px_rgba(245,158,11,0.4)]"
                     : "text-slate-400 hover:text-amber-300 hover:bg-white/5 border border-transparent font-semibold"
@@ -1533,7 +1521,9 @@ const App: React.FC = () => {
                         }}
                         className="w-full px-4 py-3 text-left text-sm font-bold text-amber-400 hover:bg-amber-900/20 transition-colors flex items-center gap-3"
                       >
-                        <span className="text-base">🏏</span>
+                        <span className="text-base">
+                          <BatIcon />
+                        </span>
                         <div>
                           <div className="text-xs font-black uppercase tracking-wider">
                             New Match
@@ -1632,7 +1622,9 @@ const App: React.FC = () => {
                           }}
                           className="w-full px-4 py-3 text-left flex items-center gap-3 hover:bg-slate-800 transition-colors border-b border-white/5 text-amber-400 sm:hidden"
                         >
-                          <span className="text-base">🏏</span>
+                          <span className="text-base">
+                            <BatIcon />
+                          </span>
                           <div>
                             <div className="text-xs font-black uppercase tracking-wider">
                               New Match
@@ -1680,20 +1672,6 @@ const App: React.FC = () => {
                   </div>
                 )}
               </div>
-            ) : isGuestScorer ? (
-              <button
-                onClick={async () => {
-                  setIsGuestScorer(false);
-                  try {
-                    await signOut();
-                    safeLocalStorageRemove(CHAT_MEMORY_KEY);
-                  } catch (e) {}
-                }}
-                className="px-3 py-1.5 bg-indigo-500/10 text-indigo-300 hover:text-white border border-indigo-500/20 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors shadow-sm"
-                title="Sign In to Save"
-              >
-                SIGN IN
-              </button>
             ) : null}
           </div>
         </div>
@@ -1754,7 +1732,12 @@ const App: React.FC = () => {
           }
         >
           {view === "VIEWER" && (
-            <div className="flex-1 min-h-0 overflow-y-auto bg-slate-950 flex flex-col p-3 sm:p-4 md:p-8">
+            <div
+              className="flex-1 min-h-0 overflow-y-auto bg-slate-950 flex flex-col p-3 sm:p-4 md:p-8"
+              style={{
+                paddingBottom: "calc(env(safe-area-inset-bottom, 20px) + 24px)",
+              }}
+            >
               <div
                 className={`max-w-5xl mx-auto w-full ${activeViewerMatchId ? "space-y-4" : "space-y-6 sm:space-y-8"} animate-in fade-in zoom-in-95 duration-500 pb-6`}
               >
@@ -1795,7 +1778,13 @@ const App: React.FC = () => {
               components={authComponents}
             >
               {() => (
-                <div className="flex-1 min-h-0 overflow-y-auto bg-slate-950 flex flex-col p-3 sm:p-4 md:p-8">
+                <div
+                  className="flex-1 min-h-0 overflow-y-auto bg-slate-950 flex flex-col p-3 sm:p-4 md:p-8"
+                  style={{
+                    paddingBottom:
+                      "calc(env(safe-area-inset-bottom, 20px) + 24px)",
+                  }}
+                >
                   <div className="max-w-5xl mx-auto w-full space-y-6 sm:space-y-8 animate-in fade-in zoom-in-95 duration-500 pb-6">
                     <div className="text-center space-y-1.5 sm:space-y-2">
                       <h1 className="text-3xl sm:text-4xl font-black text-white uppercase tracking-tighter italic">
@@ -1856,10 +1845,10 @@ const App: React.FC = () => {
                 {matchStatus === MatchStatus.INNINGS_BREAK &&
                   currentInnings &&
                   previousInnings && (
-                    <div className="flex-1 min-h-0 overflow-y-auto flex items-center justify-center p-4 bg-slate-950 selection:bg-indigo-500/30">
-                      <div className="relative w-full max-w-2xl animate-in zoom-in-95 duration-500 text-center">
-                        <div className="bg-slate-900 border border-white/5 p-8 md:p-10 rounded-[3rem] shadow-2xl relative overflow-hidden backdrop-blur-3xl">
-                          <h2 className="text-4xl font-black text-white uppercase tracking-tighter italic mb-3">
+                    <div className="flex-1 min-h-0 overflow-y-auto flex px-3 sm:px-4 pt-3 sm:pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-slate-950 selection:bg-indigo-500/30">
+                      <div className="relative w-full max-w-2xl mx-auto my-auto animate-in zoom-in-95 duration-500 text-center">
+                        <div className="bg-slate-900 border border-white/5 p-5 sm:p-8 md:p-10 rounded-[2rem] sm:rounded-[3rem] shadow-2xl relative overflow-hidden backdrop-blur-3xl">
+                          <h2 className="text-3xl sm:text-4xl font-black text-white uppercase tracking-tighter italic mb-3">
                             Innings Break
                           </h2>
                           <div className="mb-6 p-4 bg-slate-800/60 rounded-2xl border border-white/10 max-w-md mx-auto">
@@ -1894,7 +1883,9 @@ const App: React.FC = () => {
                               className="flex-1 h-16 sm:h-20 min-h-[64px] bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-2xl font-black text-base sm:text-lg uppercase tracking-wider italic hover:shadow-[0_0_30px_rgba(99,102,241,0.6)] active:scale-95 transition-all shadow-2xl shadow-indigo-600/40 border-2 border-indigo-400/50 flex items-center justify-center gap-2.5"
                             >
                               <span>Start 2nd Innings</span>
-                              <span className="text-2xl sm:text-3xl">🏏</span>
+                              <span className="text-2xl sm:text-3xl">
+                                <BatIcon />
+                              </span>
                             </button>
                           </div>
                           <p className="mt-4 text-xs font-medium text-slate-500">
@@ -1907,10 +1898,16 @@ const App: React.FC = () => {
                   )}
 
                 {matchStatus === MatchStatus.COMPLETED && currentInnings && (
-                  <div className="flex-1 min-h-0 overflow-y-auto flex items-center justify-center p-4 bg-slate-950 selection:bg-indigo-500/30">
-                    <div className="relative w-full max-w-2xl animate-in zoom-in-95 duration-500 text-center">
-                      <div className="bg-slate-900 border border-white/5 p-6 md:p-8 rounded-2xl shadow-2xl relative overflow-hidden backdrop-blur-3xl">
-                        <div className="text-center space-y-6">
+                  <div
+                    className="flex-1 min-h-0 overflow-y-auto flex flex-col px-3 sm:px-4 pt-3 sm:pt-4 bg-slate-950 selection:bg-indigo-500/30"
+                    style={{
+                      paddingBottom:
+                        "calc(env(safe-area-inset-bottom, 20px) + 24px)",
+                    }}
+                  >
+                    <div className="relative w-full max-w-2xl mx-auto py-2 animate-in zoom-in-95 duration-500 text-center">
+                      <div className="bg-slate-900 border border-white/10 p-5 sm:p-7 md:p-8 rounded-3xl shadow-2xl relative overflow-hidden backdrop-blur-3xl">
+                        <div className="text-center space-y-5 sm:space-y-6">
                           <div className="space-y-3">
                             <div className="flex justify-center">
                               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 via-yellow-500/30 to-amber-500/20 border border-amber-400/40 text-amber-300 text-xs font-black uppercase tracking-widest shadow-[0_0_20px_rgba(245,158,11,0.25)]">
@@ -1918,17 +1915,13 @@ const App: React.FC = () => {
                                 CELEBRATION <span className="text-lg">🎉</span>
                               </div>
                             </div>
-                            <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter italic">
+                            <h2 className="text-3xl sm:text-4xl md:text-5xl break-words font-black text-white uppercase tracking-tighter italic">
                               <HighlightedResult text={getWinnerMessage()} />
                             </h2>
-                            <p className="text-xs font-black text-indigo-400 uppercase tracking-[0.3em]">
-                              Match{" "}
-                              {matchId ? `#${matchId.substring(0, 8)}` : ""}
-                            </p>
                           </div>
 
                           {/* Final Scorecard Comparison */}
-                          <div className="grid grid-cols-2 gap-4 bg-slate-950/60 p-6 rounded-3xl border border-white/5 shadow-inner">
+                          <div className="grid grid-cols-2 gap-3 sm:gap-4 bg-slate-950/60 p-4 sm:p-6 rounded-3xl border border-white/5 shadow-inner">
                             <div className="text-center border-r border-white/5 pr-4">
                               <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">
                                 {previousInnings
@@ -1970,10 +1963,10 @@ const App: React.FC = () => {
                           </div>
 
                           {/* Action Buttons */}
-                          <div className="flex flex-row gap-2 pt-2">
+                          <div className="flex flex-row gap-2 pt-1">
                             <button
                               onClick={copyMatchLink}
-                              className={`flex-1 py-3 rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest border transition-all flex items-center justify-center gap-1 ${
+                              className={`flex-1 py-3.5 rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest border transition-all flex items-center justify-center gap-1 ${
                                 copyFeedback
                                   ? "bg-emerald-600/20 text-emerald-400 border-emerald-500/40"
                                   : "bg-slate-800/80 text-white border-white/10 hover:bg-slate-800"
@@ -1993,77 +1986,70 @@ const App: React.FC = () => {
                             </button>
                             <button
                               onClick={() => setShowResetConfirm(true)}
-                              className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest shadow-xl shadow-indigo-600/20 active:scale-95 transition-all flex items-center justify-center gap-1"
+                              className="flex-1 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest shadow-xl shadow-indigo-600/20 active:scale-95 transition-all flex items-center justify-center gap-1"
                             >
                               <span>NEW MATCH</span>
-                              <span className="text-xs md:text-sm">🏏</span>
+                              <span className="text-xs md:text-sm">
+                                <BatIcon />
+                              </span>
                             </button>
                             <button
                               onClick={handleQuitMatch}
-                              className="flex-1 py-3 bg-rose-900/40 hover:bg-rose-900/60 text-rose-300 border border-rose-500/30 rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest shadow-xl shadow-rose-950/40 active:scale-95 transition-all flex items-center justify-center gap-1"
+                              className="flex-1 py-3.5 bg-rose-900/40 hover:bg-rose-900/60 text-rose-300 border border-rose-500/30 rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest shadow-xl shadow-rose-950/40 active:scale-95 transition-all flex items-center justify-center gap-1"
                             >
                               <span>QUIT</span>
                               <span className="text-xs md:text-sm">🚪</span>
                             </button>
                           </div>
 
-                          {/* AI Summary Block */}
-                          <div className="mt-2">
-                            {isGeneratingAi ? (
-                              <div className="bg-slate-800/40 border border-indigo-500/20 rounded-2xl p-4 text-center animate-pulse">
-                                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center justify-center gap-2">
-                                  <span className="animate-spin">⏳</span>{" "}
-                                  GENERATING POM & MATCH SUMMARY...
+                          {/* Streamlined Standout Player of the Match Card Only */}
+                          {playerOfTheMatch ? (
+                            <div className="mt-3 text-left">
+                              <div className="p-4 bg-gradient-to-r from-amber-500/25 via-amber-500/15 to-slate-900/60 border border-amber-500/40 rounded-2xl flex items-center gap-3.5 shadow-[0_0_20px_rgba(245,158,11,0.2)] animate-in zoom-in-95 duration-300">
+                                <span className="text-3xl sm:text-4xl shrink-0">
+                                  🏆
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                  <div className="text-amber-400 text-[10px] sm:text-xs font-black tracking-widest uppercase flex items-center gap-1.5">
+                                    <span>PLAYER OF THE MATCH</span>
+                                  </div>
+                                  <div className="font-bold text-sm sm:text-base tracking-wide leading-snug break-words mt-0.5">
+                                    <span className="text-cyan-400 font-black text-base sm:text-lg">
+                                      {
+                                        parsePlayerOfTheMatch(playerOfTheMatch)
+                                          .name
+                                      }
+                                    </span>
+                                    {parsePlayerOfTheMatch(playerOfTheMatch)
+                                      .details && (
+                                      <span className="text-slate-100 font-medium ml-1.5">
+                                        —{" "}
+                                        {
+                                          parsePlayerOfTheMatch(
+                                            playerOfTheMatch,
+                                          ).details
+                                        }
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ) : isGeneratingAi ? (
+                            <div className="mt-3 text-left">
+                              <div className="bg-slate-800/40 border border-amber-500/20 rounded-2xl p-3.5 text-center animate-pulse flex items-center justify-center gap-2">
+                                <span className="animate-spin text-amber-400">
+                                  ⏳
+                                </span>
+                                <span className="text-[10px] sm:text-xs font-black text-amber-400 uppercase tracking-widest">
+                                  CALCULATING PLAYER OF THE MATCH...
                                 </span>
                               </div>
-                            ) : aiSummary ? (
-                              <div className="bg-slate-800/50 border border-indigo-500/30 rounded-2xl p-4 text-left shadow-xl">
-                                <div className="flex justify-between items-center mb-3">
-                                  <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">
-                                    <span>🤖</span> MATCH SUMMARY &amp; POM
-                                  </h4>
-                                  <button
-                                    onClick={() =>
-                                      handleGenerateAiSummary(true)
-                                    }
-                                    disabled={isGeneratingAi}
-                                    className="px-2 py-1 bg-indigo-600/20 hover:bg-indigo-600 text-indigo-400 hover:text-white rounded-lg font-black text-[9px] uppercase tracking-wider border border-indigo-500/30 transition-all disabled:opacity-50"
-                                  >
-                                    🔄 REFRESH
-                                  </button>
-                                </div>
-                                <div className="text-slate-300 text-xs leading-relaxed whitespace-pre-wrap">
-                                  {playerOfTheMatch
-                                    ? stripPlayerOfMatchLine(aiSummary)
-                                    : aiSummary}
-                                </div>
-                                {playerOfTheMatch && (
-                                  <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-center gap-3">
-                                    <span className="text-2xl">🏆</span>
-                                    <div>
-                                      <div className="text-amber-500 text-[10px] font-black tracking-widest uppercase">
-                                        Player of the Match
-                                      </div>
-                                      <div className="text-amber-100 font-bold text-sm">
-                                        {playerOfTheMatch}
-                                      </div>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              <div className="bg-slate-800/30 border border-white/5 rounded-2xl p-4 text-center">
-                                <button
-                                  onClick={() => handleGenerateAiSummary(true)}
-                                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-lg"
-                                >
-                                  ✨ GENERATE POM & MATCH SUMMARY
-                                </button>
-                              </div>
-                            )}
-                          </div>
+                            </div>
+                          ) : null}
                         </div>
                       </div>
+                      <div className="h-8 w-full shrink-0" aria-hidden="true" />
                     </div>
                   </div>
                 )}
@@ -2072,7 +2058,8 @@ const App: React.FC = () => {
               <div
                 className="flex-1 min-h-0 overflow-hidden sm:overflow-y-auto flex flex-col w-full bg-slate-950 p-0 sm:px-3 sm:py-6 relative"
                 style={{
-                  paddingBottom: "max(1rem, env(safe-area-inset-bottom, 1rem))",
+                  paddingBottom:
+                    "max(1.5rem, calc(env(safe-area-inset-bottom, 1rem) + 1rem))",
                 }}
               >
                 {/* Background ambient decorative glow */}
@@ -2085,7 +2072,7 @@ const App: React.FC = () => {
                     components={authComponents}
                   >
                     {() => (
-                      <div className="h-full w-full flex flex-col">
+                      <div className="h-full w-full flex flex-col min-h-0">
                         {matchStatus === MatchStatus.SETUP && (
                           <MatchSetup
                             onStartMatch={startMatch}
@@ -2120,10 +2107,10 @@ const App: React.FC = () => {
                         {matchStatus === MatchStatus.INNINGS_BREAK &&
                           currentInnings &&
                           previousInnings && (
-                            <div className="h-full overflow-y-auto flex items-center justify-center p-4 bg-slate-950 selection:bg-indigo-500/30">
-                              <div className="relative w-full max-w-2xl animate-in zoom-in-95 duration-500 text-center">
-                                <div className="bg-slate-900 border border-white/5 p-8 md:p-10 rounded-[3rem] shadow-2xl relative overflow-hidden backdrop-blur-3xl">
-                                  <h2 className="text-4xl font-black text-white uppercase tracking-tighter italic mb-3">
+                            <div className="h-full overflow-y-auto flex px-3 sm:px-4 pt-3 sm:pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-slate-950 selection:bg-indigo-500/30">
+                              <div className="relative w-full max-w-2xl mx-auto my-auto animate-in zoom-in-95 duration-500 text-center">
+                                <div className="bg-slate-900 border border-white/5 p-5 sm:p-8 md:p-10 rounded-[2rem] sm:rounded-[3rem] shadow-2xl relative overflow-hidden backdrop-blur-3xl">
+                                  <h2 className="text-3xl sm:text-4xl font-black text-white uppercase tracking-tighter italic mb-3">
                                     Innings Break
                                   </h2>
                                   <div className="mb-6 p-4 bg-slate-800/60 rounded-2xl border border-white/10 max-w-md mx-auto">
@@ -2161,7 +2148,7 @@ const App: React.FC = () => {
                                     >
                                       <span>Start 2nd Innings</span>
                                       <span className="text-2xl sm:text-3xl">
-                                        🏏
+                                        <BatIcon />
                                       </span>
                                     </button>
                                   </div>
@@ -2177,14 +2164,20 @@ const App: React.FC = () => {
 
                         {matchStatus === MatchStatus.COMPLETED &&
                           currentInnings && (
-                            <div className="h-full overflow-y-auto flex py-10 items-center justify-center p-4 bg-slate-950 selection:bg-indigo-500/30">
-                              <div className="relative w-full max-w-2xl animate-in zoom-in-95 duration-500">
+                            <div
+                              className="h-full overflow-y-auto flex flex-col px-3 sm:px-4 pt-3 sm:pt-6 bg-slate-950 selection:bg-indigo-500/30"
+                              style={{
+                                paddingBottom:
+                                  "calc(env(safe-area-inset-bottom, 20px) + 24px)",
+                              }}
+                            >
+                              <div className="relative w-full max-w-2xl mx-auto py-2 animate-in zoom-in-95 duration-500">
                                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-indigo-600/10 blur-[120px] rounded-full -z-10"></div>
 
-                                <div className="bg-slate-900 border border-white/5 p-10 rounded-[3rem] shadow-2xl relative overflow-hidden backdrop-blur-3xl">
+                                <div className="bg-slate-900 border border-white/5 p-5 sm:p-10 rounded-[2rem] sm:rounded-[3rem] shadow-2xl relative overflow-hidden backdrop-blur-3xl">
                                   <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600"></div>
 
-                                  <div className="text-center space-y-8">
+                                  <div className="text-center space-y-5 sm:space-y-8">
                                     <div className="space-y-3">
                                       <div className="flex justify-center">
                                         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 via-yellow-500/30 to-amber-500/20 border border-amber-400/40 text-amber-300 text-xs font-black uppercase tracking-widest shadow-[0_0_20px_rgba(245,158,11,0.25)]">
@@ -2193,7 +2186,7 @@ const App: React.FC = () => {
                                           <span className="text-lg">🎉</span>
                                         </div>
                                       </div>
-                                      <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter italic">
+                                      <h2 className="text-3xl sm:text-4xl md:text-5xl break-words font-black text-white uppercase tracking-tighter italic">
                                         <HighlightedResult
                                           text={getWinnerMessage()}
                                         />
@@ -2206,7 +2199,7 @@ const App: React.FC = () => {
                                       </p>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-4 bg-slate-950/60 p-6 rounded-3xl border border-white/5 shadow-inner">
+                                    <div className="grid grid-cols-2 gap-3 sm:gap-4 bg-slate-950/60 p-4 sm:p-6 rounded-3xl border border-white/5 shadow-inner">
                                       <div className="text-center border-r border-white/5 pr-4">
                                         <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">
                                           {previousInnings
@@ -2275,7 +2268,9 @@ const App: React.FC = () => {
                                         className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-600/20 active:scale-95 transition-all flex items-center justify-center gap-2"
                                       >
                                         <span>START FRESH MATCH</span>
-                                        <span className="text-sm">🏏</span>
+                                        <span className="text-sm">
+                                          <BatIcon />
+                                        </span>
                                       </button>
                                       <button
                                         onClick={handleQuitMatch}
@@ -2292,6 +2287,10 @@ const App: React.FC = () => {
                                   CricScore Record Log #77291-LIVE
                                 </p>
                               </div>
+                              <div
+                                className="h-8 w-full shrink-0"
+                                aria-hidden="true"
+                              />
                             </div>
                           )}
                       </div>
