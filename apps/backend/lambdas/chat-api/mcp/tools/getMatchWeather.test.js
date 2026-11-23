@@ -96,4 +96,67 @@ describe("MCP Tool: get_match_weather", () => {
     expect(parsed.hourlyForecast).toHaveLength(3);
     expect(parsed.cricketAdvisory).toContain("Ideal cricket weather");
   });
+
+  it("advances to the next full upcoming hour when past :30 so next N hours are all future slots", async () => {
+    vi.spyOn(global, "fetch")
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          results: [
+            {
+              name: "Kadapa",
+              admin1: "Andhra Pradesh",
+              country: "India",
+              latitude: 14.47,
+              longitude: 78.82,
+              timezone: "Asia/Kolkata",
+            },
+          ],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          timezone: "Asia/Kolkata",
+          current: {
+            time: "2026-11-23T11:45",
+            weather_code: 0,
+            temperature_2m: 33,
+            relative_humidity_2m: 36,
+            wind_speed_10m: 10,
+          },
+          hourly: {
+            time: [
+              "2026-11-23T11:00",
+              "2026-11-23T12:00",
+              "2026-11-23T13:00",
+              "2026-11-23T14:00",
+              "2026-11-23T15:00",
+            ],
+            temperature_2m: [33, 34, 34, 34, 33],
+            apparent_temperature: [33, 34, 34, 34, 33],
+            precipitation_probability: [0, 0, 1, 2, 2],
+            precipitation: [0, 0, 0, 0, 0],
+            weather_code: [0, 1, 3, 3, 2],
+            wind_speed_10m: [10, 10, 11, 11, 10],
+            wind_gusts_10m: [14, 15, 16, 16, 15],
+            relative_humidity_2m: [36, 35, 35, 36, 38],
+          },
+        }),
+      });
+
+    const result = await getMatchWeatherTool({
+      location: "Kadapa",
+      targetDate: "today",
+      hoursAhead: 4,
+    });
+
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.hourlyForecast.map((h) => h.displayTime)).toEqual([
+      "12:00 PM",
+      "1:00 PM",
+      "2:00 PM",
+      "3:00 PM",
+    ]);
+  });
 });

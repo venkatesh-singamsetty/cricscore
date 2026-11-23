@@ -1,6 +1,6 @@
 # 🧪 Testing Strategy & Verification Matrix
 
-CricScore enforces a multi-layer testing architecture spanning **`397` automated unit and integration tests** (`169` Frontend Vitest + `124` Backend Vitest + `75` AI Service Pytest + `29` ML Engine Pytest), **`15` Playwright End-to-End (E2E) tests** across 5 suites, live **AI Chat evaluations**, and **OWASP ZAP DAST** scans.
+CricScore enforces a multi-layer testing architecture spanning **`409` automated unit and integration tests** (`177` Frontend Vitest + `126` Backend Vitest + `77` AI Service Pytest + `29` ML Engine Pytest), **`15` Playwright End-to-End (E2E) tests** across 5 suites, live **AI Chat evaluations**, and **OWASP ZAP DAST** scans.
 
 ---
 
@@ -14,10 +14,10 @@ flowchart TD
         FastCmd --> Receipt
     end
 
-    subgraph UnitIntegration ["2. Unit & Integration Suite (397 Tests Total)"]
-        FE["Frontend Vitest: 169 Tests (24 Suites)"]
-        BE["Backend Lambda Vitest: 124 Tests (16 Suites)"]
-        AI["Python AI Service Pytest: 75 Tests (LangGraph / MCP)"]
+    subgraph UnitIntegration ["2. Unit & Integration Suite (409 Tests Total)"]
+        FE["Frontend Vitest: 177 Tests (25 Suites)"]
+        BE["Backend Lambda Vitest: 126 Tests (16 Suites)"]
+        AI["Python AI Service Pytest: 77 Tests (LangGraph / MCP)"]
         ML["Python ML Engine Pytest: 29 Tests (XGBoost v2.2.0 / DP / DLS)"]
         FE --> BE --> AI --> ML
     end
@@ -39,22 +39,22 @@ flowchart TD
 
 ---
 
-## 📊 2. Complete Test Suite Inventory (`397` Unit/Integration + `15` E2E)
+## 📊 2. Complete Test Suite Inventory (`409` Unit/Integration + `15` E2E)
 
 ```bash
-# Run Frontend Vitest suite (169 unit tests)
+# Run Frontend Vitest suite (177 unit tests)
 npm run test --prefix apps/frontend
 
-# Run Backend Lambda Vitest suite (124 unit tests)
+# Run Backend Lambda Vitest suite (126 unit tests)
 npm run test --prefix apps/backend
 
-# Run Python AI Service pytest suite (75 tests)
+# Run Python AI Service pytest suite (77 tests)
 pytest apps/ai-service -q
 
 # Run Python ML Engine inference pytest suite (29 tests)
 pytest apps/ml-engine/test_predict.py -q
 
-# Run all 397 unit tests together across Frontend, Backend, AI, and ML
+# Run all 409 unit tests together across Frontend, Backend, AI, and ML
 npm run test:all
 
 # Run full Playwright E2E suite against Dev environment (15 tests)
@@ -67,10 +67,10 @@ npm run test:ai
 
 ### What Each Layer Verifies
 
-- **1. Frontend (`Vitest` + React Testing Library — `160` tests in `apps/frontend/src/test/*.test.{ts,tsx}`):**
+- **1. Frontend (`Vitest` + React Testing Library — `177` tests in `apps/frontend/src/test/*.test.{ts,tsx}`):**
   - Standard Edition DLS par score (1–50 overs), partnership math, and deterministic Player of the Match (`potmUtils`).
   - Live WebSocket score merge (`applyLiveScoreToMatches`), monotonic 2nd-innings transitions, and duplicate/undone `allBalls` deduplication in `LiveScoreboard`.
-  - Component behavior across `LiveScoreboard`, `MatchView`, `MatchSetup`, `AdminPanel`, `CricketIcons`, and `ChatComponent`.
+  - Component behavior across `LiveScoreboard`, `MatchView`, `MatchSetup`, `AdminPanel`, `CricketIcons`, and `ChatComponent` (including multiline textarea newline handling, `Cmd/Ctrl+Enter` submit, and English spellcheck/autocorrect attributes).
   - Mobile touch layout guardrails, safe area bottom spacing, and single-line squad headers.
 - **2. Backend Lambdas (`Vitest` — `122` tests in `apps/backend/lambdas/**/*.test.js`):**
   - `match-api` CRUD, Cognito JWT / Admin group authorization, duplicate legal delivery deduplication in `/details`, and HTML SES scorecard formatting.

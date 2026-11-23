@@ -63,7 +63,7 @@ function createCricScoreMcpServer(pool, isAdmin) {
   // Tool: create_github_issue — GitHub Issue Specialist Agent
   server.tool(
     "create_github_issue",
-    "Create a GitHub issue in the official CricScore repository when a user wants to report a bug, UI problem, or request a new feature and has provided clear details (or confirmed the issue details).",
+    "Create a GitHub issue in the official CricScore repository whenever a user reports a bug, UI/chat/app problem, or requests a new feature and has described the problem (either in the current message or across the conversation).",
     {
       title: z
         .string()

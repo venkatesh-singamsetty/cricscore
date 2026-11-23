@@ -726,6 +726,41 @@ describe("chatHandler", () => {
       expect(JSON.parse(res2.body).reply).toContain("Issue #320");
     });
 
+    it("instructs LLM to keep weather concise without confirmation and never refuse app/chat bug reports", async () => {
+      mockCreate.mockResolvedValueOnce({
+        choices: [
+          {
+            message: {
+              content: "Logged your chat newline bug!",
+              tool_calls: null,
+            },
+          },
+        ],
+      });
+
+      const res = await chatHandler(
+        {
+          message: "not able to enter new line in chat",
+          history: [
+            { role: "user", content: "am facing issues" },
+            {
+              role: "assistant",
+              content: "Please describe the issue so I can log it on GitHub.",
+            },
+          ],
+        },
+        corsHeaders,
+      );
+
+      expect(res.statusCode).toBe(200);
+      const systemMsg = mockCreate.mock.calls[0][0].messages[0].content;
+      expect(systemMsg).toContain("NEVER REFUSE APP/UI/CHAT ISSUES");
+      expect(systemMsg).toContain("NEVER ask for confirmation first");
+      expect(systemMsg).toContain("CONCISE BY DEFAULT");
+      expect(systemMsg).toContain("CricScore Platform Guide");
+      expect(systemMsg).toContain("GREETINGS, HELP & CONCISE TONE");
+    });
+
     it("handles multi-turn tool calling when player_of_the_match is null and LLM issues follow-up SQL query", async () => {
       mockCreate
         // Initial call -> tool call 1: query matches

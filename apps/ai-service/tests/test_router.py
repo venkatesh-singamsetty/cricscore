@@ -18,10 +18,12 @@ from cricscore_ai.router import classify
     ("Can you check the weather report for our match?", False, "weather"),
     ("What is the weather forecast for tomorrow in Chicago?", False, "weather"),
     ("Will rain interrupt play today?", False, "weather"),
+    ("can we play match in KADAPA for next 4hours?", False, "weather"),
     # GitHub Issue Agent (Bug Reports & Feature Requests)
     ("I want to report a bug or request a new feature", False, "github_issue"),
     ("Report a bug in the mobile scoreboard", False, "github_issue"),
     ("Open a GitHub issue for the live score scorecard glitch", False, "github_issue"),
+    ("am facing issues", False, "github_issue"),
     # Prediction & Analysis Agents
     ("Who will win this match?", True, "prediction"),
     ("Win probability for Lions", False, "prediction"),
