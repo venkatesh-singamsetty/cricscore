@@ -1,3 +1,12 @@
+## [4.26.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.25.0...v4.26.0) (2026-11-23)
+
+### 🚀 Features
+
+* **cicd:** immutable 2-env promotion, post-prod SemVer releases, tag rollback, and drift fix ([#369](https://github.com/venkatesh-singamsetty/cricscore/issues/369)) ([2d342ed]())
+### 🐛 Bug Fixes
+
+* **cd:** pin conventional-changelog-conventionalcommits@8 and remove redundant release.yml & sbom.yml ([#371](https://github.com/venkatesh-singamsetty/cricscore/issues/371)) ([591d48a]())* **ci:** use root package-lock.json in E2E verify jobs and remove dev env from build_bundle ([#370](https://github.com/venkatesh-singamsetty/cricscore/issues/370)) ([a0b3868]())
+
 ## [4.25.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.24.3...v4.25.0) (2026-11-15)
 
 ### 🚀 Features
