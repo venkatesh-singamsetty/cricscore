@@ -19,6 +19,10 @@ import {
   safeLocalStorageRemove,
   CHAT_MEMORY_KEY,
 } from "../utils/storageSafety";
+import {
+  autoCorrectAtBoundary,
+  autoCorrectTrailingWord,
+} from "../utils/chatAutoCorrect";
 
 export { CHAT_MEMORY_KEY };
 
@@ -397,6 +401,14 @@ export function ChatComponent({
   };
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageListRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  React.useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 128)}px`;
+  }, [input]);
 
   React.useEffect(() => {
     safeLocalStorageSet(CHAT_MEMORY_KEY, JSON.stringify(messages));
@@ -416,7 +428,10 @@ export function ChatComponent({
     if (typeof window !== "undefined" && window.visualViewport) {
       const handleResize = () => {
         // Just ensure active element is in view without changing body layout
-        if (document.activeElement?.tagName === "INPUT") {
+        if (
+          document.activeElement?.tagName === "INPUT" ||
+          document.activeElement?.tagName === "TEXTAREA"
+        ) {
           setTimeout(() => {
             document.activeElement?.scrollIntoView({
               behavior: "smooth",
@@ -432,7 +447,7 @@ export function ChatComponent({
   }, []);
 
   const submitText = async (textToSend: string) => {
-    const trimmed = textToSend.trim();
+    const trimmed = autoCorrectTrailingWord(textToSend).trim();
     if (!trimmed || loading) return;
 
     const userMsg = { role: "user" as const, content: trimmed };
@@ -512,6 +527,22 @@ export function ChatComponent({
   const sendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     submitText(input);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const nextValue = e.target.value;
+    if (nextValue.length > input.length) {
+      const cursor = e.target.selectionStart ?? nextValue.length;
+      const { text, cursorPos } = autoCorrectAtBoundary(nextValue, cursor);
+      if (text !== nextValue) {
+        setInput(text);
+        requestAnimationFrame(() => {
+          textareaRef.current?.setSelectionRange(cursorPos, cursorPos);
+        });
+        return;
+      }
+    }
+    setInput(nextValue);
   };
 
   return (
@@ -764,18 +795,26 @@ export function ChatComponent({
         className="shrink-0 p-2.5 sm:p-3 bg-slate-900/95 backdrop-blur-md border-t border-white/10 z-30 sticky bottom-0"
         style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.75rem)" }}
       >
-        <form onSubmit={sendMessage} className="flex items-center gap-2">
-          <input
-            type="text"
+        <form onSubmit={sendMessage} className="flex items-end gap-2">
+          <textarea
+            ref={textareaRef}
+            rows={1}
             name="search-chat-input"
+            lang="en"
             autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="off"
-            spellCheck={false}
+            autoCorrect="on"
+            autoCapitalize="sentences"
+            spellCheck={true}
             data-lpignore="true"
             data-form-type="other"
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={handleInputChange}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                submitText(input);
+              }
+            }}
             onFocus={() => {
               setTimeout(() => {
                 if (messageListRef.current) {
@@ -789,9 +828,9 @@ export function ChatComponent({
               window.scrollTo(0, 0);
             }}
             placeholder="Ask about the match, score, or players..."
-            className="flex-1 min-w-0 bg-slate-900 border border-white/10 rounded-2xl h-11 sm:h-12 py-2 px-3.5 sm:px-4 text-xs sm:text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-slate-500"
+            className="flex-1 min-w-0 bg-slate-900 border border-white/10 rounded-2xl min-h-11 sm:min-h-12 max-h-32 py-2.5 sm:py-3 px-3.5 sm:px-4 text-xs sm:text-sm leading-snug text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-slate-500 resize-none overflow-y-auto"
             readOnly={loading}
-            enterKeyHint="send"
+            enterKeyHint="enter"
           />
           <button
             type="submit"

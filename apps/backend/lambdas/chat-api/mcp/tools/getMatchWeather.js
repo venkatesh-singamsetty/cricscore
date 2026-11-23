@@ -227,9 +227,23 @@ async function getMatchWeatherTool(args = {}) {
       };
     });
 
+    const tz = forecast.timezone || place.timezone || "UTC";
+    let exactLocalTime = null;
+    try {
+      exactLocalTime = new Intl.DateTimeFormat("en-US", {
+        timeZone: tz,
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      }).format(new Date());
+    } catch {
+      exactLocalTime = null;
+    }
+
     const currentTimeIso = forecast.current?.time || times[0] || "";
     const todayDateStr = currentTimeIso.slice(0, 10);
     const currentHourPrefix = currentTimeIso.slice(0, 13); // e.g. "2026-10-21T01"
+    const currentMinute = parseInt(currentTimeIso.slice(14, 16), 10) || 0;
 
     let selectedHours = [];
     let windowDescription = "";
@@ -255,7 +269,9 @@ async function getMatchWeatherTool(args = {}) {
       });
       windowDescription = `Date (${sanitized.targetDate}) Match-Day Hourly Forecast (08:00–21:00 local time)`;
     } else {
-      // Find the hourly slot starting from the current hour (e.g. 01:00 if current time is 01:15)
+      // Find the hourly slot starting from the current hour (e.g. 01:00 if current time is 01:15).
+      // If we are already >= 30 minutes past the hour (e.g. 11:45 / 11:59), start from the next
+      // upcoming hour so "next 4 hours" returns 4 full future hours instead of a past slot.
       let startIdx = allHours.findIndex((h) =>
         h.time.startsWith(currentHourPrefix),
       );
@@ -264,6 +280,11 @@ async function getMatchWeatherTool(args = {}) {
           0,
           allHours.findIndex((h) => h.time >= currentTimeIso),
         );
+      } else if (
+        currentMinute >= 30 &&
+        startIdx + 1 + sanitized.hoursAhead <= allHours.length
+      ) {
+        startIdx += 1;
       }
       selectedHours = allHours.slice(startIdx, startIdx + sanitized.hoursAhead);
       windowDescription = `Next ${sanitized.hoursAhead} Hours Live Match Forecast`;
@@ -272,7 +293,7 @@ async function getMatchWeatherTool(args = {}) {
     const currentSummary = forecast.current
       ? {
           time: forecast.current.time,
-          displayTime: formatTime12h(forecast.current.time),
+          displayTime: exactLocalTime || formatTime12h(forecast.current.time),
           condition:
             WMO_WEATHER_CODES[forecast.current.weather_code] || "Partly cloudy",
           tempC: Math.round(forecast.current.temperature_2m ?? 0),
@@ -288,7 +309,7 @@ async function getMatchWeatherTool(args = {}) {
 
     const payload = {
       location: locationLabel,
-      timezone: forecast.timezone || place.timezone || "UTC",
+      timezone: tz,
       window: windowDescription,
       current: currentSummary,
       hourlyForecast: selectedHours,

@@ -7,11 +7,11 @@ from .schemas import Intent
 
 _ADMIN = re.compile(r"\b(delete|remove|wipe|purge|prune|clear|drop|truncate)\b", re.I)
 _GITHUB_ISSUE = re.compile(
-    r"\b(github\s+issue|raise\s+(an?\s+)?(github\s+)?issue|report\s+(a\s+)?(bug|issue)|feature\s+request|request\s+a\s+(new\s+)?feature|open\s+(an?\s+)?(github\s+)?issue)\b",
+    r"\b(github\s+issue|raise\s+(an?\s+)?(github\s+)?issue|report\s+(a\s+)?(bug|issue)|feature\s+request|request\s+a\s+(new\s+)?feature|open\s+(an?\s+)?(github\s+)?issue|facing\s+issues?|having\s+(an?\s+)?issues?)\b",
     re.I,
 )
 _WEATHER = re.compile(
-    r"\b(weather(\s+report|\s+forecast)?|forecast|temperature|rain\w*|precipitation|hourly\s+weather|next\s+\d*\s*few?\s*hours)\b",
+    r"\b(weather(\s+report|\s+forecast)?|forecast|temperature|rain\w*|precipitation|hourly\s+weather|next\s+\d+\s*h(?:ou)?rs?|next\s+few\s+hours)\b",
     re.I,
 )
 _PREDICT = re.compile(r"\b(predict\w*|win probability|chances?|who (will|is going to) win|likely to win|odds)\b", re.I)

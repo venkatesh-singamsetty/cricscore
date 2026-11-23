@@ -99,6 +99,100 @@ describe("ChatComponent", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("uses a multiline textarea with English spellcheck, autocorrect, and sentence capitalization enabled", () => {
+    render(
+      <ChatComponent
+        matchId={null}
+        apiUrl="https://api.test.com"
+        setAlertMessage={vi.fn()}
+      />,
+    );
+
+    const textarea = screen.getByPlaceholderText(
+      /Ask about the match, score, or players/i,
+    );
+    expect(textarea.tagName).toBe("TEXTAREA");
+    expect(textarea).toHaveAttribute("lang", "en");
+    expect(textarea).toHaveAttribute("spellcheck", "true");
+    expect(textarea).toHaveAttribute("autocorrect", "on");
+    expect(textarea).toHaveAttribute("autocapitalize", "sentences");
+    expect(textarea).toHaveAttribute("enterkeyhint", "enter");
+  });
+
+  it("does not submit on plain Enter (allows newlines) and submits on Cmd/Ctrl+Enter", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ reply: "Multi-line answer received." }),
+    });
+
+    render(
+      <ChatComponent
+        matchId={null}
+        apiUrl="https://api.test.com"
+        setAlertMessage={vi.fn()}
+      />,
+    );
+
+    const textarea = screen.getByPlaceholderText(
+      /Ask about the match, score, or players/i,
+    );
+    fireEvent.change(textarea, {
+      target: { value: "Line 1\nLine 2 question?" },
+    });
+
+    // Plain Enter should NOT submit the form
+    fireEvent.keyDown(textarea, { key: "Enter", code: "Enter" });
+    expect(global.fetch).not.toHaveBeenCalled();
+
+    // Ctrl+Enter submits the question
+    await act(async () => {
+      fireEvent.keyDown(textarea, {
+        key: "Enter",
+        code: "Enter",
+        ctrlKey: true,
+      });
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Multi-line answer received."),
+      ).toBeInTheDocument();
+    });
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("auto-corrects typos on space and on submit in the chat textarea", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ reply: "Previous match score was 120/4." }),
+    });
+
+    render(
+      <ChatComponent
+        matchId={null}
+        apiUrl="https://api.test.com"
+        setAlertMessage={vi.fn()}
+      />,
+    );
+
+    const textarea = screen.getByPlaceholderText(
+      /Ask about the match, score, or players/i,
+    ) as HTMLTextAreaElement;
+
+    fireEvent.change(textarea, { target: { value: "prevuios " } });
+    expect(textarea.value).toBe("previous ");
+
+    fireEvent.change(textarea, { target: { value: "previous mathc" } });
+    const sendBtn = screen.getByRole("button", { name: "Send message" });
+    await act(async () => {
+      fireEvent.click(sendBtn);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("previous match")).toBeInTheDocument();
+    });
+  });
+
   it("sends chat message and renders response from API", async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: true,
