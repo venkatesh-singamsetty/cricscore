@@ -19,8 +19,46 @@ env:
   AWS_REGION: us-east-1
 
 jobs:
+  # ------------------------------------------------------------------
+  # 0. Path Filter (Fast PR feedback while preserving required checks)
+  # ------------------------------------------------------------------
+  changes:
+    name: Detect Changed Areas
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.filter.outputs.backend }}
+      python: ${{ steps.filter.outputs.python }}
+      terraform: ${{ steps.filter.outputs.terraform }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+      - name: Detect changed paths
+        id: filter
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            frontend:
+              - 'apps/frontend/**'
+              - 'package.json'
+              - 'package-lock.json'
+            backend:
+              - 'apps/backend/**'
+              - 'package.json'
+              - 'package-lock.json'
+            python:
+              - 'apps/ai-service/**'
+              - 'apps/ml-engine/**'
+            terraform:
+              - 'infra/terraform/**'
+
+  # ------------------------------------------------------------------
+  # 1. Required PR & Main Validation Checks
+  # ------------------------------------------------------------------
   validate_security:
     name: Infrastructure & Secrets Security
+    needs: [changes]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -32,52 +70,69 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Run Checkov IaC Scan
+        if: github.event_name != 'pull_request' || needs.changes.outputs.terraform == 'true'
         uses: bridgecrewio/checkov-action@master
         with:
           directory: infra/terraform
           framework: terraform
           download_external_modules: false
+      - name: Run Consolidated Trivy Vulnerability Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: "fs"
+          scan-ref: "."
+          ignore-unfixed: true
+          format: "table"
+          exit-code: "1"
+          severity: "HIGH,CRITICAL"
 
   validate_frontend:
     name: Lint & Test
+    needs: [changes]
     runs-on: ubuntu-latest
     steps:
+      - name: Skip notice (no frontend changes)
+        if: github.event_name == 'pull_request' && needs.changes.outputs.frontend != 'true'
+        run: echo "⏭️ No frontend changes in this PR — skipping frontend build/tests."
       - name: Checkout code
+        if: github.event_name != 'pull_request' || needs.changes.outputs.frontend == 'true'
         uses: actions/checkout@v7
       - name: Set up Node.js
+        if: github.event_name != 'pull_request' || needs.changes.outputs.frontend == 'true'
         uses: actions/setup-node@v7
         with:
           node-version: "24"
           cache: "npm"
           cache-dependency-path: package-lock.json
       - name: Install dependencies
-        run: npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
-      - name: Run Trivy vulnerability scanner (fs)
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: "fs"
-          scan-ref: "apps/frontend"
-          ignore-unfixed: true
-          format: "table"
-          exit-code: "1"
-          severity: "HIGH,CRITICAL"
+        if: github.event_name != 'pull_request' || needs.changes.outputs.frontend == 'true'
+        run: npm ci --legacy-peer-deps --no-audit --no-fund --ignore-scripts
       - name: TypeScript type-check & lint
+        if: github.event_name != 'pull_request' || needs.changes.outputs.frontend == 'true'
         working-directory: apps/frontend
         run: npm run lint
       - name: Run unit tests
+        if: github.event_name != 'pull_request' || needs.changes.outputs.frontend == 'true'
         working-directory: apps/frontend
         run: npm run test
       - name: Build production bundle (Dry-Run)
+        if: github.event_name != 'pull_request' || needs.changes.outputs.frontend == 'true'
         working-directory: apps/frontend
         run: npm run build
 
   validate_backend:
     name: Backend & Terraform Validation
+    needs: [changes]
     runs-on: ubuntu-latest
     steps:
+      - name: Skip notice (no backend or terraform changes)
+        if: github.event_name == 'pull_request' && needs.changes.outputs.backend != 'true' && needs.changes.outputs.terraform != 'true'
+        run: echo "⏭️ No backend or Terraform changes in this PR — skipping."
       - name: Checkout code
+        if: github.event_name != 'pull_request' || needs.changes.outputs.backend == 'true' || needs.changes.outputs.terraform == 'true'
         uses: actions/checkout@v7
       - name: Set up Node.js
+        if: github.event_name != 'pull_request' || needs.changes.outputs.backend == 'true'
         uses: actions/setup-node@v7
         with:
           node-version: "24"
@@ -86,54 +141,56 @@ jobs:
             package-lock.json
             apps/backend/package-lock.json
             apps/backend/lambdas/*/package-lock.json
-      - name: Install Lambda dependencies
+      - name: Install Backend & Lambda dependencies
+        if: github.event_name != 'pull_request' || needs.changes.outputs.backend == 'true'
         run: |
           set -e
-          (cd apps/backend && npm install --no-audit --no-fund --ignore-scripts)
+          (cd apps/backend && (npm ci --no-audit --no-fund --ignore-scripts || npm install --no-audit --no-fund --ignore-scripts))
           for d in apps/backend/lambdas/*; do
             if [ -f "$d/package.json" ]; then
-              (cd "$d" && npm install --no-audit --no-fund --ignore-scripts) &
+              (cd "$d" && (npm ci --no-audit --no-fund --ignore-scripts || npm install --no-audit --no-fund --ignore-scripts)) &
             fi
           done
           wait
       - name: Run Backend Unit Tests
+        if: github.event_name != 'pull_request' || needs.changes.outputs.backend == 'true'
         env:
           LLM_API_KEY: "dummy"
           OPENAI_API_KEY: "dummy"
         run: |
           cd apps/backend
           npm test
-      - name: Run Trivy vulnerability scanner (fs)
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: "fs"
-          scan-ref: "apps/backend/lambdas"
-          ignore-unfixed: true
-          format: "table"
-          exit-code: "1"
-          severity: "HIGH,CRITICAL"
       - name: Set up Terraform
+        if: github.event_name != 'pull_request' || needs.changes.outputs.terraform == 'true'
         uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: "~1.10"
       - name: Terraform Format Check
+        if: github.event_name != 'pull_request' || needs.changes.outputs.terraform == 'true'
         run: terraform fmt -check -recursive
         working-directory: infra/terraform
       - name: Terraform Init (no backend)
+        if: github.event_name != 'pull_request' || needs.changes.outputs.terraform == 'true'
         run: terraform init -backend=false
         working-directory: infra/terraform
       - name: Terraform Validate
+        if: github.event_name != 'pull_request' || needs.changes.outputs.terraform == 'true'
         run: terraform validate
         working-directory: infra/terraform
 
   validate_python:
     name: Python AI & ML Validation
+    needs: [changes]
     runs-on: ubuntu-latest
     steps:
+      - name: Skip notice (no Python changes)
+        if: github.event_name == 'pull_request' && needs.changes.outputs.python != 'true'
+        run: echo "⏭️ No Python changes in this PR — skipping."
       - name: Checkout code
+        if: github.event_name != 'pull_request' || needs.changes.outputs.python == 'true'
         uses: actions/checkout@v7
-
       - name: Set up Python
+        if: github.event_name != 'pull_request' || needs.changes.outputs.python == 'true'
         uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -141,40 +198,127 @@ jobs:
           cache-dependency-path: |
             apps/ai-service/requirements.txt
             apps/ml-engine/requirements.txt
-
       - name: Install dependencies
+        if: github.event_name != 'pull_request' || needs.changes.outputs.python == 'true'
         run: |
           python -m pip install --upgrade pip
           pip install -r apps/ai-service/requirements.txt
           pip install -r apps/ml-engine/requirements.txt
-
       - name: Run Python AI Service Tests
+        if: github.event_name != 'pull_request' || needs.changes.outputs.python == 'true'
         run: pytest apps/ai-service -q
-
       - name: Run Python ML Engine Tests
+        if: github.event_name != 'pull_request' || needs.changes.outputs.python == 'true'
         run: pytest apps/ml-engine/test_predict.py -q
 
-      - name: Run Trivy vulnerability scanner on Python
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: "fs"
-          scan-ref: "apps/ai-service"
-          ignore-unfixed: true
-          format: "table"
-          exit-code: "1"
-          severity: "HIGH,CRITICAL"
-
-  deploy_and_test_dev:
-    name: Deploy, Test & OWASP ZAP DEV
+  # ------------------------------------------------------------------
+  # 2. Build Immutable Release Bundle Once (Main Only — 12-Factor)
+  # ------------------------------------------------------------------
+  build_bundle:
+    name: Build Immutable Bundle
     needs:
       [validate_frontend, validate_backend, validate_security, validate_python]
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: dev
     permissions:
-      issues: write
       contents: read
       id-token: write
+    outputs:
+      short_sha: ${{ steps.meta.outputs.short_sha }}
+      backup_bucket: ${{ steps.upload_s3.outputs.backup_bucket }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Compute Build Metadata
+        id: meta
+        run: |
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          echo "short_sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN || secrets.AWS_ROLE_ARN }}
+          aws-access-key-id: ${{ (vars.AWS_ROLE_ARN || secrets.AWS_ROLE_ARN) == '' && secrets.AWS_ACCESS_KEY_ID || '' }}
+          aws-secret-access-key: ${{ (vars.AWS_ROLE_ARN || secrets.AWS_ROLE_ARN) == '' && secrets.AWS_SECRET_ACCESS_KEY || '' }}
+          aws-region: ${{ vars.AWS_REGION || env.AWS_REGION }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Hydrate Production Lambda Dependencies (Once)
+        run: |
+          set -e
+          for d in apps/backend/lambdas/*; do
+            if [ -f "$d/package.json" ]; then
+              (cd "$d" && (npm ci --omit=dev --no-audit --no-fund --ignore-scripts || npm install --omit=dev --no-audit --no-fund --ignore-scripts)) &
+            fi
+          done
+          wait
+
+      - name: Build Environment-Agnostic Frontend Bundle (Once)
+        working-directory: apps/frontend
+        run: |
+          npm ci --legacy-peer-deps --no-audit --no-fund --ignore-scripts || npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
+          npm run build
+
+      - name: Package Immutable Artifacts & SHA-256 Checksums
+        run: |
+          set -e
+          mkdir -p dist-bundle
+          tar -czf dist-bundle/frontend.tar.gz -C apps/frontend/dist .
+          tar -czf dist-bundle/lambdas.tar.gz -C apps/backend lambdas
+          cat <<EOF > dist-bundle/manifest.json
+          {
+            "commit_sha": "${GITHUB_SHA}",
+            "short_sha": "${{ steps.meta.outputs.short_sha }}",
+            "built_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+            "workflow_run_id": "${GITHUB_RUN_ID}"
+          }
+          EOF
+          (cd dist-bundle && sha256sum frontend.tar.gz lambdas.tar.gz manifest.json > SHA256SUMS.txt)
+          cat dist-bundle/SHA256SUMS.txt
+
+      - name: Upload Immutable Bundle to GitHub Artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-bundle-${{ steps.meta.outputs.short_sha }}
+          path: dist-bundle/
+          retention-days: 14
+
+      - name: Archive Immutable Bundle to Dev S3 Artifact Staging
+        id: upload_s3
+        run: |
+          set -e
+          BUCKET=$(aws s3api list-buckets --query "Buckets[?starts_with(Name, 'cricscoredev-match-backups-')].Name | [0]" --output text)
+          if [ -z "$BUCKET" ] || [ "$BUCKET" = "None" ]; then
+            echo "❌ Could not locate cricscoredev-match-backups bucket."
+            exit 1
+          fi
+          echo "backup_bucket=$BUCKET" >> "$GITHUB_OUTPUT"
+          aws s3 sync dist-bundle/ "s3://${BUCKET}/builds/${{ steps.meta.outputs.short_sha }}/" --delete
+          echo "✅ Archived immutable build to s3://${BUCKET}/builds/${{ steps.meta.outputs.short_sha }}/"
+
+  # ------------------------------------------------------------------
+  # 3. Deploy Immutable Bundle to DEV
+  # ------------------------------------------------------------------
+  deploy_dev:
+    name: Deploy to DEV
+    needs: [build_bundle]
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: dev
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      dev_domain: ${{ vars.DOMAIN_NAME }}
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
       TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET || 'venky-2026-terraform-state' }}
@@ -191,14 +335,29 @@ jobs:
       TF_VAR_llm_api_key: ${{ secrets.OPENAI_API_KEY }}
       TF_VAR_llm_base_url: ${{ vars.LLM_BASE_URL }}
       TF_VAR_llm_model: ${{ vars.LLM_MODEL }}
+      TF_VAR_embedding_api_key: ${{ secrets.EMBEDDING_API_KEY }}
+      TF_VAR_embedding_base_url: ${{ vars.EMBEDDING_BASE_URL }}
+      TF_VAR_embedding_model: ${{ vars.EMBEDDING_MODEL || 'text-embedding-3-small' }}
+      TF_VAR_embedding_dimensions: ${{ vars.EMBEDDING_DIMENSIONS || '1536' }}
       TF_VAR_github_token: ${{ secrets.GH_PAT }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
 
-      - name: Validate AWS_REGION secret
+      - name: Download & Verify Immutable Bundle
+        uses: actions/download-artifact@v7
+        with:
+          name: release-bundle-${{ needs.build_bundle.outputs.short_sha }}
+          path: dist-bundle
+
+      - name: Verify SHA-256 Checksums & Extract Bundle
         run: |
-          if [ -z "$AWS_REGION" ]; then echo "Missing AWS_REGION. Set vars.AWS_REGION"; exit 1; fi
+          set -e
+          (cd dist-bundle && sha256sum -c SHA256SUMS.txt)
+          mkdir -p apps/frontend/dist
+          tar -xzf dist-bundle/frontend.tar.gz -C apps/frontend/dist
+          rm -rf apps/backend/lambdas
+          tar -xzf dist-bundle/lambdas.tar.gz -C apps/backend
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
@@ -208,49 +367,24 @@ jobs:
           aws-secret-access-key: ${{ (vars.AWS_ROLE_ARN || secrets.AWS_ROLE_ARN) == '' && secrets.AWS_SECRET_ACCESS_KEY || '' }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: "24"
-          cache: "npm"
-          cache-dependency-path: package-lock.json
-
-      - name: Install PostgreSQL Client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
-
-      - name: Run Database Migrations
+      - name: Run Database Migrations (DEV)
         run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-client
           cd infra/database
           chmod +x migrate.sh
           ./migrate.sh "${{ secrets.TF_DATABASE_URL }}" "dev"
-
-      # --- BACKEND DEPLOYMENT ---
-      - name: Install Lambda dependencies
-        run: |
-          set -e
-          for d in apps/backend/lambdas/*; do
-            if [ -f "$d/package.json" ]; then
-              (cd "$d" && npm install --omit=dev --no-audit --no-fund --ignore-scripts) &
-            fi
-          done
-          wait
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: "~1.10"
 
-      - name: Terraform Init
+      - name: Terraform Init & Apply (DEV)
         working-directory: infra/terraform
-        run: terraform init -upgrade -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=cricscore/dev/terraform.tfstate"
-
-      - name: Terraform Plan
-        working-directory: infra/terraform
-        run: terraform plan -var-file="environments/dev.tfvars" -var="domain_name=$TF_VAR_domain_name" -var="zone_domain=$TF_VAR_zone_domain" -var="subdomain_prefix=$TF_VAR_subdomain_prefix" -var="project_name=$TF_VAR_project_name" -out=tfplan
-
-      - name: Terraform Apply
-        working-directory: infra/terraform
-        run: terraform apply -auto-approve tfplan
+        run: |
+          terraform init -upgrade -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=cricscore/dev/terraform.tfstate"
+          terraform plan -var-file="environments/dev.tfvars" -var="domain_name=$TF_VAR_domain_name" -var="zone_domain=$TF_VAR_zone_domain" -var="subdomain_prefix=$TF_VAR_subdomain_prefix" -var="project_name=$TF_VAR_project_name" -out=tfplan
+          terraform apply -auto-approve tfplan
 
       - name: Enforce 7-Day Retention on Lambda Log Groups
         run: |
@@ -258,51 +392,72 @@ jobs:
             aws logs put-retention-policy --region "${AWS_REGION:-us-east-1}" --log-group-name "$lg" --retention-in-days 7 2>/dev/null || true
           done
 
-      - name: Export Terraform Outputs
+      - name: Inject Runtime /env-config.js & Sync Frontend to S3 (DEV)
         working-directory: infra/terraform
         run: |
-          echo "COGNITO_USER_POOL_ID=$(terraform output -raw cognito_user_pool_id)" >> $GITHUB_ENV
-          echo "COGNITO_CLIENT_ID=$(terraform output -raw cognito_client_id)" >> $GITHUB_ENV
-          echo "COGNITO_DOMAIN=$(terraform output -raw cognito_domain)" >> $GITHUB_ENV
-          echo "S3_BUCKET=$(terraform output -raw s3_bucket_name)" >> $GITHUB_ENV
-          echo "CLOUDFRONT_DISTRIBUTION_ID=$(terraform output -raw cloudfront_distribution_id)" >> $GITHUB_ENV
+          set -e
+          COGNITO_USER_POOL_ID=$(terraform output -raw cognito_user_pool_id)
+          COGNITO_CLIENT_ID=$(terraform output -raw cognito_client_id)
+          COGNITO_DOMAIN=$(terraform output -raw cognito_domain)
+          S3_BUCKET=$(terraform output -raw s3_bucket_name)
+          CLOUDFRONT_DISTRIBUTION_ID=$(terraform output -raw cloudfront_distribution_id)
 
-      - name: Install Frontend dependencies
-        working-directory: apps/frontend
-        run: npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
+          cat <<EOF > ../../apps/frontend/dist/env-config.js
+          window.__CRICSCORE_CONFIG__ = {
+            VITE_API_URL: "https://api.${{ vars.DOMAIN_NAME }}",
+            VITE_WS_URL: "wss://ws.${{ vars.DOMAIN_NAME }}",
+            VITE_APP_TITLE: "CricScoreDev",
+            VITE_COGNITO_REGION: "${AWS_REGION}",
+            VITE_COGNITO_USER_POOL_ID: "${COGNITO_USER_POOL_ID}",
+            VITE_COGNITO_CLIENT_ID: "${COGNITO_CLIENT_ID}",
+            VITE_COGNITO_DOMAIN: "${COGNITO_DOMAIN}"
+          };
+          EOF
 
-      - name: Build production bundle
-        working-directory: apps/frontend
-        env:
-          VITE_APP_TITLE: CricScoreDev
-          VITE_API_URL: https://api.${{ vars.DOMAIN_NAME }}
-          VITE_WS_URL: wss://ws.${{ vars.DOMAIN_NAME }}
-          VITE_COGNITO_REGION: ${{ env.AWS_REGION }}
-        run: |
-          export VITE_COGNITO_USER_POOL_ID="$COGNITO_USER_POOL_ID"
-          export VITE_COGNITO_CLIENT_ID="$COGNITO_CLIENT_ID"
-          export VITE_COGNITO_DOMAIN="$COGNITO_DOMAIN"
-          npm run build
-
-      - name: Upload build to S3
-        run: |
-          aws s3 sync apps/frontend/dist/ "s3://${S3_BUCKET}/" --delete --cache-control "public,max-age=31536000,immutable" --exclude "index.html"
-          aws s3 cp apps/frontend/dist/index.html "s3://${S3_BUCKET}/index.html" --cache-control "no-cache,no-store,must-revalidate" --content-type "text/html"
-
-      - name: Invalidate CloudFront cache
-        run: |
+          aws s3 sync ../../apps/frontend/dist/ "s3://${S3_BUCKET}/" --delete \
+            --cache-control "public,max-age=31536000,immutable" \
+            --exclude "index.html" --exclude "env-config.js"
+          aws s3 cp ../../apps/frontend/dist/index.html "s3://${S3_BUCKET}/index.html" \
+            --cache-control "no-cache,no-store,must-revalidate" --content-type "text/html"
+          aws s3 cp ../../apps/frontend/dist/env-config.js "s3://${S3_BUCKET}/env-config.js" \
+            --cache-control "no-cache,no-store,must-revalidate" --content-type "application/javascript"
           aws cloudfront create-invalidation --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" --paths "/*"
 
-      - name: Run AI chat evaluation against deployed API
-        env:
-          CHAT_API_URL: https://api.${{ vars.DOMAIN_NAME }}
-        run: |
-          npm run test:ai -- --url "$CHAT_API_URL" --limit 4
+  # ------------------------------------------------------------------
+  # 4. Parallel DEV Verification (E2E + AI Eval | OWASP ZAP + SBOM)
+  # ------------------------------------------------------------------
+  verify_dev_e2e:
+    name: Verify DEV (AI Eval & Playwright E2E)
+    needs: [deploy_dev]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
 
-      # --- E2E TESTS ---
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN || secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: apps/e2e/package-lock.json
+
+      - name: Run AI chat evaluation against DEV API
+        env:
+          CHAT_API_URL: https://api.${{ needs.deploy_dev.outputs.dev_domain }}
+        run: npm run test:ai -- --url "$CHAT_API_URL" --limit 4
+
       - name: Install E2E dependencies
         working-directory: ./apps/e2e
-        run: npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
+        run: npm ci --legacy-peer-deps --no-audit --no-fund --ignore-scripts || npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
 
       - name: Cache Playwright Browsers
         uses: actions/cache@v6
@@ -316,11 +471,11 @@ jobs:
         working-directory: ./apps/e2e
         run: npx playwright install --with-deps
 
-      - name: Run Playwright tests against DEV
+      - name: Run Playwright E2E against DEV
         working-directory: ./apps/e2e
         env:
-          BASE_URL: https://${{ vars.DOMAIN_NAME }}
-          API_URL: https://api.${{ vars.DOMAIN_NAME }}
+          BASE_URL: https://${{ needs.deploy_dev.outputs.dev_domain }}
+          API_URL: https://api.${{ needs.deploy_dev.outputs.dev_domain }}
         run: npx playwright test
 
       - name: Upload Playwright Report (GitHub Artifact)
@@ -330,35 +485,45 @@ jobs:
           name: playwright-report-dev
           path: apps/e2e/playwright-report/
 
-      - name: Sync Playwright Report to AWS S3 (Dev)
+      - name: Sync Playwright Report to S3 (DEV)
         if: always()
         run: |
           if [ -d "apps/e2e/playwright-report" ]; then
             BUCKET=$(aws s3api list-buckets --query "Buckets[?starts_with(Name, 'cricscoredev-match-backups-')].Name | [0]" --output text)
             if [ -n "$BUCKET" ] && [ "$BUCKET" != "None" ]; then
-              COMMIT_SHA="${{ github.sha }}"
-              echo "📦 Uploading dev Playwright report to s3://${BUCKET}/reports/playwright/commits/${COMMIT_SHA}/..."
-              aws s3 sync apps/e2e/playwright-report/ "s3://${BUCKET}/reports/playwright/commits/${COMMIT_SHA}/" --delete
-              echo "📦 Updating dev latest Playwright report at s3://${BUCKET}/reports/playwright/latest/..."
+              aws s3 sync apps/e2e/playwright-report/ "s3://${BUCKET}/reports/playwright/commits/${GITHUB_SHA}/" --delete
               aws s3 sync apps/e2e/playwright-report/ "s3://${BUCKET}/reports/playwright/latest/" --delete
-              echo "✅ Dev Playwright report successfully synced to S3."
-            else
-              echo "⚠️ Could not locate cricscoredev-match-backups bucket in AWS account."
             fi
           fi
 
-      # --- DAST SCAN ---
+  verify_dev_security:
+    name: Verify DEV (OWASP ZAP & Syft SBOM)
+    needs: [deploy_dev]
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN || secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
       - name: Fix workspace permissions for ZAP Docker
         run: chmod -R 777 ${{ github.workspace }}
 
       - name: Run OWASP ZAP Baseline Scan against DEV
         uses: zaproxy/action-baseline@v0.15.0
         with:
-          target: "https://${{ vars.DOMAIN_NAME }}"
+          target: "https://${{ needs.deploy_dev.outputs.dev_domain }}"
           rules_file_name: ".zap/rules.tsv"
           fail_action: false
 
-      # --- DEV POST-DEPLOY SBOM GENERATION & S3 SYNC ---
       - name: Generate Dev SBOM with Syft
         uses: anchore/sbom-action@v0
         with:
@@ -371,9 +536,5 @@ jobs:
         run: |
           BUCKET=$(aws s3api list-buckets --query "Buckets[?starts_with(Name, 'cricscoredev-match-backups-')].Name | [0]" --output text)
           if [ -n "$BUCKET" ] && [ "$BUCKET" != "None" ]; then
-            echo "📦 Uploading Dev SBOM to s3://${BUCKET}/sboms/dev/latest.spdx.json..."
             aws s3 cp cricscore-sbom-dev.spdx.json "s3://${BUCKET}/sboms/dev/latest.spdx.json" --content-type "application/json"
-            echo "✅ Dev post-deploy SBOM synced to S3."
-          else
-            echo "⚠️ Could not locate cricscoredev-match-backups bucket in AWS account."
           fi

@@ -10,6 +10,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import LiveScoreboard from "./LiveScoreboard";
+import { getEnv } from "../utils/runtimeConfig";
 
 interface User {
   username: string;
@@ -54,7 +55,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     try {
       const session = await fetchAuthSession();
       const token = session.tokens?.idToken?.toString();
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/admin/users`, {
+      const res = await fetch(`${getEnv("VITE_API_URL")}/admin/users`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {
@@ -92,17 +93,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           ? JSON.stringify({ emailToPromote: email, role })
           : JSON.stringify({ emailToDemote: email, role });
 
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/admin/users/roles`,
-        {
-          method,
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body,
+      const res = await fetch(`${getEnv("VITE_API_URL")}/admin/users/roles`, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-      );
+        body,
+      });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Failed to ${action} user`);
@@ -123,7 +121,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     try {
       const session = await fetchAuthSession();
       const token = session.tokens?.idToken?.toString();
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/admin/users`, {
+      const res = await fetch(`${getEnv("VITE_API_URL")}/admin/users`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
@@ -156,7 +154,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       const token = session.tokens?.idToken?.toString();
 
       const resMatches = await fetch(
-        `${import.meta.env.VITE_API_URL}/admin/matches/guests`,
+        `${getEnv("VITE_API_URL")}/admin/matches/guests`,
         {
           method: "DELETE",
           headers: {
@@ -170,7 +168,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         throw new Error(dataMatches.error || "Failed to delete guest matches");
 
       const resUsers = await fetch(
-        `${import.meta.env.VITE_API_URL}/admin/users/guests`,
+        `${getEnv("VITE_API_URL")}/admin/users/guests`,
         {
           method: "DELETE",
           headers: {
@@ -207,7 +205,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     try {
       const session = await fetchAuthSession();
       const token = session.tokens?.idToken?.toString();
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/matches`, {
+      const res = await fetch(`${getEnv("VITE_API_URL")}/matches`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
@@ -233,7 +231,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       const session = await fetchAuthSession();
       const token = session.tokens?.idToken?.toString();
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/admin/matches/incomplete`,
+        `${getEnv("VITE_API_URL")}/admin/matches/incomplete`,
         {
           method: "DELETE",
           headers: {
@@ -263,16 +261,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     try {
       const session = await fetchAuthSession();
       const token = session.tokens?.idToken?.toString();
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/admin/matches/test`,
-        {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+      const res = await fetch(`${getEnv("VITE_API_URL")}/admin/matches/test`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-      );
+      });
       const data = await res.json();
       if (!res.ok)
         throw new Error(data.error || "Failed to delete test matches");
@@ -454,7 +449,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                           </button>
                         ) : (
                           user.email !== "venky.2k57@gmail.com" &&
-                          user.email !== import.meta.env.VITE_DEFAULT_EMAIL && (
+                          user.email !== getEnv("VITE_DEFAULT_EMAIL") && (
                             <button
                               onClick={() =>
                                 handleRoleAction(user.email, "Admin", "demote")
@@ -471,7 +466,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
                         {/* DELETE USER ACTION */}
                         {user.email !== "venky.2k57@gmail.com" &&
-                          user.email !== import.meta.env.VITE_DEFAULT_EMAIL && (
+                          user.email !== getEnv("VITE_DEFAULT_EMAIL") && (
                             <button
                               onClick={() => setPendingDeleteUser(user)}
                               disabled={!!actionLoading}

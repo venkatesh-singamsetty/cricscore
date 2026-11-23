@@ -1,5 +1,10 @@
 const { pool, setSearchPath } = require("../../config/db");
-const { EMBEDDING_BASE_URL, EMBEDDING_MODEL } = require("../../config/llm");
+const {
+  EMBEDDING_API_KEY,
+  EMBEDDING_BASE_URL,
+  EMBEDDING_MODEL,
+  EMBEDDING_DIMENSIONS,
+} = require("../../config/llm");
 
 /**
  * MCP Tool: search_tournament_rules
@@ -31,16 +36,17 @@ async function searchRulesTool({ query }) {
       .replace(/rukle+s?/gi, "rules")
       .trim();
 
-    // Step 1: Generate embedding via native fetch (OpenRouter-compatible)
+    // Step 1: Generate embedding via native fetch (provider-agnostic OpenAI-compatible)
     const embeddingReq = await fetch(`${EMBEDDING_BASE_URL}/embeddings`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY || process.env.LLM_API_KEY}`,
+        Authorization: `Bearer ${EMBEDDING_API_KEY || process.env.LLM_API_KEY || process.env.OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
         model: EMBEDDING_MODEL,
         input: cleanQuery || query,
+        dimensions: EMBEDDING_DIMENSIONS,
       }),
     });
 

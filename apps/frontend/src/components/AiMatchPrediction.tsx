@@ -5,6 +5,7 @@ import {
   TEAM_BRAND_COLORS,
 } from "../utils/teamColorUtils";
 import { BatIcon, BallIcon } from "./icons/CricketIcons";
+import { getEnv } from "../utils/runtimeConfig";
 
 interface AiMatchPredictionProps {
   matchId: string;
@@ -71,7 +72,7 @@ export const AiMatchPrediction: React.FC<AiMatchPredictionProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const API_URL = import.meta.env.VITE_API_URL || "";
+  const API_URL = getEnv("VITE_API_URL");
 
   useEffect(() => {
     let isMounted = true;

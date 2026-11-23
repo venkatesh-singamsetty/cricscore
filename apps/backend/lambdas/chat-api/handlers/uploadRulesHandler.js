@@ -6,7 +6,12 @@ global.Path2D = global.Path2D || class Path2D {};
 
 const { PDFParse } = require("pdf-parse");
 const { pool, setSearchPath } = require("../config/db");
-const { EMBEDDING_BASE_URL, EMBEDDING_MODEL } = require("../config/llm");
+const {
+  EMBEDDING_API_KEY,
+  EMBEDDING_BASE_URL,
+  EMBEDDING_MODEL,
+  EMBEDDING_DIMENSIONS,
+} = require("../config/llm");
 
 /**
  * Handles POST /rules/upload
@@ -86,12 +91,13 @@ async function uploadRulesHandler(event, corsHeaders) {
         const embeddingRes = await fetch(`${EMBEDDING_BASE_URL}/embeddings`, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${process.env.OPENAI_API_KEY || process.env.LLM_API_KEY}`,
+            Authorization: `Bearer ${EMBEDDING_API_KEY || process.env.LLM_API_KEY || process.env.OPENAI_API_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
             model: EMBEDDING_MODEL,
             input: validChunks,
+            dimensions: EMBEDDING_DIMENSIONS,
           }),
         });
 

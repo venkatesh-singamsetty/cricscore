@@ -52,9 +52,10 @@ description: Use when preparing a CricScore branch or pull request, selecting lo
 
 ## 3. CI, Semantic Release & CD Pipeline Architecture
 
-- **Pull Requests (`.github/workflows/ci.yml` + `codeql.yml`)**: Run `validate_security` (GitLeaks, Checkov), `validate_frontend` (Trivy, `tsc --noEmit`, Vitest, `npm run build`), `validate_backend` (Vitest, Trivy, Terraform `fmt` & `validate`), `validate_python` (Python AI & ML validation), and CodeQL analysis. These checks are the PR status checks to enforce via branch protection on `main` (see `docs/branch_protection.md`; verify the live settings in GitHub).
-- **Merge to `main` (`.github/workflows/ci.yml` -> `release.yml` -> `cd.yml`)**:
-  1. `CI` runs all validation jobs and then `deploy_and_test_dev` (Postgres migrations on `dev`, Terraform apply on `dev`, S3/CloudFront deploy, AI chat eval, Playwright E2E against `dev`, and OWASP ZAP baseline scan).
-  2. When `CI` on `main` completes with `success`, `Semantic Release` (`.github/workflows/release.yml`) runs `npx semantic-release`, scanning **all conventional commits since the last `v*` Git tag** to cut the next version tag, update `docs/changelog.md`, and publish the GitHub Release notes.
-  3. Publishing the release triggers `CD` (`.github/workflows/cd.yml`) to deploy, test (Playwright E2E), and ZAP-scan `prod`.
+- **Pull Requests (`.github/workflows/ci.yml` + `codeql.yml`)**: Run path-filtered `validate_security` (GitLeaks, Checkov, consolidated Trivy), `validate_frontend` (`npm ci`, `tsc --noEmit`, Vitest, `npm run build`), `validate_backend` (Vitest, Terraform `fmt` & `validate`), `validate_python` (Python AI & ML validation), and CodeQL analysis. All required branch-protection check names remain green on every PR.
+- **Merge to `main` (`.github/workflows/ci.yml` -> `.github/workflows/cd.yml`)**:
+  1. `CI` runs validations, builds the immutable frontend + hydrated Lambda bundle **once** (`build_bundle` with `SHA256SUMS.txt` archived to S3), deploys to `dev` (`deploy_dev` with runtime `/env-config.js`), and runs `verify_dev_e2e` (AI eval + Playwright) and `verify_dev_security` (OWASP ZAP + Syft SBOM) **in parallel**. No Git tag is created yet.
+  2. When `CI` on `main` completes with `success`, `CD` (`.github/workflows/cd.yml`) pauses at the GitHub `prod` Environment required-reviewer approval gate.
+  3. Once approved, `deploy_prod` pulls and SHA-256-verifies the exact immutable bundle from S3 (zero rebuild), deploys to `prod`, runs `verify_prod_e2e` and `verify_prod_security` **in parallel**, and only on success runs `finalize_release` (`npx semantic-release` to cut `vX.Y.Z`, update `docs/changelog.md`, publish enriched GitHub Release with SBOM + `SHA256SUMS.txt`, and archive to `s3://<prod-backup-bucket>/releases/vX.Y.Z/` for 1-click tag-based rollback).
+  4. `release.yml` is retained for manual `workflow_dispatch` override only.
 - **Documentation Sync**: Whenever developer commands, package scripts, or workflows change, update `CHEATSHEET.md`, `docs/deployment.md`, and `docs/testing.md`.

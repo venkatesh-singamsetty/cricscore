@@ -15,6 +15,7 @@ import {
   unwrapLiveScoreMessage,
 } from "../utils/applyLiveScoreToMatches";
 import { BatIcon } from "./icons/CricketIcons";
+import { getEnv } from "../utils/runtimeConfig";
 
 interface LiveBall {
   overNumber: number;
@@ -44,8 +45,8 @@ const LiveScoreboard: React.FC<LiveScoreboardProps> = ({
   sectionTitle,
   onActiveMatchChange,
 }) => {
-  const WS_URL = import.meta.env.VITE_WS_URL || "";
-  const API_URL = import.meta.env.VITE_API_URL || "";
+  const WS_URL = getEnv("VITE_WS_URL");
+  const API_URL = getEnv("VITE_API_URL");
   const [targetMatchId, setTargetMatchId] = useState<string>("");
   const { lastMessage, isConnected } = useWebSocket(WS_URL);
   const [liveData, setLiveData] = useState<LiveBall | null>(null);

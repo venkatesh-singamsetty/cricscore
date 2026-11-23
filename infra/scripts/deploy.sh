@@ -154,6 +154,10 @@ if [ -z "${TF_VAR_llm_api_key:-}" ] && [ -n "${OPENAI_API_KEY:-}" ]; then export
 if [ -n "${OPENAI_API_KEY:-}" ]; then export TF_VAR_openai_api_key="$OPENAI_API_KEY"; fi
 if [ -n "${LLM_BASE_URL:-}" ]; then export TF_VAR_llm_base_url="$LLM_BASE_URL"; fi
 if [ -n "${LLM_MODEL:-}" ]; then export TF_VAR_llm_model="$LLM_MODEL"; fi
+if [ -n "${EMBEDDING_API_KEY:-}" ]; then export TF_VAR_embedding_api_key="$EMBEDDING_API_KEY"; fi
+if [ -n "${EMBEDDING_BASE_URL:-}" ]; then export TF_VAR_embedding_base_url="$EMBEDDING_BASE_URL"; fi
+if [ -n "${EMBEDDING_MODEL:-}" ]; then export TF_VAR_embedding_model="$EMBEDDING_MODEL"; fi
+if [ -n "${EMBEDDING_DIMENSIONS:-}" ]; then export TF_VAR_embedding_dimensions="$EMBEDDING_DIMENSIONS"; fi
 if [ -n "${ML_MODEL_VERSION:-}" ]; then export TF_VAR_ml_model_version="$ML_MODEL_VERSION"; fi
 if [ -n "${GITHUB_TOKEN:-}" ]; then export TF_VAR_github_token="$GITHUB_TOKEN"; fi
 if [ -n "${GITHUB_REPO:-}" ]; then export TF_VAR_github_repo="$GITHUB_REPO"; fi
@@ -253,17 +257,34 @@ EOF
 echo "🚀 Building the frontend application..."
 (unset VITE_API_URL VITE_WS_URL VITE_COGNITO_USER_POOL_ID VITE_COGNITO_CLIENT_ID VITE_COGNITO_DOMAIN; cd apps/frontend && npm run build)
 
+echo "⚙️ Generating runtime /env-config.js for $ENV_FILE..."
+cat <<EOF > apps/frontend/dist/env-config.js
+window.__CRICSCORE_CONFIG__ = {
+  VITE_API_URL: "$API_URL",
+  VITE_WS_URL: "$WS_URL",
+  VITE_APP_TITLE: "$APP_TITLE",
+  VITE_COGNITO_REGION: "${AWS_REGION:-us-east-1}",
+  VITE_COGNITO_USER_POOL_ID: "$COGNITO_USER_POOL_ID",
+  VITE_COGNITO_CLIENT_ID: "$COGNITO_CLIENT_ID",
+  VITE_COGNITO_DOMAIN: "$COGNITO_DOMAIN"
+};
+EOF
+
 # 5. Sync files to S3
 cd infra/terraform
 BUCKET_NAME=$(terraform output -raw s3_bucket_name)
 echo "📦 Syncing files to S3 bucket: $BUCKET_NAME..."
 aws s3 sync ../../apps/frontend/dist/ s3://$BUCKET_NAME/ --delete
 
-echo "🔧 Setting Cache-Control headers on index.html to prevent stale mobile cache..."
+echo "🔧 Setting Cache-Control headers on index.html and env-config.js to prevent stale cache..."
 aws s3 cp s3://$BUCKET_NAME/index.html s3://$BUCKET_NAME/index.html \
   --metadata-directive REPLACE \
   --cache-control "no-cache, no-store, must-revalidate" \
   --content-type "text/html"
+aws s3 cp s3://$BUCKET_NAME/env-config.js s3://$BUCKET_NAME/env-config.js \
+  --metadata-directive REPLACE \
+  --cache-control "no-cache, no-store, must-revalidate" \
+  --content-type "application/javascript"
 
 # 6. Invalidate CloudFront
 DIST_ID=$(terraform output -raw cloudfront_distribution_id)

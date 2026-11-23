@@ -28,6 +28,7 @@ import {
   CHAT_MEMORY_KEY,
 } from "./utils/storageSafety";
 import { BatIcon } from "./components/icons/CricketIcons";
+import { getEnv } from "./utils/runtimeConfig";
 
 const MatchSetup = React.lazy(() => import("./components/MatchSetup"));
 const MatchView = React.lazy(() => import("./components/MatchView"));
@@ -524,7 +525,7 @@ const App: React.FC = () => {
 
             if (saved.matchId) {
               setView("SCORER"); // Auto-resume view
-              const API_URL = import.meta.env.VITE_API_URL || "";
+              const API_URL = getEnv("VITE_API_URL");
               const res = await fetch(
                 `${API_URL}/match/${saved.matchId}/details`,
               );
@@ -811,7 +812,7 @@ const App: React.FC = () => {
         return;
       }
 
-      const API_URL = import.meta.env.VITE_API_URL || "";
+      const API_URL = getEnv("VITE_API_URL");
 
       try {
         const headers = await getAuthHeaders();
@@ -858,7 +859,7 @@ const App: React.FC = () => {
 
       // Sync final match status + winner to DB
       if (matchId) {
-        const API_URL = import.meta.env.VITE_API_URL || "";
+        const API_URL = getEnv("VITE_API_URL");
         try {
           // Compute winner string from completedInnings (2nd innings)
           const target = completedInnings.target || 0;
@@ -922,7 +923,7 @@ const App: React.FC = () => {
   };
 
   const resumeMatch = async (mId: string) => {
-    const API_URL = import.meta.env.VITE_API_URL || "";
+    const API_URL = getEnv("VITE_API_URL");
     try {
       console.log("Resuming Match...", mId);
       const response = await fetch(
@@ -1104,7 +1105,7 @@ const App: React.FC = () => {
   const forceResetMatch = async () => {
     if (matchId && matchStatus !== MatchStatus.COMPLETED) {
       try {
-        const API_URL = import.meta.env.VITE_API_URL || "";
+        const API_URL = getEnv("VITE_API_URL");
         const headers = await getAuthHeaders();
         // Fire and forget delete so UI isn't blocked by network
         fetch(`${API_URL}/match/${encodeURIComponent(matchId)}`, {
@@ -1206,7 +1207,7 @@ const App: React.FC = () => {
   const updateMatchOvers = async (newOvers: number) => {
     if (!matchId) return;
     setTotalOvers(newOvers);
-    const API_URL = import.meta.env.VITE_API_URL || "";
+    const API_URL = getEnv("VITE_API_URL");
     try {
       const headers = await getAuthHeaders();
       await fetch(`${API_URL}/match/${encodeURIComponent(matchId)}`, {
@@ -1272,7 +1273,7 @@ const App: React.FC = () => {
   ) => {
     if (!currentInnings || !matchId) return;
 
-    const API_URL = import.meta.env.VITE_API_URL || "";
+    const API_URL = getEnv("VITE_API_URL");
 
     try {
       const reportState = {
@@ -1346,7 +1347,7 @@ const App: React.FC = () => {
     if (forceRefresh) {
       setPlayerOfTheMatch(null);
     }
-    const API_URL = import.meta.env.VITE_API_URL || "";
+    const API_URL = getEnv("VITE_API_URL");
     try {
       const headers = await getAuthHeaders();
 
@@ -2303,7 +2304,7 @@ const App: React.FC = () => {
             <div className="flex-1 w-full flex flex-col bg-slate-950 p-2 sm:p-4 md:p-3 min-h-0 relative">
               <ChatComponent
                 matchId={matchId}
-                apiUrl={import.meta.env.VITE_API_URL}
+                apiUrl={getEnv("VITE_API_URL")}
                 isAdmin={isAdmin}
                 setAlertMessage={setAlertMessage}
               />

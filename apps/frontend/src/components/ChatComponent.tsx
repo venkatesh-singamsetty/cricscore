@@ -11,8 +11,6 @@ import {
   Copy,
   Check,
   PlusCircle,
-  Volume2,
-  VolumeX,
   Sparkles,
 } from "lucide-react";
 import {
@@ -284,7 +282,6 @@ export function ChatComponent({
 
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isSpeechEnabled, setIsSpeechEnabled] = useState(false);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -434,43 +431,9 @@ export function ChatComponent({
     }
   }, []);
 
-  const speakText = (text: string, force: boolean = false) => {
-    if (
-      (!isSpeechEnabled && !force) ||
-      typeof window === "undefined" ||
-      !("speechSynthesis" in window)
-    ) {
-      return;
-    }
-    const cleanText = text
-      .replace(/\*\*/g, "")
-      .replace(/\[Source:.*?\]/g, "")
-      .replace(/[-•]/g, "");
-
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.rate = 1.0;
-    utterance.onerror = (e) => console.error("TTS Error:", e);
-    window.speechSynthesis.speak(utterance);
-  };
-
-  const submitText = async (
-    textToSend: string,
-    isVoiceRequest: boolean = false,
-  ) => {
+  const submitText = async (textToSend: string) => {
     const trimmed = textToSend.trim();
     if (!trimmed || loading) return;
-
-    // Unlock speech synthesis during the synchronous click event
-    if (
-      isSpeechEnabled &&
-      typeof window !== "undefined" &&
-      "speechSynthesis" in window
-    ) {
-      const unlockUtterance = new SpeechSynthesisUtterance("");
-      unlockUtterance.volume = 0;
-      window.speechSynthesis.speak(unlockUtterance);
-    }
 
     const userMsg = { role: "user" as const, content: trimmed };
     setMessages((prev) => [
@@ -506,7 +469,6 @@ export function ChatComponent({
           ...prev,
           { role: "assistant", content: data.reply },
         ]);
-        speakText(data.reply, isVoiceRequest);
       } else {
         setMessages((prev) => [
           ...prev,
@@ -524,11 +486,6 @@ export function ChatComponent({
   };
 
   const handleNewChat = () => {
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      try {
-        window.speechSynthesis.cancel();
-      } catch (e) {}
-    }
     safeLocalStorageRemove(CHAT_MEMORY_KEY);
     setMessages([]);
   };
@@ -554,7 +511,7 @@ export function ChatComponent({
 
   const sendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    submitText(input, false);
+    submitText(input);
   };
 
   return (
@@ -691,7 +648,7 @@ export function ChatComponent({
                     <button
                       key={i}
                       type="button"
-                      onClick={() => submitText(prompt, false)}
+                      onClick={() => submitText(prompt)}
                       disabled={loading}
                       aria-label={prompt}
                       className="w-full text-left py-2.5 px-3.5 sm:py-3 sm:px-4 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 border border-white/10 hover:border-indigo-500/40 text-slate-200 hover:text-white transition-all text-xs sm:text-sm font-semibold flex items-center justify-between group active:scale-[0.98] shadow-sm min-h-[44px]"
@@ -793,7 +750,7 @@ export function ChatComponent({
             <button
               key={i}
               type="button"
-              onClick={() => submitText(prompt, false)}
+              onClick={() => submitText(prompt)}
               disabled={loading}
               className="px-3 py-1.5 rounded-full bg-slate-800 hover:bg-indigo-600/30 text-slate-200 hover:text-indigo-200 border border-white/10 hover:border-indigo-500/40 text-[11px] sm:text-xs font-semibold whitespace-nowrap transition-all active:scale-95 shrink-0 disabled:opacity-50 shadow-sm"
             >
@@ -846,41 +803,6 @@ export function ChatComponent({
             title="Send message"
           >
             <Send size={18} />
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              const next = !isSpeechEnabled;
-              setIsSpeechEnabled(next);
-              if (
-                typeof window !== "undefined" &&
-                "speechSynthesis" in window
-              ) {
-                if (!next) {
-                  window.speechSynthesis.cancel();
-                } else {
-                  const unlock = new SpeechSynthesisUtterance("");
-                  unlock.volume = 0;
-                  window.speechSynthesis.speak(unlock);
-                }
-              }
-            }}
-            className={`h-11 w-11 sm:h-12 sm:w-12 rounded-2xl transition-all shrink-0 shadow-lg active:scale-95 flex items-center justify-center ${
-              isSpeechEnabled
-                ? "bg-gradient-to-r from-indigo-600 to-amber-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.6)] border border-amber-400/50"
-                : "bg-slate-800 text-slate-400 hover:text-slate-200 border border-white/10"
-            }`}
-            title={
-              isSpeechEnabled
-                ? "Voice response enabled"
-                : "Enable voice response"
-            }
-          >
-            {isSpeechEnabled ? (
-              <Volume2 size={18} className="text-white shrink-0" />
-            ) : (
-              <VolumeX size={18} className="shrink-0" />
-            )}
           </button>
         </form>
       </div>

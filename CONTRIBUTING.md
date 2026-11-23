@@ -127,13 +127,12 @@ gh pr checks
 gh api repos/venkatesh-singamsetty/cricscore/pulls/<PR_NUMBER>/comments
 ```
 
-### Step 7: Squash Merge & Automated Production Release
+### Step 7: Squash Merge & Immutable Production Promotion
 
 Once all required PR checks are green, squash-merge into `main`. GitHub Actions automatically executes:
 
-- **`CI` (`deploy_and_test_dev`)**: Deploys `dev`, runs DB migrations, AI evaluation, **`15` Playwright E2E tests**, and OWASP ZAP DAST.
-- **`Semantic Release` (`release.yml`)**: Cuts the next `v*` tag, updates `docs/changelog.md`, and publishes enriched GitHub Release notes.
-- **`CD` (`cd.yml`)**: Deploys the tagged release to `prod` (`https://cricscore.venkateshsingamsetty.com`), runs Playwright E2E, and runs OWASP ZAP against `prod`.
+- **`CI` (`build_bundle` → `deploy_dev` → parallel `verify_dev_e2e` & `verify_dev_security`)**: Builds the immutable frontend + hydrated Lambda bundle **once** with `SHA256SUMS.txt` into S3, deploys to `dev` (DB migrations, Terraform, runtime `/env-config.js`), and runs AI evaluation, **`15` Playwright E2E tests**, OWASP ZAP DAST, and Syft SBOM in parallel. **No Git tag is created yet.**
+- **`CD` (`deploy_prod` → parallel `verify_prod_e2e` & `verify_prod_security` → `finalize_release`)**: Pauses at the GitHub `prod` Environment required-reviewer gate; once approved, promotes the exact verified S3 bundle to `prod` (zero rebuild), verifies live `prod` in parallel, and **only on success** cuts the clean `v*` SemVer tag, updates `docs/changelog.md`, publishes enriched GitHub Release notes with SBOM + checksums, and archives `releases/vX.Y.Z/` in S3 for 1-click tag-based rollback.
 
 ---
 
