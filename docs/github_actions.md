@@ -31,8 +31,6 @@ flowchart TD
   - Pauses at the GitHub `prod` Environment required-reviewer gate **before any Git tag is created**.
   - Downloads and SHA-256-verifies the exact immutable bundle built in `ci.yml` (zero rebuild), deploys to `prod`, runs `verify_prod_e2e` and `verify_prod_security` **in parallel**, and only on success runs `finalize_release` (`semantic-release` `v*` tag, `docs/changelog.md`, enriched release notes, SBOM + `SHA256SUMS.txt` assets, and S3 rollback archive at `releases/vX.Y.Z/`).
   - Supports 1-click rollback via `workflow_dispatch` (`action: rollback`, `target_ref: previous` or any `vX.Y.Z` tag).
-- **`release.yml` — Semantic Release (Manual Override):**
-  - **Triggers:** `workflow_dispatch` only (normal releases are finalized automatically inside `cd.yml` after `prod` passes).
 - **`drift.yml` — Nightly Infrastructure Drift Detection (`prod` pinned to latest release tag):**
   - **Triggers:** `schedule` (`0 0 * * *` daily against `prod`), `workflow_dispatch` (choice of `prod` or `dev`).
   - Pins checkout to the **latest published production release tag** (`v*`), passes `TF_VAR_github_token` (`GH_PAT`), and sets `terraform_wrapper: false` so `terraform plan -detailed-exitcode` exit code `2` directly fails the job on real AWS drift.
@@ -45,9 +43,6 @@ flowchart TD
 - **`codeql.yml` — GitHub CodeQL SAST Security Scan:**
   - **Triggers:** `push` & `pull_request` (`main`), `schedule` (`30 20 * * 4` Thu), `workflow_dispatch`.
   - Runs CodeQL static analysis (`security-extended,security-and-quality`) across `javascript-typescript` and `python`.
-- **`sbom.yml` — Software Bill of Materials Generation:**
-  - **Triggers:** `push` (`main`), `schedule` (`0 0 * * 0` Sun), `workflow_dispatch`.
-  - Generates an SPDX JSON SBOM (`cricscore-sbom.spdx.json`) using Anchore Syft and uploads it as a 30-day artifact.
 - **`keepalive.yml` — Daily Production E2E Match & Aiven PostgreSQL Keep-Alive (`prod` pinned to latest release tag):**
   - **Triggers:** `schedule` (`0 12 * * *` daily), `workflow_dispatch`.
   - Automatically resolves and checks out the **latest published production release tag** (`v*`), ensuring Playwright locators and specs match the deployed frontend version without false failures from unreleased PRs or changes on `main`.

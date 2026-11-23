@@ -280,7 +280,6 @@ gh auth login
   - Pauses at the GitHub **`prod` Environment required-reviewer approval gate**.
   - Once approved, `deploy_prod` downloads and SHA-256-verifies the exact immutable S3 bundle (zero rebuild), runs `migrate.sh prod`, applies Terraform, injects `prod` `/env-config.js`, and runs parallel `verify_prod_e2e` & `verify_prod_security`.
   - **Only after `prod` passes**, `finalize_release` runs **Semantic Release** (`GH_PAT`) to cut the single clean `v*` tag, update `docs/changelog.md`, publish enriched GitHub Release notes with SBOM + `SHA256SUMS.txt`, and archive `releases/vX.Y.Z/` in S3 for 1-click tag-based rollback (`gh workflow run cd.yml -f action=rollback -f target_ref=previous`).
-  - _(Note: `release.yml` is retained for manual `workflow_dispatch` override only.)_
 - **Nightly `00:00 UTC` (`drift.yml`):**
   - Runs read-only `terraform plan -detailed-exitcode` (`terraform_wrapper: false`) exclusively against `prod` pinned to the latest release tag without human gates, failing immediately on exit code `2` (out-of-band AWS drift). Excludes `dev` from scheduled runs to avoid false positives during active feature development.
 
