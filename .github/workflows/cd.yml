@@ -406,7 +406,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          npm install -g semantic-release @semantic-release/git @semantic-release/changelog conventional-changelog-conventionalcommits
+          npm install -g semantic-release @semantic-release/git @semantic-release/changelog conventional-changelog-conventionalcommits@8
           npx semantic-release
 
       - name: Enrich GitHub Release Notes

@@ -53,7 +53,6 @@ Every commit message and squash-merged PR title must use a Conventional Commit p
 5. **Post-PROD SemVer Tag, Changelog & Rollback Archive (`cd.yml -> finalize_release`):**
    - Runs **only after** `deploy_prod`, `verify_prod_e2e`, and `verify_prod_security` all succeed.
    - Resets to the exact verified commit SHA, runs `npx semantic-release` to cut the **single clean `vX.Y.Z` Git tag**, updates `docs/changelog.md` (`chore(release): vX.Y.Z [skip ci]` via `GH_PAT`), publishes and enriches the GitHub Release (`enrich_release_notes.sh`), attaches `cricscore-sbom-prod.spdx.json` + `SHA256SUMS.txt`, and archives the immutable bundle to `s3://<prod-backup-bucket>/releases/vX.Y.Z/` for 1-click tag-based rollback.
-   - _(Note: `.github/workflows/release.yml` is retained for manual `workflow_dispatch` override only.)_
 
 ---
 
@@ -86,6 +85,6 @@ gh workflow run cd.yml -f action=deploy -f target_ref=<commit-sha>
 - **`infra/scripts/enrich_release_notes.sh`:**
   - Ensures the GitHub Release title is strictly the tag name (e.g., `v4.19.2`) and appends the `## 🎯 Overview` summary from referenced PRs (`#123`).
 - **`secrets.GH_PAT`:**
-  - Repository administrator Personal Access Token used by `release.yml` to push the `chore(release): ... [skip ci]` commit directly to protected `main`.
+  - Repository administrator Personal Access Token used by `cd.yml` (`finalize_release`) to push the `chore(release): ... [skip ci]` commit directly to protected `main`.
 - **`package.json` `version`:**
   - Ignored (`private` monorepo); versioning is governed strictly by Git tags and GitHub Releases.
