@@ -1,3 +1,9 @@
+## [4.27.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.26.0...v4.27.0) (2026-11-23)
+
+### 🚀 Features
+
+* **chat:** multiline composer, auto-correct, concise weather, and issue/app help ([#375](https://github.com/venkatesh-singamsetty/cricscore/issues/375)) ([f7d5220]())
+
 ## [4.26.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.25.0...v4.26.0) (2026-11-23)
 
 ### 🚀 Features
