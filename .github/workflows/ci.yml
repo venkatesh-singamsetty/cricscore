@@ -220,7 +220,6 @@ jobs:
       [validate_frontend, validate_backend, validate_security, validate_python]
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    environment: dev
     permissions:
       contents: read
       id-token: write
@@ -448,7 +447,7 @@ jobs:
         with:
           node-version: "24"
           cache: "npm"
-          cache-dependency-path: apps/e2e/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Run AI chat evaluation against DEV API
         env:
@@ -457,14 +456,14 @@ jobs:
 
       - name: Install E2E dependencies
         working-directory: ./apps/e2e
-        run: npm ci --legacy-peer-deps --no-audit --no-fund --ignore-scripts || npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
+        run: npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
 
       - name: Cache Playwright Browsers
         uses: actions/cache@v6
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('apps/e2e/package-lock.json') }}
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
 
       - name: Install Playwright Browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
