@@ -1,6 +1,6 @@
 # 🧪 Testing Strategy & Verification Matrix
 
-CricScore enforces a multi-layer testing architecture spanning **`388` automated unit and integration tests** (`160` Frontend Vitest + `124` Backend Vitest + `75` AI Service Pytest + `29` ML Engine Pytest), **`15` Playwright End-to-End (E2E) tests** across 5 suites, live **AI Chat evaluations**, and **OWASP ZAP DAST** scans.
+CricScore enforces a multi-layer testing architecture spanning **`397` automated unit and integration tests** (`169` Frontend Vitest + `124` Backend Vitest + `75` AI Service Pytest + `29` ML Engine Pytest), **`15` Playwright End-to-End (E2E) tests** across 5 suites, live **AI Chat evaluations**, and **OWASP ZAP DAST** scans.
 
 ---
 
@@ -8,14 +8,14 @@ CricScore enforces a multi-layer testing architecture spanning **`388` automated
 
 ```mermaid
 flowchart TD
-    subgraph LocalGate ["1. Local Pre-Push Gate (~25s + Signed Receipt)"]
+    subgraph LocalGate ["1. Local Pre-Push Gate (~5-15s Changed-Files + Signed Receipt)"]
         FastCmd["./infra/scripts/validate_local.sh --fast"]
         Receipt[".git/.local_validation_receipt\n(Skips duplicate push runs in <0.1s)"]
         FastCmd --> Receipt
     end
 
-    subgraph UnitIntegration ["2. Unit & Integration Suite (388 Tests Total)"]
-        FE["Frontend Vitest: 160 Tests (23 Suites)"]
+    subgraph UnitIntegration ["2. Unit & Integration Suite (397 Tests Total)"]
+        FE["Frontend Vitest: 169 Tests (24 Suites)"]
         BE["Backend Lambda Vitest: 124 Tests (16 Suites)"]
         AI["Python AI Service Pytest: 75 Tests (LangGraph / MCP)"]
         ML["Python ML Engine Pytest: 29 Tests (XGBoost v2.2.0 / DP / DLS)"]
@@ -23,27 +23,26 @@ flowchart TD
     end
 
     subgraph SecurityIaC ["3. Static Security & IaC Gates"]
-        Sec["GitLeaks + Checkov + Trivy FS + npm audit + CodeQL + Terraform Validate"]
+        Sec["GitLeaks + Checkov + Consolidated Trivy FS + CodeQL + Terraform Validate"]
     end
 
-    subgraph LivePostDeploy ["4. Live Post-Deploy Verification (Dev & Prod)"]
-        AIEval["AI Chat Eval (evals/run_ai_chat_eval.js)"]
-        E2E["Playwright E2E Suite (15 Tests Across 5 Suites)"]
-        ZAP["OWASP ZAP Baseline DAST Scan (.zap/rules.tsv)"]
-        AIEval --> E2E --> ZAP
+    subgraph LivePostDeploy ["4. Parallel Live Post-Deploy Verification (Dev & Prod)"]
+        AIEval["verify_*_e2e: AI Chat Eval + Playwright E2E (15 Tests)"]
+        ZAP["verify_*_security: OWASP ZAP Baseline DAST + Syft SBOM"]
     end
 
     Receipt --> FE
     ML --> Sec
     Sec --> AIEval
+    Sec --> ZAP
 ```
 
 ---
 
-## 📊 2. Complete Test Suite Inventory (`388` Unit/Integration + `15` E2E)
+## 📊 2. Complete Test Suite Inventory (`397` Unit/Integration + `15` E2E)
 
 ```bash
-# Run Frontend Vitest suite (160 unit tests)
+# Run Frontend Vitest suite (169 unit tests)
 npm run test --prefix apps/frontend
 
 # Run Backend Lambda Vitest suite (124 unit tests)
@@ -55,7 +54,7 @@ pytest apps/ai-service -q
 # Run Python ML Engine inference pytest suite (29 tests)
 pytest apps/ml-engine/test_predict.py -q
 
-# Run all 388 unit tests together across Frontend, Backend, AI, and ML
+# Run all 397 unit tests together across Frontend, Backend, AI, and ML
 npm run test:all
 
 # Run full Playwright E2E suite against Dev environment (15 tests)
@@ -112,12 +111,10 @@ npm run deps:check
 
 ### Checks Executed by Mode
 
-- **`--fast` (~25s — Default `.husky/pre-push` gate):**
-  - Frontend `tsc --noEmit` + `151` Vitest tests + production Vite build.
-  - Backend `121` Vitest tests + Python `75` AI & `29` ML Pytest suites (`376` unit tests total).
-  - `npm audit`, Terraform `fmt`/`validate`, Checkov IaC scan, GitLeaks secret detection, Trivy FS scan, and dependency drift checks.
-- **`--skip-e2e` (~35s):**
-  - Runs every check in `--fast` **plus** Syft SPDX SBOM generation (`cricscore-sbom.spdx.json`).
+- **`--fast` (~5–15s — Default `.husky/pre-push` gate):**
+  - Automatically detects changed areas (`git diff origin/main...HEAD`) and runs only impacted unit/type/build/Terraform/Checkov suites plus GitLeaks secrets scan (skipping slow `npm audit`, Trivy DB downloads, and `check_dependencies.sh` locally since PR CI enforces them).
+- **`--skip-e2e` (~35–60s):**
+  - Runs the full local suite across all layers (Frontend, Backend, Python, Terraform, Checkov, GitLeaks, Trivy, `npm audit`, and dependency drift checks) without live Playwright E2E.
 - **`--skip-sbom` (~90s):**
   - Runs every check in `--fast` **plus** the live `15`-test Playwright E2E suite against `dev`.
 - **`npm run deps:check` (~8s):**

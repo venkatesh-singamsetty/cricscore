@@ -23,21 +23,21 @@ flowchart TD
 
 ## 1. Automated Pull Request Status Checks
 
-The `.github/workflows/ci.yml` and `.github/workflows/codeql.yml` workflows execute **`376` automated unit/integration tests** alongside static security and infrastructure gates on every pull request targeting `main`:
+The `.github/workflows/ci.yml` and `.github/workflows/codeql.yml` workflows execute **`397` automated unit/integration tests** alongside static security and infrastructure gates on every pull request targeting `main`:
 
 - **`Infrastructure & Secrets Security` (`ci.yml`):**
-  - Runs full-history **GitLeaks** secrets scanning and **Checkov** Terraform IaC security audits (`infra/terraform`).
+  - Runs full-history **GitLeaks** secrets scanning, **Checkov** Terraform IaC security audits (`infra/terraform`), and a single consolidated **Trivy** (`HIGH`/`CRITICAL`) filesystem scan.
 - **`Lint & Test` (`ci.yml`):**
-  - Runs **Trivy** (`HIGH`/`CRITICAL`) filesystem scanning on `apps/frontend`, TypeScript lint & typecheck, **`151` Frontend Vitest** tests, and a production Vite bundle dry-run build.
+  - Path-filtered on PRs: runs TypeScript lint & typecheck, **`169` Frontend Vitest** tests, and a production Vite bundle dry-run build.
 - **`Backend & Terraform Validation` (`ci.yml`):**
-  - Runs **`121` Backend Vitest** Lambda unit tests, **Trivy** scanning on `apps/backend/lambdas`, and `terraform fmt -check` + `terraform validate`.
+  - Path-filtered on PRs: runs **`124` Backend Vitest** Lambda unit tests and `terraform fmt -check` + `terraform validate`.
 - **`Python AI & ML Validation` (`ci.yml`):**
-  - Runs **`75` AI Service Pytest** tests, **`29` ML Engine Pytest** tests (including `XGBoost v2.2.0` artifact checks), and **Trivy** filesystem scanning on `apps/ai-service`.
+  - Path-filtered on PRs: runs **`75` AI Service Pytest** tests and **`29` ML Engine Pytest** tests (including `XGBoost v2.2.0` artifact checks).
 - **`Analyze Code (javascript-typescript / python)` (`codeql.yml`):**
   - Executes GitHub **CodeQL** semantic SAST analysis to detect XSS, injection, and taint-flow logic flaws.
 
 > [!NOTE]
-> Post-merge jobs (`deploy_and_test_dev`, `15` Playwright E2E tests, OWASP ZAP scan, and `sbom.yml`) run on pushes to `main` or manual `workflow_dispatch`, keeping PR feedback fast and deterministic.
+> Post-merge jobs (`build_bundle`, `deploy_dev`, parallel `verify_dev_e2e` & `verify_dev_security`, and `cd.yml` manual `prod` promotion + post-`prod` release) run on pushes to `main` or manual `workflow_dispatch`, keeping PR feedback fast and deterministic.
 
 ---
 

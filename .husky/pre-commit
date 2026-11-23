@@ -1,15 +1,19 @@
 #!/usr/bin/env sh
 
-echo "📄 Auto-generating Central Platform Dashboard..."
-bash infra/scripts/generate_platform_dashboard.sh
-git add docs/platform_dashboard.md docs/aws_resources_dashboard.md
+STAGED_FILES="$(git diff --cached --name-only 2>/dev/null || true)"
 
-echo "💅 Formatting code..."
+# Only regenerate platform dashboards when infra, workflows, or root packages change
+if echo "$STAGED_FILES" | grep -qE '^(infra/terraform/|\.github/workflows/|package\.json)'; then
+  echo "📄 Refreshing Central Platform Dashboard..."
+  bash infra/scripts/generate_platform_dashboard.sh
+  git add docs/platform_dashboard.md docs/aws_resources_dashboard.md
+fi
+
+echo "💅 Formatting staged files..."
 npx lint-staged
 
 echo "🔒 Scanning for secrets in staged files before committing..."
-if command -v gitleaks &> /dev/null; then
-  # Run gitleaks to check for secrets in files about to be committed
+if command -v gitleaks >/dev/null 2>&1; then
   gitleaks protect -v --staged
 else
   echo "⚠️  gitleaks is not installed. Skipping secrets scan."

@@ -273,18 +273,16 @@ gh auth login
 ### 6b. Automated CI/CD Pipeline Behavior
 
 - **Pull Request to `main` (`ci.yml`):**
-  - Runs 4 parallel validation jobs (`376` unit tests total): `validate_security` (GitLeaks + Checkov), `validate_frontend` (Vitest + Trivy + Vite build), `validate_backend` (Lambda unit tests + Trivy + Terraform `fmt`/`validate`), and `validate_python` (AI & ML pytest + Trivy, no cloud deploy).
+  - Runs path-filtered parallel validation jobs (`397` unit tests total) while preserving all required branch-protection checks: `validate_security` (GitLeaks + Checkov + consolidated Trivy), `validate_frontend` (`npm ci` + `tsc --noEmit` + Vitest + Vite build), `validate_backend` (Lambda unit tests + Terraform `fmt`/`validate`), and `validate_python` (AI & ML pytest, no cloud deploy).
 - **Push / Merge to `main` (`ci.yml`):**
-  - Runs all 4 validation jobs (`376` unit tests) followed by `deploy_and_test_dev`: DB migrations, `terraform init -upgrade` & `apply`, 7-day log retention, and S3/CloudFront sync.
-  - Executes live AI evals, `15` Playwright E2E tests, and OWASP ZAP baseline scan.
-- **`CI` Succeeds on `main` (`release.yml`):**
-  - Runs **Semantic Release** using `GH_PAT` to calculate the next `v*` tag from Conventional Commits.
-  - Updates `docs/changelog.md`, publishes GitHub Release notes, and enriches PR overview via `enrich_release_notes.sh`.
-- **Release Published (`v*` tag) (`cd.yml`):**
-  - Runs `deploy_and_test_prod` against the `prod` environment (supports optional manual approval gate).
-  - Enforces 7-day Lambda log retention, deploys SPA to S3/CloudFront, and runs live AI evals, `15` Playwright E2E tests, and OWASP ZAP scan.
+  - Runs validations, then `build_bundle` (builds frontend + hydrated Lambdas **once** with `SHA256SUMS.txt` archived to S3), `deploy_dev` (DB migrations, `terraform apply`, 7-day log retention, runtime `/env-config.js`, S3/CloudFront sync), and parallel `verify_dev_e2e` (AI eval + `15` Playwright E2E) & `verify_dev_security` (OWASP ZAP + Syft SBOM). **No Git tag is created yet.**
+- **`CI` Succeeds on `main` (`cd.yml`):**
+  - Pauses at the GitHub **`prod` Environment required-reviewer approval gate**.
+  - Once approved, `deploy_prod` downloads and SHA-256-verifies the exact immutable S3 bundle (zero rebuild), runs `migrate.sh prod`, applies Terraform, injects `prod` `/env-config.js`, and runs parallel `verify_prod_e2e` & `verify_prod_security`.
+  - **Only after `prod` passes**, `finalize_release` runs **Semantic Release** (`GH_PAT`) to cut the single clean `v*` tag, update `docs/changelog.md`, publish enriched GitHub Release notes with SBOM + `SHA256SUMS.txt`, and archive `releases/vX.Y.Z/` in S3 for 1-click tag-based rollback (`gh workflow run cd.yml -f action=rollback -f target_ref=previous`).
+  - _(Note: `release.yml` is retained for manual `workflow_dispatch` override only.)_
 - **Nightly `00:00 UTC` (`drift.yml`):**
-  - Runs read-only `terraform plan -detailed-exitcode` exclusively against `prod` pinned to the latest release tag without human gates, alerting immediately via GitHub Actions on exit code `2` (out-of-band AWS drift). Excludes `dev` from scheduled runs to avoid false positives during active feature development.
+  - Runs read-only `terraform plan -detailed-exitcode` (`terraform_wrapper: false`) exclusively against `prod` pinned to the latest release tag without human gates, failing immediately on exit code `2` (out-of-band AWS drift). Excludes `dev` from scheduled runs to avoid false positives during active feature development.
 
 ---
 

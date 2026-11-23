@@ -13,6 +13,7 @@ import { AiMatchPrediction } from "./AiMatchPrediction";
 import { calculateDlsParScore } from "../utils/dlsUtils";
 import { getTeamBrandColor } from "../utils/teamColorUtils";
 import { BatIcon, BallIcon } from "./icons/CricketIcons";
+import { getEnv } from "../utils/runtimeConfig";
 
 interface MatchViewProps {
   initialState: InningsState;
@@ -684,7 +685,7 @@ const MatchView: React.FC<MatchViewProps> = ({
     });
   };
 
-  const API_URL = import.meta.env.VITE_API_URL || "";
+  const API_URL = getEnv("VITE_API_URL");
 
   const syncMatchState = async () => {
     if (matchId.startsWith("guest_") || !userToken) return;

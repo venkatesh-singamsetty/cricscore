@@ -5,24 +5,31 @@ import { Amplify } from "aws-amplify";
 import { ThemeProvider } from "@aws-amplify/ui-react";
 import App from "./App";
 import { hasCognitoAuthConfig } from "./authConfig";
+import { getEnv } from "./utils/runtimeConfig";
 // App styles first — Amplify styles loaded AFTER so they don't override app UI
 import "./index.css";
 import "@aws-amplify/ui-react/styles.css";
+
+const appTitle = getEnv("VITE_APP_TITLE");
+if (appTitle && typeof document !== "undefined") {
+  document.title = appTitle;
+}
 
 if (hasCognitoAuthConfig()) {
   Amplify.configure({
     Auth: {
       Cognito: {
-        userPoolId: import.meta.env.VITE_COGNITO_USER_POOL_ID || "",
-        userPoolClientId: import.meta.env.VITE_COGNITO_CLIENT_ID || "",
+        userPoolId: getEnv("VITE_COGNITO_USER_POOL_ID"),
+        userPoolClientId: getEnv("VITE_COGNITO_CLIENT_ID"),
       },
     },
   });
 }
 
-if (import.meta.env.VITE_SENTRY_DSN) {
+const sentryDsn = getEnv("VITE_SENTRY_DSN");
+if (sentryDsn) {
   Sentry.init({
-    dsn: import.meta.env.VITE_SENTRY_DSN,
+    dsn: sentryDsn,
     integrations: [
       Sentry.browserTracingIntegration(),
       Sentry.replayIntegration(),

@@ -83,7 +83,7 @@ describe("ChatComponent", () => {
     window.HTMLElement.prototype.scrollIntoView = vi.fn();
   });
 
-  it("renders assistant header and input box", () => {
+  it("renders assistant header and input box without a voice response toggle", () => {
     render(
       <ChatComponent
         matchId={null}
@@ -94,6 +94,9 @@ describe("ChatComponent", () => {
     expect(
       screen.getByPlaceholderText(/Ask about the match, score, or players/i),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /voice response/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("sends chat message and renders response from API", async () => {

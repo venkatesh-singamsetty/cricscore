@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { TeamData } from "../types";
 import { BatIcon, BallIcon } from "./icons/CricketIcons";
+import { getEnv } from "../utils/runtimeConfig";
 
 interface MatchSetupProps {
   onStartMatch: (
@@ -131,7 +132,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
   hideResume,
   canDelete = true,
   token,
-  initialEmail = import.meta.env.VITE_DEFAULT_EMAIL || "",
+  initialEmail = getEnv("VITE_DEFAULT_EMAIL"),
   isGuestMode = false,
   onCancel,
 }) => {
@@ -159,7 +160,7 @@ const MatchSetup: React.FC<MatchSetupProps> = ({
   const lineNumbersRefA = useRef<HTMLDivElement>(null);
   const lineNumbersRefB = useRef<HTMLDivElement>(null);
 
-  const API_URL = import.meta.env.VITE_API_URL || "";
+  const API_URL = getEnv("VITE_API_URL");
 
   const parsedTeamA = teamASquad
     .split("\n")

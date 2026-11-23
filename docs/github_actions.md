@@ -4,13 +4,15 @@ Reference guide for all 10 GitHub Actions workflows in `.github/workflows/`, the
 
 ```mermaid
 flowchart TD
-    PR["Pull Request to main"] --> CI_VAL["ci.yml: 4 Parallel Validation Jobs\n(Security, Frontend, Backend+TF, Python AI/ML)"]
+    PR["Pull Request to main"] --> CI_VAL["ci.yml: Path-Filtered Parallel Validation\n(Security+Trivy, Frontend, Backend+TF, Python AI/ML)"]
     PUSH["Push / Merge to main"] --> CI_VAL
-    CI_VAL -->|main branch only| DEV["ci.yml: deploy_and_test_dev\n(DB Migrate -> TF Apply -> 7d Logs -> S3/CF -> AI Eval + 15 E2E + ZAP)"]
-    DEV -->|workflow_run: success| REL["release.yml: Semantic Release\n(v* Tag + docs/changelog.md + enrich_release_notes.sh)"]
-    REL -->|Release published / v* tag| PROD["cd.yml: deploy_and_test_prod\n(DB Migrate -> TF Apply -> 7d Logs -> S3/CF -> AI Eval + 15 E2E + ZAP)"]
+    CI_VAL -->|main branch only| BLD["ci.yml: build_bundle\n(Build Once + SHA-256 Checksums -> S3 builds/<sha>/)"]
+    BLD --> DEV["ci.yml: deploy_dev -> Parallel verify_dev_e2e & verify_dev_security\n(DB Migrate -> TF Apply -> Runtime /env-config.js -> S3/CF)"]
+    DEV -->|workflow_run: success| PROD["cd.yml: deploy_prod (Manual 'prod' Approval Gate — No Tag Yet)\n(Pull Exact S3 Bundle -> Verify SHA-256 -> Zero Rebuild -> TF Apply -> S3/CF)"]
+    PROD --> PVER["cd.yml: Parallel verify_prod_e2e & verify_prod_security\n(AI Eval + Playwright E2E | OWASP ZAP + Syft SBOM)"]
+    PVER --> FIN["cd.yml: finalize_release\n(Semantic Release v* Tag + Changelog + Release Assets + S3 Rollback Archive)"]
 
-    CRON_D["Nightly 00:00 UTC"] --> DRIFT["drift.yml: Read-Only Terraform Drift Check\n(prod pinned to latest release tag: exitcode 2 = alert)"]
+    CRON_D["Nightly 00:00 UTC"] --> DRIFT["drift.yml: Read-Only Terraform Drift Check\n(prod pinned to latest release tag: exitcode 2 = fail)"]
     CRON_K["Daily 12:00 UTC"] --> KEEP["keepalive.yml: 1 Full Prod E2E Match\n(prod pinned to latest release tag + Retain Latest 7)"]
     CRON_M["Monthly / ML Paths Changed"] --> MLOPS["mlops-pipeline.yml: 8-Model Benchmark & Quality Gate"]
     DISPATCH_M["Manual Dispatch"] --> MLREL["ml-model-release.yml: Promote / Rollback ML Model + Smoke Test"]
@@ -20,21 +22,20 @@ flowchart TD
 
 ## Workflow Inventory (`.github/workflows/`)
 
-- **`ci.yml` — Continuous Integration & Dev Deployment (`dev` on `main`):**
+- **`ci.yml` — Continuous Integration, Immutable Build & DEV Verification (`dev` on `main`):**
   - **Triggers:** `push` (`main`), `pull_request` (`main`), `workflow_dispatch`.
-  - Runs 4 parallel validation jobs (`376` unit tests total) on every PR and push.
-  - On `main`, executes `deploy_and_test_dev` (`migrate.sh dev`, `terraform init -upgrade` & `apply`, 7-day log retention, S3/CloudFront sync, live AI evals, `15` Playwright E2E tests, and OWASP ZAP).
-- **`release.yml` — Automated Semantic Release (`main`):**
-  - **Triggers:** `workflow_run` (`CI` success on `main`), `workflow_dispatch`.
-  - Resets to the exact tested commit SHA, runs `npx semantic-release` (`v*` tag + `docs/changelog.md`), and enriches release notes with the PR overview via `enrich_release_notes.sh`.
-- **`cd.yml` — Production Continuous Deployment (`prod`):**
-  - **Triggers:** `release` (`published`), `push` (`tags: v*`), `workflow_dispatch` (`tag`).
-  - Checks out the release tag, runs `migrate.sh prod`, `terraform init -upgrade` & `apply`, enforces 7-day Lambda log retention, syncs S3/CloudFront, and runs AI evals, `15` Playwright E2E tests, and OWASP ZAP.
+  - Runs path-filtered parallel validation jobs on PRs (preserving all required branch-protection check names) with a single consolidated Trivy scan.
+  - On `main`, builds the immutable frontend + hydrated Lambda bundle **once** (`build_bundle` with `SHA256SUMS.txt`), deploys to `dev` (`deploy_dev` with runtime `/env-config.js`), and runs `verify_dev_e2e` and `verify_dev_security` **in parallel**.
+- **`cd.yml` — Immutable PROD Promotion, Post-PROD SemVer Release & Tag-Based Rollback (`prod`):**
+  - **Triggers:** `workflow_run` (`CI` success on `main`), `workflow_dispatch` (`action: deploy|rollback`, `target_ref`).
+  - Pauses at the GitHub `prod` Environment required-reviewer gate **before any Git tag is created**.
+  - Downloads and SHA-256-verifies the exact immutable bundle built in `ci.yml` (zero rebuild), deploys to `prod`, runs `verify_prod_e2e` and `verify_prod_security` **in parallel**, and only on success runs `finalize_release` (`semantic-release` `v*` tag, `docs/changelog.md`, enriched release notes, SBOM + `SHA256SUMS.txt` assets, and S3 rollback archive at `releases/vX.Y.Z/`).
+  - Supports 1-click rollback via `workflow_dispatch` (`action: rollback`, `target_ref: previous` or any `vX.Y.Z` tag).
+- **`release.yml` — Semantic Release (Manual Override):**
+  - **Triggers:** `workflow_dispatch` only (normal releases are finalized automatically inside `cd.yml` after `prod` passes).
 - **`drift.yml` — Nightly Infrastructure Drift Detection (`prod` pinned to latest release tag):**
   - **Triggers:** `schedule` (`0 0 * * *` daily against `prod`), `workflow_dispatch` (choice of `prod` or `dev`).
-  - Pins checkout to the **latest published production release tag** (`v*`) to prevent unreleased Terraform changes on `main` from triggering false positive drift alerts against Production.
-  - Excludes `dev` from scheduled runs so active development and experimental branches in `dev` never trigger noisy alerts.
-  - Runs autonomous read-only `terraform init -upgrade` and `terraform plan -detailed-exitcode` without human environment gates; exits with code `2` on out-of-band AWS drift, which immediately triggers a GitHub failure email notification.
+  - Pins checkout to the **latest published production release tag** (`v*`), passes `TF_VAR_github_token` (`GH_PAT`), and sets `terraform_wrapper: false` so `terraform plan -detailed-exitcode` exit code `2` directly fails the job on real AWS drift.
 - **`mlops-pipeline.yml` — ML Training, Benchmarking & Quality Gate:**
   - **Triggers:** `push`/`pull_request` (`cricket-data/**`, `apps/ml-engine/**`), `schedule` (`0 0 1 * *` monthly), `workflow_dispatch`.
   - Runs `pytest test_predict.py` and `compare_models.py` across 8 candidate models with MLflow, enforcing quality gates (`accuracy >= 0.60`, `roc_auc >= 0.65`, `approvalStatus == "approved"`) and uploading `XGBoost v2.2.0` artifacts.
@@ -63,17 +64,18 @@ flowchart TD
 
 ## `ci.yml` Job Breakdown
 
+- **`changes` (Runs on PR & `main`):**
+  - Uses `dorny/paths-filter@v3` on PRs to skip untouched test/build suites while keeping all required branch-protection checks green.
 - **`validate_security` (Runs on PR & `main`):**
-  - Full-history **GitLeaks** secrets scan and **Checkov** Terraform IaC security audit (`infra/terraform`).
+  - Full-history **GitLeaks** secrets scan, **Checkov** Terraform IaC security audit (`infra/terraform`), and a single consolidated **Trivy** FS scan (`HIGH,CRITICAL`).
 - **`validate_frontend` (Runs on PR & `main`):**
-  - Node.js 24 setup, **Trivy** FS scan (`HIGH,CRITICAL`), TypeScript check (`npm run lint`), **Vitest** unit/component tests (`151` tests), and Vite production dry-run build.
+  - Node.js 24 setup (`npm ci`), TypeScript check (`npm run lint`), **Vitest** unit/component tests (`169` tests), and Vite production dry-run build.
 - **`validate_backend` (Runs on PR & `main`):**
-  - Node.js 24 Lambda unit tests (`121` tests), **Trivy** FS scan across `apps/backend/lambdas`, and Terraform `~1.10` `fmt -check -recursive`, `init -backend=false`, and `validate`.
+  - Node.js 24 Lambda unit tests (`124` tests) and Terraform `~1.10` `fmt -check -recursive`, `init -backend=false`, and `validate`.
 - **`validate_python` (Runs on PR & `main`):**
-  - Python 3.12 **AI Service** pytest (`75` tests), **ML Engine** pytest & `XGBoost v2.2.0` artifact verification (`29` tests), and **Trivy** FS scan on Python dependencies.
-- **`deploy_and_test_dev` (Runs on `main` only):**
-  - PostgreSQL `migrate.sh dev`, Lambda `npm install --omit=dev`, `terraform init -upgrade` & `apply` (ECR `xgboost-cpu ~309 MB`, `countNumber = 1`), and 7-day log retention.
-  - S3/CloudFront sync, live AI evaluation suite, `15` Playwright E2E tests, and OWASP ZAP baseline scan.
+  - Python 3.12 **AI Service** pytest (`75` tests) and **ML Engine** pytest & `XGBoost v2.2.0` artifact verification (`29` tests).
+- **`build_bundle` → `deploy_dev` → parallel `verify_dev_e2e` & `verify_dev_security` (Runs on `main` only):**
+  - Builds immutable frontend + hydrated Lambdas once with `SHA256SUMS.txt` archived to S3, runs `migrate.sh dev` + `terraform apply` + 7-day log retention + runtime `/env-config.js` + S3/CloudFront sync, then runs AI eval + `15` Playwright E2E and OWASP ZAP + Syft SBOM in parallel.
 
 ---
 

@@ -8,6 +8,7 @@ import {
   isScoreEventType,
   unwrapLiveScoreMessage,
 } from "../utils/applyLiveScoreToMatches";
+import { getEnv } from "../utils/runtimeConfig";
 interface MatchInningSummary {
   id?: string;
   inning_number: number;
@@ -70,7 +71,7 @@ const MatchList: React.FC<MatchListProps> = ({
     matchName?: string;
   } | null>(null);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
-  const API_URL = import.meta.env.VITE_API_URL || "";
+  const API_URL = getEnv("VITE_API_URL");
   const activeMessage = lastMessage;
   const lastWsScoreUpdateAtRef = useRef<number>(0);
   const lastWsUndoAtRef = useRef<number>(0);

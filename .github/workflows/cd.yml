@@ -1,36 +1,59 @@
 name: CD
 
 on:
-  release:
+  workflow_run:
+    workflows: ["CI"]
     types:
-      - published
-  push:
-    tags:
-      - "v*"
+      - completed
+    branches: [main]
   workflow_dispatch:
     inputs:
-      tag:
-        description: "Tag to deploy (e.g. v1.2.3)"
+      action:
+        description: "Deployment action (deploy latest verified build, or rollback to a prior vX.Y.Z tag)"
         required: true
+        default: "deploy"
+        type: choice
+        options:
+          - deploy
+          - rollback
+      target_ref:
+        description: "For rollback: 'previous' or a release tag (e.g. v4.25.0). For deploy: commit SHA (leave blank for latest main)."
+        required: false
+        default: ""
         type: string
 
 concurrency:
-  group: deploy-prod-${{ github.ref }}
-  cancel-in-progress: true
+  group: deploy-prod
+  cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
+
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
+  AWS_REGION: us-east-1
 
 jobs:
-  deploy_and_test_prod:
-    name: Deploy, Test & OWASP ZAP PROD
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'release' || startsWith(github.ref, 'refs/tags/v') }}
+  # ------------------------------------------------------------------
+  # 1. Deploy Immutable Verified Bundle to PROD (Manual Approval Gate)
+  #    NO Git tag exists yet until PROD verification passes!
+  # ------------------------------------------------------------------
+  deploy_prod:
+    name: Deploy to PROD (Immutable Promotion / Rollback)
+    if: >-
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: prod
     permissions:
-      issues: write
-      contents: write
+      contents: read
       id-token: write
+    outputs:
+      prod_domain: ${{ vars.DOMAIN_NAME }}
+      target_sha: ${{ steps.resolve.outputs.target_sha }}
+      short_sha: ${{ steps.resolve.outputs.short_sha }}
+      is_rollback: ${{ steps.resolve.outputs.is_rollback }}
+      rollback_tag: ${{ steps.resolve.outputs.rollback_tag }}
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
       TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET || 'venky-2026-terraform-state' }}
@@ -47,16 +70,52 @@ jobs:
       TF_VAR_llm_api_key: ${{ secrets.OPENAI_API_KEY }}
       TF_VAR_llm_base_url: ${{ vars.LLM_BASE_URL }}
       TF_VAR_llm_model: ${{ vars.LLM_MODEL }}
+      TF_VAR_embedding_api_key: ${{ secrets.EMBEDDING_API_KEY }}
+      TF_VAR_embedding_base_url: ${{ vars.EMBEDDING_BASE_URL }}
+      TF_VAR_embedding_model: ${{ vars.EMBEDDING_MODEL || 'text-embedding-3-small' }}
+      TF_VAR_embedding_dimensions: ${{ vars.EMBEDDING_DIMENSIONS || '1536' }}
       TF_VAR_github_token: ${{ secrets.GH_PAT }}
     steps:
-      - name: Checkout code
+      - name: Resolve Target Ref & Mode
+        id: resolve
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT || github.token }}
+          ACTION: ${{ github.event.inputs.action || 'deploy' }}
+          INPUT_REF: ${{ github.event.inputs.target_ref || '' }}
+          CI_SHA: ${{ github.event.workflow_run.head_sha || '' }}
+        run: |
+          set -e
+          if [ "$ACTION" = "rollback" ]; then
+            echo "is_rollback=true" >> "$GITHUB_OUTPUT"
+            if [ -z "$INPUT_REF" ] || [ "$INPUT_REF" = "previous" ]; then
+              TAG=$(gh release list -R "${GITHUB_REPOSITORY}" --limit 2 --json tagName -q '.[1].tagName // .[0].tagName')
+            else
+              TAG="$INPUT_REF"
+            fi
+            if [ -z "$TAG" ]; then
+              echo "❌ Could not resolve a previous release tag for rollback."
+              exit 1
+            fi
+            echo "⏪ Rolling back PROD to release tag: $TAG"
+            echo "rollback_tag=$TAG" >> "$GITHUB_OUTPUT"
+            echo "checkout_ref=$TAG" >> "$GITHUB_OUTPUT"
+            echo "target_sha=$TAG" >> "$GITHUB_OUTPUT"
+            echo "short_sha=$TAG" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_rollback=false" >> "$GITHUB_OUTPUT"
+            echo "rollback_tag=" >> "$GITHUB_OUTPUT"
+            TARGET="${CI_SHA:-${INPUT_REF:-$GITHUB_SHA}}"
+            SHORT="${TARGET:0:7}"
+            echo "🚀 Promoting verified commit $TARGET ($SHORT) to PROD"
+            echo "checkout_ref=$TARGET" >> "$GITHUB_OUTPUT"
+            echo "target_sha=$TARGET" >> "$GITHUB_OUTPUT"
+            echo "short_sha=$SHORT" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout Exact Verified Commit / Tag
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.inputs.tag || github.ref }}
-
-      - name: Validate AWS_REGION secret
-        run: |
-          if [ -z "$AWS_REGION" ]; then echo "Missing AWS_REGION. Set vars.AWS_REGION"; exit 1; fi
+          ref: ${{ steps.resolve.outputs.checkout_ref }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
@@ -66,24 +125,46 @@ jobs:
           aws-secret-access-key: ${{ (vars.AWS_ROLE_ARN || secrets.AWS_ROLE_ARN) == '' && secrets.AWS_SECRET_ACCESS_KEY || '' }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: "24"
-          cache: "npm"
-          cache-dependency-path: package-lock.json
-
-      - name: Install PostgreSQL Client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
-
-      - name: Run Database Migrations
+      - name: Pull & Verify Immutable Release Bundle (Zero Rebuild)
+        id: bundle
         run: |
-          cd infra/database
-          chmod +x migrate.sh
-          ./migrate.sh "${{ secrets.TF_DATABASE_URL }}" "prod"
+          set -e
+          mkdir -p dist-bundle
+          FOUND=false
 
-      # --- BACKEND DEPLOYMENT ---
-      - name: Install Lambda dependencies
+          if [ "${{ steps.resolve.outputs.is_rollback }}" = "true" ]; then
+            PROD_BUCKET=$(aws s3api list-buckets --query "Buckets[?starts_with(Name, 'cricscore-match-backups-')].Name | [0]" --output text)
+            TAG="${{ steps.resolve.outputs.rollback_tag }}"
+            if [ -n "$PROD_BUCKET" ] && [ "$PROD_BUCKET" != "None" ] && aws s3 ls "s3://${PROD_BUCKET}/releases/${TAG}/SHA256SUMS.txt" >/dev/null 2>&1; then
+              echo "📦 Downloading archived immutable PROD bundle for ${TAG}..."
+              aws s3 sync "s3://${PROD_BUCKET}/releases/${TAG}/" dist-bundle/
+              FOUND=true
+            fi
+          else
+            DEV_BUCKET=$(aws s3api list-buckets --query "Buckets[?starts_with(Name, 'cricscoredev-match-backups-')].Name | [0]" --output text)
+            SHORT_SHA="${{ steps.resolve.outputs.short_sha }}"
+            if [ -n "$DEV_BUCKET" ] && [ "$DEV_BUCKET" != "None" ] && aws s3 ls "s3://${DEV_BUCKET}/builds/${SHORT_SHA}/SHA256SUMS.txt" >/dev/null 2>&1; then
+              echo "📦 Downloading verified immutable DEV bundle for ${SHORT_SHA}..."
+              aws s3 sync "s3://${DEV_BUCKET}/builds/${SHORT_SHA}/" dist-bundle/
+              FOUND=true
+            fi
+          fi
+
+          if [ "$FOUND" = "true" ]; then
+            (cd dist-bundle && sha256sum -c SHA256SUMS.txt)
+            mkdir -p apps/frontend/dist
+            tar -xzf dist-bundle/frontend.tar.gz -C apps/frontend/dist
+            rm -rf apps/backend/lambdas
+            tar -xzf dist-bundle/lambdas.tar.gz -C apps/backend
+            echo "✅ Immutable bundle verified and extracted (zero rebuild)."
+            echo "used_bundle=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "⚠️ No pre-built S3 bundle found for this ref (e.g. legacy tag); falling back to source build."
+            echo "used_bundle=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fallback Source Build (Only if Pre-Built Bundle Unavailable)
+        if: steps.bundle.outputs.used_bundle != 'true'
         run: |
           set -e
           for d in apps/backend/lambdas/*; do
@@ -92,23 +173,39 @@ jobs:
             fi
           done
           wait
+          (cd apps/frontend && npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts && npm run build)
+          mkdir -p dist-bundle
+          tar -czf dist-bundle/frontend.tar.gz -C apps/frontend/dist .
+          tar -czf dist-bundle/lambdas.tar.gz -C apps/backend lambdas
+          (cd dist-bundle && sha256sum frontend.tar.gz lambdas.tar.gz > SHA256SUMS.txt)
+
+      - name: Upload Active Bundle Artifact for Release Archival
+        if: steps.resolve.outputs.is_rollback != 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: prod-verified-bundle-${{ steps.resolve.outputs.short_sha }}
+          path: dist-bundle/
+          retention-days: 7
+
+      - name: Run Database Migrations (PROD)
+        if: steps.resolve.outputs.is_rollback != 'true'
+        run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-client
+          cd infra/database
+          chmod +x migrate.sh
+          ./migrate.sh "${{ secrets.TF_DATABASE_URL }}" "prod"
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: "~1.10"
 
-      - name: Terraform Init
+      - name: Terraform Init & Apply (PROD)
         working-directory: infra/terraform
-        run: terraform init -upgrade -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=cricscore/prod/terraform.tfstate"
-
-      - name: Terraform Plan
-        working-directory: infra/terraform
-        run: terraform plan -var-file="environments/prod.tfvars" -var="domain_name=$TF_VAR_domain_name" -var="zone_domain=$TF_VAR_zone_domain" -var="subdomain_prefix=$TF_VAR_subdomain_prefix" -var="project_name=$TF_VAR_project_name" -out=tfplan
-
-      - name: Terraform Apply
-        working-directory: infra/terraform
-        run: terraform apply -auto-approve tfplan
+        run: |
+          terraform init -upgrade -backend-config="bucket=${TF_STATE_BUCKET}" -backend-config="key=cricscore/prod/terraform.tfstate"
+          terraform plan -var-file="environments/prod.tfvars" -var="domain_name=$TF_VAR_domain_name" -var="zone_domain=$TF_VAR_zone_domain" -var="subdomain_prefix=$TF_VAR_subdomain_prefix" -var="project_name=$TF_VAR_project_name" -out=tfplan
+          terraform apply -auto-approve tfplan
 
       - name: Enforce 7-Day Retention on Lambda Log Groups
         run: |
@@ -116,52 +213,74 @@ jobs:
             aws logs put-retention-policy --region "${AWS_REGION:-us-east-1}" --log-group-name "$lg" --retention-in-days 7 2>/dev/null || true
           done
 
-      - name: Export Terraform Outputs
+      - name: Inject Runtime /env-config.js & Sync Immutable Frontend to S3 (PROD)
         working-directory: infra/terraform
         run: |
-          echo "COGNITO_USER_POOL_ID=$(terraform output -raw cognito_user_pool_id)" >> $GITHUB_ENV
-          echo "COGNITO_CLIENT_ID=$(terraform output -raw cognito_client_id)" >> $GITHUB_ENV
-          echo "COGNITO_DOMAIN=$(terraform output -raw cognito_domain)" >> $GITHUB_ENV
-          echo "S3_BUCKET=$(terraform output -raw s3_bucket_name)" >> $GITHUB_ENV
-          echo "CLOUDFRONT_DISTRIBUTION_ID=$(terraform output -raw cloudfront_distribution_id)" >> $GITHUB_ENV
+          set -e
+          COGNITO_USER_POOL_ID=$(terraform output -raw cognito_user_pool_id)
+          COGNITO_CLIENT_ID=$(terraform output -raw cognito_client_id)
+          COGNITO_DOMAIN=$(terraform output -raw cognito_domain)
+          S3_BUCKET=$(terraform output -raw s3_bucket_name)
+          CLOUDFRONT_DISTRIBUTION_ID=$(terraform output -raw cloudfront_distribution_id)
 
-      # --- FRONTEND DEPLOYMENT ---
-      - name: Install Frontend dependencies
-        working-directory: apps/frontend
-        run: npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
+          cat <<EOF > ../../apps/frontend/dist/env-config.js
+          window.__CRICSCORE_CONFIG__ = {
+            VITE_API_URL: "https://api.${{ vars.DOMAIN_NAME }}",
+            VITE_WS_URL: "wss://ws.${{ vars.DOMAIN_NAME }}",
+            VITE_APP_TITLE: "CricScore",
+            VITE_COGNITO_REGION: "${AWS_REGION}",
+            VITE_COGNITO_USER_POOL_ID: "${COGNITO_USER_POOL_ID}",
+            VITE_COGNITO_CLIENT_ID: "${COGNITO_CLIENT_ID}",
+            VITE_COGNITO_DOMAIN: "${COGNITO_DOMAIN}"
+          };
+          EOF
 
-      - name: Build production bundle
-        working-directory: apps/frontend
-        env:
-          VITE_APP_TITLE: CricScore
-          VITE_API_URL: https://api.${{ vars.DOMAIN_NAME }}
-          VITE_WS_URL: wss://ws.${{ vars.DOMAIN_NAME }}
-          VITE_COGNITO_REGION: ${{ env.AWS_REGION }}
-        run: |
-          export VITE_COGNITO_USER_POOL_ID="$COGNITO_USER_POOL_ID"
-          export VITE_COGNITO_CLIENT_ID="$COGNITO_CLIENT_ID"
-          export VITE_COGNITO_DOMAIN="$COGNITO_DOMAIN"
-          npm run build
-
-      - name: Upload build to S3
-        run: |
-          aws s3 sync apps/frontend/dist/ "s3://${S3_BUCKET}/" --delete --cache-control "public,max-age=31536000,immutable" --exclude "index.html"
-          aws s3 cp apps/frontend/dist/index.html "s3://${S3_BUCKET}/index.html" --cache-control "no-cache,no-store,must-revalidate" --content-type "text/html"
-
-      - name: Invalidate CloudFront cache
-        run: |
+          aws s3 sync ../../apps/frontend/dist/ "s3://${S3_BUCKET}/" --delete \
+            --cache-control "public,max-age=31536000,immutable" \
+            --exclude "index.html" --exclude "env-config.js"
+          aws s3 cp ../../apps/frontend/dist/index.html "s3://${S3_BUCKET}/index.html" \
+            --cache-control "no-cache,no-store,must-revalidate" --content-type "text/html"
+          aws s3 cp ../../apps/frontend/dist/env-config.js "s3://${S3_BUCKET}/env-config.js" \
+            --cache-control "no-cache,no-store,must-revalidate" --content-type "application/javascript"
           aws cloudfront create-invalidation --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" --paths "/*"
 
-      - name: Run AI chat evaluation against deployed API
-        env:
-          CHAT_API_URL: https://api.${{ vars.DOMAIN_NAME }}
-        run: |
-          npm run test:ai -- --url "$CHAT_API_URL" --limit 4
+  # ------------------------------------------------------------------
+  # 2. Parallel PROD Verification (No extra approval prompts)
+  # ------------------------------------------------------------------
+  verify_prod_e2e:
+    name: Verify PROD (AI Eval & Playwright E2E)
+    needs: [deploy_prod]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.deploy_prod.outputs.target_sha }}
 
-      # --- E2E TESTS ---
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN || secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: apps/e2e/package-lock.json
+
+      - name: Run AI chat evaluation against PROD API
+        env:
+          CHAT_API_URL: https://api.${{ needs.deploy_prod.outputs.prod_domain }}
+        run: npm run test:ai -- --url "$CHAT_API_URL" --limit 4
+
       - name: Install E2E dependencies
         working-directory: ./apps/e2e
-        run: npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
+        run: npm ci --legacy-peer-deps --no-audit --no-fund --ignore-scripts || npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
 
       - name: Cache Playwright Browsers
         uses: actions/cache@v6
@@ -175,11 +294,11 @@ jobs:
         working-directory: ./apps/e2e
         run: npx playwright install --with-deps
 
-      - name: Run Playwright tests against PROD
+      - name: Run Playwright E2E against PROD
         working-directory: ./apps/e2e
         env:
-          BASE_URL: https://${{ vars.DOMAIN_NAME }}
-          API_URL: https://api.${{ vars.DOMAIN_NAME }}
+          BASE_URL: https://${{ needs.deploy_prod.outputs.prod_domain }}
+          API_URL: https://api.${{ needs.deploy_prod.outputs.prod_domain }}
         run: npx playwright test
 
       - name: Upload Playwright Report (GitHub Artifact)
@@ -189,35 +308,48 @@ jobs:
           name: playwright-report-prod
           path: apps/e2e/playwright-report/
 
-      - name: Sync Playwright Report to AWS S3 (Prod)
+      - name: Sync Playwright Report to S3 (PROD)
         if: always()
         run: |
           if [ -d "apps/e2e/playwright-report" ]; then
             BUCKET=$(aws s3api list-buckets --query "Buckets[?starts_with(Name, 'cricscore-match-backups-')].Name | [0]" --output text)
             if [ -n "$BUCKET" ] && [ "$BUCKET" != "None" ]; then
-              TAG_NAME="${{ github.ref_name || github.sha }}"
-              echo "📦 Uploading prod Playwright report to s3://${BUCKET}/reports/playwright/releases/${TAG_NAME}/..."
-              aws s3 sync apps/e2e/playwright-report/ "s3://${BUCKET}/reports/playwright/releases/${TAG_NAME}/" --delete
-              echo "📦 Updating prod latest Playwright report at s3://${BUCKET}/reports/playwright/latest/..."
+              REF="${{ needs.deploy_prod.outputs.short_sha }}"
+              aws s3 sync apps/e2e/playwright-report/ "s3://${BUCKET}/reports/playwright/releases/${REF}/" --delete
               aws s3 sync apps/e2e/playwright-report/ "s3://${BUCKET}/reports/playwright/latest/" --delete
-              echo "✅ Prod Playwright report successfully synced to S3."
-            else
-              echo "⚠️ Could not locate cricscore-match-backups bucket in AWS account."
             fi
           fi
 
-      # --- DAST SCAN ---
+  verify_prod_security:
+    name: Verify PROD (OWASP ZAP & Syft SBOM)
+    needs: [deploy_prod]
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.deploy_prod.outputs.target_sha }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN || secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
       - name: Fix workspace permissions for ZAP Docker
         run: chmod -R 777 ${{ github.workspace }}
 
       - name: Run OWASP ZAP Baseline Scan against PROD
         uses: zaproxy/action-baseline@v0.15.0
         with:
-          target: "https://${{ vars.DOMAIN_NAME }}"
+          target: "https://${{ needs.deploy_prod.outputs.prod_domain }}"
           rules_file_name: ".zap/rules.tsv"
           fail_action: false
 
-      # --- PROD POST-DEPLOY SBOM GENERATION & S3 SYNC ---
       - name: Generate Prod Release SBOM with Syft
         uses: anchore/sbom-action@v0
         with:
@@ -226,27 +358,102 @@ jobs:
           output-file: cricscore-sbom-prod.spdx.json
           upload-release-assets: false
 
-      - name: Sync Prod Release SBOM to S3 & GitHub Release
+      - name: Upload Prod SBOM Artifact for Final Release
+        uses: actions/upload-artifact@v7
+        with:
+          name: prod-sbom-${{ needs.deploy_prod.outputs.short_sha }}
+          path: cricscore-sbom-prod.spdx.json
+          retention-days: 7
+
+      - name: Sync Prod Latest SBOM to S3
+        run: |
+          BUCKET=$(aws s3api list-buckets --query "Buckets[?starts_with(Name, 'cricscore-match-backups-')].Name | [0]" --output text)
+          if [ -n "$BUCKET" ] && [ "$BUCKET" != "None" ]; then
+            aws s3 cp cricscore-sbom-prod.spdx.json "s3://${BUCKET}/sboms/prod/latest.spdx.json" --content-type "application/json"
+          fi
+
+  # ------------------------------------------------------------------
+  # 3. Finalize Release Tag (vX.Y.Z) & Archive for Tag-Based Rollback
+  #    Runs ONLY AFTER PROD deploy + verification succeed!
+  # ------------------------------------------------------------------
+  finalize_release:
+    name: Publish SemVer Release & Archive for Rollback
+    needs: [deploy_prod, verify_prod_e2e, verify_prod_security]
+    if: needs.deploy_prod.outputs.is_rollback != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: main
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Reset to exact PROD-verified commit
+        run: git reset --hard ${{ needs.deploy_prod.outputs.target_sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+
+      - name: Cut Semantic Release (vX.Y.Z Tag, Changelog & GitHub Release)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          npm install -g semantic-release @semantic-release/git @semantic-release/changelog conventional-changelog-conventionalcommits
+          npx semantic-release
+
+      - name: Enrich GitHub Release Notes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: ./infra/scripts/enrich_release_notes.sh
+
+      - name: Download Verified Bundle & SBOM
+        uses: actions/download-artifact@v7
+        with:
+          name: prod-verified-bundle-${{ needs.deploy_prod.outputs.short_sha }}
+          path: dist-bundle
+
+      - name: Download Prod SBOM
+        uses: actions/download-artifact@v7
+        with:
+          name: prod-sbom-${{ needs.deploy_prod.outputs.short_sha }}
+          path: dist-bundle
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN || secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Archive Immutable Release Bundle to S3 & Attach Release Assets
         env:
           GH_TOKEN: ${{ secrets.GH_PAT || github.token }}
         run: |
+          set -e
+          LATEST_TAG=$(gh release view -R "${GITHUB_REPOSITORY}" --json tagName -q .tagName 2>/dev/null || echo "")
+          if [ -z "$LATEST_TAG" ]; then
+            echo "ℹ️ No new SemVer release was cut for this commit (e.g. docs/chore-only commit)."
+            exit 0
+          fi
+
+          echo "🏷️ Finalizing PROD release assets & rollback archive for ${LATEST_TAG}..."
           BUCKET=$(aws s3api list-buckets --query "Buckets[?starts_with(Name, 'cricscore-match-backups-')].Name | [0]" --output text)
-          TAG_NAME="${{ github.event.release.tag_name || github.ref_name || github.sha }}"
           if [ -n "$BUCKET" ] && [ "$BUCKET" != "None" ]; then
-            echo "📦 Uploading Prod Release SBOM to s3://${BUCKET}/sboms/releases/${TAG_NAME}.spdx.json..."
-            aws s3 cp cricscore-sbom-prod.spdx.json "s3://${BUCKET}/sboms/releases/${TAG_NAME}.spdx.json" --content-type "application/json"
-            echo "📦 Updating prod latest SBOM at s3://${BUCKET}/sboms/prod/latest.spdx.json..."
-            aws s3 cp cricscore-sbom-prod.spdx.json "s3://${BUCKET}/sboms/prod/latest.spdx.json" --content-type "application/json"
-            echo "✅ Prod Release post-deploy SBOM synced to S3."
+            aws s3 sync dist-bundle/ "s3://${BUCKET}/releases/${LATEST_TAG}/" --delete
+            aws s3 cp dist-bundle/cricscore-sbom-prod.spdx.json "s3://${BUCKET}/sboms/releases/${LATEST_TAG}.spdx.json" --content-type "application/json"
+            echo "✅ Archived immutable release bundle to s3://${BUCKET}/releases/${LATEST_TAG}/"
           fi
 
-          if [ -n "${{ github.event.release.tag_name }}" ]; then
-            RELEASE_TAG="${{ github.event.release.tag_name }}"
-          elif [ "${{ github.ref_type }}" = "tag" ]; then
-            RELEASE_TAG="${{ github.ref_name }}"
-          fi
-
-          if [ -n "$RELEASE_TAG" ]; then
-            echo "Attaching SBOM to GitHub release $RELEASE_TAG..."
-            gh release upload "$RELEASE_TAG" cricscore-sbom-prod.spdx.json --clobber || echo "ℹ️ Release $RELEASE_TAG upload skipped."
-          fi
+          gh release upload "$LATEST_TAG" \
+            dist-bundle/cricscore-sbom-prod.spdx.json \
+            dist-bundle/SHA256SUMS.txt \
+            --clobber
+          echo "✅ Attached SBOM and SHA256SUMS.txt to GitHub Release ${LATEST_TAG}."

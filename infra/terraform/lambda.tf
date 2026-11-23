@@ -212,6 +212,10 @@ module "chat_api" {
     OPENAI_API_KEY       = var.openai_api_key != "" ? var.openai_api_key : var.llm_api_key
     LLM_BASE_URL         = var.llm_base_url
     LLM_MODEL            = var.llm_model
+    EMBEDDING_API_KEY    = var.embedding_api_key
+    EMBEDDING_BASE_URL   = var.embedding_base_url
+    EMBEDDING_MODEL      = var.embedding_model
+    EMBEDDING_DIMENSIONS = tostring(var.embedding_dimensions)
     COGNITO_USER_POOL_ID = aws_cognito_user_pool.pool.id
     ADMIN_REPORT_EMAIL   = var.admin_email
     FRONTEND_URL         = "https://${var.domain_name}"

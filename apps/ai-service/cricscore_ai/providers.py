@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import urllib.request
+from urllib.parse import urlparse
 from typing import Any, Protocol
 
 
@@ -79,16 +80,30 @@ class OpenAICompatLLM(_OpenAICompat):
 class OpenAICompatEmbedder(_OpenAICompat):
     def __init__(self, timeout: float = 10.0):
         super().__init__()
-        self.model = os.environ.get("EMBEDDING_MODEL") or "text-embedding-3-small"
+        self.embed_key = os.environ.get("EMBEDDING_API_KEY") or self.key
+        self.embed_base = (os.environ.get("EMBEDDING_BASE_URL") or self.base).rstrip("/")
+        embed_host = (urlparse(self.embed_base).hostname or "").lower()
+        default_model = (
+            "gemini-embedding-001"
+            if embed_host == "generativelanguage.googleapis.com"
+            else "text-embedding-3-small"
+        )
+        self.model = os.environ.get("EMBEDDING_MODEL") or default_model
+        self.dimensions = int(os.environ.get("EMBEDDING_DIMENSIONS") or "1536")
         self.timeout = timeout
 
     def embed(self, text):
-        data = _post(f"{self.base}/embeddings", self.key, {"model": self.model, "input": text}, self.timeout)
+        data = _post(
+            f"{self.embed_base}/embeddings",
+            self.embed_key,
+            {"model": self.model, "input": text, "dimensions": self.dimensions},
+            self.timeout,
+        )
         try:
             vec = data["data"][0]["embedding"]
         except (KeyError, IndexError, TypeError) as exc:
             raise ProviderError("malformed embedding response") from exc
-        if len(vec) != 1536:
+        if len(vec) != self.dimensions:
             raise ProviderError("unexpected embedding dimension")
         return vec
 

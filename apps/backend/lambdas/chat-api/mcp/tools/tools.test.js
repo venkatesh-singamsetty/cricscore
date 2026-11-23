@@ -170,7 +170,7 @@ describe("MCP Tool: search_tournament_rules", () => {
     expect(result.content[0].text).toContain("Error searching rules");
   });
 
-  it("passes correct embedding model to OpenRouter API", async () => {
+  it("passes configured embedding model and dimensions to the embeddings API", async () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => ({ data: [{ embedding: mockEmbedding }] }),
@@ -182,5 +182,6 @@ describe("MCP Tool: search_tournament_rules", () => {
     await searchRulesTool({ query: "rules" });
     const fetchBody = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(fetchBody.model).toMatch(/text-embedding-3-small/);
+    expect(fetchBody.dimensions).toBe(1536);
   });
 });

@@ -83,8 +83,33 @@ variable "openai_api_key" {
 
 variable "llm_model" {
   type        = string
-  description = "The LLM Model name (e.g. gpt-4o-mini)"
+  description = "The LLM Model name (e.g. gpt-4o-mini or gemini-2.5-flash)"
   default     = "gpt-4o-mini"
+}
+
+variable "embedding_api_key" {
+  type        = string
+  description = "Optional separate API key for embeddings (defaults to llm_api_key when empty)"
+  default     = ""
+  sensitive   = true
+}
+
+variable "embedding_base_url" {
+  type        = string
+  description = "Optional separate OpenAI-compatible base URL for embeddings (defaults to llm_base_url when empty)"
+  default     = ""
+}
+
+variable "embedding_model" {
+  type        = string
+  description = "Embedding model name (e.g. text-embedding-3-small or gemini-embedding-001)"
+  default     = "text-embedding-3-small"
+}
+
+variable "embedding_dimensions" {
+  type        = number
+  description = "Vector embedding dimensions matching tournament_rules.embedding (default 1536)"
+  default     = 1536
 }
 
 

@@ -46,11 +46,10 @@ Direct pushes to `main` are blocked by branch protection. Always use a feature b
 
 ```mermaid
 flowchart TD
-    A["1. git checkout -b feat/..."] --> B["2. ./infra/scripts/validate_local.sh --skip-e2e"]
-    B --> C["3. ./infra/scripts/deploy.sh --env dev --use-local-env"]
-    C --> D["4. git push -u origin HEAD"]
-    D --> E["5. gh pr create & CI Status Checks"]
-    E --> F["6. Squash & Merge to main -> Auto Prod Release"]
+    A["1. ./infra/scripts/start_feature_branch.sh feat/..."] --> B["2. ./infra/scripts/deploy.sh --env dev --use-local-env"]
+    B --> C["3. git push -u origin HEAD (Fast Changed-Files Hook)"]
+    C --> D["4. gh pr create & Path-Filtered CI Checks"]
+    D --> E["5. Merge to main -> Build Once -> DEV -> Manual PROD Approval -> v* Tag"]
 ```
 
 ```bash

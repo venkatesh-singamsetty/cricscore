@@ -1,11 +1,9 @@
-name: Semantic Release
+name: Semantic Release (Manual Override)
 
+# Normal releases are cut automatically by CD (cd.yml -> finalize_release)
+# ONLY AFTER production deployment and post-deploy verification pass.
+# Keep this workflow for manual release recovery via workflow_dispatch.
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types:
-      - completed
-    branches: [main]
   workflow_dispatch:
 
 env:
@@ -13,13 +11,12 @@ env:
 
 jobs:
   release:
-    name: Release
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    name: Manual Semantic Release
     runs-on: ubuntu-latest
     permissions:
-      contents: write # to be able to publish a GitHub release
-      issues: write # to be able to comment on released issues
-      pull-requests: write # to be able to comment on released pull requests
+      contents: write
+      issues: write
+      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -27,14 +24,11 @@ jobs:
           fetch-depth: 0
           ref: main
           token: ${{ secrets.GH_PAT }}
-          
-      - name: Reset to exact tested commit
-        run: git reset --hard ${{ github.event.workflow_run.head_sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "24"
 
       - name: Semantic Release
         run: |
