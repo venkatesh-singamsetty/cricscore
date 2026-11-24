@@ -1,3 +1,9 @@
+## [4.27.1](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.27.0...v4.27.1) (2026-11-24)
+
+### 🐛 Bug Fixes
+
+* **ci:** key Playwright browser cache by installed version in keepalive, CI, and CD ([#377](https://github.com/venkatesh-singamsetty/cricscore/issues/377)) ([96d8fcc]())
+
 ## [4.27.0](https://github.com/venkatesh-singamsetty/cricscore/compare/v4.26.0...v4.27.0) (2026-11-23)
 
 ### 🚀 Features
