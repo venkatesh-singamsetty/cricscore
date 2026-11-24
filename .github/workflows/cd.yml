@@ -282,12 +282,17 @@ jobs:
         working-directory: ./apps/e2e
         run: npm install --legacy-peer-deps --no-audit --no-fund --ignore-scripts
 
+      - name: Resolve Installed Playwright Version
+        id: playwright-version
+        working-directory: ./apps/e2e
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
       - name: Cache Playwright Browsers
         uses: actions/cache@v6
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+          key: ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}
 
       - name: Install Playwright Browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
